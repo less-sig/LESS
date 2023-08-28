@@ -35,7 +35,7 @@
 #define POSITION_T uint8_t
 #define SEED_TREE_LABEL_T uint8_t
 
-#if defined(PK_SIZE)
+#if defined(BALANCED)
 #define   N (252)
 #define   K (126)
 #define   Q (127)
@@ -44,7 +44,7 @@
 #define   W ( 30)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (2112)
 
-#elif defined(BALANCED)
+#elif defined(INTERMEDIATE)
 #define   N (252)
 #define   K (126)
 #define   Q (127)
@@ -53,7 +53,7 @@
 #define   W ( 20)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
 
-#elif defined(SIG_SIZE)
+#elif defined(SHORT_SIG)
 #define   N (252)
 #define   K (126)
 #define   Q (127)
@@ -70,7 +70,7 @@
 #elif defined(CATEGORY_3)
 #define SEED_LENGTH_BYTES (24)
 
-#if defined(PK_SIZE)
+#if defined(BALANCED)
 #define   N (400)
 #define   K (200)
 #define   Q (127)
@@ -83,7 +83,7 @@
 #define FQ_TRIPLEPREC uint16_t
 #define POSITION_T uint16_t
 
-#elif defined(SIG_SIZE)
+#elif defined(SHORT_SIG)
 #define   N (400)
 #define   K (200)
 #define   Q (127)
@@ -103,7 +103,7 @@
 #elif defined(CATEGORY_5)
 #define SEED_LENGTH_BYTES (32)
 
-#if defined(PK_SIZE)
+#if defined(BALANCED)
 #define   N (548)
 #define   K (274)
 #define   Q (127)
@@ -116,7 +116,7 @@
 #define FQ_TRIPLEPREC uint32_t
 #define POSITION_T uint16_t
 
-#elif defined(SIG_SIZE)
+#elif defined(SHORT_SIG)
 #define   N (548)
 #define   K (274)
 #define   Q (127)

@@ -104,7 +104,7 @@ static void compute_seeds_to_publish(
 
 /*****************************************************************************/
 
-int publish_seeds(const unsigned char
+int seed_tree_path(const unsigned char
                   seed_tree[NUM_NODES_OF_SEED_TREE*SEED_LENGTH_BYTES],
                   // INPUT: binary array storing in each cell a binary value (i.e., 0 or 1),
                   //        which in turn denotes if the seed of the node with the same index
@@ -132,11 +132,11 @@ int publish_seeds(const unsigned char
       }
    }
    return num_seeds_published;
-} /* end publish_seeds */
+} /* end seed_tree_path */
 
 /*****************************************************************************/
 
-int regenerate_leaves(unsigned char
+int rebuild_seed_tree_leaves(unsigned char
                       seed_tree[NUM_NODES_OF_SEED_TREE*SEED_LENGTH_BYTES],
                       const unsigned char indices_to_publish[T],
                       const unsigned char *stored_seeds,
@@ -182,4 +182,4 @@ int regenerate_leaves(unsigned char
       }
    }
    return nodes_used;
-} /* end regenerate_leaves */
+} /* end rebuild_seed_tree_leaves */

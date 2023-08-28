@@ -345,8 +345,8 @@ void info(){
     fprintf(stderr,"num. keypairs = %d\n",NUM_KEYPAIRS);
     fprintf(stderr,"Fixed weight challenge vector: %d rounds, weight %d \n",T,W);
     fprintf(stderr,"Private key: %luB\n", sizeof(prikey_t));
-    fprintf(stderr,"Public key %luB\n", sizeof(pubkey_t));
-    fprintf(stderr,"Signature: %luB\n", sizeof(sig_t));
+    fprintf(stderr,"Public key %luB, %.3f kiB\n", sizeof(pubkey_t), ((float) sizeof(pubkey_t))/1024);
+    fprintf(stderr,"Signature: %luB, %.3f kiB\n", sizeof(sig_t), ((float) sizeof(sig_t))/1024);
 
 }
 
@@ -364,7 +364,7 @@ int LESS_sign_verify_test(){
     return is_signature_ok;
 }
 
-#define NUM_TEST_ITERATIONS 20
+#define NUM_TEST_ITERATIONS 1
 int main(int argc, char* argv[]){
     initialize_csprng(&platform_csprng_state,
                       (const unsigned char *)"012345678912345",

@@ -126,9 +126,9 @@ endif()
 
 foreach(category RANGE 1 5 2)
   if(category EQUAL 1)
-  set(PARAM_TARGETS SIG_SIZE BALANCED PK_SIZE)
+  set(PARAM_TARGETS SHORT_SIG INTERMEDIATE BALANCED)
   else()
-  set(PARAM_TARGETS SIG_SIZE PK_SIZE)
+  set(PARAM_TARGETS SHORT_SIG BALANCED)
   endif()
   foreach(optimiz_target ${PARAM_TARGETS})
     # settings for benchmarking binary

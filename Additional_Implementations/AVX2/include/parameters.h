@@ -42,19 +42,19 @@
 #define   K_pad (128)
 #define   N_K_pad (128)
 
-#if defined(PK_SIZE)
+#if defined(BALANCED)
 #define NUM_KEYPAIRS (  2)
 #define   T (247)
 #define   W ( 30)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (2112)
 
-#elif defined(BALANCED)
+#elif defined(INTERMEDIATE)
 #define NUM_KEYPAIRS (  4)
 #define   T (244)
 #define   W ( 20)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
 
-#elif defined(SIG_SIZE)
+#elif defined(SHORT_SIG)
 #define NUM_KEYPAIRS (  8)
 #define   T (198)
 #define   W ( 17)
@@ -74,7 +74,7 @@
 #define   K_pad (224)
 #define   N_K_pad (224)
 
-#if defined(PK_SIZE)
+#if defined(BALANCED)
 #define NUM_KEYPAIRS (  2)
 #define   T (759)
 #define   W ( 33)
@@ -84,7 +84,7 @@
 #define FQ_TRIPLEPREC uint16_t
 #define POSITION_T uint16_t
 
-#elif defined(SIG_SIZE)
+#elif defined(SHORT_SIG)
 #define NUM_KEYPAIRS (  3)
 #define   T (895)
 #define   W ( 26)
@@ -107,7 +107,7 @@
 #define   K_pad (288)
 #define   N_K_pad (288)
 
-#if defined(PK_SIZE)
+#if defined(BALANCED)
 #define NUM_KEYPAIRS (  2)
 #define   T (1352)
 #define   W ( 40)
@@ -117,7 +117,7 @@
 #define FQ_TRIPLEPREC uint32_t
 #define POSITION_T uint16_t
 
-#elif defined(SIG_SIZE)
+#elif defined(SHORT_SIG)
 #define NUM_KEYPAIRS (  3)
 #define   T (907)
 #define   W ( 37)

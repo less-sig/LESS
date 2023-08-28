@@ -26,6 +26,8 @@
 #pragma once
 #include <stdint.h>
 
+/* Seed tree max size is computed according to Parameter Generation Script in Utilities folder */
+
 /********************************* Category 1 *********************************/
 #if defined(CATEGORY_1)
 #define SEED_LENGTH_BYTES (16)
@@ -35,32 +37,32 @@
 #define POSITION_T uint8_t
 #define SEED_TREE_LABEL_T uint8_t
 
-#if defined(PK_SIZE)
+#if defined(BALANCED)
 #define   N (252)
 #define   K (126)
 #define   Q (127)
 #define NUM_KEYPAIRS (  2)
 #define   T (247)
 #define   W ( 30)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (2112)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
 
-#elif defined(BALANCED)
+#elif defined(INTERMEDIATE)
 #define   N (252)
 #define   K (126)
 #define   Q (127)
 #define NUM_KEYPAIRS (  4)
 #define   T (244)
 #define   W ( 20)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (1168)
 
-#elif defined(SIG_SIZE)
+#elif defined(SHORT_SIG)
 #define   N (252)
 #define   K (126)
 #define   Q (127)
 #define NUM_KEYPAIRS (  8)
 #define   T (198)
 #define   W ( 17)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1328)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (976)
 
 #else
 #error define optimization corner in parameters.h
@@ -70,27 +72,27 @@
 #elif defined(CATEGORY_3)
 #define SEED_LENGTH_BYTES (24)
 
-#if defined(PK_SIZE)
+#if defined(BALANCED)
 #define   N (400)
 #define   K (200)
 #define   Q (127)
 #define NUM_KEYPAIRS (  2)
 #define   T (759)
 #define   W ( 33)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (4704)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (3600)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
 #define FQ_TRIPLEPREC uint16_t
 #define POSITION_T uint16_t
 
-#elif defined(SIG_SIZE)
+#elif defined(SHORT_SIG)
 #define   N (400)
 #define   K (200)
 #define   Q (127)
 #define NUM_KEYPAIRS (  3)
 #define   T (895)
 #define   W ( 26)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (3888)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (3192)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
 #define FQ_TRIPLEPREC uint32_t
@@ -103,27 +105,27 @@
 #elif defined(CATEGORY_5)
 #define SEED_LENGTH_BYTES (32)
 
-#if defined(PK_SIZE)
+#if defined(BALANCED)
 #define   N (548)
 #define   K (274)
 #define   Q (127)
 #define NUM_KEYPAIRS (  2)
 #define   T (1352)
 #define   W ( 40)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (8448)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (6528)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
 #define FQ_TRIPLEPREC uint32_t
 #define POSITION_T uint16_t
 
-#elif defined(SIG_SIZE)
+#elif defined(SHORT_SIG)
 #define   N (548)
 #define   K (274)
 #define   Q (127)
 #define NUM_KEYPAIRS (  3)
 #define   T (907)
 #define   W ( 37)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (6784)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (5472)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
 #define FQ_TRIPLEPREC uint32_t

@@ -59,9 +59,9 @@ typedef struct {
 
 typedef struct {
    unsigned char tree_salt[HASH_DIGEST_LENGTH];
+   uint8_t digest[HASH_DIGEST_LENGTH];
    unsigned char seed_storage[SEED_TREE_MAX_PUBLISHED_BYTES];
    uint8_t monom_actions[W][MONO_ACTION_PACKEDBYTES];
-   uint8_t digest[HASH_DIGEST_LENGTH];
 } sig_t_t;
 #define sig_t sig_t_t
 #undef sig_t_t

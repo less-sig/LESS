@@ -153,7 +153,7 @@ void LESS_sign(const prikey_t *SK,
 
    int emitted_monoms=0;
    memset(&sig->seed_storage,0,SEED_TREE_MAX_PUBLISHED_BYTES);
-   publish_seeds(seed_tree,
+   seed_tree_path(seed_tree,
                  indices_to_publish,
                  (unsigned char *) &sig->seed_storage);
 
@@ -210,7 +210,7 @@ int LESS_verify(const pubkey_t *const PK,
    }
 
    unsigned char seed_tree[NUM_NODES_OF_SEED_TREE*SEED_LENGTH_BYTES] = {0};
-   regenerate_leaves(seed_tree,published_seed_indexes,
+   rebuild_seed_tree_leaves(seed_tree,published_seed_indexes,
                      (unsigned char *)&sig->seed_storage, sig->tree_salt);
 
    unsigned char *ephem_monomial_seeds = seed_tree +
