@@ -19,6 +19,8 @@ against an available libkeccak installation.
 
 • Optimized_Implementation
 
+• Additional_Implementations
+
 An AVX2 optimized implementation of the asymmetric signature LESS.
 The library is organized in the same fashion as the reference one.
 The implementation may either use libkeccak, if installed and available 
@@ -30,16 +32,16 @@ If the library is not compiled via the supplied Cmake flow, defining
 SHA_3_LIBKECCAK during compilation enables compilation of the codebase 
 against an available libkeccak installation.
 
-• Additional_Implementations
+• Utilities
 
 This directory provides Cmake based building facilites to generate
 executable files either performing a benchmark of LESS, or
-generating the Known Answer Test files in the KAT folder.
+generating the Known Answer Test files in the KAT folder, as well as a script used for parameter generation.
 
 To build the benchmarking binaries, we advise to build-off tree following this
 procedure:
 
-1 - Enter Additional_Implementations/Benchmarking
+1 - Enter Utilities/Benchmarking
 2 - create a "build" directory and enter it
 3 - type cmake ../ to generate the makefiles
 4 - type make to compile the codebase
@@ -55,7 +57,7 @@ The same compilation procedure enacted for the benchmarking binary will generate
 all the executable files needed to re-generate the Known Answer Tests files.
 Specifically,
 
-1 - Enter Additional_Implementations/KAT_Generation
+1 - Enter Utilities/KAT_Generation
 2 - create a "build" directory and enter it
 3 - type cmake ../ to generate the makefiles
 4 - type make to compile the codebase
@@ -81,30 +83,9 @@ A commodity script generating all KATs is provided: gen_all_kat.sh
 It can be run without parameters.
 KATs will be generated in the KAT directory
 
+• LESS-2023-xx-yy
 
-• KAT
-
-A set of responses to the Known Answer Tests, as obtained with the code present
-in Additional_Implementations/KAT_Generation.
-The SHA-2-512 digests of all the files are provided in the sha_2_512_sum_KAT_files
-file, and can be verified as:
-sha512sum -c sha_2_512_sum_KAT_files
-
-
-
-• Supporting_Documentation
-
-The PDF document describing the LESS cryptosystem in detail.
-
-• LICENSE.txt
-
-The file containing the public domain license condition for the portion of the
-codebase which was authored by the submitter and implementors.
-
-The code which was not directly authored by the submitters and implementors
-is the one relative to AES and SHA3: the included implementations were released
-by the respective authors under public domain, and the submitters and
-implementors hereby re-license the present copy under public domain.
+The PDF document(s) describing the LESS cryptosystem in detail, according to the latest releases.
 
 • README
 
