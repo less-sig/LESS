@@ -53,7 +53,7 @@
 #define NUM_KEYPAIRS (  4)
 #define   T (244)
 #define   W ( 20)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1168)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (1152)
 
 #elif defined(SHORT_SIG)
 #define   N (252)
@@ -62,7 +62,7 @@
 #define NUM_KEYPAIRS (  8)
 #define   T (198)
 #define   W ( 17)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (976)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (1056)
 
 #else
 #error define optimization corner in parameters.h
@@ -79,7 +79,7 @@
 #define NUM_KEYPAIRS (  2)
 #define   T (759)
 #define   W ( 33)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (3600)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (3912)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
 #define FQ_TRIPLEPREC uint16_t
@@ -92,7 +92,7 @@
 #define NUM_KEYPAIRS (  3)
 #define   T (895)
 #define   W ( 26)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (3192)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (3264)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
 #define FQ_TRIPLEPREC uint32_t
@@ -112,7 +112,7 @@
 #define NUM_KEYPAIRS (  2)
 #define   T (1352)
 #define   W ( 40)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (6528)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (7168)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
 #define FQ_TRIPLEPREC uint32_t
@@ -125,7 +125,7 @@
 #define NUM_KEYPAIRS (  3)
 #define   T (907)
 #define   W ( 37)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (5472)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (5600)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
 #define FQ_TRIPLEPREC uint32_t
