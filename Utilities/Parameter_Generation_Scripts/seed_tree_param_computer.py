@@ -2,10 +2,6 @@
 from math import log2, ceil
 from sys import argv,exit
 
-# This function computes the worst-case seed tree cost by operatively
-# determining the number of seeds to be sent assuming a t-long string of seeds
-# and omega elements not to be sent.
-
 def worst_case_seed_tree_cost(t,omega,sec_param):
     # If omega > t/2, every other leaf, and then more, must not be sent.
     # In the worst-case scenario, the seed-tree has the same cost as not using it
@@ -13,7 +9,7 @@ def worst_case_seed_tree_cost(t,omega,sec_param):
         print("Warning, the constant weight challenge string is too dense, no gain.")
         return omega*sec_param
     
-    return (sec_param/8)*ceil(omega*log2(t/omega))
+    return (sec_param/8)*(2**ceil(log2(omega))+omega*(ceil(log2(t))-ceil(log2(omega))-1))
 
 
 if __name__ == "__main__":
