@@ -19,6 +19,8 @@ against an available libkeccak installation.
 
 • Optimized_Implementation
 
+This is equal to the reference implementation.
+
 • Additional_Implementations
 
 An AVX2 optimized implementation of the asymmetric signature LESS.
