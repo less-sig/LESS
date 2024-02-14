@@ -12,6 +12,28 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+option(USE_SANITIZE "enable compiler memory sanitation" OFF)
+
+# default compilation picks reference codebase
+option(USE_REFERENCE "Use reference implementation" ON)
+
+# use AVX2 implementations.
+option(USE_AVX2 "Use the AVX2 Optimized Omplementation." OFF)
+option(USE_NEON "Use the NEON Optimized Omplementation." OFF)
+option(USE_M4 "Use the M4 Optimized Omplementation." OFF)
+
+if(USE_AVX2)
+  set(USE_REFERENCE OFF)
+endif()
+
+if(USE_NEON)
+  set(USE_REFERENCE OFF)
+endif()
+
+if(USE_M4)
+  set(USE_REFERENCE OFF)
+endif()
+
 include(CheckCCompilerFlag)
 unset(COMPILER_SUPPORTS_MARCH_NATIVE CACHE)
 check_c_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
@@ -19,10 +41,11 @@ check_c_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
 include(CheckIPOSupported)
 check_ipo_supported(RESULT lto_supported OUTPUT error)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wpedantic -pedantic -Wuninitialized -Wsign-conversion -Wno-strict-prototypes")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wpedantic -pedantic -Wuninitialized -Wsign-conversion -Wno-strict-prototypes -Wno-unused-function")
 
-set(SANITIZE "")
-# set(SANITIZE "-fsanitize=address -fsanitize=pointer-compare")
+if(USE_SANITZE)
+  set(SANITIZE "-fsanitize=address -fsanitize=pointer-compare")
+endif()
 
 string(TOUPPER "${CMAKE_BUILD_TYPE}" UPPER_CMAKE_BUILD_TYPE)
 if(UPPER_CMAKE_BUILD_TYPE MATCHES RELEASE)
@@ -35,13 +58,23 @@ if(UPPER_CMAKE_BUILD_TYPE MATCHES RELEASE)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
   endif()
 else() # Debug, RelWithDebInfo, etc
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize=pointer-compare")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=address")
   message(STATUS "Building in Debug mode!")
 endif()
 
-# TODO: NIST seems to mandate "ANSI C" for submissions.
-# GCC's "-ansi" flag is equivalent to -std=c00, but current code is at least C99
 set(CMAKE_C_STANDARD 99)
+
+
+# add needed optimization flags
+# this is generally not needed as `-march=native` is enough to hint the compiler 
+# that certain optimizations are available. But not so on nixos.
+if(USE_AVX2)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -mavx2")
+endif()
+
+if(USE_NEON)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flax-vector-conversions")
+endif()
 
 message(STATUS "Compilation flags:" ${CMAKE_C_FLAGS})
 
@@ -51,29 +84,32 @@ if(NOT KECCAK_LIB)
  set(STANDALONE_KECCAK 1)
 endif()
 
-# default compilation picks reference codebase
-option(USE_REFERENCE "Use reference implementation" ON)
-
-# use AVX2 implementations.
-option(USE_AVX2 "Use the AVX2 Optimized Omplementation." OFF)
-
-if(USE_AVX2)
-  set(USE_REFERENCE OFF)
-endif()
-
 
 # selection of specialized compilation units differing between ref and opt
-# implementations. Sample codes.c file being used as a placekeeper for now
+# implementations. 
 if(USE_REFERENCE)
   message(STATUS "Using the Reference Implementation")
   set(BASE_DIR ../../Reference_Implementation)
   set(USE_AVX2 OFF)
+  set(USE_NEON OFF)
+  set(USE_M4 OFF)
 elseif(USE_AVX2)
   message(STATUS "Using the AVX2 Implementation")
-  set(BASE_DIR ../../Additional_Implementations/AVX2)
+  set(BASE_DIR ../../Optimized_Implementation/avx2)
+  set(USE_NEON OFF)
+  set(USE_M4 OFF)
+elseif(USE_NEON)
+  message(STATUS "Using the NEON Implementation")
+  set(BASE_DIR ../../Optimized_Implementation/neon)
+  set(USE_AVX2 OFF)
+  set(USE_M4 OFF)
+elseif(USE_M4)
+  message(STATUS "Using the M4 Implementation")
+  set(BASE_DIR ../../Optimized_Implementation/m4)
+  set(USE_AVX2 OFF)
+  set(USE_NEON OFF)
 else()
-  message(STATUS "Using the Optimized Implementation")
-  set(BASE_DIR ../../Optimized_Implementation)
+  message( FATAL_ERROR "No implementation specified, aborting." )
 endif()
 
 set(HEADERS
@@ -113,8 +149,12 @@ set(SOURCES
 )
 
 if(USE_AVX2)
-	set(SOURCES ${SOURCES} ${BASE_DIR}/lib/avx2_table.c)
-	set(HEADERS ${HEADERS} ${BASE_DIR}/include/avx2_macro.h)
+	set(SOURCES ${SOURCES} ${BASE_DIR}/lib/KeccakP-1600-AVX2.s)
+	set(HEADERS ${HEADERS} ${BASE_DIR}/include/macro.h)
+endif()
+
+if(USE_NEON)
+	set(HEADERS ${HEADERS} ${BASE_DIR}/include/macro.h)
 endif()
 
 find_package(OpenSSL)

@@ -32,48 +32,29 @@
 #define POS_BITS BITS_TO_REPRESENT(N-1)
 #define POS_MASK (((POSITION_T) 1 << POS_BITS) - 1)
 
-/* FY shuffle on the permutation, sampling from the global TRNG state */
-static inline
-void yt_shuffle(POSITION_T permutation[N]) {
-   POSITION_T tmp;
-   uint64_t word;
-   int i = 0;
-   while(1) {
-      randombytes((unsigned char *) &word, sizeof(uint64_t));
-      for (int j = 0; j < ((sizeof(uint64_t)*8) / POS_BITS); j++) {
-         POSITION_T rnd = word & POS_MASK;
-         if (rnd < N) {
-            tmp = permutation[i];
-            permutation[i] = permutation[rnd];
-            permutation[rnd] = tmp;
-            i++;
-            if (i >= N) return;
-         }
-         word >>= POS_BITS;
-      }
-   }
-}
 
 /* FY shuffle on the permutation, sampling from the provided PRNG state shake_monomial_state */
 static inline
 void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state, POSITION_T permutation[N]) {
-   POSITION_T tmp;
-   uint64_t word;
-   int i = 0;
-   while(1) {
-      csprng_randombytes((unsigned char *) &word, sizeof(uint64_t), shake_monomial_state);
-      for (int j = 0; j < ((sizeof(uint64_t)*8) / POS_BITS); j++) {
-         POSITION_T rnd = word & POS_MASK;
-         if (rnd < N) {
-            tmp = permutation[i];
-            permutation[i] = permutation[rnd];
-            permutation[rnd] = tmp;
-            i++;
-            if (i >= N) return;
-         }
-         word >>= POS_BITS;
-      }
-   }
+    uint32_t rand_u32[N] = {0};
+    POSITION_T tmp;
+
+    csprng_randombytes((unsigned char *) &rand_u32, sizeof(uint32_t)*N, shake_monomial_state);
+    for (size_t i = 0; i < N - 1; ++i) {
+        rand_u32[i] = i + rand_u32[i] % (N - i);
+    }
+
+    for (size_t i = 0; i < N - 1; ++i) {
+        tmp = permutation[i];
+        permutation[i] = permutation[rand_u32[i]];
+        permutation[rand_u32[i]] = tmp;
+    }
+}
+
+/* FY shuffle on the permutation, sampling from the global TRNG state */
+static inline
+void yt_shuffle(POSITION_T permutation[N]) {
+    yt_shuffle_state(&platform_csprng_state, permutation);
 }
 
 /* expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
@@ -96,9 +77,10 @@ void monomial_mat_seed_expand_salt_rnd(monomial_t *res,
    
    initialize_csprng(&shake_monomial_state,shake_input_buffer,shake_buffer_len);
    fq_star_rnd_state_elements(&shake_monomial_state, res->coefficients, N);
-   for(int i = 0; i < N; i++) {
+   for(uint32_t i = 0; i < N; i++) {
       res->permutation[i] = i;
    }
+
    /* FY shuffle on the permutation */
    yt_shuffle_state(&shake_monomial_state, res->permutation);
 } /* end monomial_mat_seed_expand */
@@ -111,7 +93,7 @@ void monomial_mat_seed_expand_prikey(monomial_t *res,
    SHAKE_STATE_STRUCT shake_monomial_state = {0};
    initialize_csprng(&shake_monomial_state,seed,PRIVATE_KEY_SEED_LENGTH_BYTES);
    fq_star_rnd_state_elements(&shake_monomial_state, res->coefficients, N);
-   for(int i = 0; i < N; i++) {
+   for(uint32_t i = 0; i < N; i++) {
       res->permutation[i] = i;
    }
    /* FY shuffle on the permutation */
@@ -120,10 +102,9 @@ void monomial_mat_seed_expand_prikey(monomial_t *res,
 
 
 /* samples a random perm matrix */
-void monomial_mat_rnd(monomial_t *res)
-{
+void monomial_mat_rnd(monomial_t *res) {
    fq_star_rnd_elements(res->coefficients, N);
-   for(int i = 0; i < N; i++) {
+   for(uint32_t i = 0; i < N; i++) {
       res->permutation[i] = i;
    }
    /* FY shuffle on the permutation */
@@ -132,9 +113,8 @@ void monomial_mat_rnd(monomial_t *res)
 
 void monomial_mat_mul(monomial_t *res,
                       const monomial_t *const A,
-                      const monomial_t *const B)
-{
-   for(int i = 0; i < N; i++) {
+                      const monomial_t *const B) {
+   for(uint32_t i = 0; i < N; i++) {
       res->permutation[i] = B->permutation[A->permutation[i]];
       res->coefficients[i] = fq_red(
                                 (FQ_DOUBLEPREC) A->coefficients[i] *
@@ -142,11 +122,9 @@ void monomial_mat_mul(monomial_t *res,
    }
 } /* end monomial_mat_mul */
 
-
 void monomial_mat_inv(monomial_t *res,
-                      const monomial_t *const to_invert)
-{
-   for(int i = 0; i < N; i++) {
+                      const monomial_t *const to_invert) {
+   for(uint32_t i = 0; i < N; i++) {
       res->permutation[to_invert->permutation[i]] = i;
       res->coefficients[to_invert->permutation[i]] = fq_inv(
                to_invert->coefficients[i]);
@@ -154,17 +132,15 @@ void monomial_mat_inv(monomial_t *res,
 } /* end monomial_mat_inv */
 
 /* yields the identity matrix */
-void monomial_mat_id(monomial_t *res)
-{
-   for(int i = 0; i < N; i++) {
+void monomial_mat_id(monomial_t *res) {
+   for(uint32_t i = 0; i < N; i++) {
       res->permutation[i] = i;
       res->coefficients[i] = 1;
    }
 } /* end monomial_mat_id */
 
 /* pretty_print for monomial matrices */
-void monomial_mat_pretty_print(const monomial_t *const to_print)
-{
+void monomial_mat_pretty_print(const monomial_t *const to_print) {
    fprintf(stderr,"perm = [");
    for(int i = 0; i < N-1; i++) {
       fprintf(stderr,"%03u, ",to_print->permutation[i]);
@@ -195,20 +171,20 @@ void monomial_mat_print_exp_name(char *name,const monomial_t *to_print)
 {
    FQ_ELEM mu[N][N]= {{0}};
 
-   for(int i = 0; i < N; i++) {
+   for(uint32_t i = 0; i < N; i++) {
       mu[to_print->permutation[i]][i] = to_print->coefficients[i];
    }
 
    fprintf(stderr,"%s = Mon([",name);
-   for(int i = 0; i < N-1 ; i++ ) {
+   for(uint32_t i = 0; i < N-1 ; i++ ) {
       fprintf(stderr,"[");
-      for(int j = 0; j < N-1; j++) {
+      for(uint32_t j = 0; j < N-1; j++) {
          fprintf(stderr,"%u, ",mu[i][j]);
       }
       fprintf(stderr,"%u ],\n",mu[i][N-1]);
    }
    fprintf(stderr,"[");
-   for(int j = 0; j < N-1; j++) {
+   for(uint32_t j = 0; j < N-1; j++) {
       fprintf(stderr,"%u, ",mu[N-1][j]);
    }
    fprintf(stderr,"%u ] ])\n",mu[N-1][N-1]);

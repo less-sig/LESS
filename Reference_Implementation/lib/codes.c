@@ -45,21 +45,6 @@ void generator_monomial_mul(generator_mat_t *res,
 } /* end generator_monomial_mul */
 
 
-static inline
-void swap_cols_and_rescale_dest(generator_mat_t *M,
-                                POSITION_T dst_pos_in_M,
-                                FQ_ELEM src[K],
-                                FQ_ELEM scaling_factor)
-{
-   FQ_DOUBLEPREC tmp;
-   for(int i=0; i<K; i++) {
-      tmp  = src[i];
-      src[i] = M->values[i][dst_pos_in_M];
-      M->values[i][dst_pos_in_M] = fq_red( (FQ_DOUBLEPREC)tmp *
-                                           (FQ_DOUBLEPREC)scaling_factor );
-   }
-}  /* end swap_cols_and_rescale_dest */
-
 /* right-multiplies a generator by a monomial, input generator in compact form */
 void rref_generator_monomial_mul(generator_mat_t *res,
                                  const generator_mat_t *G,
@@ -89,7 +74,6 @@ void swap_rows(FQ_ELEM r[N],FQ_ELEM s[N])
 int generator_RREF(generator_mat_t *G,
                    uint8_t is_pivot_column[N])
 {
-
    for(int row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
       int pivot_row = row_to_reduce;
       /*start by searching the pivot in the col = row*/
@@ -186,7 +170,7 @@ static inline
 void column_swap(normalized_IS_t *V,
                  const POSITION_T col1,
                  const POSITION_T col2){
-   for(int i = 0; i<K;i++ ){
+   for(uint32_t i = 0; i<K;i++ ){
       POSITION_T tmp;
       tmp = V->values[i][col2];
       V->values[i][col2] = V->values[i][col1];
@@ -215,7 +199,7 @@ int Hoare_partition(normalized_IS_t *V,
                     const POSITION_T col_l,
                     const POSITION_T col_h){
     FQ_ELEM pivot_col[K] = {0};
-    for(int i = 0; i < K; i++){
+    for(uint32_t i = 0; i < K; i++){
        pivot_col[i] = V->values[i][col_l];
     }    
     POSITION_T i = col_l-1, j = col_h+1;
@@ -267,11 +251,11 @@ void prepare_digest_input(normalized_IS_t *V,
    ASSERT(rref_ok != 0);
 
    POSITION_T piv_idx = 0, non_piv_idx = K;
-   for(int col_idx = 0; col_idx < N; col_idx++) {
+   for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
 
       /* nomenclature matching algorithm in spec, extract(q_col) */
       POSITION_T row_idx = 0, val = 0;
-      for(int i = 0; i < N; i++) {
+      for(uint32_t i = 0; i < N; i++) {
          if ( Q_in->permutation[i] == col_idx) {
             row_idx = i;
             val = Q_in->coefficients[i];
@@ -302,18 +286,19 @@ void apply_action_to_G(generator_mat_t* res,
     /* sweep inorder Q_IS, pick cols from G, and note unpicked cols in support
      * array */
     uint8_t is_G_col_pivot[N] = {0};
-    for(int dst_col_idx = 0; dst_col_idx < K; dst_col_idx++){
+    for(uint32_t dst_col_idx = 0; dst_col_idx < K; dst_col_idx++){
         POSITION_T src_col_idx;
         src_col_idx = Q_IS->permutation[dst_col_idx];
-        for(int i = 0; i < K; i++){
+        for(uint32_t i = 0; i < K; i++){
             res->values[i][dst_col_idx] = fq_red( (FQ_DOUBLEPREC) G->values[i][src_col_idx] * Q_IS->coefficients[dst_col_idx]);
         }
         is_G_col_pivot[src_col_idx] = 1;
     }
-    int dst_col_idx = K;
-    for(int src_col_idx = 0; src_col_idx<N; src_col_idx++){
+
+    uint32_t dst_col_idx = K;
+    for(uint32_t src_col_idx = 0; src_col_idx<N; src_col_idx++){
         if (!is_G_col_pivot[src_col_idx]){
-            for(int i = 0; i < K; i++){
+            for(uint32_t i = 0; i < K; i++){
                 res->values[i][dst_col_idx] = G->values[i][src_col_idx];
             }            
             dst_col_idx++;
@@ -329,9 +314,9 @@ void generator_rref_compact(rref_generator_mat_t *compact,
                             const uint8_t is_pivot_column[N] )
 {
    int dst_col_idx = 0;
-   for (int src_col_idx = 0; src_col_idx < N; src_col_idx++) {
+   for (uint32_t src_col_idx = 0; src_col_idx < N; src_col_idx++) {
       if(!is_pivot_column[src_col_idx]) {
-         for (int row_idx = 0; row_idx < K; row_idx++) {
+         for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
             compact->values[row_idx][dst_col_idx] = full->values[row_idx][src_col_idx];
          }
          compact->column_pos[dst_col_idx] = src_col_idx;
@@ -340,136 +325,83 @@ void generator_rref_compact(rref_generator_mat_t *compact,
    }
 } /* end generator_rref_compact */
 
-/* Compresses a columns of an IS matrix */
-void compress_columns(uint8_t *compressed,
-                    const normalized_IS_t *const full)
-{
-    // Compress non-pivot columns row-by-row
-    int encode_state = 0;
-    int compress_idx = 0;
-    for (int row_idx = 0; row_idx < K; row_idx++) {
-        for (int col_idx = 0; col_idx < N-K; col_idx++) {
-            switch(encode_state) {
-            case 0:
-                compressed[compress_idx] = full->values[row_idx][col_idx];
-                break;
-            case 1:
-                compressed[compress_idx] = compressed[compress_idx] | (full->values[row_idx][col_idx] << 7);
-                compress_idx++;
-                compressed[compress_idx] = (full->values[row_idx][col_idx] >> 1);
-                break;
-            case 2:
-                compressed[compress_idx] = compressed[compress_idx] | (full->values[row_idx][col_idx] << 6);
-                compress_idx++;
-                compressed[compress_idx] = (full->values[row_idx][col_idx] >> 2);
-                break;
-            case 3:
-                compressed[compress_idx] = compressed[compress_idx] | (full->values[row_idx][col_idx] << 5);
-                compress_idx++;
-                compressed[compress_idx] = (full->values[row_idx][col_idx] >> 3);
-                break;
-            case 4:
-                compressed[compress_idx] = compressed[compress_idx] | (full->values[row_idx][col_idx] << 4);
-                compress_idx++;
-                compressed[compress_idx] = (full->values[row_idx][col_idx] >> 4);
-                break;
-            case 5:
-                compressed[compress_idx] = compressed[compress_idx] | (full->values[row_idx][col_idx] << 3);
-                compress_idx++;
-                compressed[compress_idx] = (full->values[row_idx][col_idx] >> 5);
-                break;
-            case 6:
-                compressed[compress_idx] = compressed[compress_idx] | (full->values[row_idx][col_idx] << 2);
-                compress_idx++;
-                compressed[compress_idx] = (full->values[row_idx][col_idx] >> 6);
-                break;
-            case 7:
-                compressed[compress_idx] = compressed[compress_idx] | (full->values[row_idx][col_idx] << 1);
-                compress_idx++;
-                break;
-            }
-
-            if (encode_state != 7) {
-                encode_state++;
-            } else {
-                encode_state = 0;
-            }
-        }
-    }
-} /* end compress_columns */
 
 /* Compresses a generator matrix in RREF into a array of bytes */
-void compress_rref(uint8_t *compressed,
-                    const generator_mat_t *const full,
-                    const uint8_t is_pivot_column[N] )
-{
+void compress_rref(uint8_t *compressed, const generator_mat_t *const full,
+                   const uint8_t is_pivot_column[N]) {
     // Compress pivot flags
-    for (int col_byte = 0; col_byte < N/8; col_byte++) {
-        compressed[col_byte] = is_pivot_column[8*col_byte + 0] \
-                               | (is_pivot_column[8*col_byte + 1] << 1) \
-                               | (is_pivot_column[8*col_byte + 2] << 2) \
-                               | (is_pivot_column[8*col_byte + 3] << 3) \
-                               | (is_pivot_column[8*col_byte + 4] << 4) \
-                               | (is_pivot_column[8*col_byte + 5] << 5) \
-                               | (is_pivot_column[8*col_byte + 6] << 6) \
-                               | (is_pivot_column[8*col_byte + 7] << 7);
+    for (uint32_t col_byte = 0; col_byte < N / 8; col_byte++) {
+        compressed[col_byte] = is_pivot_column[8 * col_byte + 0] |
+                               (is_pivot_column[8 * col_byte + 1] << 1) |
+                               (is_pivot_column[8 * col_byte + 2] << 2) |
+                               (is_pivot_column[8 * col_byte + 3] << 3) |
+                               (is_pivot_column[8 * col_byte + 4] << 4) |
+                               (is_pivot_column[8 * col_byte + 5] << 5) |
+                               (is_pivot_column[8 * col_byte + 6] << 6) |
+                               (is_pivot_column[8 * col_byte + 7] << 7);
     }
 
 #if defined(CATEGORY_1) || defined(CATEGORY_5)
-    // Compress last flags 
-    compressed[N/8] = is_pivot_column[N - 4] \
-                       | (is_pivot_column[N - 3] << 1) \
-                       | (is_pivot_column[N - 2] << 2) \
-                       | (is_pivot_column[N - 1] << 3);
+    // Compress last flags
+    compressed[N / 8] = is_pivot_column[N - 4] | (is_pivot_column[N - 3] << 1) |
+                        (is_pivot_column[N - 2] << 2) |
+                        (is_pivot_column[N - 1] << 3);
 
-    int compress_idx = N/8 + 1;
+    int compress_idx = N / 8 + 1;
 #else
-    int compress_idx = N/8;
+    int compress_idx = N / 8;
 #endif
 
     // Compress non-pivot columns row-by-row
     int encode_state = 0;
     for (int row_idx = 0; row_idx < K; row_idx++) {
         for (int col_idx = 0; col_idx < N; col_idx++) {
-            if(!is_pivot_column[col_idx]) {
-                switch(encode_state) {
-                case 0:
-                    compressed[compress_idx] = full->values[row_idx][col_idx];
-                    break;
-                case 1:
-                    compressed[compress_idx] = compressed[compress_idx] | (full->values[row_idx][col_idx] << 7);
-                    compress_idx++;
-                    compressed[compress_idx] = (full->values[row_idx][col_idx] >> 1);
-                    break;
-                case 2:
-                    compressed[compress_idx] = compressed[compress_idx] | (full->values[row_idx][col_idx] << 6);
-                    compress_idx++;
-                    compressed[compress_idx] = (full->values[row_idx][col_idx] >> 2);
-                    break;
-                case 3:
-                    compressed[compress_idx] = compressed[compress_idx] | (full->values[row_idx][col_idx] << 5);
-                    compress_idx++;
-                    compressed[compress_idx] = (full->values[row_idx][col_idx] >> 3);
-                    break;
-                case 4:
-                    compressed[compress_idx] = compressed[compress_idx] | (full->values[row_idx][col_idx] << 4);
-                    compress_idx++;
-                    compressed[compress_idx] = (full->values[row_idx][col_idx] >> 4);
-                    break;
-                case 5:
-                    compressed[compress_idx] = compressed[compress_idx] | (full->values[row_idx][col_idx] << 3);
-                    compress_idx++;
-                    compressed[compress_idx] = (full->values[row_idx][col_idx] >> 5);
-                    break;
-                case 6:
-                    compressed[compress_idx] = compressed[compress_idx] | (full->values[row_idx][col_idx] << 2);
-                    compress_idx++;
-                    compressed[compress_idx] = (full->values[row_idx][col_idx] >> 6);
-                    break;
-                case 7:
-                    compressed[compress_idx] = compressed[compress_idx] | (full->values[row_idx][col_idx] << 1);
-                    compress_idx++;
-                    break;
+            if (!is_pivot_column[col_idx]) {
+                switch (encode_state) {
+                    case 0:
+                        compressed[compress_idx] = full->values[row_idx][col_idx];
+                        break;
+                    case 1:
+                        compressed[compress_idx] =
+                                compressed[compress_idx] | (full->values[row_idx][col_idx] << 7);
+                        compress_idx++;
+                        compressed[compress_idx] = (full->values[row_idx][col_idx] >> 1);
+                        break;
+                    case 2:
+                        compressed[compress_idx] =
+                                compressed[compress_idx] | (full->values[row_idx][col_idx] << 6);
+                        compress_idx++;
+                        compressed[compress_idx] = (full->values[row_idx][col_idx] >> 2);
+                        break;
+                    case 3:
+                        compressed[compress_idx] =
+                                compressed[compress_idx] | (full->values[row_idx][col_idx] << 5);
+                        compress_idx++;
+                        compressed[compress_idx] = (full->values[row_idx][col_idx] >> 3);
+                        break;
+                    case 4:
+                        compressed[compress_idx] =
+                                compressed[compress_idx] | (full->values[row_idx][col_idx] << 4);
+                        compress_idx++;
+                        compressed[compress_idx] = (full->values[row_idx][col_idx] >> 4);
+                        break;
+                    case 5:
+                        compressed[compress_idx] =
+                                compressed[compress_idx] | (full->values[row_idx][col_idx] << 3);
+                        compress_idx++;
+                        compressed[compress_idx] = (full->values[row_idx][col_idx] >> 5);
+                        break;
+                    case 6:
+                        compressed[compress_idx] =
+                                compressed[compress_idx] | (full->values[row_idx][col_idx] << 2);
+                        compress_idx++;
+                        compressed[compress_idx] = (full->values[row_idx][col_idx] >> 6);
+                        break;
+                    case 7:
+                        compressed[compress_idx] =
+                                compressed[compress_idx] | (full->values[row_idx][col_idx] << 1);
+                        compress_idx++;
+                        break;
                 }
 
                 if (encode_state != 7) {
@@ -480,36 +412,33 @@ void compress_rref(uint8_t *compressed,
             }
         }
     } /* end compress_rref */
-}    
-
+}
 
 /* Expands a compressed RREF generator matrix into a full one */
-void expand_to_rref(generator_mat_t *full,
-                        const uint8_t *compressed)
-{
+void expand_to_rref(generator_mat_t *full, const uint8_t *compressed) {
     // Decompress pivot flags
-    uint8_t is_pivot_column[N];
-    for (int col_byte = 0; col_byte < N/8; col_byte++) {
-        is_pivot_column[col_byte*8 + 0] = compressed[col_byte] & 0x1;
-        is_pivot_column[col_byte*8 + 1] = (compressed[col_byte] >> 1) & 0x1;
-        is_pivot_column[col_byte*8 + 2] = (compressed[col_byte] >> 2) & 0x1;
-        is_pivot_column[col_byte*8 + 3] = (compressed[col_byte] >> 3) & 0x1;
-        is_pivot_column[col_byte*8 + 4] = (compressed[col_byte] >> 4) & 0x1;
-        is_pivot_column[col_byte*8 + 5] = (compressed[col_byte] >> 5) & 0x1;
-        is_pivot_column[col_byte*8 + 6] = (compressed[col_byte] >> 6) & 0x1;
-        is_pivot_column[col_byte*8 + 7] = (compressed[col_byte] >> 7) & 0x1;
+    uint8_t is_pivot_column[N] = {0};
+    for (int col_byte = 0; col_byte < N / 8; col_byte++) {
+        is_pivot_column[col_byte * 8 + 0] = compressed[col_byte] & 0x1;
+        is_pivot_column[col_byte * 8 + 1] = (compressed[col_byte] >> 1) & 0x1;
+        is_pivot_column[col_byte * 8 + 2] = (compressed[col_byte] >> 2) & 0x1;
+        is_pivot_column[col_byte * 8 + 3] = (compressed[col_byte] >> 3) & 0x1;
+        is_pivot_column[col_byte * 8 + 4] = (compressed[col_byte] >> 4) & 0x1;
+        is_pivot_column[col_byte * 8 + 5] = (compressed[col_byte] >> 5) & 0x1;
+        is_pivot_column[col_byte * 8 + 6] = (compressed[col_byte] >> 6) & 0x1;
+        is_pivot_column[col_byte * 8 + 7] = (compressed[col_byte] >> 7) & 0x1;
     }
 
 #if defined(CATEGORY_1) || defined(CATEGORY_5)
-    // Decompress last flags 
-    is_pivot_column[N - 4] = compressed[N/8] & 0x1;
-    is_pivot_column[N - 3] = (compressed[N/8] >> 1) & 0x1;
-    is_pivot_column[N - 2] = (compressed[N/8] >> 2) & 0x1;
-    is_pivot_column[N - 1] = (compressed[N/8] >> 3) & 0x1;
+    // Decompress last flags
+    is_pivot_column[N - 4] = compressed[N / 8] & 0x1;
+    is_pivot_column[N - 3] = (compressed[N / 8] >> 1) & 0x1;
+    is_pivot_column[N - 2] = (compressed[N / 8] >> 2) & 0x1;
+    is_pivot_column[N - 1] = (compressed[N / 8] >> 3) & 0x1;
 
-    int compress_idx = N/8 + 1;
+    int compress_idx = N / 8 + 1;
 #else
-    int compress_idx = N/8;
+    int compress_idx = N / 8;
 #endif
 
     // Decompress columns row-by-row
@@ -517,42 +446,61 @@ void expand_to_rref(generator_mat_t *full,
     for (int row_idx = 0; row_idx < K; row_idx++) {
         int pivot_idx = 0;
         for (int col_idx = 0; col_idx < N; col_idx++) {
-            if(!is_pivot_column[col_idx]) {
+            if (!is_pivot_column[col_idx]) {
                 // Decompress non-pivot
-                switch(decode_state) {
-                case 0:
-                    full->values[row_idx][col_idx] = compressed[compress_idx] & MASK_Q;
-                    break;
-                case 1:
-                    full->values[row_idx][col_idx] = ((compressed[compress_idx] >> 7) | (compressed[compress_idx+1] << 1)) & MASK_Q;
-                    compress_idx++;
-                    break;
-                case 2:
-                    full->values[row_idx][col_idx] = ((compressed[compress_idx] >> 6) | (compressed[compress_idx+1] << 2)) & MASK_Q;
-                    compress_idx++;
-                    break;
-                case 3:
-                    full->values[row_idx][col_idx] = ((compressed[compress_idx] >> 5) | (compressed[compress_idx+1] << 3)) & MASK_Q;
-                    compress_idx++;
-                    break;
-                case 4:
-                    full->values[row_idx][col_idx] = ((compressed[compress_idx] >> 4) | (compressed[compress_idx+1] << 4)) & MASK_Q;
-                    compress_idx++;
-                    break;
-                case 5:
-                    full->values[row_idx][col_idx] = ((compressed[compress_idx] >> 3) | (compressed[compress_idx+1] << 5)) & MASK_Q;
-                    compress_idx++;
-                    break;
-                case 6:
-                    full->values[row_idx][col_idx] = ((compressed[compress_idx] >> 2) | (compressed[compress_idx+1] << 6)) & MASK_Q;
-                    compress_idx++;
-                    break;
-                case 7:
-                    full->values[row_idx][col_idx] = (compressed[compress_idx] >> 1) & MASK_Q;
-                    compress_idx++;
-                    break;
+                switch (decode_state) {
+                    case 0:
+                        full->values[row_idx][col_idx] = compressed[compress_idx] & MASK_Q;
+                        break;
+                    case 1:
+                        full->values[row_idx][col_idx] =
+                                ((compressed[compress_idx] >> 7) |
+                                 (compressed[compress_idx + 1] << 1)) &
+                                MASK_Q;
+                        compress_idx++;
+                        break;
+                    case 2:
+                        full->values[row_idx][col_idx] =
+                                ((compressed[compress_idx] >> 6) |
+                                 (compressed[compress_idx + 1] << 2)) &
+                                MASK_Q;
+                        compress_idx++;
+                        break;
+                    case 3:
+                        full->values[row_idx][col_idx] =
+                                ((compressed[compress_idx] >> 5) |
+                                 (compressed[compress_idx + 1] << 3)) &
+                                MASK_Q;
+                        compress_idx++;
+                        break;
+                    case 4:
+                        full->values[row_idx][col_idx] =
+                                ((compressed[compress_idx] >> 4) |
+                                 (compressed[compress_idx + 1] << 4)) &
+                                MASK_Q;
+                        compress_idx++;
+                        break;
+                    case 5:
+                        full->values[row_idx][col_idx] =
+                                ((compressed[compress_idx] >> 3) |
+                                 (compressed[compress_idx + 1] << 5)) &
+                                MASK_Q;
+                        compress_idx++;
+                        break;
+                    case 6:
+                        full->values[row_idx][col_idx] =
+                                ((compressed[compress_idx] >> 2) |
+                                 (compressed[compress_idx + 1] << 6)) &
+                                MASK_Q;
+                        compress_idx++;
+                        break;
+                    case 7:
+                        full->values[row_idx][col_idx] =
+                                (compressed[compress_idx] >> 1) & MASK_Q;
+                        compress_idx++;
+                        break;
                 }
-                
+
                 if (decode_state != 7) {
                     decode_state++;
                 } else {

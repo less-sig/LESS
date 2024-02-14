@@ -31,13 +31,12 @@
 /*----------------------------------------------------------------------------*/
 
 int crypto_sign_keypair(unsigned char *pk,
-                        unsigned char *sk)
-{
-   /* keygen cannot fail */
-   LESS_keygen((prikey_t *) sk,
-               (pubkey_t *) pk);
+                        unsigned char *sk) {
+    /* keygen cannot fail */
+    LESS_keygen((prikey_t *) sk,
+                (pubkey_t *) pk);
 
-   return 0; // NIST convention: 0 == zero errors
+    return 0; // NIST convention: 0 == zero errors
 } // end crypto_sign_keypair
 
 /*----------------------------------------------------------------------------*/
@@ -46,21 +45,20 @@ int crypto_sign_keypair(unsigned char *pk,
 /*... from original message m[0],m[1],...,m[mlen-1]                           */
 /*... under secret key sk[0],sk[1],...                                        */
 int crypto_sign(unsigned char *sm,
-                unsigned long long *smlen,     // out parameter
+                unsigned long long *smlen,                        // out parameter
                 const unsigned char *m, unsigned long long mlen,  // in parameter
                 const unsigned char *sk)                          // in parameter
 {
-
-
-   /* sign cannot fail */
-   memcpy((unsigned char *) sm, (const unsigned char *) m, (size_t) mlen);
-   LESS_sign((const prikey_t *)
-             sk,                                // in parameter
-             (const char *const) m, (const uint64_t) mlen,         // in parameter
-             (sig_t *) (sm+mlen));                                 // out parameter
-   *smlen = mlen + (unsigned long long) sizeof(sig_t);
-
-   return 0;  // NIST convention: 0 == zero errors
+    /* sign cannot fail */
+    memcpy((unsigned char *) sm, (const unsigned char *) m, (size_t) mlen);
+    const uint32_t num_seeds_published = LESS_sign(
+            (const prikey_t *)
+                    sk,                                             // in parameter
+            (const char *const) m, (const uint64_t) mlen,           // in parameter
+            (sign_t *) (sm + mlen));                                 // out parameter
+    const uint32_t sig_len = LESS_CRYPTO_BYTES(num_seeds_published);
+    *smlen = mlen + sig_len;
+    return 0;  // NIST convention: 0 == zero errors
 } // end crypto_sign
 
 /*----------------------------------------------------------------------------*/
@@ -74,16 +72,25 @@ int crypto_sign_open(unsigned char *m,
                      const unsigned char *pk)                           // in parameter
 {
 
-   /* verify returns 1 if signature is ok, 0 otherwise */
-   *mlen = smlen-(unsigned long long) sizeof(sig_t);
-   memcpy((unsigned char *) m, (const unsigned char *) sm, (size_t) *mlen);
-   int ok = LESS_verify((const pubkey_t *const)
-                        pk,                     // in parameter
-                        (const char *const) m, (const uint64_t) *mlen,  // in parameter
-                        (const sig_t * const) (sm+*mlen));              // in parameter
+    const uint8_t num_seeds_published = sm[smlen - 1u];
+    if (num_seeds_published >= MAX_PUBLISHED_SEEDS) {
+        return -1;
+    }
+
+    // the size of the signature in bytes
+    const uint32_t sig_len = LESS_CRYPTO_BYTES((uint32_t)num_seeds_published);
+
+    *mlen = smlen - (unsigned long long)sig_len;
+    memcpy((unsigned char *) m, (const unsigned char *) sm, (size_t) *mlen);
+
+    /* verify returns 1 if signature is ok, 0 otherwise */
+    int ok = LESS_verify((const pubkey_t *const)
+                                 pk,                                    // in parameter
+                         (const char *const) m, (const uint64_t) *mlen, // in parameter
+                         (const sign_t *const) (sm + *mlen));            // in parameter
 
 
-   return ok-1; // NIST convention: 0 == zero errors, -1 == error condition
+    return ok - 1; // NIST convention: 0 == zero errors, -1 == error condition
 } // end crypto_sign_open
 
 /*----------------------------------------------------------------------------*/

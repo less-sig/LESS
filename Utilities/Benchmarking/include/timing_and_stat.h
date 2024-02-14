@@ -2,6 +2,12 @@
 #include <math.h>
 #include <inttypes.h>
 
+#ifdef __APPLE__ 
+#ifdef __aarch64__
+	#include "m1cycles.h"
+#endif 
+#endif
+
 static inline
 uint64_t x86_64_rtdsc(void) {
 #if defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) || defined(__amd64)
@@ -14,6 +20,8 @@ uint64_t x86_64_rtdsc(void) {
         :
         : "%rcx", "%rdx");
   return result;
+#elif defined (__APPLE__) && defined (__aarch64__)
+  return __m1_rdtsc();
 #else
 #warning "rtdsc is not available on the target platform"
   return 0;

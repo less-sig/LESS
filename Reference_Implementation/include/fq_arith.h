@@ -53,7 +53,7 @@ static inline void FUNC_NAME(SHAKE_STATE_STRUCT *shake_monomial_state, EL_T *buf
    size_t count = 0; \
    do { \
       csprng_randombytes((unsigned char *) &word, sizeof(WORD_T), shake_monomial_state); \
-      for (int i = 0; i < ((sizeof(WORD_T)*8) / REQ_BITS); i++) { \
+      for (unsigned i = 0; i < ((sizeof(WORD_T)*8) / REQ_BITS); i++) { \
          EL_T rnd_value = word & EL_MASK; \
          if (rnd_value <= SPAN) buffer[count++] = rnd_value + MIN_VALUE; \
          if (count >= num_elements) return; \
@@ -74,7 +74,7 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
    size_t count = 0; \
    do { \
       randombytes((unsigned char *) &word, sizeof(WORD_T)); \
-      for (int i = 0; i < ((sizeof(WORD_T)*8) / REQ_BITS); i++) { \
+      for (unsigned i = 0; i < ((sizeof(WORD_T)*8) / REQ_BITS); i++) { \
          EL_T rnd_value = word & EL_MASK; \
          if (rnd_value <= SPAN) buffer[count++] = rnd_value + MIN_VALUE; \
          if (count >= num_elements) return; \

@@ -346,7 +346,7 @@ void info(){
     fprintf(stderr,"Fixed weight challenge vector: %d rounds, weight %d \n",T,W);
     fprintf(stderr,"Private key: %luB\n", sizeof(prikey_t));
     fprintf(stderr,"Public key %luB, %.3f kiB\n", sizeof(pubkey_t), ((float) sizeof(pubkey_t))/1024);
-    fprintf(stderr,"Signature: %luB, %.3f kiB\n", sizeof(sig_t), ((float) sizeof(sig_t))/1024);
+    fprintf(stderr,"Signature: %luB, %.3f kiB\n", sizeof(sign_t), ((float) sizeof(sign_t))/1024);
 
 }
 
@@ -354,7 +354,7 @@ void info(){
 int LESS_sign_verify_test(){
     pubkey_t pk;
     prikey_t sk;
-    sig_t signature;
+    sign_t signature;
     char message[8] = "Signme!";
     LESS_keygen(&sk,&pk);
     LESS_sign(&sk,message,8,&signature);

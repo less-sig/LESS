@@ -59,29 +59,28 @@ void microbench(){
         generator_RREF(&G,is_pivot_column);
         welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
     }
-    fprintf(stderr,"Gaussian elimination kCycles (avg,stddev):");
+    fprintf(stdout,"Gaussian elimination kCycles (avg,stddev):");
     welford_print(timer);
     printf("\n");
 
 }
 
 void info(){
-    fprintf(stderr,"Code parameters: n= %d, k= %d, q=%d\n", N,K,Q);
-    fprintf(stderr,"num. keypairs = %d\n",NUM_KEYPAIRS);
-    fprintf(stderr,"Fixed weight challenge vector: %d rounds, weight %d \n",T,W);
-    fprintf(stderr,"Private key: %luB\n", sizeof(prikey_t));
-    fprintf(stderr,"Public key %luB\n", sizeof(pubkey_t));
-    fprintf(stderr,"Signature: %luB, %f\n", sizeof(sig_t), ((float) sizeof(sig_t))/1024);
-
+    fprintf(stdout,"Code parameters: n= %d, k= %d, q=%d\n", N,K,Q);
+    fprintf(stdout,"num. keypairs = %d\n",NUM_KEYPAIRS);
+    fprintf(stdout,"Fixed weight challenge vector: %d rounds, weight %d \n",T,W);
+    fprintf(stdout,"Private key: %luB\n", sizeof(prikey_t));
+    fprintf(stdout,"Public key %luB\n", sizeof(pubkey_t));
+    fprintf(stdout,"Signature: %luB, %f\n", sizeof(sign_t), ((float) sizeof(sign_t))/1024);
 }
 
 void LESS_sign_verify_speed(){
-    fprintf(stderr,"Computing number of clock cycles as the average of %d runs\n", NUM_TESTS);
+    fprintf(stdout,"Computing number of clock cycles as the average of %d runs\n", NUM_TESTS);
     welford_t timer;
     uint64_t cycles;
     pubkey_t pk;
     prikey_t sk;
-    sig_t signature;
+    sign_t signature;
     char message[8] = "Signme!";
     info();
 
@@ -116,15 +115,21 @@ void LESS_sign_verify_speed(){
     printf("Verification kCycles (avg,stddev):");
     welford_print(timer);
     printf("\n");
-    fprintf(stderr,"Keygen-Sign-Verify: %s", is_signature_ok == 1 ? "functional\n": "not functional\n" );
+    fprintf(stdout,"Keygen-Sign-Verify: %s", is_signature_ok == 1 ? "functional\n": "not functional\n" );
 }
 
 int iteration = 0;
 
 int main(int argc, char* argv[]){
+
+#ifdef __APPLE__ 
+#ifdef __aarch64__
+	__m1_setup_rdtsc();
+#endif 
+#endif
     initialize_csprng(&platform_csprng_state,
                       (const unsigned char *)"0123456789012345",16);
-    fprintf(stderr,"LESS reference implementation benchmarking tool\n");
+    fprintf(stdout,"LESS reference implementation benchmarking tool\n");
     microbench();
     LESS_sign_verify_speed();
     return 0;

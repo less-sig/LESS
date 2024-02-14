@@ -12,7 +12,44 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wpedantic -pedantic -Wuninitialized -Wsign-conversion -Wno-strict-prototypes")
+option(USE_SANITIZE "enable compiler memory sanitation" OFF)
+
+# default compilation picks reference codebase
+option(USE_REFERENCE "Use reference implementation" OFF)
+
+# use AVX2 implementations.
+option(USE_AVX2 "Use the AVX2 Optimized Omplementation." ON)
+option(USE_NEON "Use the NEON Optimized Omplementation." OFF)
+option(USE_M4 "Use the M4 Optimized Omplementation." OFF)
+
+# default compilation picks reference codebase
+if(USE_REFERENCE)
+  message(STATUS "Using the Reference Implementation")
+  set(BASE_DIR ../../Reference_Implementation)
+  set(USE_AVX2 OFF)
+  set(USE_NEON OFF)
+  set(USE_M4 OFF)
+elseif(USE_NEON)
+  message(STATUS "Using the NEON Implementation")
+  set(BASE_DIR ../../Optimized_Implementation/neon)
+  set(USE_AVX2 OFF)
+  set(USE_M4 OFF)
+  set(USE_REFERENCE OFF)
+elseif(USE_M4)
+  message(STATUS "Using the M4 Implementation")
+  set(BASE_DIR ../../Optimized_Implementation/m4)
+  set(USE_AVX2 OFF)
+  set(USE_NEON OFF)
+  set(USE_REFERENCE OFF)
+elseif(USE_AVX2)
+  message(STATUS "Using the AVX2 Implementation")
+  set(BASE_DIR ../../Optimized_Implementation/avx2)
+  set(USE_NEON OFF)
+  set(USE_M4 OFF)
+  set(USE_REFERENCE OFF)
+else()
+  message( FATAL_ERROR "No implementation specified, aborting." )
+endif()
 
 include(CheckCCompilerFlag)
 unset(COMPILER_SUPPORTS_MARCH_NATIVE CACHE)
@@ -21,8 +58,11 @@ check_c_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
 include(CheckIPOSupported)
 check_ipo_supported(RESULT lto_supported OUTPUT error)
 
-set(SANITIZE "")
-# set(SANITIZE "-fsanitize=address -fsanitize=pointer-compare")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wpedantic -pedantic -Wuninitialized -Wsign-conversion -Wno-strict-prototypes -Wno-unused-function")
+
+if(USE_SANITZE)
+  set(SANITIZE "-fsanitize=address -fsanitize=pointer-compare")
+endif()
 
 if(CMAKE_BUILD_TYPE MATCHES Release)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mtune=native -O3 -g0")
@@ -47,20 +87,19 @@ else() # Debug, RelWithDebInfo, etc
   message(STATUS "Building in Debug mode!")
 endif()
 
-# TODO: NIST seems to mandate "ANSI C" for submissions.
-# GCC's "-ansi" flag is equivalent to -std=c00, but current code is at least C99
 set(CMAKE_C_STANDARD 99)
+
+if(USE_AVX2)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -mavx2")
+endif()
+
+if(USE_NEON)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flax-vector-conversions")
+endif()
 
 message(STATUS "Compilation flags:" ${CMAKE_C_FLAGS})
 
-option(COMPRESS_CMT_COLUMNS "Enable COMPRESS_CMT_COLUMNS to compress commitment in SG and VY before hashing (reduces SHA-3 permutaitons by 12.5%, but adds overhead of encoding)" OFF)
-if(COMPRESS_CMT_COLUMNS)
-message(STATUS "COMPRESS_CMT_COLUMNS is enabled")
-add_definitions(-DCOMPRESS_CMT_COLUMNS)
-else()
-message(STATUS "COMPRESS_CMT_COLUMNS is disabled")
-endif()
-unset(COMPRESS_CMT_COLUMNS CACHE)
+
 
 
 find_library(KECCAK_LIB keccak)
@@ -68,17 +107,6 @@ if(NOT KECCAK_LIB)
  set(STANDALONE_KECCAK 1)
 endif()
 
-# selection of specialized compilation units differing between ref and opt implementations.
-option(AVX2_OPTIMIZED "Use the AVX2 Optimized Omplementation. If not set the Reference Implementation will be used." OFF)
-
-# default compilation picks reference codebase
-if(AVX2_OPTIMIZED)
-  message(STATUS "Using the AVX2 Optimized Implementation")
-  set(BASE_DIR ../../Additional_Implementations/AVX2)
-else()
-  message(STATUS "Using the Reference Implementation")
-  set(BASE_DIR ../../Reference_Implementation)
-endif()
 
 set(HEADERS
   ${BASE_DIR}/include/api.h
@@ -119,9 +147,13 @@ set(SOURCES
   ${BASE_DIR}/lib/sign.c
 )
 
-if(AVX2_OPTIMIZED)
-  set(SOURCES ${SOURCES} ${BASE_DIR}/lib/avx2_table.c)
-  set(HEADERS ${HEADERS} ${BASE_DIR}/include/avx2_macro.h)
+if(USE_AVX2)
+	set(SOURCES ${SOURCES} ${BASE_DIR}/lib/KeccakP-1600-AVX2.s)
+	set(HEADERS ${HEADERS} ${BASE_DIR}/include/macro.h)
+endif()
+
+if(USE_NEON)
+	set(HEADERS ${HEADERS} ${BASE_DIR}/include/macro.h)
 endif()
 
 foreach(category RANGE 1 5 2)

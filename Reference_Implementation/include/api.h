@@ -38,7 +38,7 @@
 #define CRYPTO_PUBLICKEYBYTES (sizeof(pubkey_t))
 
 /* no. of bytes of overhead in a signed message */
-#define CRYPTO_BYTES (sizeof(sig_t))
+#define CRYPTO_BYTES (sizeof(sign_t))
 
 /* required bytes of input randomness */
 #define  CRYPTO_RANDOMBYTES (SEED_LENGTH_BYTES) //LESS library -  parameters.h
