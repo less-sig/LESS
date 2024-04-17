@@ -148,6 +148,25 @@ FQ_ELEM fq_inv(FQ_ELEM x)
    return fq_red(accum);
 } /* end fq_inv */
 
+
+static inline
+FQ_ELEM fq_pow(FQ_ELEM x, FQ_ELEM exp)
+{
+
+   FQ_DOUBLEPREC xlift;
+   xlift = x;
+   FQ_DOUBLEPREC accum = 1;
+   /* No need for square and mult always, Q-2 is public*/
+   while(exp) {
+      if(exp & 1) {
+         accum = fq_red(accum*xlift);
+      }
+      xlift = fq_red(xlift*xlift);
+      exp >>= 1;
+   }
+   return fq_red(accum);
+} /* end fq_pow */
+
 /* Sampling functions from the global TRNG state */
 
 DEF_RAND(fq_star_rnd_elements, FQ_ELEM, 1, Q-1)

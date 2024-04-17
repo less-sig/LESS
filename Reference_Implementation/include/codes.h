@@ -46,6 +46,10 @@ typedef struct {
 } normalized_IS_t;
 
 
+void row_swap(generator_mat_t *V,
+                 const POSITION_T row1,
+                 const POSITION_T row2);
+
 /* multiplies a monomial matrix by a generator matrix */
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
@@ -65,6 +69,11 @@ void lex_minimize(normalized_IS_t *V,
                   POSITION_T dst_col_idx,
                   const generator_mat_t *const G,
                   const POSITION_T col_idx);
+
+// in place quick sort
+void col_lex_quicksort(normalized_IS_t *V, 
+                       int start, 
+                       int end);
 
 /* performs lexicographic sorting of the IS complement */
 void lex_sort_cols(normalized_IS_t *V);

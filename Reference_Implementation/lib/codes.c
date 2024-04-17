@@ -178,6 +178,17 @@ void column_swap(normalized_IS_t *V,
    }
 }
 
+void row_swap(generator_mat_t *V,
+                 const POSITION_T row1,
+                 const POSITION_T row2){
+   for(uint32_t i = 0; i<N;i++ ){
+      POSITION_T tmp;
+      tmp = V->values[row1][i];
+      V->values[row2][i] = V->values[row1][i];
+      V->values[row1][i] = tmp;
+   }
+}
+
 /* lexicographic comparison of a column with the pivot
  * returns 1 if the pivot is greater, -1 if it is smaller, 
  * 0 if it matches */
