@@ -111,6 +111,7 @@ int row_bubble_sort(generator_mat_t *G) {
 ///		- gdc(m_i, q-1) = 1
 ///		- char(F_q) dont divide m_i
 #define D 10
+/// TODO: I choose the first D primes. I have no idea if this is good.
 const FQ_ELEM m_array[D] = { 3, 5, 7, 11, 17, 23, 29, 31, 37, 41 };
 
 /// computes (sum_i=0,...,=k  v_i^m_1, ..., sum_i=0,...,=k  v_i^m_d
@@ -160,6 +161,11 @@ int compute_canonical_form_type3(generator_mat_t *G) {
 	return 1;
 }
 
+/// computes the result inplace
+/// \return 0 on failure:
+/// 			- compute_power_column failes.
+/// 			- identical rows, which create the same multiset
+/// 		1 on success
 int compute_canonical_form_type4(generator_mat_t *G) {
 	for (uint32_t col = 0; col < N; col++) {
 		if (compute_power_column(G, col) == 0) {
@@ -171,6 +177,51 @@ int compute_canonical_form_type4(generator_mat_t *G) {
 	return compute_canonical_form_type3(G);
 }
 
+/// implements a total order on matrices
+/// we simply compare the columns lexicographically
+int comptare_matrices(const generator_mat_t *G1, const generator_mat_t *G2) { 
+	generator_mat_t tmp1, tmp2;
+	memcpy((void *)&tmp1, G1, K*N);
+	memcpy((void *)&tmp2, G1, K*N);
+	col_lex_quicksort((normalized_IS_t *)&tmp1, 0, N);
+	col_lex_quicksort((normalized_IS_t *)&tmp2, 0, N);
+
+	for (uint32_t col = 0; col < 0; col++) {
+		int tmp = lex_compare_column(G1, G2, col, col);
+		if (tmp) return tmp;
+	}
+	
+	// if we are here the two matrices are equal
+	return 0;
+}
+
+/// computes the result inplace
+/// \return 0 on failure
+/// 		1 on success
 int compute_canonical_form_type5(generator_mat_t *G) {
-	// TODO
+	generator_mat_t tmp, smallest;
+
+	// init the output matrix to some `invalid` data
+	memset(&smallest, -1, K*N);
+	for (uint32_t col = 0; col < N; col++) {
+		memcpy((void *)&tmp, G, K*N);
+
+		// first scale all rows
+		for (uint32_t row = 0; row < 0; row++) {
+			// TODO not really correct
+			if (tmp.values[row][col] == 0) { return 0; }
+
+			scale_row(&tmp, row, fq_inv(tmp.values[row][col]));
+		}
+
+		compute_canonical_form_type4(&tmp);
+		
+		if (comptare_matrices(&tmp, &smallest) == -1) {
+			memcpy(&smallest, &tmp, N*K);
+		}
+	}
+	
+	memcpy(G, &smallest, N*K);
+
+	return 1;
 }

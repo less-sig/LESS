@@ -122,6 +122,16 @@ FQ_ELEM fq_red(FQ_DOUBLEPREC x)
 #endif
 
 static inline
+FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
+   return (x + y) % Q;
+}
+
+static inline
+FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
+   return ((FQ_DOUBLEPREC)x * (FQ_DOUBLEPREC)y) % Q;
+}
+
+static inline
 FQ_ELEM fq_red(FQ_DOUBLEPREC x)
 {
    return ((FQ_DOUBLEPREC) Q+x) % (FQ_DOUBLEPREC) Q;

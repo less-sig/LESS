@@ -45,6 +45,8 @@ typedef struct {
    FQ_ELEM values[K][N-K];   /* values of the non-pivot columns */
 } normalized_IS_t;
 
+//
+void scale_row(generator_mat_t *G, const uint32_t row, const FQ_ELEM a);
 
 void row_swap(generator_mat_t *V,
                  const POSITION_T row1,
@@ -69,6 +71,12 @@ void lex_minimize(normalized_IS_t *V,
                   POSITION_T dst_col_idx,
                   const generator_mat_t *const G,
                   const POSITION_T col_idx);
+
+//
+int lex_compare_column(const generator_mat_t *G1, 
+					   const generator_mat_t *G2,
+                       const POSITION_T col1,
+                       const POSITION_T col2);
 
 // in place quick sort
 void col_lex_quicksort(normalized_IS_t *V, 

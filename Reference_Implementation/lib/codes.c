@@ -28,6 +28,14 @@
 
 #include "codes.h"
 #include "fq_arith.h"
+#include "parameters.h"
+
+// computes G[row] = a*G[row]
+void scale_row(generator_mat_t *G, const uint32_t row, const FQ_ELEM a) {
+	for (uint32_t col = 0; col < N; col++) {
+		G->values[row][col] = fq_mul(G->values[row][col], a);
+	}
+}
 
 
 /* right-multiplies a generator by a monomial */
@@ -35,8 +43,8 @@ void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom)
 {
-   for(int src_col_idx = 0; src_col_idx < N; src_col_idx++) {
-      for(int row_idx = 0; row_idx < K; row_idx++) {
+   for(uint32_t src_col_idx = 0; src_col_idx < N; src_col_idx++) {
+      for(uint32_t row_idx = 0; row_idx < K; row_idx++) {
          res->values[row_idx][monom->permutation[src_col_idx]] =
             fq_red( (FQ_DOUBLEPREC) G->values[row_idx][src_col_idx] *
                     (FQ_DOUBLEPREC) monom->coefficients[src_col_idx] );
@@ -50,8 +58,8 @@ void rref_generator_monomial_mul(generator_mat_t *res,
                                  const generator_mat_t *G,
                                  const monomial_t *const monom)
 {
-   for(int src_col_idx = 0; src_col_idx < N; src_col_idx++) {
-      for(int row_idx = 0; row_idx < K; row_idx++) {
+   for(uint32_t src_col_idx = 0; src_col_idx < N; src_col_idx++) {
+      for(uint32_t row_idx = 0; row_idx < K; row_idx++) {
          res->values[row_idx][monom->permutation[src_col_idx]] =
             fq_red( (FQ_DOUBLEPREC) G->values[row_idx][src_col_idx] *
                     (FQ_DOUBLEPREC) monom->coefficients[src_col_idx] );
@@ -64,7 +72,7 @@ static inline
 void swap_rows(FQ_ELEM r[N],FQ_ELEM s[N])
 {
    FQ_ELEM tmp;
-   for(int i=0; i<N; i++) {
+   for(uint32_t i=0; i<N; i++) {
       tmp = r[i];
       r[i] = s[i];
       s[i] = tmp;
@@ -74,10 +82,10 @@ void swap_rows(FQ_ELEM r[N],FQ_ELEM s[N])
 int generator_RREF(generator_mat_t *G,
                    uint8_t is_pivot_column[N])
 {
-   for(int row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
-      int pivot_row = row_to_reduce;
+   for(uint32_t row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
+      uint32_t pivot_row = row_to_reduce;
       /*start by searching the pivot in the col = row*/
-      int pivot_column = row_to_reduce;
+      uint32_t pivot_column = row_to_reduce;
       while( (pivot_column < N) &&
              (G->values[pivot_row][pivot_column] == 0) ) {
 
@@ -85,11 +93,13 @@ int generator_RREF(generator_mat_t *G,
                  (G->values[pivot_row][pivot_column] == 0) ) {
             pivot_row++;
          }
+
          if(pivot_row >= K) { /*entire column tail swept*/
             pivot_column++; /* move to next col */
             pivot_row = row_to_reduce; /*starting from row to red */
          }
       }
+
       if ( pivot_column >=N ) {
          return 0; /* no pivot candidates left, report failure */
       }
@@ -116,7 +126,7 @@ int generator_RREF(generator_mat_t *G,
 
       /* Subtract the now placed and reduced pivot rows, from the others,
        * after rescaling it */
-      for(int row_idx = 0; row_idx < K; row_idx++) {
+      for(uint32_t row_idx = 0; row_idx < K; row_idx++) {
          if (row_idx != pivot_row) {
             FQ_DOUBLEPREC multiplier = G->values[row_idx][pivot_column];
             /* all elements before the pivot in the pivot row are null, no need to
@@ -134,6 +144,7 @@ int generator_RREF(generator_mat_t *G,
          }
       }
    }
+
    return 1;
 } /* end generator_RREF */
 
@@ -189,13 +200,29 @@ void row_swap(generator_mat_t *V,
    }
 }
 
+int lex_compare_column(const generator_mat_t *G1, 
+					   const generator_mat_t *G2,
+                       const POSITION_T col1,
+                       const POSITION_T col2) {
+   uint32_t i=0;
+   while((i < K) && (G1->values[i][col1]-G2->values[i][col2] == 0)){
+       i++;
+   }
+   if (i == K) return 0;
+
+   if (G1->values[i][col1]-G2->values[i][col2] > 0){
+      return -1;
+   } 
+   return 1;
+}
+
 /* lexicographic comparison of a column with the pivot
  * returns 1 if the pivot is greater, -1 if it is smaller, 
  * 0 if it matches */
 int lex_compare_with_pivot(normalized_IS_t *V, 
                            const POSITION_T col_idx,
                            FQ_ELEM pivot[K]){
-   int i=0;
+   uint32_t i=0;
    while(i<K && V->values[i][col_idx]-pivot[i] == 0){
        i++;
    }

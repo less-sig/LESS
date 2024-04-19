@@ -58,6 +58,21 @@ typedef struct {
    POSITION_T permutation[N];
 } monomial_t;
 
+// wrapper struct around D_n
+typedef struct {
+   /* coefficients listed in order of appearance columnwise */
+   FQ_ELEM coefficients[N];
+} diagonal_t;
+
+// wrapper struct around the set S_n
+typedef struct {
+   /* considering the product GQ, permutation[...] stores into the cell with
+    * index 0, the position of the DESTINATION of column 0 in G after the
+    * computation of GQ.
+    */
+   POSITION_T permutation[N];
+} permutation_t;
+
 typedef struct {
    /* coefficients listed in order of appearance of the colums of the
     * target IS */
