@@ -1,0 +1,3 @@
+[submodule "Utilities/Parameter_Generation_Scripts/CryptographicEstimators"]
+	path = Utilities/Parameter_Generation_Scripts/CryptographicEstimators
+	url = https://github.com/Crypto-TII/CryptographicEstimators
