@@ -96,7 +96,7 @@ int row_bubble_sort(generator_mat_t *G) {
 				return 0;
 			}
 			
-			if (tmp) {
+			if (tmp < 0) {
 				row_swap(G, i, i+1);
 			}
 		}

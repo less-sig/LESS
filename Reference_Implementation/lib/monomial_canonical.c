@@ -7,6 +7,7 @@
 #include "fq_arith.h"
 #include "parameters.h"
 
+#define SWAP(a, b, tmp) tmp = a; a = b; b = tmp;
 
 /// computes the result inplace
 /// \return 0 on failure (zero column)
@@ -31,18 +32,30 @@ int compute_canonical_form_type2(const monomial_t *M,
 	return 1;
 }
 
-int fqcmp(const void *a, const void *b) {
-   return (*(FQ_ELEM *)a) - (*(FQ_ELEM *)b);
-}
-
 /// helper function for type3 canonical form. 
 /// \input: row1
 /// \input: row2
 /// \return: 0 if multiset(row1) == multiset(row2)
 int compare_rows(const monomial_t *M,
 		const uint32_t row1, const uint32_t row2) {
+	uint32_t t1 = -1, t2 = -1;
+	for (uint32_t i = 0; i < N; i++) {
+		if (M->permutation[i] == row1) { t1 = i; }
+		if (M->permutation[i] == row2) { t2 = i; }
+	}
+
+	return M->coefficients[t1] - M->coefficients[t2];
 }
 
+int compare_columns(const monomial_t *M,
+		const uint32_t row1, const uint32_t row2) {
+	if (M->permutation[row1] < M->permutation[row2]) { return -1; }
+	if (M->permutation[row1] == M->permutation[row2]) {
+		return M->coefficients[row1] - M->coefficients[row2];
+	}
+
+	return 1;
+}
 
 /// simple bubble sort implementation. Yeah Yeah I know, use quick sort or 
 /// radix sort. True. But this is just a demo implementation.
@@ -50,24 +63,49 @@ int compare_rows(const monomial_t *M,
 /// \return the sorting algorithm works inplace
 /// 		0 on failure
 /// 		1 on success
-int row_bubble_sort(monomial_t *G) {
+int row_bubble_sort(monomial_t *G, permutation_t *Pr) {
+	uint32_t swapped;
+	FQ_ELEM ftmp;
+	POSITION_T ptmp;
+	do {
+		swapped = 0;
+
+		for (uint32_t i = 0; i < N - 1; i++) {
+			const int tmp = compare_rows(G, i, i+1);
+
+			// if tmp==0, then row i,i+1 create the same multiset.
+			if (tmp == 0) {
+				return 0;
+			}
+			
+			// if row_i < row_i+1
+			if (tmp < 0) {
+				SWAP(G->coefficients[i], G->coefficients[i+1], ftmp);
+				SWAP(G->permutation[i], G->permutation[i+1], ptmp);
+				SWAP(Pr->permutation[i], Pr->permutation[i+1], ptmp);
+			}
+		}
+	} while(swapped);
+	return 1;
 }
 
-/// numbers which have the following propertie:
-/// 	- small as possible
-/// 	- m_i < m_i+1 
-///		- gdc(m_i, q-1) = 1
-///		- char(F_q) dont divide m_i
-#define D 10
-/// TODO: I choose the first D primes. I have no idea if this is good.
-const FQ_ELEM m_array[D] = { 3, 5, 7, 11, 17, 23, 29, 31, 37, 41 };
+int column_bubble_sort(monomial_t *G, permutation_t *Pc) {
+	uint32_t swapped;
+	FQ_ELEM ftmp;
+	POSITION_T ptmp;
+	do {
+		swapped = 0;
 
-/// computes (sum_i=0,...,=k  v_i^m_1, ..., sum_i=0,...,=k  v_i^m_d
-/// \input G:
-/// \input column:
-/// \return 1 on success, 0 else
-int compute_power_column(monomial_t *M, const uint32_t column) {
-
+		for (uint32_t i = 0; i < N - 1; i++) {
+			const int tmp = compare_columns(G, i, i+1);
+			// if col_i < col_i+1
+			if (tmp < 0) {
+				SWAP(G->coefficients[i], G->coefficients[i+1], ftmp);
+				SWAP(G->permutation[i], G->permutation[i+1], ptmp);
+				SWAP(Pc->permutation[i], Pc->permutation[i+1], ptmp);
+			}
+		}
+	} while(swapped);
 	return 1;
 }
 
@@ -76,14 +114,33 @@ int compute_power_column(monomial_t *M, const uint32_t column) {
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
 int compute_canonical_form_type3(monomial_t *M,
-		permutation_t *Pc) {
+		permutation_t *Pr, permutation_t *Pc) {
 	// first sort the rows 
-	if (row_bubble_sort(M) == 0) {
+	if (row_bubble_sort(M, Pr) == 0) {
 		return 0;
 	}
 
 	// next sort the columns 
-	col_lex_quicksort((normalized_IS_t *)G, 0, N);
+	column_bubble_sort(M, Pc);
 	return 1;
 }
 
+#define WRITE_BIT(a, pos) (a[pos/64u] |= (1u << (pos %64u)))
+#define TYPE3_COMPRESSION_LIMBS ((K + 63u) / 64u)
+
+/// \return 0 on failure (identical rows, which create the same multiset)
+/// 		1 on success
+int compress_type3(uint64_t out[TYPE3_COMPRESSION_LIMBS],
+		monomial_t *G) {
+	permutation_t Pr, Pc;
+	compute_canonical_form_type3(G, &Pr, &Pc);
+
+	for (uint32_t i = 0; i < TYPE3_COMPRESSION_LIMBS; i++) {
+		out[i] = 0;
+	}
+
+	for (uint32_t i = 0; i < K; i++) {
+		WRITE_BIT(out, G->permutation[i]);
+	}
+	return 1;
+}
