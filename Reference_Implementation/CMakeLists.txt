@@ -11,7 +11,7 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-type-limits")
+set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-type-limits ")
 
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
 	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0  -march=native -flax-vector-conversions ${ALLOWED_WARNINGS}")
@@ -50,29 +50,35 @@ set(HEADERS
 )
 
 include_directories(include)
+
 foreach(category RANGE 1 5 2)
   if(category EQUAL 1)
     set(PARAM_TARGETS SHORT_SIG INTERMEDIATE BALANCED)
   else()
     set(PARAM_TARGETS SHORT_SIG BALANCED)
   endif()
-  foreach(optimiz_target ${PARAM_TARGETS})
+  foreach(optimize_target ${PARAM_TARGETS})
     # settings for benchmarking binary
-    set(TARGET_BINARY_NAME LESS_benchmark_cat_${category}_${optimiz_target})
+    set(TARGET_BINARY_NAME LESS_benchmark_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/bench/less_benchmark.c)
     target_link_libraries(${TARGET_BINARY_NAME} m)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category}=1 -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category}=1 -D${optimize_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
 
     # settings for unit tests binary
-    set(TARGET_BINARY_NAME LESS_test_cat_${category}_${optimiz_target})
+    set(TARGET_BINARY_NAME LESS_test_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/test/less_test.c)
     target_link_libraries(${TARGET_BINARY_NAME} m)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimize_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
 
     # KATS generation
-    set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimiz_target})
+    set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/nist/KAT_NIST_rng.c ${PROJECT_SOURCE_DIR}/lib/nist/PQCgenKAT_sign.c)
     target_link_libraries(${TARGET_BINARY_NAME} m crypto)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
-  endforeach(optimiz_target)
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimize_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+  endforeach(optimize_target)
 endforeach(category)
+
+# canonical forms test
+add_executable(test_canonical_form ${PROJECT_SOURCE_DIR}/lib/test/test_canonical.c ${PROJECT_SOURCE_DIR}/lib/monomial_canonical.c ${PROJECT_SOURCE_DIR}/lib/canonical.c ${SOURCES})
+target_link_libraries(test_canonical_form m crypto)
+set_property(TARGET test_canonical_form APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_0 -DBALANCED=1")

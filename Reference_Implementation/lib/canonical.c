@@ -7,14 +7,64 @@
 #include "fq_arith.h"
 #include "parameters.h"
 
+/// the same as `Hoare_partition` except that we track the permutation made
+/// \param V
+/// \param col_l
+/// \param col_h
+/// \return
+int canonical_Hoare_partition(normalized_IS_t *V,
+                    const POSITION_T col_l,
+                    const POSITION_T col_h,
+                    permutation_t *P){
+    FQ_ELEM pivot_col[K] = {0};
+    for(uint32_t i = 0; i < K; i++){
+        pivot_col[i] = V->values[i][col_l];
+    }
+    POSITION_T i = col_l-1, j = col_h+1;
+    while(1){
+        do {
+            i++;
+        } while(lex_compare_with_pivot(V,i,pivot_col) == 1);
+
+        do {
+            j--;
+        } while(lex_compare_with_pivot(V,j,pivot_col) == -1);
+
+        if(i >= j){
+            return j;
+        }
+
+        column_swap(V,i,j);
+        permutation_swap(P, i, j);
+    }
+}
+
+/// In-place quicksort
+/// the same as `col_lex_quicksort` except we are tracking the permutations
+/// \param V
+/// \param start
+/// \param end
+void canonical_col_lex_quicksort(normalized_IS_t *V,
+                                 const int start,
+                                 const int end,
+                                 permutation_t *P){
+    if(start < end){
+        int p = canonical_Hoare_partition(V, start, end, P);
+        col_lex_quicksort(V,start,p);
+        col_lex_quicksort(V,p+1,end);
+    }
+}
+
 /// computes the result inplace
+/// NOTE assumes D_c and P_c are identity matrices
 /// \return 0 on failure (zero column)
 /// 		1 on success
-int compute_canonical_form_type2(generator_mat_t *G) {
-	// first iterate over all colums: find the first non zero value and scale
-	// the it to 0.
-	for (uint32_t col = 0; col < N; col++) {
-		// find the first non zero entry in the current column
+int compute_canonical_form_type2(normalized_IS_t *G,
+                                 diagonal_t *D_c, permutation_t *P_c) {
+	// first iterate over all columns: find the first non-zero value and scale
+	// it to 0.
+	for (uint32_t col = 0; col < N-K; col++) {
+		// find the first non-zero entry in the current column
 		uint32_t row = 0;
 		for (; row < K; row++) {
 			if (G->values[row][col] != 0) {
@@ -23,10 +73,14 @@ int compute_canonical_form_type2(generator_mat_t *G) {
 		}
 		
 		// we fail if a zero column occur
-		if (row == K) { return 0; }
-		
-		// get the scalling factor
+		if (row >= K) { return 0; }
+
+        // early exit if the value is already 1
+        if (G->values[row][col] == 1) { continue; }
+
+		// get the scaling factor
 		FQ_DOUBLEPREC scaling_factor = fq_inv(G->values[row][col]);
+        D_c->coefficients[col] = scaling_factor;
 
 		// rescale the whole column
 		for (uint32_t i = 0; i < K; i++) {
@@ -36,10 +90,7 @@ int compute_canonical_form_type2(generator_mat_t *G) {
 	}
 
 	// next sort the columns
-	// TODO, currently its a hack: the sorting function does not take a 
-	// generator matrix is input, but a type which is nearly identical to the
-	// defenintion of a paritiy check matrix.
-	col_lex_quicksort((normalized_IS_t *)G, 0, N); 
+    canonical_col_lex_quicksort(G, 0, N-K-1, P_c);
 	return 1;
 }
 
@@ -51,29 +102,22 @@ int fqcmp(const void *a, const void *b) {
 /// \input: row1
 /// \input: row2
 /// \return: 0 if multiset(row1) == multiset(row2)
-int compare_rows(const generator_mat_t *G,
+int compare_rows(const FQ_ELEM rows[K][N-K],
 		const uint32_t row1, const uint32_t row2) {
-	FQ_ELEM sort_row_tmp1[N];
-	FQ_ELEM sort_row_tmp2[N];
-
-	memcpy(sort_row_tmp1, G->values[row1], N);
-	memcpy(sort_row_tmp2, G->values[row2], N);
-
-	qsort(sort_row_tmp1, N, sizeof(FQ_ELEM), fqcmp);
-	qsort(sort_row_tmp2, N, sizeof(FQ_ELEM), fqcmp);
-
+    ASSERT(row1 < K);
+    ASSERT(row2 < K);
 
 	uint32_t i = 0;
-	while(sort_row_tmp1[i] == sort_row_tmp2[i]) {
+	while((rows[row1][i]) == rows[row2][i] && (i < N)) {
 		i += 1;
 	}
 
 	// if they are the same, they generate the same multiset
-	if (i == N) {
+	if (i >= N) {
 		return 0;
 	}
 
-	return sort_row_tmp1[i] - sort_row_tmp2[i];
+	return (int)rows[row1][i] - (int)rows[row2][i];
 }
 
 
@@ -83,26 +127,57 @@ int compare_rows(const generator_mat_t *G,
 /// \return the sorting algorithm works inplace
 /// 		0 on failure
 /// 		1 on success
-int row_bubble_sort(generator_mat_t *G) {
+int row_bubble_sort(normalized_IS_t *G, permutation_t *P_r) {
+    // first sort each row into a tmp buffer
+    FQ_ELEM tmp[K][N-K];
+    for (uint32_t i = 0; i < K; ++i) {
+        memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
+        qsort(tmp[i], N-K, sizeof(FQ_ELEM), fqcmp);
+    }
+
 	uint32_t swapped;
 	do {
 		swapped = 0;
 
-		for (uint32_t i = 0; i < N - 1; i++) {
-			const int tmp = compare_rows(G, i, i+1);
+        // for all rows
+		for (uint32_t i = 0; i < K-1; i++) {
+			const int cmp = compare_rows(tmp, i, i+1);
 
-			// if tmp==0, then row i,i+1 create the same multiset.
-			if (tmp == 0) {
+			// if cmp==0, then row i,i+1 create the same multiset.
+			if (cmp == 0) {
 				return 0;
 			}
 			
-			if (tmp < 0) {
+			if (cmp > 0) {
 				row_swap(G, i, i+1);
+                permutation_swap(P_r, i, i+1);
+
+                // TODO speedup: probably just move pointers
+                for (uint32_t j = 0; j < N-K; ++j) {
+                    FQ_ELEM tmp2 = tmp[i][j];
+                    tmp[i][j] = tmp[i+1][j];
+                    tmp[i+1][j] = tmp2;
+                }
+                swapped = 1;
 			}
 		}
-
 	} while(swapped);
 	return 1;
+}
+
+/// computes the result inplace
+/// first sort the rows, than the colums
+/// \return 0 on failure (identical rows, which create the same multiset)
+/// 		1 on success
+int compute_canonical_form_type3(normalized_IS_t *G, permutation_t *P_r, permutation_t *P_c) {
+    // first sort the rows
+    if (row_bubble_sort(G, P_r) == 0) {
+        return 0;
+    }
+
+    // next sort the columns
+    canonical_col_lex_quicksort(G, 0, N-K-1, P_c);
+    return 1;
 }
 
 /// numbers which have the following propertie:
@@ -110,22 +185,23 @@ int row_bubble_sort(generator_mat_t *G) {
 /// 	- m_i < m_i+1 
 ///		- gdc(m_i, q-1) = 1
 ///		- char(F_q) dont divide m_i
-#define D 10
-/// TODO: I choose the first D primes. I have no idea if this is good.
-const FQ_ELEM m_array[D] = { 3, 5, 7, 11, 17, 23, 29, 31, 37, 41 };
+/// NOTE: I choose the first D primes. I have no idea if this is good.
+#define D 5
+const FQ_ELEM m_array[D] = { 3, 5, 7, 11, 17 };//, 23, 29, 31, 37, 41 };
 
 /// computes (sum_i=0,...,=k  v_i^m_1, ..., sum_i=0,...,=k  v_i^m_d
 /// \input G:
 /// \input column:
 /// \return 1 on success, 0 else
-int compute_power_column(generator_mat_t *G, const uint32_t column) {
+int compute_power_column(normalized_IS_t *G, const uint32_t column,
+                         diagonal_t *D_c) {
 	uint32_t j = 0;
 	FQ_ELEM sum;
 	for (; j < D; j++) {
 		sum = 0;
 		// for each row in the column
 		for (uint32_t i = 0; i < K; i++) {
-			sum = fq_red(sum + fq_pow(G->values[i][column], m_array[j]));
+			sum = fq_add(sum, fq_pow(G->values[i][column], m_array[j]));
 		}
 
 		if (sum != 0) { break; }
@@ -133,10 +209,12 @@ int compute_power_column(generator_mat_t *G, const uint32_t column) {
 
 	// we found no j s.t. sum i=0,...,K (v_i^m_j) != 0;
 	// return dot
-	if (j == D) { return 0; }
+	if (j >= D) { return 0; }
 	
 	sum = fq_inv(sum);
 	sum = fq_pow(sum, fq_inv(m_array[j]));
+
+    D_c->coefficients[column] = sum;
 
 	// scale the vector
 	for (uint32_t i = 0; i < K; i++) {
@@ -147,48 +225,39 @@ int compute_power_column(generator_mat_t *G, const uint32_t column) {
 }
 
 /// computes the result inplace
-/// first sort the rows, than the colums
-/// \return 0 on failure (identical rows, which create the same multiset)
-/// 		1 on success
-int compute_canonical_form_type3(generator_mat_t *G) {
-	// first sort the rows 
-	if (row_bubble_sort(G) == 0) {
-		return 0;
-	}
-
-	// next sort the columns 
-	col_lex_quicksort((normalized_IS_t *)G, 0, N);
-	return 1;
-}
-
-/// computes the result inplace
 /// \return 0 on failure:
-/// 			- compute_power_column failes.
+/// 			- compute_power_column fails.
 /// 			- identical rows, which create the same multiset
 /// 		1 on success
-int compute_canonical_form_type4(generator_mat_t *G) {
-	for (uint32_t col = 0; col < N; col++) {
-		if (compute_power_column(G, col) == 0) {
-			// in this case:
+int compute_canonical_form_type4(normalized_IS_t *G,
+                                 permutation_t *P_r, diagonal_t *D_c,
+                                 permutation_t *P_c) {
+	for (uint32_t col = 0; col < N-K; col++) {
+        // if we cant find a power
+		if (compute_power_column(G, col, D_c) == 0) {
 			return 0;
 		}
 	}
 
-	return compute_canonical_form_type3(G);
+	return compute_canonical_form_type3(G, P_r, P_c);
 }
 
 /// implements a total order on matrices
 /// we simply compare the columns lexicographically
-int comptare_matrices(const generator_mat_t *G1, const generator_mat_t *G2) { 
-	generator_mat_t tmp1, tmp2;
-	memcpy((void *)&tmp1, G1, K*N);
-	memcpy((void *)&tmp2, G1, K*N);
-	col_lex_quicksort((normalized_IS_t *)&tmp1, 0, N);
-	col_lex_quicksort((normalized_IS_t *)&tmp2, 0, N);
+int compare_matrices(const normalized_IS_t *V1,
+                     const normalized_IS_t *V2) {
 
-	for (uint32_t col = 0; col < 0; col++) {
-		int tmp = lex_compare_column(G1, G2, col, col);
-		if (tmp) return tmp;
+	for (uint32_t col = 0; col < N-K; col++) {
+
+        uint32_t i=0;
+        while((i < K) &&
+             ((V1->values[i][col] - V2->values[i][col]) == 0)){
+            i++;
+        }
+
+        if (i >= K) { continue; }
+
+        return (int)(V1->values[i][col]) - (int)(V2->values[i][col]);
 	}
 	
 	// if we are here the two matrices are equal
@@ -198,30 +267,38 @@ int comptare_matrices(const generator_mat_t *G1, const generator_mat_t *G2) {
 /// computes the result inplace
 /// \return 0 on failure
 /// 		1 on success
-int compute_canonical_form_type5(generator_mat_t *G) {
-	generator_mat_t tmp, smallest;
+int compute_canonical_form_type5(normalized_IS_t *G,
+                                 diagonal_t *D_r, permutation_t *P_r,
+                                 diagonal_t *D_c, permutation_t *P_c) {
+	normalized_IS_t Aj, smallest;
+    int touched = 0;
 
 	// init the output matrix to some `invalid` data
-	memset(&smallest, -1, K*N);
-	for (uint32_t col = 0; col < N; col++) {
-		memcpy((void *)&tmp, G, K*N);
+	memset(&smallest, -1, K*(N-K));
+
+
+	for (uint32_t col = 0; col < N-K; col++) {
+        if (normalized_is_zero_in_column(G, col)) { continue; }
+		memcpy((void *)&Aj, G, K*(N-K));
+        touched = 1;
 
 		// first scale all rows
-		for (uint32_t row = 0; row < 0; row++) {
-			// TODO not really correct
-			if (tmp.values[row][col] == 0) { return 0; }
-
-			scale_row(&tmp, row, fq_inv(tmp.values[row][col]));
+		for (uint32_t row = 0; row < K; row++) {
+            FQ_ELEM tmp = fq_inv(Aj.values[row][col]);
+			normalized_mat_scale_row(&Aj, row, tmp);
+            D_r->coefficients[row] = fq_mul(D_r->coefficients[row], tmp);
 		}
 
-		compute_canonical_form_type4(&tmp);
+        // TODO, need the smallest
+		compute_canonical_form_type4(&Aj, P_r, D_c, P_c);
 		
-		if (comptare_matrices(&tmp, &smallest) == -1) {
-			memcpy(&smallest, &tmp, N*K);
+		if (compare_matrices(&Aj, &smallest) < 0) {
+			memcpy(&smallest, &Aj, K*(N-K));
 		}
 	}
-	
-	memcpy(G, &smallest, N*K);
 
+    if (!touched) { return 0; }
+	
+	memcpy(G, &smallest, K*(N-K));
 	return 1;
 }

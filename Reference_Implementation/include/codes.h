@@ -48,10 +48,17 @@ typedef struct {
 //
 void scale_row(generator_mat_t *G, const uint32_t row, const FQ_ELEM a);
 
-void row_swap(generator_mat_t *V,
+void column_swap(normalized_IS_t *V,
+                 const POSITION_T col1,
+                 const POSITION_T col2);
+
+void row_swap(normalized_IS_t *V,
                  const POSITION_T row1,
                  const POSITION_T row2);
 
+void generator_row_swap(generator_mat_t *V,
+                        const POSITION_T row1,
+                        const POSITION_T row2);
 /* multiplies a monomial matrix by a generator matrix */
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
@@ -77,6 +84,11 @@ int lex_compare_column(const generator_mat_t *G1,
 					   const generator_mat_t *G2,
                        const POSITION_T col1,
                        const POSITION_T col2);
+
+//
+int lex_compare_with_pivot(normalized_IS_t *V,
+                           const POSITION_T col_idx,
+                           FQ_ELEM pivot[K]);
 
 // in place quick sort
 void col_lex_quicksort(normalized_IS_t *V, 
@@ -134,13 +146,22 @@ void apply_action_to_G(generator_mat_t* res,
 
 /* samples a random monomial matrix */
 void generator_rnd(generator_mat_t *res);
+void generator_sf(generator_mat_t *res);
 
+void normalized_ind(normalized_IS_t *V);
+void normalized_sf(normalized_IS_t *V);
 
 /* expands a systematic form generator from a seed randomly drawing only
  * non-identity portion */
 void generator_SF_seed_expand(rref_generator_mat_t *res,
                               const unsigned char seed[SEED_LENGTH_BYTES]);
 
+void generator_pretty_print(const generator_mat_t *const G);
 void generator_pretty_print_name(char *name, const generator_mat_t *const G);
 void generator_rref_pretty_print_name(char *name,
                                       const rref_generator_mat_t *const G);
+
+void normalized_pretty_print(const normalized_IS_t *const G);
+int normalized_is_zero_in_column(const normalized_IS_t *const V,
+                                 const uint32_t col);
+void normalized_mat_scale_row(normalized_IS_t *G, const uint32_t row, const FQ_ELEM a);

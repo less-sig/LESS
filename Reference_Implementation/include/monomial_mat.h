@@ -49,7 +49,7 @@
 
 
 typedef struct {
-   /* coefficients listed in order of appearance columnwise */
+   /* coefficients listed in order of appearance column-wise */
    FQ_ELEM coefficients[N];
    /* considering the product GQ, permutation[...] stores into the cell with
     * index 0, the position of the DESTINATION of column 0 in G after the
@@ -60,8 +60,8 @@ typedef struct {
 
 // wrapper struct around D_n
 typedef struct {
-   /* coefficients listed in order of appearance columnwise */
-   FQ_ELEM coefficients[N];
+   /* coefficients listed in order of appearance column-wise */
+   FQ_ELEM coefficients[N]; // TODO can be K
 } diagonal_t;
 
 // wrapper struct around the set S_n
@@ -70,16 +70,16 @@ typedef struct {
     * index 0, the position of the DESTINATION of column 0 in G after the
     * computation of GQ.
     */
-   POSITION_T permutation[N];
+   POSITION_T permutation[N]; // TODO can be K
 } permutation_t;
 
 typedef struct {
-   /* coefficients listed in order of appearance of the colums of the
+   /* coefficients listed in order of appearance of the columns of the
     * target IS */
    FQ_ELEM coefficients[K];
    /* considering the product GQ, permutation[...] stores into the cell with
     * index 0, the position of the ORIGINAL column in G that goes into 0-th 
-    * column of the IS after after the computation of GQ.
+    * column of the IS after the computation of GQ.
     */
    POSITION_T permutation[K];
 } monomial_action_IS_t;
@@ -99,6 +99,7 @@ void monomial_mat_inv(monomial_t *res,
 
 /* samples a random monomial matrix from the systemwide csprng*/
 void monomial_mat_rnd(monomial_t *res);
+void monomial_mat_rnd_unique(monomial_t *res);
 
 /* expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
  * monomial matrices */
@@ -141,3 +142,18 @@ void monomial_mat_pretty_print_name(char *name, const monomial_t *to_print);
 /* pretty_print for monomial matrices in their expanded form */
 void monomial_mat_print_exp_name(char *name,const monomial_t *to_print);
 
+
+////////////////////////////////////////////////////////////////////////
+///                        Permutation                               ///
+////////////////////////////////////////////////////////////////////////
+
+void permutation_swap(permutation_t *P, const uint32_t i, const uint32_t j);
+void permutation_mat_id(permutation_t *P);
+void permutation_mat_rng(permutation_t *P);
+void permutation_pretty_print(const permutation_t *const P);
+
+
+////////////////////////////////////////////////////////////////////////
+///                             Diagonal                             ///
+////////////////////////////////////////////////////////////////////////
+void diagonal_mat_id(diagonal_t *D);

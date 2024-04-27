@@ -111,6 +111,22 @@ void monomial_mat_rnd(monomial_t *res) {
    yt_shuffle(res->permutation);
 } /* end monomial_mat_rnd */
 
+// samples a random monomial matrix, in which each row has
+// its unique multiset spanning. ( <=> pairwise rows does not the same values)
+void monomial_mat_rnd_unique(monomial_t *res) {
+    monomial_mat_rnd(res);
+
+    res->coefficients[0] = 1;
+    for(uint32_t row = 1; row < K; row++) {
+        res->coefficients[row] = row;
+    }
+
+    res->coefficients[K] = 2;
+    for(uint32_t row = 1; row < K; row++) {
+        res->coefficients[K + row] = row;
+    }
+}
+
 void monomial_mat_mul(monomial_t *res,
                       const monomial_t *const A,
                       const monomial_t *const B) {
@@ -142,12 +158,12 @@ void monomial_mat_id(monomial_t *res) {
 /* pretty_print for monomial matrices */
 void monomial_mat_pretty_print(const monomial_t *const to_print) {
    fprintf(stderr,"perm = [");
-   for(int i = 0; i < N-1; i++) {
+   for(uint32_t i = 0; i < N-1; i++) {
       fprintf(stderr,"%03u, ",to_print->permutation[i]);
    }
    fprintf(stderr,"%03u ]\n",to_print->permutation[N-1]);
    fprintf(stderr,"coeffs = [");
-   for(int i = 0; i < N-1; i++) {
+   for(uint32_t i = 0; i < N-1; i++) {
       fprintf(stderr,"%03u, ",to_print->coefficients[i]);
    }
    fprintf(stderr,"%03u ]\n",to_print->coefficients[N-1]);
@@ -156,12 +172,12 @@ void monomial_mat_pretty_print(const monomial_t *const to_print) {
 void monomial_mat_pretty_print_name(char *name, const monomial_t *to_print)
 {
    fprintf(stderr,"%s = [",name);
-   for(int i = 0; i < N-1; i++) {
+   for(uint32_t i = 0; i < N-1; i++) {
       fprintf(stderr,"%03u, ",to_print->permutation[i]);
    }
    fprintf(stderr,"%03u ]\n",to_print->permutation[N-1]);
    fprintf(stderr,"coeffs = [");
-   for(int i = 0; i < N-1; i++) {
+   for(uint32_t i = 0; i < N-1; i++) {
       fprintf(stderr,"%03u, ",to_print->coefficients[i]);
    }
    fprintf(stderr,"%03u ]\n",to_print->coefficients[N-1]);
@@ -201,12 +217,12 @@ void monomial_compose_action(monomial_action_IS_t* out,
     * as the i-th after the GQ product, and in coefficients[i] the coefficient 
     * by which the column is multiplied upon landing */
    monomial_t reverse_Q;
-   for(int i=0;i<N;i++){
+   for(uint32_t i = 0; i < N; i++){
       reverse_Q.permutation[Q_in->permutation[i]] = i;
       reverse_Q.coefficients[Q_in->permutation[i]] = Q_in->coefficients[i];
    }
    /* compose actions out = Q_in*in */
-   for(int i=0;i<K;i++){
+   for(uint32_t i = 0; i < K; i++){
       out->permutation[i] = reverse_Q.permutation[in->permutation[i]];
       out->coefficients[i] = fq_red(in->coefficients[i] * 
                              (FQ_DOUBLEPREC) reverse_Q.coefficients[in->permutation[i]]);
@@ -220,7 +236,7 @@ void compress_monom_action(uint8_t *compressed,
     int compress_idx = 0;
 
     // Compress Permutation
-    for (int idx = 0; idx < K; idx++) {
+    for (uint32_t idx = 0; idx < K; idx++) {
 #if defined(CATEGORY_1)
         compressed[compress_idx] = mono->permutation[idx];
         compress_idx++;
@@ -314,7 +330,7 @@ void compress_monom_action(uint8_t *compressed,
 #endif
 
     // Compress Coefficients
-    for (int idx = 0; idx < K; idx++) {
+    for (uint32_t idx = 0; idx < K; idx++) {
 
         switch(encode_state) {
         case 0:
@@ -373,7 +389,7 @@ void expand_to_monom_action(monomial_action_IS_t *mono,
     int compress_idx = 0;
 
     // Decompress Permutation
-    for (int idx = 0; idx < K; idx++) {
+    for (uint32_t idx = 0; idx < K; idx++) {
 #if defined(CATEGORY_1)
         mono->permutation[idx] = compressed[compress_idx];
         compress_idx++;
@@ -453,7 +469,7 @@ void expand_to_monom_action(monomial_action_IS_t *mono,
 #endif
 
     // Decompress Coefficients
-    for (int idx = 0; idx < K; idx++) {
+    for (uint32_t idx = 0; idx < K; idx++) {
         switch(decode_state) {
         case 0:
             mono->coefficients[idx] = compressed[compress_idx] & MASK_Q;
@@ -498,13 +514,13 @@ void expand_to_monom_action(monomial_action_IS_t *mono,
 }
 
 int is_monom_action_valid(const monomial_action_IS_t * const mono){
-    for(int i = 0; i < K; i++){
+    for(uint32_t i = 0; i < K; i++){
         if ((mono->coefficients[i] <= 0) || (mono->coefficients[i] >= Q)){
             return 0;
         }
     }
     uint8_t flags[N] = {0};
-    for(int i = 0; i < K; i++){
+    for(uint32_t i = 0; i < K; i++){
         if ((mono->permutation[i] < 0) || (mono->permutation[i] >= N)){
             return 0;
         }
@@ -516,3 +532,45 @@ int is_monom_action_valid(const monomial_action_IS_t * const mono){
     return 1;
 }
 
+
+////////////////////////////////////////////////////////////////////////
+///                        Permutation                               ///
+////////////////////////////////////////////////////////////////////////
+
+void permutation_swap(permutation_t *P, const uint32_t i, const uint32_t j) {
+    ASSERT(i < K);
+    ASSERT(i < N);
+    POSITION_T tmp = P->permutation[i];
+    P->permutation[i] = P->permutation[j];
+    P->permutation[j] = tmp;
+}
+
+void permutation_mat_id(permutation_t *P) {
+    for (uint32_t i = 0; i < N; ++i) {
+        P->permutation[i] = i;
+    }
+}
+
+void permutation_mat_rng(permutation_t *P) {
+    permutation_mat_id(P);
+    yt_shuffle(P->permutation);
+}
+
+void permutation_pretty_print(const permutation_t *const P) {
+    fprintf(stderr,"perm = [");
+    for(uint32_t i = 0; i < N-1; i++) {
+        fprintf(stderr,"%03u, ", P->permutation[i]);
+    }
+
+    fprintf(stderr,"%03u ]\n", P->permutation[N-1]);
+}
+
+////////////////////////////////////////////////////////////////////////
+///                             Diagonal                             ///
+////////////////////////////////////////////////////////////////////////
+
+void diagonal_mat_id(diagonal_t *D) {
+    for (int i = 0; i < N; ++i) {
+        D->coefficients[i] = 1;
+    }
+}

@@ -29,7 +29,27 @@
 /* Seed tree max size is computed according to Parameter Generation Script in Utilities folder */
 
 /********************************* Category 1 *********************************/
-#if defined(CATEGORY_1)
+
+#if defined(CATEGORY_0)
+// NOTE: this is the dev mode. only use it if you know what you are doing
+#warning "DEV MODE"
+
+#define SEED_LENGTH_BYTES (16)
+#define FQ_ELEM uint8_t
+#define FQ_DOUBLEPREC uint16_t
+#define FQ_TRIPLEPREC uint32_t
+#define POSITION_T uint8_t
+#define SEED_TREE_LABEL_T uint8_t
+
+#define   N (16)
+#define   K (8)
+#define   Q (127)
+#define NUM_KEYPAIRS (  2)
+#define   T (247)
+#define   W ( 30)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
+
+#elif defined(CATEGORY_1)
 #define SEED_LENGTH_BYTES (16)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
