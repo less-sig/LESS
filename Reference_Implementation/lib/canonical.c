@@ -7,6 +7,54 @@
 #include "fq_arith.h"
 #include "parameters.h"
 
+// taken from djbsort
+#define int8_MINMAX(a,b)    \
+do {                        \
+    int8_t ab = b ^ a;      \
+    int8_t c = b - a;       \
+    c ^= ab & (c ^ b);      \
+    c >>= 7;                \
+    c &= ab;                \
+    a ^= c;                 \
+    b ^= c;                 \
+} while(0)
+
+// taken from djbsort
+void int8_sort(int8_t *x,
+               const long long n) {
+    long long top, p, q, r, i;
+    if (n < 2) {
+        return;
+    }
+    top = 1;
+    while (top < n - top) {
+        top += top;
+    }
+    
+    for (p = top; p > 0; p >>= 1) {
+        for (i = 0; i < n - p; ++i) {
+            if (!(i & p)) {
+                int8_MINMAX(x[i], x[i + p]);
+            }
+        }
+        
+        i = 0;
+        for (q = top; q > p; q >>= 1) {
+            for (; i < n - q; ++i) {
+                if (!(i & p)) {
+                    int32_t a = x[i + p];
+                    for (r = q; r > p; r >>= 1) {
+                        int8_MINMAX(a, x[i + r]);
+                    }
+                    
+                    x[i + p] = a;
+                }
+            }
+        }
+    }
+}
+
+
 /// the same as `Hoare_partition` except that we track the permutation made
 /// \param V
 /// \param col_l
@@ -94,7 +142,15 @@ int compute_canonical_form_type2(normalized_IS_t *G,
 	return 1;
 }
 
-int fqcmp(const void *a, const void *b) {
+/// helper function:
+/// \param a:
+/// \param b:
+/// \return a - b:
+///         -1: b > a;
+///          0: b == a;
+///          1: b < a;
+int fqcmp(const void *a,
+          const void *b) {
    return (*(FQ_ELEM *)a) - (*(FQ_ELEM *)b);
 }
 
@@ -125,7 +181,7 @@ int compare_rows(const FQ_ELEM rows[K][N-K],
 /// radix sort. True. But this is just a demo implementation.
 /// \input generator matrix
 /// \return the sorting algorithm works inplace
-/// 		0 on failure
+/// 		0 on failure: row_i and row_j generate the smae multiset
 /// 		1 on success
 int row_bubble_sort(normalized_IS_t *G, permutation_t *P_r) {
     // first sort each row into a tmp buffer

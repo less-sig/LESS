@@ -202,8 +202,8 @@ void row_swap(normalized_IS_t *V,
 }
 
 void generator_row_swap(generator_mat_t *V,
-                 const POSITION_T row1,
-                 const POSITION_T row2){
+                        const POSITION_T row1,
+                        const POSITION_T row2) {
    for(uint32_t i = 0; i<N;i++ ){
       POSITION_T tmp;
       tmp = V->values[row1][i];
@@ -212,19 +212,27 @@ void generator_row_swap(generator_mat_t *V,
    }
 }
 
+/// lexicographic comparison
+/// \return G1[col1] <=> G2[col2]:
+///         -1: G1[col1] > G2[col2]
+///          0: G1[col1] == G2[col2]
+///          1: G1[col1] < G2[col2]
 int lex_compare_column(const generator_mat_t *G1, 
 					   const generator_mat_t *G2,
                        const POSITION_T col1,
                        const POSITION_T col2) {
    uint32_t i=0;
-   while((i < K) && (G1->values[i][col1]-G2->values[i][col2] == 0)){
+   while((i < K) && 
+         (G1->values[i][col1]-G2->values[i][col2] == 0)) {
        i++;
    }
+
    if (i >= K) return 0;
 
    if (G1->values[i][col1]-G2->values[i][col2] > 0){
       return -1;
    } 
+
    return 1;
 }
 
@@ -245,6 +253,7 @@ int lex_compare_with_pivot(normalized_IS_t *V,
    return 1;
 }
 
+///
 int Hoare_partition(normalized_IS_t *V, 
                     const POSITION_T col_l,
                     const POSITION_T col_h){
