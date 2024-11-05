@@ -566,7 +566,7 @@ void expand_to_rref(generator_mat_t *full, const uint8_t *compressed) {
                 }
             } else {
                 // Decompress pivot
-                full->values[row_idx][col_idx] = (row_idx == pivot_idx);
+                full->values[row_idx][col_idx] = ((uint32_t)row_idx == (uint32_t)pivot_idx);
                 pivot_idx++;
             }
         }
@@ -758,6 +758,16 @@ void normalized_pretty_print(const normalized_IS_t *const G) {
             printf("%3d,", G->values[i][j]);
         }
         printf("%3d\n", G->values[i][N-K-1]);
+    }
+
+    printf("\n");
+}
+void normalized_pretty_print_v(const FQ_ELEM values[K][N-K]) {
+    for (uint32_t i = 0; i < K; ++i) {
+        for (uint32_t j = 0; j < (N-K-1); ++j) {
+            printf("%3d,", values[i][j]);
+        }
+        printf("%3d\n", values[i][N-K-1]);
     }
 
     printf("\n");

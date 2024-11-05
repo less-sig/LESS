@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "monomial_mat.h"
+#include "canonical.h"
 #include "fq_arith.h"
 #include "parameters.h"
 
@@ -29,6 +30,8 @@ int compute_information_set_monomial(permutation_t *P_is, monomial_t *G) {
             to = too;
         }
     }
+
+    return 1;
 }
 
 

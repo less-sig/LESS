@@ -156,6 +156,7 @@ void normalized_sf(normalized_IS_t *V);
 void generator_SF_seed_expand(rref_generator_mat_t *res,
                               const unsigned char seed[SEED_LENGTH_BYTES]);
 
+void normalized_pretty_print_v(const FQ_ELEM values[K][N-K]);
 void generator_pretty_print(const generator_mat_t *const G);
 void generator_pretty_print_name(char *name, const generator_mat_t *const G);
 void generator_rref_pretty_print_name(char *name,

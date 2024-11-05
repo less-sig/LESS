@@ -7,20 +7,40 @@
 #include "fq_arith.h"
 #include "parameters.h"
 
+// TODO:
+//      - avx/neon djbsort, but its just a bitonic sorter, should be easy
+//      - bitonic sorting network, with generic comparison
+//      - benchmark which sorting algorithm is the fastest:
+//          quick, bitonic, bubble lol
+
+
+/// \param a 
+/// \param b
+/// \param f 
+/// swaps a and b if f==1, if f==0, nothing will happen
+void cswap(uintptr_t *a, uintptr_t *b, const uint64_t mask) {
+    *a ^= (mask & *b);
+    *b ^= (mask & *a);
+    *a ^= (mask & *b);
+}
+
+
+
+
 // taken from djbsort
-#define int8_MINMAX(a,b)    \
-do {                        \
-    int8_t ab = b ^ a;      \
-    int8_t c = b - a;       \
-    c ^= ab & (c ^ b);      \
-    c >>= 7;                \
-    c &= ab;                \
-    a ^= c;                 \
-    b ^= c;                 \
+#define int8_MINMAX(a,b)\
+do {                    \
+    int8_t ab = b ^ a;  \
+    int8_t c = b - a;   \
+    c ^= ab & (c ^ b);  \
+    c >>= 7;            \
+    c &= ab;            \
+    a ^= c;             \
+    b ^= c;             \
 } while(0)
 
 // taken from djbsort
-void int8_sort(int8_t *x,
+void int8_sort(FQ_ELEM *x,
                const long long n) {
     long long top, p, q, r, i;
     if (n < 2) {
@@ -42,7 +62,7 @@ void int8_sort(int8_t *x,
         for (q = top; q > p; q >>= 1) {
             for (; i < n - q; ++i) {
                 if (!(i & p)) {
-                    int32_t a = x[i + p];
+                    int8_t a = x[i + p];
                     for (r = q; r > p; r >>= 1) {
                         int8_MINMAX(a, x[i + r]);
                     }
@@ -54,22 +74,21 @@ void int8_sort(int8_t *x,
     }
 }
 
-
 /// the same as `Hoare_partition` except that we track the permutation made
 /// \param V
 /// \param col_l
 /// \param col_h
 /// \return
 int canonical_Hoare_partition(normalized_IS_t *V,
-                    const POSITION_T col_l,
-                    const POSITION_T col_h,
-                    permutation_t *P){
+                              const POSITION_T col_l,
+                              const POSITION_T col_h,
+                              permutation_t *P) {
     FQ_ELEM pivot_col[K] = {0};
     for(uint32_t i = 0; i < K; i++){
         pivot_col[i] = V->values[i][col_l];
     }
     POSITION_T i = col_l-1, j = col_h+1;
-    while(1){
+    while(1) {
         do {
             i++;
         } while(lex_compare_with_pivot(V,i,pivot_col) == 1);
@@ -95,7 +114,7 @@ int canonical_Hoare_partition(normalized_IS_t *V,
 void canonical_col_lex_quicksort(normalized_IS_t *V,
                                  const int start,
                                  const int end,
-                                 permutation_t *P){
+                                 permutation_t *P) {
     if(start < end){
         int p = canonical_Hoare_partition(V, start, end, P);
         col_lex_quicksort(V,start,p);
@@ -108,7 +127,8 @@ void canonical_col_lex_quicksort(normalized_IS_t *V,
 /// \return 0 on failure (zero column)
 /// 		1 on success
 int compute_canonical_form_type2(normalized_IS_t *G,
-                                 diagonal_t *D_c, permutation_t *P_c) {
+                                 diagonal_t *D_c,
+                                 permutation_t *P_c) {
 	// first iterate over all columns: find the first non-zero value and scale
 	// it to 0.
 	for (uint32_t col = 0; col < N-K; col++) {
@@ -158,30 +178,51 @@ int fqcmp(const void *a,
 /// \input: row1
 /// \input: row2
 /// \return: 0 if multiset(row1) == multiset(row2)
+///          1 if 
+///         -1 if 
 int compare_rows(const FQ_ELEM rows[K][N-K],
-		const uint32_t row1, const uint32_t row2) {
+		         const uint32_t row1, 
+                 const uint32_t row2) {
     ASSERT(row1 < K);
     ASSERT(row2 < K);
 
 	uint32_t i = 0;
-	while((rows[row1][i]) == rows[row2][i] && (i < N)) {
+	while((rows[row1][i] == rows[row2][i]) && (i < (N-K))) {
 		i += 1;
 	}
 
 	// if they are the same, they generate the same multiset
-	if (i >= N) {
+	if (i >= (N-K)) {
 		return 0;
 	}
 
 	return (int)rows[row1][i] - (int)rows[row2][i];
 }
 
+int compare_rows2(FQ_ELEM **rows,
+                 const uint32_t row1,
+                 const uint32_t row2) {
+    ASSERT(row1 < K);
+    ASSERT(row2 < K);
+
+    uint32_t i = 0;
+    while((rows[row1][i] == rows[row2][i]) && (i < (N-K))) {
+        i += 1;
+    }
+
+    // if they are the same, they generate the same multiset
+    if (i >= (N-K)) {
+        return 0;
+    }
+
+    return (int)rows[row1][i] - (int)rows[row2][i];
+}
 
 /// simple bubble sort implementation. Yeah Yeah I know, use quick sort or 
 /// radix sort. True. But this is just a demo implementation.
 /// \input generator matrix
-/// \return the sorting algorithm works inplace
-/// 		0 on failure: row_i and row_j generate the smae multiset
+/// \return the sorting algorithm works only inplace for the sorting of the columns
+/// 		0 on failure: row_i and row_j generate the same multiset
 /// 		1 on success
 int row_bubble_sort(normalized_IS_t *G, permutation_t *P_r) {
     // first sort each row into a tmp buffer
@@ -191,7 +232,9 @@ int row_bubble_sort(normalized_IS_t *G, permutation_t *P_r) {
         qsort(tmp[i], N-K, sizeof(FQ_ELEM), fqcmp);
     }
 
+    normalized_pretty_print_v(tmp);
 	uint32_t swapped;
+
 	do {
 		swapped = 0;
 
@@ -218,7 +261,70 @@ int row_bubble_sort(normalized_IS_t *G, permutation_t *P_r) {
 			}
 		}
 	} while(swapped);
+
+
+    normalized_pretty_print_v(tmp);
 	return 1;
+}
+
+//
+int row_bitonic_sort(normalized_IS_t *G,
+                     permutation_t *P_r) {
+    // first sort each row into a tmp buffer
+    FQ_ELEM  tmp[K][N-K];
+    FQ_ELEM* ptr[K];
+    for (uint32_t i = 0; i < K; ++i) {
+        memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
+        int8_sort(tmp[i], N-K);
+        ptr[i] = tmp[i];
+    }
+
+    normalized_pretty_print_v(tmp);
+    uint64_t top, r, i;
+    uint64_t n = K;
+    top = 1;
+
+    // TODO precompute
+    while (top < n - top) {
+        top += top;
+    }
+    
+    for (uint64_t p = top; p > 0; p >>= 1) {
+        for (i = 0; i < n - p; ++i) {
+            if (!(i & p)) {
+                // NOTE: here is a sign cast
+			    const int32_t cmp1 = compare_rows2(ptr, i, i + p);
+                const int32_t cmp2 = compare_rows(tmp, i, i + p);
+                const uint32_t cmp = cmp1;
+                if (cmp == 0) { return 0; }
+
+                //const uint64_t flag = -((1ull + cmp) >> 1);
+                const uint64_t mask = -(1ull - (cmp >> 31));
+                cswap((uintptr_t *)(&ptr[i]), (uintptr_t *)(&ptr[i+p]), mask);
+            }
+        }
+        
+        i = 0;
+        for (uint64_t q = top; q > p; q >>= 1) {
+            for (; i < n - q; ++i) {
+                if (!(i & p)) {
+                    uintptr_t *a = (uintptr_t *)(&ptr[i + p]);
+                    for (r = q; r > p; r >>= 1) {
+			            const uint32_t cmp = compare_rows2(ptr, i, i + p);
+                        if (cmp == 0) { return 0; }
+
+                        const uint64_t flag = -(1ull - (cmp >> 31));
+                        cswap(a, (uintptr_t *)(&ptr[i+r]), flag);
+                    }
+                    
+                    ptr[i + p] = (FQ_ELEM *)a;
+                }
+            }
+        }
+    }
+
+    normalized_pretty_print_v(ptr);
+    return 1;
 }
 
 /// computes the result inplace
