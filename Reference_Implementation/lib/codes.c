@@ -70,8 +70,7 @@ void rref_generator_monomial_mul(generator_mat_t *res,
 
 
 static inline
-void swap_rows(FQ_ELEM r[N],FQ_ELEM s[N])
-{
+void swap_rows(FQ_ELEM r[N], FQ_ELEM s[N]){
    FQ_ELEM tmp;
    for(uint32_t i=0; i<N; i++) {
       tmp = r[i];
@@ -209,6 +208,7 @@ void row_cswap(normalized_IS_t *V,
               const uintptr_t mask) {
     ASSERT(row1 < K);
     ASSERT(row2 < K);
+
     for(uint32_t i = 0; i < N-K;i++ ){
         MASKED_SWAP(V->values[row1][i], V->values[row2][i], mask);
     }
