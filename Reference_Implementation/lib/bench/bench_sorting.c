@@ -6,7 +6,7 @@
 #include "canonical.h"
 #include "cycles.h"
 
-#define ITERS (1u << 17u)
+#define ITERS (1u << 8u)
 
 
 int bench_sorting(void) {
@@ -21,6 +21,7 @@ int bench_sorting(void) {
         int8_sort(d1, s);
         c += x86_64_rtdsc();
     }
+    c = c/ITERS;
     printf("int8_sort: %ld cyc\n", c);
 
     c = 0;
@@ -31,6 +32,7 @@ int bench_sorting(void) {
         qsort((void *)d1, s, sizeof(FQ_ELEM), fqcmp);
         c += x86_64_rtdsc();
     }
+    c = c/ITERS;
     printf("qsort:     %ld cyc\n", c);
     free(d1);
     return 0;
@@ -48,6 +50,7 @@ int bench_row_sorting(void) {
         row_bitonic_sort(&G1, &P_c1);
         c += x86_64_rtdsc();
     }
+    c = c/ITERS;
     printf("bitonic: %ld cyc\n", c);
 
     c = 0;
@@ -58,12 +61,13 @@ int bench_row_sorting(void) {
         row_bubble_sort(&G1, &P_c1);
         c += x86_64_rtdsc();
     }
+    c = c/ITERS;
     printf("bubble:  %ld cyc\n", c);
     return 0;
 }
 
 int main(void) {
-    // if (bench_sorting()) return 1;
+    if (bench_sorting()) return 1;
     if (bench_row_sorting()) return 1;
     return 0;
 }
