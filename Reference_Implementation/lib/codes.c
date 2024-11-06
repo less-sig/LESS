@@ -26,6 +26,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "utils.h"
 #include "codes.h"
 #include "fq_arith.h"
 #include "parameters.h"
@@ -198,6 +199,18 @@ void row_swap(normalized_IS_t *V,
         tmp = V->values[row1][i];
         V->values[row1][i] = V->values[row2][i];
         V->values[row2][i] = tmp;
+    }
+}
+
+/// TODO avx/neon for all of this stuff
+void row_cswap(normalized_IS_t *V,
+              const POSITION_T row1,
+              const POSITION_T row2,
+              const uintptr_t mask) {
+    ASSERT(row1 < K);
+    ASSERT(row2 < K);
+    for(uint32_t i = 0; i < N-K;i++ ){
+        MASKED_SWAP(V->values[row1][i], V->values[row2][i], mask);
     }
 }
 

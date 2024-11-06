@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "utils.h"
 #include "codes.h"
 #include "fq_arith.h"
 #include "parameters.h"
@@ -14,18 +15,7 @@
 //          quick, bitonic, bubble lol
 
 
-/// swaps a and b if
-void cswap(uintptr_t *a, uintptr_t *b, const uint64_t mask) {
-    *a ^= (mask & *b);
-    *b ^= (mask & *a);
-    *a ^= (mask & *b);
-}
 
-/// swaps a and b if f==1, if f==0, nothing will happen
-void cswap_bit(uintptr_t *a, uintptr_t *b, const uint64_t f) {
-	const uint64_t mask = -f;
-	cswap(a, b, mask);
-}
 
 // taken from djbsort
 #define int8_MINMAX(a,b)\
@@ -147,7 +137,7 @@ int compute_canonical_form_type2(normalized_IS_t *G,
         if (G->values[row][col] == 1) { continue; }
 
 		// get the scaling factor
-		FQ_DOUBLEPREC scaling_factor = fq_inv(G->values[row][col]);
+		const FQ_DOUBLEPREC scaling_factor = fq_inv(G->values[row][col]);
         D_c->coefficients[col] = scaling_factor;
 
 		// rescale the whole column
@@ -232,7 +222,6 @@ int row_bubble_sort(normalized_IS_t *G, permutation_t *P_r) {
         qsort(tmp[i], N-K, sizeof(FQ_ELEM), fqcmp);
     }
 
-    normalized_pretty_print_v(tmp);
 	uint32_t swapped;
 
 	do {
@@ -251,7 +240,7 @@ int row_bubble_sort(normalized_IS_t *G, permutation_t *P_r) {
 				row_swap(G, i, i+1);
                 permutation_swap(P_r, i, i+1);
 
-                // TODO speedup: probably just move pointers
+                // NOTE speedup: probably just move pointers
                 for (uint32_t j = 0; j < N-K; ++j) {
                     FQ_ELEM tmp2 = tmp[i][j];
                     tmp[i][j] = tmp[i+1][j];
@@ -261,9 +250,6 @@ int row_bubble_sort(normalized_IS_t *G, permutation_t *P_r) {
 			}
 		}
 	} while(swapped);
-
-
-    normalized_pretty_print_v(tmp);
 	return 1;
 }
 
@@ -279,7 +265,6 @@ int row_bitonic_sort(normalized_IS_t *G,
         ptr[i] = tmp[i];
     }
 
-    normalized_pretty_print_v(tmp);
     uint64_t top, r, i;
     uint64_t n = K;
     top = 1;
@@ -292,15 +277,16 @@ int row_bitonic_sort(normalized_IS_t *G,
     for (uint64_t p = top; p > 0; p >>= 1) {
         for (i = 0; i < n - p; ++i) {
             if (!(i & p)) {
-                // NOTE: here is a sign cast
+                // NOTE: here is a sign cast, this is needed, so the
+            	// sign extension needed for the mask is a unsigned one.
 			    const int32_t cmp1 = compare_rows2(ptr, i, i + p);
-                const int32_t cmp2 = compare_rows(tmp, i, i + p);
                 const uint32_t cmp = cmp1;
                 if (cmp == 0) { return 0; }
 
-                //const uint64_t flag = -((1ull + cmp) >> 1);
-                const uint64_t mask = -(1ull - (cmp >> 31));
+                const uintptr_t mask = -(1ull - (cmp >> 31));
                 cswap((uintptr_t *)(&ptr[i]), (uintptr_t *)(&ptr[i+p]), mask);
+            	row_cswap(G, i, i+p, mask);
+            	permutation_cswap(P_r, i, i+p, mask);
             }
         }
         
@@ -308,22 +294,20 @@ int row_bitonic_sort(normalized_IS_t *G,
         for (uint64_t q = top; q > p; q >>= 1) {
             for (; i < n - q; ++i) {
                 if (!(i & p)) {
-                    uintptr_t *a = (uintptr_t *)(&ptr[i + p]);
                     for (r = q; r > p; r >>= 1) {
-			            const uint32_t cmp = compare_rows2(ptr, i, i + p);
+			            const uint32_t cmp = compare_rows2(ptr, i+p, i + r);
                         if (cmp == 0) { return 0; }
 
-                        const uint64_t flag = -(1ull - (cmp >> 31));
-                        cswap(a, (uintptr_t *)(&ptr[i+r]), flag);
+                        const uintptr_t mask = -(1ull - (cmp >> 31));
+                        cswap((uintptr_t *)(&ptr[i+p]), (uintptr_t *)(&ptr[i+r]), mask);
+                    	permutation_cswap(P_r, i+p, i+r, mask);
+            			row_cswap(G, i+p, i+r, mask);
                     }
-                    
-                    ptr[i + p] = (FQ_ELEM *)a;
                 }
             }
         }
     }
 
-    normalized_pretty_print_v(ptr);
     return 1;
 }
 

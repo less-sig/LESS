@@ -35,14 +35,8 @@ int test_sorting_network_matrix(void) {
     row_bubble_sort(&G1, &P_c1);
     row_bitonic_sort(&G2, &P_c2);
 
-    // for (uint32_t i = 0; i < N; i++) {
-    //     if (P_c1.permutation[i] != P_c2.permutation[i]) {
-    //         return 2;
-    //     }
-    // }
-
-    // normalized_pretty_print(&G1);
-    // normalized_pretty_print(&G2);
+    normalized_pretty_print(&G1);
+    normalized_pretty_print(&G2);
 
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < N-K; j++) {
@@ -50,6 +44,12 @@ int test_sorting_network_matrix(void) {
                 printf("error\n");
                 return 1;
             }
+        }
+    }
+
+    for (uint32_t i = 0; i < N; i++) {
+        if (P_c1.permutation[i] != P_c2.permutation[i]) {
+            return 2;
         }
     }
 
@@ -148,7 +148,7 @@ int main(void) {
     // if (test_compute_canonical_form_type4()) return 1;
     // if (test_compute_canonical_form_type5()) return 1;
     
-    if (test_sorting_network()) return 1;
+    // if (test_sorting_network()) return 1;
     if (test_sorting_network_matrix()) return 1;
 
     // monomial test

@@ -26,6 +26,33 @@
 #include "utils.h"
 #include <stdlib.h>
 
+/// swaps a and b if
+void cswap(uintptr_t *a,
+           uintptr_t *b,
+           const uintptr_t mask) {
+    *a ^= (mask & *b);
+    *b ^= (mask & *a);
+    *a ^= (mask & *b);
+}
+
+/// swaps a and b if f==1, if f==0, nothing will happen
+void cswap_bit(uintptr_t *a,
+               uintptr_t *b,
+               const uintptr_t f) {
+	const uint64_t mask = -f;
+	cswap(a, b, mask);
+}
+
+void cswap_array(uintptr_t *a,
+                 uintptr_t *b,
+                 const uintptr_t mask,
+                 const uint32_t n) {
+    for (uint32_t i = 0; i < n; i++) {
+        MASKED_SWAP(a[i], b[i], mask);
+    }
+}
+
+
 #define MAX_KEYPAIR_INDEX (NUM_KEYPAIRS-1)
 #define KEYPAIR_INDEX_MASK ( ((uint16_t)1 << BITS_TO_REPRESENT(MAX_KEYPAIR_INDEX)) -1 )
 /* bitmask for rejection sampling of the position */

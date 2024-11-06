@@ -545,6 +545,15 @@ void permutation_swap(permutation_t *P, const uint32_t i, const uint32_t j) {
     P->permutation[j] = tmp;
 }
 
+void permutation_cswap(permutation_t *P,
+                       const uint32_t i,
+                       const uint32_t j,
+                       const uintptr_t mask) {
+    ASSERT(i < K);
+    ASSERT(i < N);
+    MASKED_SWAP(P->permutation[i], P->permutation[j], mask);
+}
+
 void permutation_mat_id(permutation_t *P) {
     for (uint32_t i = 0; i < N; ++i) {
         P->permutation[i] = i;
