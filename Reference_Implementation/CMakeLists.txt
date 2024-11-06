@@ -82,3 +82,8 @@ endforeach(category)
 add_executable(test_canonical_form ${PROJECT_SOURCE_DIR}/lib/test/test_canonical.c ${PROJECT_SOURCE_DIR}/lib/monomial_canonical.c ${PROJECT_SOURCE_DIR}/lib/canonical.c ${SOURCES})
 target_link_libraries(test_canonical_form m crypto)
 set_property(TARGET test_canonical_form APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_0 -DBALANCED=1")
+
+# canonical forms bench
+add_executable(bench_sorting ${PROJECT_SOURCE_DIR}/lib/bench/bench_sorting.c ${PROJECT_SOURCE_DIR}/lib/monomial_canonical.c ${PROJECT_SOURCE_DIR}/lib/canonical.c ${SOURCES})
+target_link_libraries(bench_sorting m crypto)
+set_property(TARGET bench_sorting APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_0 -DBALANCED=1")

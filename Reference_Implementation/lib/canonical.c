@@ -14,18 +14,18 @@
 //          quick, bitonic, bubble lol
 
 
-/// \param a 
-/// \param b
-/// \param f 
-/// swaps a and b if f==1, if f==0, nothing will happen
+/// swaps a and b if
 void cswap(uintptr_t *a, uintptr_t *b, const uint64_t mask) {
     *a ^= (mask & *b);
     *b ^= (mask & *a);
     *a ^= (mask & *b);
 }
 
-
-
+/// swaps a and b if f==1, if f==0, nothing will happen
+void cswap_bit(uintptr_t *a, uintptr_t *b, const uint64_t f) {
+	const uint64_t mask = -f;
+	cswap(a, b, mask);
+}
 
 // taken from djbsort
 #define int8_MINMAX(a,b)\

@@ -7,6 +7,7 @@
 ////////////////////////////////////////////////////////////////////////
 ///                             Sorting                              ///
 ////////////////////////////////////////////////////////////////////////
+int fqcmp(const void *a,const void *b);
 void int8_sort(FQ_ELEM *x, const long long n);
 int row_bubble_sort(normalized_IS_t *G, permutation_t *P_r);
 int row_bitonic_sort(normalized_IS_t *G, permutation_t *P_r);
