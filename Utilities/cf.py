@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """ super simple canonical form implementation. The only goal is to have zero dependencies """
 
+import random
 import copy
 from Crypto.Cipher import AES
 from Crypto.Hash import SHAKE256
@@ -9,6 +10,11 @@ from fq import Fq
 from matrix import Matrix
 from permutation import Permutation
 
+def random_diagonal_matrix(k): 
+    Dr = Matrix(k, k, q)
+    for i in range(k):
+        Dr[i,i] = random.randint(1, q-1)
+    return Dr
 
 def lex_min_multisets(a_multiset, b_multiset):
     """
@@ -42,6 +48,20 @@ def lex_min_vectors(a_multiset, b_multiset):
     if ret == -1:
         return 0
     return ret
+
+def lex_min_matrices(A, B):
+    """
+    -1 equal 
+     0 smaller:A < B 
+     1 bigger :A > B
+    """
+    assert A.nrows == B.nrows
+    for i in range(A.nrows):
+        ret = -1
+        while ret == -1:
+            ret = lex_min_multisets(A[i], B[i])
+        return ret 
+    return -1
 
 
 def sort_multisets(row_multisets):
@@ -175,6 +195,55 @@ def case_3_CF(B):
     return row_indices, col_indices, CF_B
 
 
+def case_4_CF(B):
+    """
+    """
+    n = B.nrows 
+    m = B.ncols 
+    Ap = Matrix(n, m, q)
+
+    for i in range(n):
+        v = B[i]
+        s = sum(v) % q
+        sp = sum([pow(t, (q-2), q) for t in v]) % q
+        if s != 0:
+            s = pow(s, -1, q)
+        else:
+            s = sp 
+            if s == 0: return -1, -1, -1
+
+        for j in range(m):
+            Ap[i, j] = (s*v[j]) % q 
+
+    return case_3_CF(Ap)
+
+
+
+def case_5_CF(B):
+    """
+    """
+    A_j = []
+    n = B.nrows 
+    m = B.ncols 
+    D = Matrix(m, m, q).zero()
+    for j in range(n):
+        for i in range(m):
+            D[i, i] = pow(B[j, i], -1, q)
+
+        A = B*D
+        t, _, A = case_4_CF(A)
+        if t != -1:
+            A_j.append(A)
+    
+    smallest = 0
+    for i in range(1, len(A_j)):
+        if lex_min_matrices(A_j[smallest], A_j[i]):
+            smallest = i
+    return 0, 0, A_j[smallest]
+
+
+    
+
 q = 127
 k = 3 
 n = 7
@@ -182,11 +251,12 @@ n = 7
 A = Matrix(k, n-k, q).random()
 Pr = Permutation(k).random().to_matrix(q)
 Pc = Permutation(n-k).random().to_matrix(q)
-A_prime = Pr*A*Pc
+Dr = random_diagonal_matrix(k)
+Dc = random_diagonal_matrix(n-k)
+A_prime = Pr*Dr*A*Dc*Pc
 
-row, col, B = case_3_CF(A)
-row_p, col_p, B_p = case_3_CF(A_prime)
-# assert B == B_p
+row, col, B = case_5_CF(A)
+row_p, col_p, B_p = case_5_CF(A_prime)
 print(B)
 print(B_p)
 

@@ -363,6 +363,7 @@ void col_bitonic_sort(normalized_IS_t *G,
 int compute_canonical_form_type3(normalized_IS_t *G,
 								 permutation_t *P_r,
 								 permutation_t *P_c) {
+    // TODO bitonic sort
     // first sort the rows
     if (row_bubble_sort(G, P_r) == 0) {
         return 0;
