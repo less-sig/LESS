@@ -180,3 +180,6 @@ row, col, B = case_3_CF(A)
 row_p, col_p, B_p = case_3_CF(A_prime)
 print(B)
 print(B_p)
+
+print(A)
+print(A_prime)
