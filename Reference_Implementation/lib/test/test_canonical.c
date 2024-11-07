@@ -107,8 +107,9 @@ int test_compute_canonical_form_type2(void) {
     return 0;
 }
 
+// just debugging test
 int test_compute_canonical_form_type3(void) {
-    normalized_IS_t G, G2;
+    normalized_IS_t G;
     permutation_t P_c, P_r, P_c_ret, P_r_ret;
 
     permutation_mat_id(&P_c);
@@ -121,6 +122,49 @@ int test_compute_canonical_form_type3(void) {
     normalized_pretty_print(&G);
     if (compute_canonical_form_type3(&G, &P_r_ret, &P_c_ret) == 0) return 1;
     normalized_pretty_print(&G);
+
+    return 0;
+}
+
+// real test
+int test_compute_canonical_form_type3_v2(void) {
+    normalized_IS_t G1, G2;
+    permutation_t P_c, P_r, P_c1, P_r1, P_c2, P_r2;
+
+    permutation_mat_rng_v2(&P_c, N-K);
+    permutation_mat_rng_v2(&P_r, K);
+
+    // generate data
+    normalized_sf(&G1);
+    normalized_copy(&G2, &G1);
+    permutation_apply_col(&G2, &P_c);
+
+    // normalized_pretty_print(&G1);
+    // normalized_pretty_print(&G2);
+
+    permutation_apply_row(&P_r, &G2);
+
+    // normalized_pretty_print(&G2);
+
+    permutation_mat_id(&P_c1);
+    permutation_mat_id(&P_r1);
+    permutation_mat_id(&P_c2);
+    permutation_mat_id(&P_r2);
+
+    if (compute_canonical_form_type3(&G1, &P_r1, &P_c1) == 0) return 1;
+    if (compute_canonical_form_type3(&G2, &P_r2, &P_c2) == 0) return 1;
+
+    normalized_pretty_print(&G1);
+    normalized_pretty_print(&G2);
+
+    for (uint32_t i = 0; i < K; i++) {
+        for (uint32_t j = 0; j < N-K; j++) {
+            if (G1.values[i][j] != G2.values[i][j]) {
+                printf("error\n");
+                return 1;
+            }
+        }
+    }
 
     return 0;
 }
@@ -166,12 +210,13 @@ int main(void) {
     // generic matrices test
     // if (test_compute_canonical_form_type2()) return 1;
     // if (test_compute_canonical_form_type3()) return 1;
+    if (test_compute_canonical_form_type3_v2()) return 1;
     // if (test_compute_canonical_form_type4()) return 1;
     // if (test_compute_canonical_form_type5()) return 1;
     
     // if (test_sorting_network()) return 1;
     // if (test_sorting_network_matrix()) return 1;
-    if (test_col_sorting_network_matrix()) return 1;
+    // if (test_col_sorting_network_matrix()) return 1;
 
     // monomial test
     //if (test_compute_information_set_monomial()) return 1;

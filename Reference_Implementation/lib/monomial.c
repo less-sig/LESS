@@ -32,8 +32,6 @@
 #define POS_BITS BITS_TO_REPRESENT(N-1)
 #define POS_MASK (((POSITION_T) 1 << POS_BITS) - 1)
 
-
-/* FY shuffle on the permutation, sampling from the provided PRNG state shake_monomial_state */
 static inline
 void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state, POSITION_T permutation[N]) {
     uint32_t rand_u32[N] = {0};
@@ -55,6 +53,32 @@ void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state, POSITION_T permu
 static inline
 void yt_shuffle(POSITION_T permutation[N]) {
     yt_shuffle_state(&platform_csprng_state, permutation);
+}
+
+/* FY shuffle on the permutation, sampling from the provided PRNG state shake_monomial_state */
+static inline
+void yt_shuffle_state_v2(SHAKE_STATE_STRUCT *shake_monomial_state,
+                         POSITION_T permutation[N],
+                         const uint32_t max) {
+    uint32_t rand_u32[N] = {0};
+    POSITION_T tmp;
+
+    csprng_randombytes((unsigned char *) &rand_u32, sizeof(uint32_t)*N, shake_monomial_state);
+    for (size_t i = 0; i < max - 1; ++i) {
+        rand_u32[i] = i + rand_u32[i] % (max - i);
+    }
+
+    for (size_t i = 0; i < max - 1; ++i) {
+        tmp = permutation[i];
+        permutation[i] = permutation[rand_u32[i]];
+        permutation[rand_u32[i]] = tmp;
+    }
+}
+
+/* FY shuffle on the permutation, sampling from the global TRNG state */
+static inline
+void yt_shuffle_v2(POSITION_T permutation[N], const uint32_t max) {
+    yt_shuffle_state_v2(&platform_csprng_state, permutation, max);
 }
 
 /* expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
@@ -537,7 +561,22 @@ int is_monom_action_valid(const monomial_action_IS_t * const mono){
 ///                        Permutation                               ///
 ////////////////////////////////////////////////////////////////////////
 
-void permutation_swap(permutation_t *P, const uint32_t i, const uint32_t j) {
+
+void permutation_apply_col(normalized_IS_t *G, permutation_t *P) {
+    for (uint32_t i = 0; i < (N-K); i++) {
+        column_swap(G, i, P->permutation[i]);
+    }
+}
+
+void permutation_apply_row(permutation_t *P, normalized_IS_t *G) {
+    for (uint32_t i = 0; i < K; i++) {
+        row_swap(G, i, P->permutation[i]);
+    }
+}
+
+void permutation_swap(permutation_t *P,
+                      const uint32_t i,
+                      const uint32_t j) {
     ASSERT(i < K);
     ASSERT(i < N);
     POSITION_T tmp = P->permutation[i];
@@ -563,6 +602,17 @@ void permutation_mat_id(permutation_t *P) {
 void permutation_mat_rng(permutation_t *P) {
     permutation_mat_id(P);
     yt_shuffle(P->permutation);
+}
+
+void permutation_mat_id_v2(permutation_t *P, const uint32_t max) {
+    for (uint32_t i = 0; i < max; ++i) {
+        P->permutation[i] = i;
+    }
+}
+
+void permutation_mat_rng_v2(permutation_t *P, const uint32_t max) {
+    permutation_mat_id_v2(P, max);
+    yt_shuffle_v2(P->permutation, max);
 }
 
 void permutation_pretty_print(const permutation_t *const P) {

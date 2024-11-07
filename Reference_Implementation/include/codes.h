@@ -25,9 +25,10 @@
 
 #pragma once
 
+#include <stdint.h>
+
 #include "parameters.h"
 #include "monomial_mat.h"
-#include <stdint.h>
 
 typedef struct {  /* Generator matrix, stored explicitly */
    FQ_ELEM values[K][N];
@@ -69,6 +70,7 @@ void row_cswap(normalized_IS_t *V,
 void generator_row_swap(generator_mat_t *V,
                         const POSITION_T row1,
                         const POSITION_T row2);
+
 /* multiplies a monomial matrix by a generator matrix */
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
@@ -163,6 +165,7 @@ void generator_sf(generator_mat_t *res);
 
 void normalized_ind(normalized_IS_t *V);
 void normalized_sf(normalized_IS_t *V);
+void normalized_copy(normalized_IS_t *V1, const normalized_IS_t *V2);
 
 /* expands a systematic form generator from a seed randomly drawing only
  * non-identity portion */
@@ -179,3 +182,7 @@ void normalized_pretty_print(const normalized_IS_t *const G);
 int normalized_is_zero_in_column(const normalized_IS_t *const V,
                                  const uint32_t col);
 void normalized_mat_scale_row(normalized_IS_t *G, const uint32_t row, const FQ_ELEM a);
+
+// defined in monomial.c
+void permutation_apply_row(permutation_t *P, normalized_IS_t *G);
+void permutation_apply_col(normalized_IS_t *G, permutation_t *P);
