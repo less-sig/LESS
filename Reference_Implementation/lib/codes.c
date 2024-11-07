@@ -188,6 +188,24 @@ void column_swap(normalized_IS_t *V,
    }
 }
 
+///
+/// @param V
+/// @param col1
+/// @param col2
+/// @param mask
+void column_cswap(normalized_IS_t *V,
+                  const POSITION_T col1,
+                  const POSITION_T col2,
+                  const uintptr_t mask){
+    for(uint32_t i = 0; i<K;i++ ){
+       MASKED_SWAP(V->values[i][col1], V->values[i][col2], mask);
+    }
+}
+
+///
+/// @param V
+/// @param row1
+/// @param row2
 void row_swap(normalized_IS_t *V,
               const POSITION_T row1,
               const POSITION_T row2) {
@@ -214,6 +232,9 @@ void row_cswap(normalized_IS_t *V,
     }
 }
 
+/// @param V
+/// @param row1
+/// @param row2
 void generator_row_swap(generator_mat_t *V,
                         const POSITION_T row1,
                         const POSITION_T row2) {
@@ -247,6 +268,22 @@ int lex_compare_column(const generator_mat_t *G1,
    } 
 
    return 1;
+}
+
+/// lexicographic comparison
+/// \return G1[col1] <=> G1[col2]:
+///           1: G1[col1] >  G1[col2]
+///           0: G1[col1] == G1[col2]
+///          -1: G1[col1] <  G1[col2]
+int lex_compare_col(const normalized_IS_t *G1,
+                    const POSITION_T col1,
+                    const POSITION_T col2) {
+   uint32_t i=0;
+   while((i < (K-1)) &&
+         (G1->values[i][col1]-G1->values[i][col2] == 0)) {
+       i++;
+   }
+   return G1->values[i][col1]-G1->values[i][col2];
 }
 
 /* lexicographic comparison of a column with the pivot

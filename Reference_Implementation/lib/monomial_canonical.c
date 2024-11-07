@@ -91,7 +91,6 @@ int permutation_compare_columns(const monomial_t *M,
 /// 		1 on success
 int permutation_row_bubble_sort(permutation_t *G, permutation_t *Pr) {
 	uint32_t swapped;
-	FQ_ELEM ftmp;
 	POSITION_T ptmp;
 	do {
 		swapped = 0;

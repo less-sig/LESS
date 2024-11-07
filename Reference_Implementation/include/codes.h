@@ -52,6 +52,11 @@ void column_swap(normalized_IS_t *V,
                  const POSITION_T col1,
                  const POSITION_T col2);
 
+void column_cswap(normalized_IS_t *V,
+                 const POSITION_T col1,
+                 const POSITION_T col2,
+                 const uintptr_t mask);
+
 void row_swap(normalized_IS_t *V,
                  const POSITION_T row1,
                  const POSITION_T row2);
@@ -86,10 +91,13 @@ void lex_minimize(normalized_IS_t *V,
 
 //
 int lex_compare_column(const generator_mat_t *G1, 
-					   const generator_mat_t *G2,
+					                  const generator_mat_t *G2,
                        const POSITION_T col1,
                        const POSITION_T col2);
 
+int lex_compare_col(const normalized_IS_t *G1,
+                    const POSITION_T col1,
+                    const POSITION_T col2);
 //
 int lex_compare_with_pivot(normalized_IS_t *V,
                            const POSITION_T col_idx,

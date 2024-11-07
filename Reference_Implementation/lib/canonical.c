@@ -112,6 +112,7 @@ void canonical_col_lex_quicksort(normalized_IS_t *V,
     }
 }
 
+
 /// computes the result inplace
 /// NOTE assumes D_c and P_c are identity matrices
 /// \return 0 on failure (zero column)
@@ -311,11 +312,57 @@ int row_bitonic_sort(normalized_IS_t *G,
     return 1;
 }
 
+// NOTE: unstable sort, as we sort on 0
+/// sort is applied inplace
+/// @param G
+/// @param P_c
+/// @return
+void col_bitonic_sort(normalized_IS_t *G,
+                      permutation_t *P_c) {
+    uint64_t top, r, i;
+    const uint64_t n = N-K;
+    top = 1;
+
+    // TODO precompute
+    while (top < n - top) {
+        top += top;
+    }
+
+    for (uint64_t p = top; p > 0; p >>= 1) {
+        for (i = 0; i < n - p; ++i) {
+            if (!(i & p)) {
+                // NOTE: here is a sign cast, this is needed, so the
+            	// sign extension needed for the mask is a unsigned one.
+			    const uint32_t cmp = lex_compare_col(G, i, i + p);
+                const uintptr_t mask = -(1ull - (cmp >> 31));
+            	column_cswap(G, i, i+p, mask);
+            	permutation_cswap(P_c, i, i+p, mask);
+            }
+        }
+
+        i = 0;
+        for (uint64_t q = top; q > p; q >>= 1) {
+            for (; i < n - q; ++i) {
+                if (!(i & p)) {
+                    for (r = q; r > p; r >>= 1) {
+						const uint32_t cmp = lex_compare_col(G, i+p, i+r);
+            			const uintptr_t mask = -(1ull - (cmp >> 31));
+                    	permutation_cswap(P_c, i+p, i+r, mask);
+            			column_cswap(G, i+p, i+r, mask);
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// computes the result inplace
 /// first sort the rows, than the colums
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
-int compute_canonical_form_type3(normalized_IS_t *G, permutation_t *P_r, permutation_t *P_c) {
+int compute_canonical_form_type3(normalized_IS_t *G,
+								 permutation_t *P_r,
+								 permutation_t *P_c) {
     // first sort the rows
     if (row_bubble_sort(G, P_r) == 0) {
         return 0;
@@ -326,7 +373,7 @@ int compute_canonical_form_type3(normalized_IS_t *G, permutation_t *P_r, permuta
     return 1;
 }
 
-/// numbers which have the following propertie:
+/// numbers which have the following properties:
 /// 	- small as possible
 /// 	- m_i < m_i+1 
 ///		- gdc(m_i, q-1) = 1
@@ -339,7 +386,8 @@ const FQ_ELEM m_array[D] = { 3, 5, 7, 11, 17 };//, 23, 29, 31, 37, 41 };
 /// \input G:
 /// \input column:
 /// \return 1 on success, 0 else
-int compute_power_column(normalized_IS_t *G, const uint32_t column,
+int compute_power_column(normalized_IS_t *G,
+						 const uint32_t column,
                          diagonal_t *D_c) {
 	uint32_t j = 0;
 	FQ_ELEM sum;

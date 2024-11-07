@@ -10,24 +10,15 @@ from matrix import Matrix
 from permutation import Permutation
 
 
-q = 127
-k = 3 
-n = 7
-
-A = Matrix(k, n-k, q).random()
-Pr = Permutation(k).random().to_matrix(q)
-Pc = Permutation(n-k).random().to_matrix(q)
-
-#print(A)
-#print(Pr)
-#print(Pc)
-A_prime = Pr*A*Pc
-#print(A_prime)
-
-#Works only if q is a prime
-#Returns the index corresponding to the minimum multiset
-#Return -1 if the multisets are the same
 def lex_min_multisets(a_multiset, b_multiset):
+    """
+    Works only if q is a prime
+    Returns the index corresponding to the minimum multiset
+    Return -1 if the multisets are the same
+
+    :param a_multiset
+    :param b_multiset
+    """
     for i in range(len(a_multiset)):
         if a_multiset[i] < b_multiset[i]:
             return 0
@@ -39,37 +30,41 @@ def lex_min_multisets(a_multiset, b_multiset):
     return -1
 
 
-#Works only if q is a prime
-#Returns the index corresponding to the minimum multiset
-#If the vectors are the same, return the first one by default
 def lex_min_vectors(a_multiset, b_multiset):
-    
-    for i in range(len(a_multiset)):
-        if a_multiset[i] < b_multiset[i]:
-            return 0
-        else:
-            if a_multiset[i] > b_multiset[i]:
-                return 1
-            
-    #At this point, this means the two multisets are the same: return 0
-    return 0
+    """
+    Works only if q is a prime
+    Returns the index corresponding to the minimum multiset
+    If the vectors are the same, return the first one by default
+    :param a_multiset
+    :param b_multiset
+    """ 
+    ret = lex_min_multisets(a_multiset, b_multiset)        
+    if ret == -1:
+        return 0
+    return ret
 
 
-#Sort multisets using lexicograph ordering
-#Raises an error if, at some point, the multisets are equal
-#The function returns the permutation sorting rows
 def sort_multisets(row_multisets):
-    
-    #Representation of permutation as list of indices
+    """
+    Sort multisets using lexicograph ordering
+    Raises an error if, at some point, the multisets are equal
+    The function returns the permutation sorting rows
+
+    :param row_multisets:
+    :return :
+    """
+    # Representation of permutation as list of indices
     indices = [i for i in range(len(row_multisets))]
     
     swap = True
-    while swap: #Loop until swap is true
+    # Loop until swap is true
+    while swap: 
         
         swap = False
         for i in range(len(row_multisets)-1):
-
-            min_index = lex_min_multisets(row_multisets[i], row_multisets[i+1]) #lex ordering of multisets
+            
+            #lex ordering of multisets
+            min_index = lex_min_multisets(row_multisets[i], row_multisets[i+1]) 
             
             #Report failure if min_index == -1
             if min_index == -1:
@@ -77,8 +72,8 @@ def sort_multisets(row_multisets):
             
             #Swap elements, if needed
             if min_index == 1:
-
-                swap = True #specify that a swap was done
+#               specify that a swap was done
+                swap = True 
                     
                 #Swap multisets
                 tmp = row_multisets[i+1]
@@ -93,10 +88,14 @@ def sort_multisets(row_multisets):
     return indices
 
 
-#Sort vectors using lexicograph ordering
-#The function returns the permutation sorting columns
 def sort_vectors(vectors):
-    
+    """
+    Sort vectors using lexicograph ordering
+    The function returns the permutation sorting columns
+
+    :param vectors:
+    :return :
+    """
     #Representation of permutation as list of indices
     indices = [i for i in range(len(vectors))]
     
@@ -176,8 +175,18 @@ def case_3_CF(B):
     return row_indices, col_indices, CF_B
 
 
+q = 127
+k = 3 
+n = 7
+
+A = Matrix(k, n-k, q).random()
+Pr = Permutation(k).random().to_matrix(q)
+Pc = Permutation(n-k).random().to_matrix(q)
+A_prime = Pr*A*Pc
+
 row, col, B = case_3_CF(A)
 row_p, col_p, B_p = case_3_CF(A_prime)
+# assert B == B_p
 print(B)
 print(B_p)
 
