@@ -4,6 +4,7 @@
 from typing import Union
 import random
 
+from fq import Fq
 
 
 class Matrix:
@@ -16,10 +17,33 @@ class Matrix:
         self.data = [[0 for _ in range(ncols)] for _ in range(nrows)] 
 
     def __getitem__(self, tup):
-        """ nice access function """
-        x, y = tup
-        assert x < self.nrows and y < self.ncols
-        return self.data[x][y]
+        """ nice access function
+        NOTE: access it via:
+            A[i, j] or  (returns field element)
+            A[i]        (returns row)
+        """
+        if isinstance(tup, tuple):
+            x, y = tup
+            assert x < self.nrows and y < self.ncols
+            return self.data[x][y]
+        
+        assert isinstance(tup, int)
+        assert tup < self.nrows
+        return self.data[tup]
+
+    def __setitem__(self, tup, data):
+        if isinstance(tup, tuple):
+            x, y = tup
+            assert x < self.nrows and y < self.ncols
+            assert isinstance(data, int)
+            self.data[x][y] = data % self.q
+            return
+        
+        assert isinstance(tup, int)
+        assert isinstance(data, list)
+        assert tup < self.nrows
+        self.data[tup] = data
+        return
 
     def print(self, transpose: bool = False):
         """ printing """
@@ -36,12 +60,30 @@ class Matrix:
 
             print("")
     
+    def id(self) -> 'Matrix':
+        """ identity matrix """
+        for i in range(self.nrows):
+            for j in range(self.ncols):
+                self.data[i][j] = i == j
+        return self
+
     def zero(self) -> 'Matrix':
         """ zeros all elements"""
         for i in range(self.nrows):
             for j in range(self.ncols):
                 self.data[i][j] = 0
         return self
+
+    def row(self, i: int):
+        """ returns i-th row """ 
+        assert i < self.nrows
+        return self.data[i]
+
+    def col(self, i: int):
+        """ returns i-th col """ 
+        assert i < self.ncols
+        return [self.data[j][i] for j in range(self.nrows)]
+
 
     def random(self) -> 'Matrix':
         """ generates a random matrix """
@@ -55,7 +97,7 @@ class Matrix:
         assert w > 0 and w < self.ncols
         self.zero()
         for i in range(w):
-            self.data[row][i] = 1
+            self.data[row][i] = random.randint(1, self.q)
 
         # and now just simple apply a random permutation
         for i in range(self.ncols):
@@ -107,10 +149,13 @@ class Matrix:
         B_r, B_c = B.nrows, B.ncols
         assert self.q == B.q and self.ncols == B_r
         C = Matrix(self.nrows, B_c, self.q)
-        for i in range(B_c):  # each column in B
-            for j in range(self.nrows):  # each row in A
+        # each column in B
+        for i in range(B_c):
+            # each row in A
+            for j in range(self.nrows):  
                 sum = 0
-                for k in range(self.ncols):  # each element in a row in A
+                # each element in a row in A
+                for k in range(self.ncols):  
                     sum += self[j, k] * B[k, i]
 
                 C.data[j][i] = sum % self.q
@@ -136,8 +181,18 @@ class Matrix:
                 self.data[i][j] %= self.q
         return self
 
+    def eq(self, B: 'Matrix'):
+        """ simple comparsion """
+        B_r, B_c = B.nrows, B.ncols
+        assert self.q == B.q and self.ncols == B_c and self.nrows == B_r
+        for i in range(self.nrows):
+            for j in range(self.ncols):
+                if self.data[i][j] != B[i, j]:
+                    return False
+        return True
+
     def transpose(self) -> 'Matrix':
-        """ simple transpose """
+        """ simple transpose, not inplace """
         T = Matrix(self.ncols, self.nrows, q=self.q)
         
         for i in range(self.nrows):
@@ -148,14 +203,14 @@ class Matrix:
     def popcnt_row(self, row: int) -> int:
         """ computes the hamming weight of a row"""
         assert row < self.nrows
-        return sum(self.data[row])
+        return sum([r != 0 for r in self.data[row]])
         
     def popcnt_col(self, col: int) -> int:
         """ computes the hamming weight of a column"""
         assert col < self.ncols
         t = 0
         for j in range(self.nrows):
-            t += self.data[j][col]
+            t += self.data[j][col] != 0
         return t
 
     def __swap_rows(self, i: int, j: int) -> None:
@@ -184,7 +239,17 @@ class Matrix:
 
     def __mul__(self, B: 'Matrix'):
         return self.mul(B)
+   
+    def __repr__(self) -> str:
+        return self.__str__()
 
+    def __str__(self) -> str:
+        ret = ""
+        for i in range(self.nrows):
+            for j in range(self.ncols):
+                ret += str(self.data[i][j]).rjust(3, ' ') + " "
+            ret += "\n"
+        return ret
 
 if __name__ == "__main__":
     nc, nr, q, w = 10, 5, 2, 2
