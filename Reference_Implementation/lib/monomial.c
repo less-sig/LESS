@@ -568,12 +568,14 @@ void permutation_apply_col(normalized_IS_t *G, permutation_t *P) {
     }
 }
 
+///
 void permutation_apply_row(permutation_t *P, normalized_IS_t *G) {
     for (uint32_t i = 0; i < K; i++) {
         row_swap(G, i, P->permutation[i]);
     }
 }
 
+///
 void permutation_swap(permutation_t *P,
                       const uint32_t i,
                       const uint32_t j) {
@@ -584,6 +586,7 @@ void permutation_swap(permutation_t *P,
     P->permutation[j] = tmp;
 }
 
+///
 void permutation_cswap(permutation_t *P,
                        const uint32_t i,
                        const uint32_t j,
@@ -593,28 +596,33 @@ void permutation_cswap(permutation_t *P,
     MASKED_SWAP(P->permutation[i], P->permutation[j], mask);
 }
 
+///
 void permutation_mat_id(permutation_t *P) {
     for (uint32_t i = 0; i < N; ++i) {
         P->permutation[i] = i;
     }
 }
 
+///
 void permutation_mat_rng(permutation_t *P) {
     permutation_mat_id(P);
     yt_shuffle(P->permutation);
 }
 
+///
 void permutation_mat_id_v2(permutation_t *P, const uint32_t max) {
     for (uint32_t i = 0; i < max; ++i) {
         P->permutation[i] = i;
     }
 }
 
+///
 void permutation_mat_rng_v2(permutation_t *P, const uint32_t max) {
     permutation_mat_id_v2(P, max);
     yt_shuffle_v2(P->permutation, max);
 }
 
+///
 void permutation_pretty_print(const permutation_t *const P) {
     fprintf(stderr,"perm = [");
     for(uint32_t i = 0; i < N-1; i++) {
@@ -628,8 +636,50 @@ void permutation_pretty_print(const permutation_t *const P) {
 ///                             Diagonal                             ///
 ////////////////////////////////////////////////////////////////////////
 
+void diagonal_apply_col(normalized_IS_t *G,
+                        diagonal_t *P) {
+    for (uint32_t i = 0; i < (N-K); i++) {
+
+    }
+}
+
+///
+void diagonal_apply_row(diagonal_t *P,
+                        normalized_IS_t *G) {
+    for (uint32_t i = 0; i < K; i++) {
+        for (uint32_t j = 0; j < (N-K); j++) {
+            G->values[i][j] = fq_mul(G->values[i][j], P->coefficients[i]);
+        }
+    }
+}
+///
 void diagonal_mat_id(diagonal_t *D) {
-    for (int i = 0; i < N; ++i) {
+    for (uint32_t i = 0; i < N; ++i) {
         D->coefficients[i] = 1;
+    }
+}
+
+///
+void diagonal_mat_rnd(diagonal_t *D) {
+    csprng_randombytes((unsigned char *) &D->coefficients, sizeof(FQ_ELEM)*N, &platform_csprng_state);
+    for (uint32_t i = 0; i < N; ++i) {
+        D->coefficients[i] = fq_red(D->coefficients[i]);
+    }
+}
+
+///
+void diagonal_mat_id_v2(diagonal_t *D,
+                        const uint32_t max) {
+    for (uint32_t i = 0; i < max; ++i) {
+        D->coefficients[i] = 1;
+    }
+}
+
+///
+void diagonal_mat_rnd_v2(diagonal_t *D,
+                         const uint32_t max) {
+    csprng_randombytes((unsigned char *) &D->coefficients, sizeof(FQ_ELEM)*max, &platform_csprng_state);
+    for (uint32_t i = 0; i < max; ++i) {
+        D->coefficients[i] = fq_red(D->coefficients[i]);
     }
 }

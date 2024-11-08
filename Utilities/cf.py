@@ -10,11 +10,16 @@ from fq import Fq
 from matrix import Matrix
 from permutation import Permutation
 
-def random_diagonal_matrix(k): 
+def random_diagonal_matrix(k):
+    """
+    :param k: 
+    :return: a matrix with random entries [1, q-1] on the main diagonal
+    """
     Dr = Matrix(k, k, q)
     for i in range(k):
         Dr[i,i] = random.randint(1, q-1)
     return Dr
+
 
 def lex_min_multisets(a_multiset, b_multiset):
     """
@@ -48,6 +53,7 @@ def lex_min_vectors(a_multiset, b_multiset):
     if ret == -1:
         return 0
     return ret
+
 
 def lex_min_matrices(A, B):
     """
@@ -148,8 +154,6 @@ def case_3_CF(B):
     """
     :param B: input matrix
     """
-    #print("B")
-    #print(B)
     n = B.nrows 
     m = B.ncols 
     row_multisets = []
@@ -159,9 +163,7 @@ def case_3_CF(B):
         row_multisets.append(b_i)
 
     #Compute row permutation sorting rows 
-    #print(row_multisets)
     row_indices = sort_multisets(row_multisets)
-    #print(row_indices)
     
     #Report failure if row permutation is not defined
     if row_indices == -1:
@@ -173,18 +175,11 @@ def case_3_CF(B):
         for j in range(m):
             row_sorted_B[i,j] = B[row_indices[i], j]
     
-    #print("row_sorted_B")
-    #print(row_sorted_B)
-
     #Now, sort columns
     vectors = [row_sorted_B.col(i) for i in range(m)]
     
-    #print("vectors")
-    #print(vectors)
     #Compute permutation sorting columns
     col_indices = sort_vectors(vectors)
-    #print("col_indices")
-    #print(col_indices)
     
     #Apply column permutation
     CF_B = Matrix(n, m, q)

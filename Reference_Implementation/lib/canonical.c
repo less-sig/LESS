@@ -374,51 +374,6 @@ int compute_canonical_form_type3(normalized_IS_t *G,
     return 1;
 }
 
-/// numbers which have the following properties:
-/// 	- small as possible
-/// 	- m_i < m_i+1 
-///		- gdc(m_i, q-1) = 1
-///		- char(F_q) dont divide m_i
-/// NOTE: I choose the first D primes. I have no idea if this is good.
-#define D 5
-const FQ_ELEM m_array[D] = { 3, 5, 7, 11, 17 };//, 23, 29, 31, 37, 41 };
-
-/// computes (sum_i=0,...,=k  v_i^m_1, ..., sum_i=0,...,=k  v_i^m_d
-/// \input G:
-/// \input column:
-/// \return 1 on success, 0 else
-int compute_power_column(normalized_IS_t *G,
-						 const uint32_t column,
-                         diagonal_t *D_c) {
-	uint32_t j = 0;
-	FQ_ELEM sum;
-	for (; j < D; j++) {
-		sum = 0;
-		// for each row in the column
-		for (uint32_t i = 0; i < K; i++) {
-			sum = fq_add(sum, fq_pow(G->values[i][column], m_array[j]));
-		}
-
-		if (sum != 0) { break; }
-	}
-
-	// we found no j s.t. sum i=0,...,K (v_i^m_j) != 0;
-	// return dot
-	if (j >= D) { return 0; }
-	
-	sum = fq_inv(sum);
-	sum = fq_pow(sum, fq_inv(m_array[j]));
-
-    D_c->coefficients[column] = sum;
-
-	// scale the vector
-	for (uint32_t i = 0; i < K; i++) {
-		G->values[i][column] = fq_red(G->values[i][column] * sum);
-	}
-
-	return 1;
-}
-
 /// computes the result inplace
 /// \return 0 on failure:
 /// 			- compute_power_column fails.
@@ -427,11 +382,29 @@ int compute_power_column(normalized_IS_t *G,
 int compute_canonical_form_type4(normalized_IS_t *G,
                                  permutation_t *P_r, diagonal_t *D_c,
                                  permutation_t *P_c) {
-	for (uint32_t col = 0; col < N-K; col++) {
+	for (uint32_t row = 0; row < K; row++) {
         // if we cant find a power
-		if (compute_power_column(G, col, D_c) == 0) {
-			return 0;
+		FQ_ELEM s = 0, sp = 0, tmp, q2=Q-2;
+		for (uint32_t col = 0; col < (N-K); col++) {
+			s = fq_add(s, G->values[row][col]);
+			tmp = fq_pow(G->values[row][col], q2);
+			sp = fq_add(sp, tmp);
 		}
+
+		// TODO: constant time
+		if (s != 0) {
+			s = fq_inv(s);
+		} else {
+			s = sp;
+			if (s == 0) {
+				return -1;
+			}
+		}
+
+		for (uint32_t col = 0; col < (N-K); col++) {
+			G->values[row][col] = fq_mul(s, G->values[row][col]);
+		}
+
 	}
 
 	return compute_canonical_form_type3(G, P_r, P_c);
@@ -446,7 +419,7 @@ int compare_matrices(const normalized_IS_t *V1,
 
         uint32_t i=0;
         while((i < K) &&
-             ((V1->values[i][col] - V2->values[i][col]) == 0)){
+             ((V1->values[i][col] - V2->values[i][col]) == 0)) {
             i++;
         }
 

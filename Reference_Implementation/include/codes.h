@@ -186,3 +186,6 @@ void normalized_mat_scale_row(normalized_IS_t *G, const uint32_t row, const FQ_E
 // defined in monomial.c
 void permutation_apply_row(permutation_t *P, normalized_IS_t *G);
 void permutation_apply_col(normalized_IS_t *G, permutation_t *P);
+
+void diagonal_apply_row(diagonal_t *P, normalized_IS_t *G);
+void diagonal_apply_col(normalized_IS_t *G, diagonal_t *P);

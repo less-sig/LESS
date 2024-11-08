@@ -160,3 +160,6 @@ void permutation_pretty_print(const permutation_t *P);
 ///                             Diagonal                             ///
 ////////////////////////////////////////////////////////////////////////
 void diagonal_mat_id(diagonal_t *D);
+void diagonal_mat_rnd(diagonal_t *D);
+void diagonal_mat_id_v2(diagonal_t *D, uint32_t max);
+void diagonal_mat_rnd_v2(diagonal_t *D, uint32_t max);
