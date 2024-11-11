@@ -87,6 +87,10 @@ add_executable(inv_table ${PROJECT_SOURCE_DIR}/lib/test/inv_table.c)
 target_link_libraries(inv_table m crypto)
 set_property(TARGET inv_table APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 
+add_executable(arith ${PROJECT_SOURCE_DIR}/lib/test/arith.c)
+target_link_libraries(arith m crypto)
+set_property(TARGET arith APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
+
 # canonical forms bench
 add_executable(bench_cf ${PROJECT_SOURCE_DIR}/lib/bench/bench_cf.c ${PROJECT_SOURCE_DIR}/lib/monomial_canonical.c ${PROJECT_SOURCE_DIR}/lib/canonical.c ${SOURCES})
 target_link_libraries(bench_cf m crypto)

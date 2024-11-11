@@ -122,15 +122,29 @@ FQ_ELEM fq_red(FQ_DOUBLEPREC x)
 #endif
 
 static inline
+FQ_ELEM fq_red(FQ_DOUBLEPREC x) {
+   return ((FQ_DOUBLEPREC) Q+x) % (FQ_DOUBLEPREC) Q;
+}
+
+/// super generic a \in [0, 2**16)
+//static inline
+//uint8_t fq_red(const uint16_t a) {
+//   const uint64_t lowbits = MMM * a;
+//   const uint32_t highbits = ((__uint128_t)lowbits * Q) >> 64;
+//   return highbits - (Qm1 & (a >> 31));
+//}
+
+static inline
 FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
    return ((FQ_DOUBLEPREC)x * (FQ_DOUBLEPREC)y) % Q;
 }
 
-// static inline
-// FQ_ELEM fq_red(FQ_DOUBLEPREC x)
-// {
-//    return ((FQ_DOUBLEPREC) Q+x) % (FQ_DOUBLEPREC) Q;
-// }
+//static inline
+//FQ_ELEM fq_mul(const FQ_ELEM x,
+//               const FQ_ELEM y) {
+//   FQ_DOUBLEPREC z = x*y;
+//   return fq_red(z);
+//}
 
 //static inline
 //FQ_ELEM fq_mul(FQ_ELEM a, FQ_ELEM b){
@@ -145,15 +159,15 @@ FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
 /*
  * Barrett reduction for uint8_t with prime Q = 127
  */
-static inline
-FQ_ELEM fq_red(FQ_ELEM a) {
-   FQ_ELEM t;
-   t = a >> 7;
-   t &= Q;
-   a += t;
-   a &= Q;
-   return a;
-}
+// static inline
+// FQ_ELEM fq_red(FQ_ELEM a) {
+//    FQ_ELEM t;
+//    t = a >> 7;
+//    t &= Q;
+//    a += t;
+//    a &= Q;
+//    return a;
+// }
 
 static inline
 FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {

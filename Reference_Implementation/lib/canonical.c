@@ -31,7 +31,7 @@ do {                    \
 
 void counting_sort_u8(FQ_ELEM *arr,
 					  const size_t size) {
-	uint32_t cnt[128] __attribute__((align(64))) = { 0 };
+	uint32_t cnt[128] __attribute__((aligned(64))) = { 0 };
 	size_t i;
 
 	for (i = 0 ; i < size ; ++i) {

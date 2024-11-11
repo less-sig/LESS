@@ -26,6 +26,8 @@
 #pragma once
 #include <stdint.h>
 
+#define Qm1 (126)
+#define MMM 0x204081020408103ull
 /* Seed tree max size is computed according to Parameter Generation Script in Utilities folder */
 
 /********************************* Category 1 *********************************/
