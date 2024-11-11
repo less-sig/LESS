@@ -211,7 +211,7 @@ void row_swap(normalized_IS_t *V,
               const POSITION_T row2) {
     ASSERT(row1 < K);
     ASSERT(row2 < K);
-    for(uint32_t i = 0; i < N-K;i++ ){
+    for(uint32_t i = 0; i < N-K; i++){
         POSITION_T tmp;
         tmp = V->values[row1][i];
         V->values[row1][i] = V->values[row2][i];
@@ -307,11 +307,22 @@ int lex_compare_with_pivot(normalized_IS_t *V,
 int Hoare_partition(normalized_IS_t *V, 
                     const POSITION_T col_l,
                     const POSITION_T col_h){
-    FQ_ELEM pivot_col[K] = {0};
+    FQ_ELEM pivot_col[K];
     for(uint32_t i = 0; i < K; i++){
        pivot_col[i] = V->values[i][col_l];
-    }    
-    POSITION_T i = col_l-1, j = col_h+1;
+    }
+    // TODO double comparison
+
+    POSITION_T i = col_l, j = col_h+1;
+    do {
+        j--;
+    } while(lex_compare_with_pivot(V,j,pivot_col) == -1);
+    if(i >= j){
+        return j;
+    }
+
+    column_swap(V,i,j);
+
     while(1){
         do {
             i++;
@@ -322,6 +333,7 @@ int Hoare_partition(normalized_IS_t *V,
         if(i >= j){
             return j;
         }
+
         column_swap(V,i,j);
     }
 }

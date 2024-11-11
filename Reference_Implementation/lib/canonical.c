@@ -29,6 +29,23 @@ do {                    \
     b ^= c;             \
 } while(0)
 
+void counting_sort_u8(FQ_ELEM *arr,
+					  const size_t size) {
+	uint32_t cnt[128] __attribute__((align(64))) = { 0 };
+	size_t i;
+
+	for (i = 0 ; i < size ; ++i) {
+		cnt[arr[i]]++;
+	}
+
+	i = 0;
+	for (size_t a = 0 ; a < 128; ++a) {
+		while (cnt[a]--) {
+			arr[i++] = a;
+		}
+	}
+}
+
 // taken from djbsort
 void int8_sort(FQ_ELEM *x,
                const long long n) {
@@ -312,6 +329,111 @@ int row_bitonic_sort(normalized_IS_t *G,
     return 1;
 }
 
+
+/// lexicographic comparison of a row with the pivot
+/// returns    1 if the pivot is greater,
+/// 	      -1 if it is smaller,
+/// 		   0 if it matches
+int row_lex_compare_with_pivot(FQ_ELEM V[K][N-K],
+                           const POSITION_T row_idx,
+                           FQ_ELEM pivot[N-K]){
+   uint32_t i=0;
+   while((i<(N-K)) && (V[row_idx][i]-pivot[i] == 0)){
+       i++;
+   }
+   if (i==(N-K)) {
+	   return 0;
+   }
+
+   if ((int)V[row_idx][i]-(int)pivot[i] > 0){
+      return -1;
+   }
+
+   return 1;
+}
+
+
+void print_kek(FQ_ELEM V[K][N-K]) {
+	for (uint32_t i = 0; i < K; i++) {
+		for (uint32_t j = 0; j < (N-K); j++) {
+			printf("%03u ", V[i][j]);
+		}
+		printf("\n");
+	}
+	printf("\n");
+}
+
+int row_hoare_partition(FQ_ELEM V[K][N-K],
+						normalized_IS_t *G,
+						const POSITION_T row_l,
+						const POSITION_T row_h,
+						permutation_t *P_r) {
+    FQ_ELEM pivot_row[N-K];
+    for(uint32_t i = 0; i < N-K; i++){
+       pivot_row[i] = V[row_l][i];
+    }
+
+	// print_kek(V);
+
+    POSITION_T i = row_l-1, j = row_h+1;
+	int ret;
+    while(1){
+        do {
+            i++;
+        	ret = row_lex_compare_with_pivot(V, i, pivot_row);
+        } while(ret == 1);
+
+        do {
+            j--;
+        	ret = row_lex_compare_with_pivot(V, j, pivot_row);
+        } while(ret == -1);
+
+    	// if (ret == 0) {
+    	// 	return 0;
+    	// }
+
+        if(i >= j){
+            return j;
+        }
+
+        // row_swap(V, i, j);
+    	row_swap(G, i, j);
+    	SWAP(P_r->permutation[i], P_r->permutation[j]);
+		for(uint32_t k = 0; k < N-K; k++){
+			SWAP(V[i][k], V[j][k]);
+		}
+    }
+}
+
+int row_lex_quicksort(FQ_ELEM V[K][N-K],
+					  normalized_IS_t *G,
+                      const uint32_t start,
+                      const uint32_t end,
+                      permutation_t *P_r) {
+    if(start < end){
+        const int p = row_hoare_partition(V, G, start, end, P_r);
+        row_lex_quicksort(V, G, start, p, P_r);
+        row_lex_quicksort(V, G, p+1, end, P_r);
+    }
+
+	return 1;
+}
+
+// non inplace
+int row_quick_sort(normalized_IS_t *G,
+				   permutation_t *P_r) {
+	// first sort each row into a tmp buffer
+	FQ_ELEM  tmp[K][N-K];
+	for (uint32_t i = 0; i < K; ++i) {
+		memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
+		// int8_sort(tmp[i], N-K);
+		counting_sort_u8(tmp[i], N-K);
+	}
+
+	return row_lex_quicksort(tmp, G, 0, N-K-1, P_r);
+}
+
+
 // NOTE: unstable sort, as we sort on 0
 /// sort is applied inplace
 /// @param G
@@ -363,14 +485,15 @@ void col_bitonic_sort(normalized_IS_t *G,
 int compute_canonical_form_type3(normalized_IS_t *G,
 								 permutation_t *P_r,
 								 permutation_t *P_c) {
-    // TODO bitonic sort
     // first sort the rows
-    if (row_bubble_sort(G, P_r) == 0) {
+    //if (row_bitonic_sort(G, P_r) == 0) {
+    if (row_quick_sort(G, P_r) == 0) {
         return 0;
     }
 
     // next sort the columns
     canonical_col_lex_quicksort(G, 0, N-K-1, P_c);
+	//col_bitonic_sort(G, P_c);
     return 1;
 }
 
@@ -387,11 +510,10 @@ int compute_canonical_form_type4(normalized_IS_t *G,
 		FQ_ELEM s = 0, sp = 0, tmp, q2=Q-2;
 		for (uint32_t col = 0; col < (N-K); col++) {
 			s = fq_add(s, G->values[row][col]);
-			tmp = fq_pow(G->values[row][col], q2);
+			tmp = fq_inv(G->values[row][col]); //fq_pow(G->values[row][col], q2);
 			sp = fq_add(sp, tmp);
 		}
 
-		// TODO: constant time
 		if (s != 0) {
 			s = fq_inv(s);
 		} else {
@@ -454,10 +576,9 @@ int compute_canonical_form_type5(normalized_IS_t *G,
 		for (uint32_t row = 0; row < K; row++) {
             FQ_ELEM tmp = fq_inv(Aj.values[row][col]);
 			normalized_mat_scale_row(&Aj, row, tmp);
-            D_r->coefficients[row] = fq_mul(D_r->coefficients[row], tmp);
+            // D_r->coefficients[row] = fq_mul(D_r->coefficients[row], tmp);
 		}
 
-        // TODO, need the smallest
 		compute_canonical_form_type4(&Aj, P_r, D_c, P_c);
 		
 		if (compare_matrices(&Aj, &smallest) < 0) {

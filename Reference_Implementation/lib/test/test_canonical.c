@@ -6,15 +6,27 @@
 #include <stdio.h>
 
 
+int test_counting_sort(void) {
+    const size_t s = K;
+    FQ_ELEM *d1 = (FQ_ELEM *)malloc(sizeof(FQ_ELEM) * s);
+    for (size_t i = 0; i < s; i++) { d1[i] = s-1-i; }
+
+    counting_sort_u8(d1, s);
+    for (size_t i = 1; i < s; i++) {
+        if (d1[i-1] > d1[i]) { return 1; }
+    }
+
+    free(d1);
+    return 0;
+}
+
 int test_sorting_network(void) {
     const size_t s = K;
     FQ_ELEM *d1 = (FQ_ELEM *)malloc(sizeof(FQ_ELEM) * s);
     for (size_t i = 0; i < s; i++) { d1[i] = s-1-i; }
 
     int8_sort(d1, s);
-
-    
-    for (size_t i = 1; i < s; i++) { 
+    for (size_t i = 1; i < s; i++) {
         if (d1[i-1] > d1[i]) { return 1; }
     }
 
@@ -23,22 +35,33 @@ int test_sorting_network(void) {
 }
 
 int test_sorting_network_matrix(void) {
-    normalized_IS_t G1, G2;
-    permutation_t P_c1, P_c2;
+    normalized_IS_t G1, G2, G3;
+    permutation_t P_c1, P_c2, P_c3;
 
     normalized_sf(&G1);
     permutation_mat_id(&P_c1);
     permutation_mat_id(&P_c2);
+    permutation_mat_id(&P_c2);
 
     memcpy((void *)G2.values, (void*)G1.values, sizeof(normalized_IS_t));
+    memcpy((void *)G3.values, (void*)G1.values, sizeof(normalized_IS_t));
 
     row_bubble_sort(&G1, &P_c1);
     row_bitonic_sort(&G2, &P_c2);
+    row_quick_sort(&G3, &P_c3);
+
+    normalized_pretty_print(&G1);
+    normalized_pretty_print(&G3);
 
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < N-K; j++) {
             if (G1.values[i][j] != G2.values[i][j]) {
-                printf("error\n");
+                printf("error1\n");
+                return 1;
+            }
+
+            if (G1.values[i][j] != G3.values[i][j]) {
+                printf("error2\n");
                 return 1;
             }
         }
@@ -46,6 +69,12 @@ int test_sorting_network_matrix(void) {
 
     for (uint32_t i = 0; i < N; i++) {
         if (P_c1.permutation[i] != P_c2.permutation[i]) {
+            printf("error11\n");
+            return 2;
+        }
+
+        if (P_c1.permutation[i] != P_c3.permutation[i]) {
+            printf("error12\n");
             return 2;
         }
     }
@@ -62,9 +91,12 @@ int test_col_sorting_network_matrix(void) {
     permutation_mat_id(&P_c2);
     memcpy((void *)G2.values, (void*)G1.values, sizeof(normalized_IS_t));
 
+    normalized_pretty_print(&G1);
     lex_sort_cols(&G1);
     col_bitonic_sort(&G2, &P_c2);
 
+    normalized_pretty_print(&G1);
+    normalized_pretty_print(&G2);
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < N-K; j++) {
             if (G1.values[i][j] != G2.values[i][j]) {
@@ -225,6 +257,7 @@ int test_compute_canonical_form_type4_v2(void) {
 
     return 0;
 }
+
 int test_compute_canonical_form_type5(void) {
     normalized_IS_t G;
     permutation_t P_c, P_r;
@@ -244,18 +277,64 @@ int test_compute_canonical_form_type5(void) {
     return 0;
 }
 
+int test_compute_canonical_form_type5_v2(void) {
+    normalized_IS_t G1, G2;
+    permutation_t P_c, P_r, P_c1, P_r1, P_c2, P_r2;
+    diagonal_t D_r, D_c;
+
+    permutation_mat_rng_v2(&P_c, N-K);
+    permutation_mat_rng_v2(&P_r, K);
+    diagonal_mat_rnd_v2(&D_r, K);
+    diagonal_mat_rnd_v2(&D_c, N-K);
+
+    // generate data
+    normalized_sf(&G1);
+    normalized_copy(&G2, &G1);
+    diagonal_apply_col(&G2, &D_c);
+    permutation_apply_col(&G2, &P_c);
+    diagonal_apply_row(&D_r, &G2);
+    permutation_apply_row(&P_r, &G2);
+
+    permutation_mat_id(&P_c1);
+    permutation_mat_id(&P_r1);
+    permutation_mat_id(&P_c2);
+    permutation_mat_id(&P_r2);
+
+    if (compute_canonical_form_type5(&G1, NULL, &P_r1, NULL, &P_c1) == 0) return 1;
+    if (compute_canonical_form_type5(&G2, NULL, &P_r2, NULL, &P_c2) == 0) return 1;
+
+    normalized_pretty_print(&G1);
+    normalized_pretty_print(&G2);
+
+    for (uint32_t i = 0; i < K; i++) {
+        for (uint32_t j = 0; j < N-K; j++) {
+            if (G1.values[i][j] != G2.values[i][j]) {
+                printf("error\n");
+                return 1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 int main(void) {
+    if (test_counting_sort()) return 1;
+    if (test_sorting_network()) return 1;
+    if (test_sorting_network_matrix()) return 1;
+    if (test_col_sorting_network_matrix()) return 1;
+
     // generic matrices test
     // if (test_compute_canonical_form_type2()) return 1;
     // if (test_compute_canonical_form_type3()) return 1;
-    // if (test_compute_canonical_form_type3_v2()) return 1;
+    if (test_compute_canonical_form_type3_v2()) return 1;
     // if (test_compute_canonical_form_type4()) return 1;
-    if (test_compute_canonical_form_type4_v2()) return 1;
+    // if (test_compute_canonical_form_type4_v2()) return 1;
     // if (test_compute_canonical_form_type5()) return 1;
-    
-    // if (test_sorting_network()) return 1;
-    // if (test_sorting_network_matrix()) return 1;
-    // if (test_col_sorting_network_matrix()) return 1;
+
+    // TODO
+    // if (test_compute_canonical_form_type5_v2()) return 1;
+
 
     // monomial test
     //if (test_compute_information_set_monomial()) return 1;

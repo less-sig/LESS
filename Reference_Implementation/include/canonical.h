@@ -8,11 +8,22 @@
 ///                             Sorting                              ///
 ////////////////////////////////////////////////////////////////////////
 int fqcmp(const void *a,const void *b);
+int compare_matrices(const normalized_IS_t *V1,
+                     const normalized_IS_t *V2);
+
 void int8_sort(FQ_ELEM *x, const long long n);
+void counting_sort_u8(uint8_t *arr, const size_t size);
 int row_bubble_sort(normalized_IS_t *G, permutation_t *P_r);
 int row_bitonic_sort(normalized_IS_t *G, permutation_t *P_r);
+int row_quick_sort(normalized_IS_t *G, permutation_t *P_r);
 void col_bitonic_sort(normalized_IS_t *G, permutation_t *P_c);
 
+
+
+void canonical_col_lex_quicksort(normalized_IS_t *V,
+                                 const int start,
+                                 const int end,
+                                 permutation_t *P);
 ////////////////////////////////////////////////////////////////////////
 ///                        Canonical Forms                           ///
 ////////////////////////////////////////////////////////////////////////

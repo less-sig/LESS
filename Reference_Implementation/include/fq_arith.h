@@ -122,40 +122,68 @@ FQ_ELEM fq_red(FQ_DOUBLEPREC x)
 #endif
 
 static inline
-FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
-   return (x + y) % Q;
-}
-
-static inline
 FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
    return ((FQ_DOUBLEPREC)x * (FQ_DOUBLEPREC)y) % Q;
 }
 
+// static inline
+// FQ_ELEM fq_red(FQ_DOUBLEPREC x)
+// {
+//    return ((FQ_DOUBLEPREC) Q+x) % (FQ_DOUBLEPREC) Q;
+// }
+
+//static inline
+//FQ_ELEM fq_mul(FQ_ELEM a, FQ_ELEM b){
+//   FQ_DOUBLEPREC lo, hi;
+//   lo = a * b;
+//   hi = lo >> 7;
+//   lo += hi;
+//   hi <<= 7;
+//   return (lo - hi) & Q;
+//}
+
+/*
+ * Barrett reduction for uint8_t with prime Q = 127
+ */
 static inline
-FQ_ELEM fq_red(FQ_DOUBLEPREC x)
-{
-   return ((FQ_DOUBLEPREC) Q+x) % (FQ_DOUBLEPREC) Q;
+FQ_ELEM fq_red(FQ_ELEM a) {
+   FQ_ELEM t;
+   t = a >> 7;
+   t &= Q;
+   a += t;
+   a &= Q;
+   return a;
 }
+
+static inline
+FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
+   // return (x + y) % Q;
+   return fq_red(x + y) ;
+}
+
+
+static const uint8_t inv_table[127]  __attribute__((aligned(64))) = {0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126};
+
 
 /* Fermat's method for inversion employing r-t-l square and multiply,
  * unrolled for actual parameters */
 static inline
 FQ_ELEM fq_inv(FQ_ELEM x)
 {
-
-   FQ_DOUBLEPREC xlift;
-   xlift = x;
-   FQ_DOUBLEPREC accum = 1;
-   /* No need for square and mult always, Q-2 is public*/
-   uint32_t exp = Q-2;
-   while(exp) {
-      if(exp & 1) {
-         accum = fq_red(accum*xlift);
-      }
-      xlift = fq_red(xlift*xlift);
-      exp >>= 1;
-   }
-   return fq_red(accum);
+   return inv_table[x];
+   //FQ_DOUBLEPREC xlift;
+   //xlift = x;
+   //FQ_DOUBLEPREC accum = 1;
+   ///* No need for square and mult always, Q-2 is public*/
+   //uint32_t exp = Q-2;
+   //while(exp) {
+   //   if(exp & 1) {
+   //      accum = fq_red(accum*xlift);
+   //   }
+   //   xlift = fq_red(xlift*xlift);
+   //   exp >>= 1;
+   //}
+   //return fq_red(accum);
 } /* end fq_inv */
 
 

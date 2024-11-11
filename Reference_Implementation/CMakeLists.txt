@@ -18,7 +18,7 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
 	set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNINGS}")
 else()
 	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0 -Wall -fpermissive -Wpedantic -Wextra -fpermissive -fsanitize=address ${ALLOWED_WARNINGS}")
-	set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -mavx2 -mavx -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNINGS}")
+	set(CMAKE_C_FLAGS_RELEASE "-O3 -fno-inline -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -mavx2 -mavx -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNINGS}")
 endif()
 
 
@@ -83,7 +83,15 @@ add_executable(test_canonical_form ${PROJECT_SOURCE_DIR}/lib/test/test_canonical
 target_link_libraries(test_canonical_form m crypto)
 set_property(TARGET test_canonical_form APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_0 -DBALANCED=1")
 
+add_executable(inv_table ${PROJECT_SOURCE_DIR}/lib/test/inv_table.c)
+target_link_libraries(inv_table m crypto)
+set_property(TARGET inv_table APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
+
 # canonical forms bench
+add_executable(bench_cf ${PROJECT_SOURCE_DIR}/lib/bench/bench_cf.c ${PROJECT_SOURCE_DIR}/lib/monomial_canonical.c ${PROJECT_SOURCE_DIR}/lib/canonical.c ${SOURCES})
+target_link_libraries(bench_cf m crypto)
+set_property(TARGET bench_cf APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
+
 add_executable(bench_sorting ${PROJECT_SOURCE_DIR}/lib/bench/bench_sorting.c ${PROJECT_SOURCE_DIR}/lib/monomial_canonical.c ${PROJECT_SOURCE_DIR}/lib/canonical.c ${SOURCES})
 target_link_libraries(bench_sorting m crypto)
 set_property(TARGET bench_sorting APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")

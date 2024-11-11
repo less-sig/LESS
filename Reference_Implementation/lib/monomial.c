@@ -638,8 +638,10 @@ void permutation_pretty_print(const permutation_t *const P) {
 
 void diagonal_apply_col(normalized_IS_t *G,
                         diagonal_t *P) {
-    for (uint32_t i = 0; i < (N-K); i++) {
-
+    for (uint32_t i = 0; i < K; i++) {
+        for (uint32_t j = 0; j < (N-K); j++) {
+            G->values[i][j] = fq_mul(G->values[i][j], P->coefficients[j]);
+        }
     }
 }
 
