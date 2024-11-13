@@ -124,7 +124,11 @@ void monomial_compose_action(monomial_action_IS_t * out,
 
 /* Compress MonomialAction object to byte array */
 void compress_monom_action(uint8_t *compressed,
-                            const monomial_action_IS_t * mono);
+                           const monomial_action_IS_t * mono);
+
+/* Compress MonomialAction via CF */
+void cf_compress_monom_action(uint8_t *compressed,
+                              const monomial_action_IS_t *mono);
 
 /* Decompress byte array to MonomialAction object */
 void expand_to_monom_action(monomial_action_IS_t *mono,
@@ -159,7 +163,9 @@ void permutation_pretty_print(const permutation_t *P);
 ////////////////////////////////////////////////////////////////////////
 ///                             Diagonal                             ///
 ////////////////////////////////////////////////////////////////////////
+void diagonal_mat_zero(diagonal_t *D);
 void diagonal_mat_id(diagonal_t *D);
 void diagonal_mat_rnd(diagonal_t *D);
 void diagonal_mat_id_v2(diagonal_t *D, uint32_t max);
 void diagonal_mat_rnd_v2(diagonal_t *D, uint32_t max);
+void diagonal_pretty_print(const diagonal_t *const D);

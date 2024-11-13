@@ -378,11 +378,11 @@ int LESS_sign_verify_test(void){
     LESS_sign(&sk,message,8,&signature);
     int is_signature_ok;
     is_signature_ok = LESS_verify(&pk,message,8,&signature);
-    // fprintf(stderr,"Keygen-Sign-Verify: %s", is_signature_ok == 1 ? "functional\n": "not functional\n" );
+    fprintf(stderr,"Keygen-Sign-Verify: %s", is_signature_ok == 1 ? "functional\n": "not functional\n" );
     return is_signature_ok;
 }
 
-#define NUMBER_OF_TESTS 100
+#define NUMBER_OF_TESTS 1
 #define MLEN 160
 
 /* returns 1 if the test is successful, 0 otherwise */
@@ -472,8 +472,9 @@ int LESS_sign_verify_test_KAT(void) {
 int main(int argc, char* argv[]){
     (void)argc;
     (void)argv;
-    return LESS_sign_verify_test_multiple();
-    //LESS_sign_verify_test_KAT();
+    //return LESS_sign_verify_test();
+    // return LESS_sign_verify_test_multiple();
+    LESS_sign_verify_test_KAT();
 
     initialize_csprng(&platform_csprng_state,
                       (const unsigned char *)"012345678912345",

@@ -15,10 +15,10 @@ set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-type-limits ")
 
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
 	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0  -march=native -flax-vector-conversions ${ALLOWED_WARNINGS}")
-	set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNINGS}")
+	set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector -flto ${ALLOWED_WARNINGS}")
 else()
-	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0 -Wall -fpermissive -Wpedantic -Wextra -fpermissive -fsanitize=address ${ALLOWED_WARNINGS}")
-	set(CMAKE_C_FLAGS_RELEASE "-O3 -fno-inline -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -mavx2 -mavx -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNINGS}")
+	set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -Og -ggdb -Wall -fpermissive -Wpedantic -Wextra -fpermissive -fsanitize=address ${ALLOWED_WARNINGS}")
+	set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -mavx2 -mavx -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector -flto ${ALLOWED_WARNINGS}")
 endif()
 
 
@@ -32,6 +32,8 @@ set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/seedtree.c
         ${PROJECT_SOURCE_DIR}/lib/sign.c
         ${PROJECT_SOURCE_DIR}/lib/utils.c
+        ${PROJECT_SOURCE_DIR}/lib/sort.c
+        ${PROJECT_SOURCE_DIR}/lib/canonical.c
 )
 
 set(HEADERS
@@ -47,6 +49,7 @@ set(HEADERS
         ${PROJECT_SOURCE_DIR}/include/rng.h
         ${PROJECT_SOURCE_DIR}/include/seedtree.h
         ${PROJECT_SOURCE_DIR}/include/utils.h
+        ${PROJECT_SOURCE_DIR}/include/sort.h
 )
 
 include_directories(include)
@@ -79,7 +82,7 @@ foreach(category RANGE 1 5 2)
 endforeach(category)
 
 # canonical forms test
-add_executable(test_canonical_form ${PROJECT_SOURCE_DIR}/lib/test/test_canonical.c ${PROJECT_SOURCE_DIR}/lib/monomial_canonical.c ${PROJECT_SOURCE_DIR}/lib/canonical.c ${SOURCES})
+add_executable(test_canonical_form ${PROJECT_SOURCE_DIR}/lib/test/test_canonical.c ${SOURCES})
 target_link_libraries(test_canonical_form m crypto)
 set_property(TARGET test_canonical_form APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_0 -DBALANCED=1")
 
@@ -91,11 +94,16 @@ add_executable(arith ${PROJECT_SOURCE_DIR}/lib/test/arith.c)
 target_link_libraries(arith m crypto)
 set_property(TARGET arith APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 
+add_executable(test_sort ${PROJECT_SOURCE_DIR}/lib/test/sort.c ${SOURCES})
+target_link_libraries(test_sort m crypto)
+set_property(TARGET test_sort APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_0 -DBALANCED=1")
+# set_property(TARGET test_sort APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
+
 # canonical forms bench
-add_executable(bench_cf ${PROJECT_SOURCE_DIR}/lib/bench/bench_cf.c ${PROJECT_SOURCE_DIR}/lib/monomial_canonical.c ${PROJECT_SOURCE_DIR}/lib/canonical.c ${SOURCES})
+add_executable(bench_cf ${PROJECT_SOURCE_DIR}/lib/bench/bench_cf.c ${SOURCES})
 target_link_libraries(bench_cf m crypto)
 set_property(TARGET bench_cf APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 
-add_executable(bench_sorting ${PROJECT_SOURCE_DIR}/lib/bench/bench_sorting.c ${PROJECT_SOURCE_DIR}/lib/monomial_canonical.c ${PROJECT_SOURCE_DIR}/lib/canonical.c ${SOURCES})
+add_executable(bench_sorting ${PROJECT_SOURCE_DIR}/lib/bench/bench_sorting.c ${SOURCES})
 target_link_libraries(bench_sorting m crypto)
 set_property(TARGET bench_sorting APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")

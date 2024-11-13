@@ -5,8 +5,9 @@
 
 #include "canonical.h"
 #include "cycles.h"
+#include "sort.h"
 
-#define ITERS (1u << 10u)
+#define ITERS (1u << 5u)
 
 
 
@@ -93,7 +94,7 @@ int bench_cf3(void) {
     permutation_mat_id(&P_c);
     permutation_mat_id(&P_r);
 
-	printf("ct3:\n");
+	printf("cf3:\n");
     uint64_t c = 0, c1, ctr = 0;
 	normalized_sf(&G1);
     for (uint64_t i = 0; i < ITERS; i++) {
@@ -130,7 +131,7 @@ int bench_cf4(void) {
     permutation_mat_id(&P_r);
     diagonal_mat_id(&D_c);
 
-	printf("ct4:\n");
+	printf("cf4:\n");
 	normalized_sf(&G1);
     uint64_t c = 0, c1, ctr = 0;
     for (uint64_t i = 0; i < ITERS; i++) {
@@ -149,13 +150,27 @@ int bench_cf4(void) {
         //normalized_sf(&G1);
 
         c -= x86_64_rtdsc();
-        ctr += cf4_bubble(&G1, &P_r, &D_c, &P_c);
+        ctr += compute_canonical_form_type4_non_ct(&G1, &P_r, &D_c, &P_c);
         c += x86_64_rtdsc();
     }
 
     c = c/ITERS;
-    printf("bubble: %ld cyc, ctr: %ld\n", c, ctr);
+    printf("non_ct: %ld cyc, ctr: %ld\n", c, ctr);
     printf("factor %lf\n\n", (double)c/(double)c1);
+
+	// normalized_sf(&G1);
+    // c = 0; ctr = 0;
+    // for (uint64_t i = 0; i < ITERS; i++) {
+    //     //normalized_sf(&G1);
+
+    //     c -= x86_64_rtdsc();
+    //     ctr += cf4_bubble(&G1, &P_r, &D_c, &P_c);
+    //     c += x86_64_rtdsc();
+    // }
+
+    // c = c/ITERS;
+    // printf("bubble: %ld cyc, ctr: %ld\n", c, ctr);
+    // printf("factor %lf\n\n", (double)c/(double)c1);
     return 0;
 }
 
@@ -169,10 +184,10 @@ int bench_cf5(void) {
     diagonal_mat_id(&D_r);
 
 	normalized_sf(&G1);
-	printf("ct5:\n");
+	printf("cf5:\n");
     uint64_t c = 0, c1, ctr = 0;
     for (uint64_t i = 0; i < ITERS; i++) {
-        normalized_sf(&G1);
+        // normalized_sf(&G1);
 
         c -= x86_64_rtdsc();
         ctr += compute_canonical_form_type5(&G1, NULL, &P_r, NULL, &P_c);
@@ -198,8 +213,8 @@ int bench_cf5(void) {
 }
 
 int main(void) {
-    if (bench_cf3()) return 1;
-    if (bench_cf4()) return 1;
+    // if (bench_cf3()) return 1;
+    // if (bench_cf4()) return 1;
     if (bench_cf5()) return 1;
     return 0;
 }

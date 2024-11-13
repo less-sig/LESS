@@ -253,6 +253,17 @@ void monomial_compose_action(monomial_action_IS_t* out,
    }   
 }
 
+/// type5 compression
+/// \param compressed
+/// \param mono
+void cf_compress_monom_action(uint8_t *compressed,
+                              const monomial_action_IS_t *mono) {
+    for (uint32_t i = 0; i < K; i++) {
+        // TODO
+        // skn compression
+    }
+}
+
 /* Compress MonomialAction object to byte array */
 void compress_monom_action(uint8_t *compressed,
                             const monomial_action_IS_t *mono) {
@@ -654,6 +665,14 @@ void diagonal_apply_row(diagonal_t *P,
         }
     }
 }
+
+///
+void diagonal_mat_zero(diagonal_t *D) {
+    for (uint32_t i = 0; i < N; ++i) {
+        D->coefficients[i] = 0;
+    }
+}
+
 ///
 void diagonal_mat_id(diagonal_t *D) {
     for (uint32_t i = 0; i < N; ++i) {
@@ -684,4 +703,14 @@ void diagonal_mat_rnd_v2(diagonal_t *D,
     for (uint32_t i = 0; i < max; ++i) {
         D->coefficients[i] = fq_red(D->coefficients[i]);
     }
+}
+
+///
+void diagonal_pretty_print(const diagonal_t *const P) {
+    fprintf(stderr,"diag = [");
+    for(uint32_t i = 0; i < N-1; i++) {
+        fprintf(stderr,"%03u, ", P->coefficients[i]);
+    }
+
+    fprintf(stderr,"%03u ]\n", P->coefficients[N-1]);
 }

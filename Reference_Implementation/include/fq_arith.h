@@ -171,8 +171,7 @@ FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
 
 static inline
 FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
-   // return (x + y) % Q;
-   return fq_red(x + y) ;
+      return (x + y) % Q;
 }
 
 
@@ -182,22 +181,8 @@ static const uint8_t inv_table[127]  __attribute__((aligned(64))) = {0, 1, 64, 8
 /* Fermat's method for inversion employing r-t-l square and multiply,
  * unrolled for actual parameters */
 static inline
-FQ_ELEM fq_inv(FQ_ELEM x)
-{
+FQ_ELEM fq_inv(FQ_ELEM x) {
    return inv_table[x];
-   //FQ_DOUBLEPREC xlift;
-   //xlift = x;
-   //FQ_DOUBLEPREC accum = 1;
-   ///* No need for square and mult always, Q-2 is public*/
-   //uint32_t exp = Q-2;
-   //while(exp) {
-   //   if(exp & 1) {
-   //      accum = fq_red(accum*xlift);
-   //   }
-   //   xlift = fq_red(xlift*xlift);
-   //   exp >>= 1;
-   //}
-   //return fq_red(accum);
 } /* end fq_inv */
 
 

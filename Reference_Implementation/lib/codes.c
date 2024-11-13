@@ -713,11 +713,17 @@ void normalized_copy(normalized_IS_t *V1,
     memcpy(V1->values, V2->values, K * (N-K) * sizeof(FQ_ELEM));
 }
 
-void normalized_mat_scale_row(normalized_IS_t *G, const uint32_t row, const FQ_ELEM a) {
+/// \param G
+/// \param row
+/// \param a
+void normalized_mat_scale_row(normalized_IS_t *G,
+                              const uint32_t row,
+                              const FQ_ELEM a) {
     for (uint32_t col = 0; col < N-K; col++) {
         G->values[row][col] = fq_mul(G->values[row][col], a);
     }
 }
+
 ///
 /// \param V
 /// \param col

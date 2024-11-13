@@ -28,6 +28,7 @@
 #include <stdio.h>
 
 #include "LESS.h"
+#include "canonical.h"
 #include "seedtree.h"
 #include "rng.h"
 #include "utils.h"
@@ -142,7 +143,12 @@ size_t LESS_sign(const prikey_t *SK,
 
         /* Absorb input */
         prepare_digest_input(&V_array, &Q_bar_actions[i], &full_G0, &Q_tilde);
-        LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
+        if (compute_canonical_form_type5(&V_array, NULL, NULL, NULL, NULL) == 0) {
+            i -= 1;
+            printf("cf5 failed\n");
+        } else {
+            LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
+        }
     }
 
     LESS_SHA3_INC_ABSORB(&state, (const uint8_t *)m, mlen);
@@ -180,6 +186,8 @@ size_t LESS_sign(const prikey_t *SK,
                                     &Q_to_multiply,
                                     &Q_bar_actions[i]);
 
+
+            compress_monom_action(sig->cf_monom_actions[emitted_monoms], &mono_action);
             compress_monom_action(sig->monom_actions[emitted_monoms], &mono_action);
 
             emitted_monoms++;
