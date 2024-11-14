@@ -258,9 +258,11 @@ void monomial_compose_action(monomial_action_IS_t* out,
 /// \param mono
 void cf_compress_monom_action(uint8_t *compressed,
                               const monomial_action_IS_t *mono) {
+    memset(compressed, 0, N8);
     for (uint32_t i = 0; i < K; i++) {
-        // TODO
-        // skn compression
+        const uint32_t limb = (mono->permutation[i])/8;
+        const uint32_t pos  = (mono->permutation[i])%8;
+        compressed[limb] ^= 1u << pos;
     }
 }
 
@@ -415,7 +417,28 @@ void compress_monom_action(uint8_t *compressed,
     }
 }
 
+/// \param mono
+/// \param compressed
+void cf_expand_to_monom_action(monomial_action_IS_t *mono,
+                               const uint8_t *compressed) {
+    for (uint32_t i = 0; i < K; i++) {
+        mono->coefficients[i] = 1;
+    }
+    memset(mono->permutation, 0, K*sizeof(POSITION_T));
 
+    uint32_t ctr = 0;
+    for (uint32_t i = 0; i < N8; i++) {
+        uint8_t tmp = compressed[i];
+        while (tmp) {
+            const uint32_t pos = __builtin_ctz(tmp);
+            tmp ^= 1u << pos;
+
+            mono->permutation[ctr++] = i*8 + pos;
+        }
+    }
+
+    assert(ctr == K);
+}
 
 /* Decompress byte array to MonomialAction object */
 void expand_to_monom_action(monomial_action_IS_t *mono,

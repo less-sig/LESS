@@ -160,6 +160,9 @@
 #error define category for parameters
 #endif
 
+/* */
+#define K8 ((K+7u)/8u)
+#define N8 ((N+7u)/8u)
 
 /***************** Derived parameters *****************************************/
 

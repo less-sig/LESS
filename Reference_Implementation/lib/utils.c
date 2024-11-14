@@ -60,7 +60,9 @@ void cswap_array(uintptr_t *a,
 ///              size_t len:       length of the byte arrays
 ///
 /// Returns 0 if the byte arrays are equal, 1 otherwise
-int verify(const uint8_t *a, const uint8_t *b, size_t len) {
+int verify(const uint8_t *a,
+           const uint8_t *b,
+           const size_t len) {
     uint8_t r = 0;
 
     for(size_t i=0;i<len;i++) {

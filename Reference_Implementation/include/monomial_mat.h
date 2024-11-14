@@ -61,7 +61,7 @@ typedef struct {
 // wrapper struct around D_n
 typedef struct {
    /* coefficients listed in order of appearance column-wise */
-   FQ_ELEM coefficients[N]; // TODO can be K
+   FQ_ELEM coefficients[N];
 } diagonal_t;
 
 // wrapper struct around the set S_n
@@ -70,7 +70,7 @@ typedef struct {
     * index 0, the position of the DESTINATION of column 0 in G after the
     * computation of GQ.
     */
-   POSITION_T permutation[N]; // TODO can be K
+   POSITION_T permutation[N];
 } permutation_t;
 
 typedef struct {
@@ -134,6 +134,8 @@ void cf_compress_monom_action(uint8_t *compressed,
 void expand_to_monom_action(monomial_action_IS_t *mono,
                             const uint8_t *compressed);
 
+void cf_expand_to_monom_action(monomial_action_IS_t *mono,
+                               const uint8_t *compressed);
 
 /* Validate MonomialAction object */
 int is_monom_action_valid(const monomial_action_IS_t * const mono);

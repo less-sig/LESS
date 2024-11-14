@@ -187,7 +187,7 @@ size_t LESS_sign(const prikey_t *SK,
                                     &Q_bar_actions[i]);
 
 
-            compress_monom_action(sig->cf_monom_actions[emitted_monoms], &mono_action);
+            cf_compress_monom_action(sig->cf_monom_actions[emitted_monoms], &mono_action);
             compress_monom_action(sig->monom_actions[emitted_monoms], &mono_action);
 
             emitted_monoms++;
@@ -198,15 +198,6 @@ size_t LESS_sign(const prikey_t *SK,
     return num_seeds_published;
 } /* end LESS_sign */
 
-int timing_safe_memcmp(const unsigned char *a,
-                       const unsigned char *b,
-                       unsigned int bytelen) {
-    int are_different = 0;
-    for (uint32_t i = 0; i < bytelen; i++) {
-        are_different |= (a[i] != b[i]);
-    }
-    return are_different;
-}
 
 int LESS_verify(const pubkey_t *const PK,
                 const char *const m,
@@ -216,6 +207,7 @@ int LESS_verify(const pubkey_t *const PK,
     uint8_t fixed_weight_string[T] = {0};
     expand_digest_to_fixed_weight(fixed_weight_string, sig->digest);
     monomial_action_IS_t mono_action;
+    monomial_action_IS_t cf_mono_action;
 
 
     uint8_t published_seed_indexes[T];
@@ -256,19 +248,30 @@ int LESS_verify(const pubkey_t *const PK,
                                  &tmp_full_G,
                                  &Q_to_multiply);
 
+
+            cf5(&V_array);// TODO
             LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array, sizeof(normalized_IS_t));
         } else {
             generator_mat_t G_hat = {0};
             expand_to_rref(&tmp_full_G, PK->SF_G[fixed_weight_string[i] - 1]);
             expand_to_monom_action(&mono_action, sig->monom_actions[employed_monoms]);
+            // TODO
+            cf_expand_to_monom_action(&cf_mono_action, sig->cf_monom_actions[employed_monoms]);
+
             /* Check that the monomial action is valid */
             if (!is_monom_action_valid(&mono_action)) {
                 return 0;
             }
 
+            // TODO
+            if (!is_monom_action_valid(&cf_mono_action)) {
+                return 0;
+            }
+
             apply_action_to_G(&G_hat,
                               &tmp_full_G,
-                              &mono_action);
+                              // &mono_action);// TODO
+                              &cf_mono_action);
 
             uint8_t is_pivot_column[N] = {0};
             generator_RREF(&G_hat, is_pivot_column);
@@ -286,7 +289,8 @@ int LESS_verify(const pubkey_t *const PK,
                 }
             }
 
-            lex_sort_cols(&V_array);
+            // lex_sort_cols(&V_array);
+            cf5(&V_array); // TODO
             LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array, sizeof(normalized_IS_t));
             employed_monoms++;
         }
@@ -299,7 +303,7 @@ int LESS_verify(const pubkey_t *const PK,
     /* Squeeze output */
     LESS_SHA3_INC_FINALIZE(recomputed_digest, &state);
 
-    return (timing_safe_memcmp(recomputed_digest,
-                               sig->digest,
-                               HASH_DIGEST_LENGTH) == 0);
+    return (verify(recomputed_digest,
+                  sig->digest,
+                   HASH_DIGEST_LENGTH) == 0);
 } /* end LESS_verify */

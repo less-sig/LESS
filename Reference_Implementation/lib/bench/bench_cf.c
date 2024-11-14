@@ -7,7 +7,7 @@
 #include "cycles.h"
 #include "sort.h"
 
-#define ITERS (1u << 5u)
+#define ITERS (1u << 8u)
 
 
 

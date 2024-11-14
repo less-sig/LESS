@@ -11,6 +11,7 @@ void canonical_col_lex_quicksort(normalized_IS_t *V,
                                  const int start,
                                  const int end,
                                  permutation_t *P);
+
 ////////////////////////////////////////////////////////////////////////
 ///                        Canonical Forms                           ///
 ////////////////////////////////////////////////////////////////////////
@@ -40,4 +41,6 @@ int compute_canonical_form_type5(normalized_IS_t *G,
 
 int compute_information_set_monomial(permutation_t *P_is,
                                      monomial_t *G);
+
+int cf5(normalized_IS_t *G);
 #endif //LESS_CANONICAL_H

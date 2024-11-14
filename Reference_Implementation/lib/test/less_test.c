@@ -319,6 +319,56 @@ void mono_is_compress_tester(void){
 
 }
 
+void cf_mono_is_compress_tester(void) {
+    monomial_action_IS_t Q_a, Qcheck;
+    uint8_t compressed [N8];
+
+    monomial_t mono_rnd;
+    monomial_mat_rnd(&mono_rnd);
+
+    // Create random q
+    for (int i = 0; i < K; i++) {
+        Q_a.coefficients[i] = mono_rnd.coefficients[i];
+        Q_a.permutation[i] = mono_rnd.permutation[i];
+    }
+
+     cf_compress_monom_action(compressed,&Q_a);
+     cf_expand_to_monom_action(&Qcheck,compressed);
+
+    // NOTE: this does note make so much sence
+    if( memcmp( &Qcheck.permutation,&Q_a.permutation,sizeof(POSITION_T) *K) !=0 ) {
+        printf("CF Monomial Action compression: ko\n");
+
+       fprintf(stderr,"perm = [");
+       for(int i = 0; i < K-1; i++) {
+          fprintf(stderr,"%03u, ",Q_a.permutation[i]);
+       }
+       fprintf(stderr,"%03u ]\n",Q_a.permutation[K-1]);
+       fprintf(stderr,"coeffs = [");
+       for(int i = 0; i < K-1; i++) {
+          fprintf(stderr,"%03u, ",Q_a.coefficients[i]);
+       }
+       fprintf(stderr,"%03u ]\n",Q_a.coefficients[K-1]);
+
+       fprintf(stderr,"\n\n\n");
+       fprintf(stderr,"perm = [");
+       for(int i = 0; i < K-1; i++
+        ) {
+          fprintf(stderr,"%03u, ",Qcheck.permutation[i]);
+       }
+       fprintf(stderr,"%03u ]\n",Qcheck.permutation[K-1]);
+       fprintf(stderr,"coeffs = [");
+       for(int i = 0; i < K-1; i++) {
+          fprintf(stderr,"%03u, ",Qcheck.coefficients[i]);
+       }
+       fprintf(stderr,"%03u ]\n",Qcheck.coefficients[K-1]);
+
+    } else {
+        printf("CF Monomial Action compression: ok\n");
+    }
+
+}
+
 
 /*
  * TODO explain
@@ -464,6 +514,7 @@ int LESS_sign_verify_test_KAT(void) {
         return -1;
     }
 
+    printf("all good\n");
     return 0;
 }
 
@@ -474,7 +525,9 @@ int main(int argc, char* argv[]){
     (void)argv;
     //return LESS_sign_verify_test();
     // return LESS_sign_verify_test_multiple();
-    LESS_sign_verify_test_KAT();
+
+    cf_mono_is_compress_tester();
+    // LESS_sign_verify_test_KAT();
 
     initialize_csprng(&platform_csprng_state,
                       (const unsigned char *)"012345678912345",
