@@ -96,6 +96,8 @@ size_t LESS_sign(const prikey_t *SK,
                const char *const m,
                const uint64_t mlen,
                sign_t *sig) {
+    uint8_t g0_initial_pivot_flags [N];
+
     /*         Private key expansion        */
     /* expand sequence of seeds for private inverse-monomial matrices */
     SHAKE_STATE_STRUCT sk_shake_state;
@@ -124,6 +126,7 @@ size_t LESS_sign(const prikey_t *SK,
     /*         Public G_0 expansion                  */
     rref_generator_mat_t G0_rref;
     generator_SF_seed_expand(&G0_rref, SK->G_0_seed);
+    generator_get_pivot_flags (&G0_rref, g0_initial_pivot_flags);
     generator_mat_t full_G0;
     generator_rref_expand(&full_G0, &G0_rref);
 
@@ -141,7 +144,7 @@ size_t LESS_sign(const prikey_t *SK,
                                           i);
 
         /* Absorb input */
-        prepare_digest_input(&V_array, &Q_bar_actions[i], &full_G0, &Q_tilde);
+        prepare_digest_input_pivot_reuse(&V_array, &Q_bar_actions[i], &full_G0, &Q_tilde, g0_initial_pivot_flags, SIGN_PIVOT_REUSE_LIMIT);
         LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
     }
 
@@ -206,6 +209,8 @@ int LESS_verify(const pubkey_t *const PK,
                 const sign_t *const sig) {
 
     uint8_t fixed_weight_string[T] = {0};
+    uint8_t g_initial_pivot_flags [N];
+    uint8_t g_permuated_pivot_flags [N];
     expand_digest_to_fixed_weight(fixed_weight_string, sig->digest);
     monomial_action_IS_t mono_action;
 
@@ -234,8 +239,11 @@ int LESS_verify(const pubkey_t *const PK,
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
 
+    int first = 0;
+
     for (uint32_t i = 0; i < T; i++) {
         if (fixed_weight_string[i] == 0) {
+            generator_get_pivot_flags (&G0_rref, g_initial_pivot_flags);
             generator_rref_expand(&tmp_full_G, &G0_rref);
             monomial_t Q_to_multiply = {0};
             monomial_mat_seed_expand_salt_rnd(&Q_to_multiply,
@@ -243,27 +251,52 @@ int LESS_verify(const pubkey_t *const PK,
                                               sig->tree_salt,
                                               i);
 
-            prepare_digest_input(&V_array,
+            prepare_digest_input_pivot_reuse(&V_array,
                                  &Q_to_discard,
                                  &tmp_full_G,
-                                 &Q_to_multiply);
+                                 &Q_to_multiply,
+                                 g_initial_pivot_flags, 
+                                 VERIFY_PIVOT_REUSE_LIMIT);
 
             LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array, sizeof(normalized_IS_t));
         } else {
             generator_mat_t G_hat = {0};
-            expand_to_rref(&tmp_full_G, PK->SF_G[fixed_weight_string[i] - 1]);
+            expand_to_rref(&tmp_full_G, PK->SF_G[fixed_weight_string[i] - 1], g_initial_pivot_flags);
             expand_to_monom_action(&mono_action, sig->monom_actions[employed_monoms]);
             /* Check that the monomial action is valid */
             if (!is_monom_action_valid(&mono_action)) {
                 return 0;
             }
 
+            if (first == 1) {
+                printf("g_initial_pivot_flags:");
+                for (int i = 0; i < N; i++)
+                    printf("%d,", g_initial_pivot_flags[i]);
+                printf("\n");
+            }
             apply_action_to_G(&G_hat,
                               &tmp_full_G,
-                              &mono_action);
+                              &mono_action,
+                              g_initial_pivot_flags,
+                              g_permuated_pivot_flags,
+                              first);
+
+            int pvt_sum;
+            if (first == 1) {
+                pvt_sum = 0;
+                printf("g_permuated_pivot_flags:");
+                for (int i = 0; i < N; i++) {
+                    pvt_sum +=  g_permuated_pivot_flags[i];
+                    printf("%d,", g_permuated_pivot_flags[i]);
+                }
+                printf("\n%d\n",pvt_sum);
+            }
+
 
             uint8_t is_pivot_column[N] = {0};
-            generator_RREF(&G_hat, is_pivot_column);
+            generator_RREF_pivot_reuse(&G_hat, is_pivot_column, g_permuated_pivot_flags, VERIFY_PIVOT_REUSE_LIMIT, first);
+            first = 0;
+
 
             /* normalize non-pivot columns into the appropriate V_array slot */
             POSITION_T placed_non_pivots = 0;

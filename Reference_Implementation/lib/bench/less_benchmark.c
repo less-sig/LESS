@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "LESS.h"
+#include "monomial_mat.h"
 #include "rng.h"
 
 
@@ -116,7 +117,8 @@ long double welford_mean(const welford_t state) {
 #elif defined(CATEGORY_3)
 #define NUM_TESTS 12
 #else
-#define NUM_TESTS 256
+#define NUM_TESTS 2
+// #define NUM_TESTS 256
 #endif
 
 #ifdef N_pad
@@ -155,6 +157,31 @@ void info(void){
 
 }
 
+#define MONO_ITERS 250000000
+void monomial_distribution(){
+    monomial_t mono;
+    int num_l_r_swaps;
+    int dist [K] = {0};
+
+    for (int i = 0; i < MONO_ITERS; i++) {
+        monomial_mat_rnd(&mono);
+
+        // Parse distribution
+        num_l_r_swaps = 0;
+        for (int j = 0; j < K; j++) {
+            if (mono.permutation[j] > K)
+                num_l_r_swaps++;
+        }
+
+        dist[num_l_r_swaps] += 1;
+    }
+
+    printf("Results: ");
+    for (int i = 0; i < K; i++)
+        printf("[%d] %d\n", i, dist[i]);
+    printf("\n");
+}
+
 void LESS_sign_verify_speed(void){
     fprintf(stderr,"Computing number of clock cycles as the average of %d runs\n", NUM_TESTS);
     welford_t timer;
@@ -174,8 +201,9 @@ void LESS_sign_verify_speed(void){
     }
     printf("Key generation kCycles (avg,stddev): ");
     welford_print(timer);
-    printf("\n");
+    printf("\n\n");
 
+    
     welford_init(&timer);
     for(int i = 0; i <NUM_TESTS; i++) {
         cycles = x86_64_rtdsc();
@@ -184,18 +212,18 @@ void LESS_sign_verify_speed(void){
     }
     printf("Signature kCycles (avg,stddev): ");
     welford_print(timer);
-    printf("\n");
-
+    printf("\n\n");
+    
     int is_signature_ok;
     welford_init(&timer);
     for(int i = 0; i <NUM_TESTS; i++) {
         cycles = x86_64_rtdsc();
-        is_signature_ok = LESS_verify(&pk,message,8,&signature);
+        is_signature_ok = LESS_verify(&pk,message,8,&signature); // Message never changes
         welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
     }
     printf("Verification kCycles (avg,stddev):");
     welford_print(timer);
-    printf("\n");
+    printf("\n\n");
     fprintf(stderr,"Keygen-Sign-Verify: %s", is_signature_ok == 1 ? "functional\n": "not functional\n" );
 }
 
@@ -211,7 +239,8 @@ int main(int argc, char* argv[]){
     initialize_csprng(&platform_csprng_state,
                       (const unsigned char *)"0123456789012345",16);
     fprintf(stderr,"LESS reference implementation benchmarking tool\n");
-    microbench();
+    // microbench();
+    // monomial_distribution();
     LESS_sign_verify_speed();
     return 0;
 }

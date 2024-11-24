@@ -45,6 +45,9 @@ typedef struct {
    FQ_ELEM values[K][N-K];   /* values of the non-pivot columns */
 } normalized_IS_t;
 
+/* Calculate pivot flag array */
+void generator_get_pivot_flags (const rref_generator_mat_t *const G,
+                                uint8_t pivot_flag [N]);
 
 /* multiplies a monomial matrix by a generator matrix */
 void generator_monomial_mul(generator_mat_t *res,
@@ -60,6 +63,12 @@ void generator_monomial_mul(generator_mat_t *res,
 int generator_RREF(generator_mat_t *G,
                    uint8_t is_pivot_column[N]);
 
+int generator_RREF_pivot_reuse(generator_mat_t *G,
+                                 uint8_t is_pivot_column[N],
+                                 uint8_t was_pivot_column[N],
+                                 const int pvt_reuse_limit,
+                                 int debug);
+
 
 void lex_minimize(normalized_IS_t *V,
                   POSITION_T dst_col_idx,
@@ -73,6 +82,13 @@ void prepare_digest_input(normalized_IS_t *V,
                           monomial_action_IS_t *Q_bar_IS,
                           const generator_mat_t *const G,
                           const monomial_t *const Q_in);
+
+void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
+                          monomial_action_IS_t *Q_bar_IS,
+                          const generator_mat_t *const G,
+                          const monomial_t *const Q_in,
+                          const uint8_t initial_pivot_flags [N],
+                          const int pvt_reuse_limit);
 
 /* extracts the last N-K columns from a generator matrix, filling
  * in the compact RREF representation*/
@@ -91,7 +107,8 @@ void compress_rref(uint8_t *compressed,
 
 /* Expands a compressed RREF generator matrix into a full one */
 void expand_to_rref(generator_mat_t *full,
-                        const uint8_t *compressed);
+                        const uint8_t *compressed,
+                           uint8_t is_pivot_column[N]);
 
 /* Takes as input a compact RREF generator matrix, i.e. a set of N-K
  * columns and their position in the RREF and normalizes the columns themselves
@@ -113,7 +130,10 @@ int generator_gausselim(generator_mat_t *G);
 
 void apply_action_to_G(generator_mat_t* res,
                        const generator_mat_t* G,
-                       const monomial_action_IS_t* Q_IS);
+                       const monomial_action_IS_t* Q_IS,
+                       uint8_t initial_G_col_pivot[N],
+                       uint8_t permutated_G_col_pivot[N],
+                       int debug);
 
 /* samples a random monomial matrix */
 void generator_rnd(generator_mat_t *res);
