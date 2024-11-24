@@ -150,42 +150,14 @@ int generator_RREF(generator_mat_t *G,
 int generator_RREF_pivot_reuse(generator_mat_t *G,
                    uint8_t is_pivot_column[N],
                    uint8_t was_pivot_column[N],
-                   const int pvt_reuse_limit,
-                   int debug)
+                   const int pvt_reuse_limit)
 {
    int pvt_reuse_cnt;
    int row_red_pvt_skip_cnt;
    pvt_reuse_cnt = 0;
-    if (debug == 1) {
-        printf("was_pivot_column:");
-        for (int i = 0; i < N; i++)
-            printf("%d,", was_pivot_column[i]);
-        printf("\n");
-    }
 
-    // row swap pre-process - swap previous pivot elements to bottom row so they won't be corrupted
-   // int lowest_row = K-1;
-   // int pivot_el_row = -1;
-
-   // if (pvt_reuse_limit != 0) {
-   //    for(int preproc_col = K-1; preproc_col >= 0; preproc_col--) {
-   //         if (was_pivot_column[preproc_col] == 1) {
-   //             // find pivot row
-   //             pivot_el_row = -1;
-   //             for (int row = 0; row < K; row = row + 1) {
-   //                 // if (debug) printf("(%d, %d) %d, ", preproc_col, row, G->values[row][preproc_col]);
-   //                 if (G->values[row][preproc_col] != 0) {
-   //                     pivot_el_row = row;
-   //                 }
-   //             }
-   //             if (debug) printf("[%d] swap %d, %d\n", preproc_col, lowest_row, pivot_el_row);
-   //             swap_rows(G->values[lowest_row],G->values[pivot_el_row]);
-   //             lowest_row--;
-   //         }
-   //    }
-   // }
-
-   int pivot_el_row = -1;
+    // row swap pre-process - swap previous pivot elements to corresponding row to reduce likelihood of corruption
+   int pivot_el_row;
 
    if (pvt_reuse_limit != 0) {
       for(int preproc_col = K-1; preproc_col >= 0; preproc_col--) {
@@ -204,27 +176,17 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
 
 
    for(int row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
-        // if (debug) printf("Check col 46: ");
-        // for (int row = 0; row < K; row = row + 1) {
-        //     if (debug) printf("(%d) %d, ", row, G->values[row][46]);
-        // }
-        // if (debug) printf("\n");
-
-
       int pivot_row = row_to_reduce;
       /*start by searching the pivot in the col = row*/
       int pivot_column = row_to_reduce;
-      if (debug) printf("PIVOT COL SEARCH: %d\n", pivot_column);
       while( (pivot_column < N) &&
              (G->values[pivot_row][pivot_column] == 0) ) {
          while ( (pivot_row < K) &&
                  (G->values[pivot_row][pivot_column] == 0) ) {
-            if (debug) printf("PIVOT COL SEARCH VALUE: (%d, %d)%d\n", pivot_row, pivot_column, G->values[pivot_row][pivot_column]);
             pivot_row++;
          }
          if(pivot_row >= K) { /*entire column tail swept*/
             pivot_column++; /* move to next col */
-            if (debug) printf("PIVOT SKIP\n");
             pivot_row = row_to_reduce; /*starting from row to red */
          }
       }
@@ -232,13 +194,11 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
          return 0; /* no pivot candidates left, report failure */
       }
       is_pivot_column[pivot_column] = 1; /* pivot found, mark the column*/
-      if (debug) printf("pivot_column: %d\n", pivot_column);
-
 
       /* if we found the pivot on a row which has an index > pivot_column
        * we need to swap the rows */
       if (row_to_reduce != pivot_row) {
-         was_pivot_column[pivot_row] = 0; // pivit no longer reusable
+         was_pivot_column[pivot_row] = 0; // pivot no longer reusable - will be corrupted during reduce row
          swap_rows(G->values[row_to_reduce],G->values[pivot_row]);
       }
       pivot_row = row_to_reduce; /* row with pivot now in place */
@@ -281,12 +241,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
           }
       } else {
          pvt_reuse_cnt++;
-        if (debug == 1) {
-            printf("skipped column (%d): ",pivot_column);
-            for (int i = 0; i < K; i++)
-                printf("%d,",  G->values[i][pivot_column]);
-            printf("\n");
-        }
       }
    }
 
@@ -453,7 +407,7 @@ void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
       g_permuated_pivot_flags[Q_in->permutation[i]] = initial_pivot_flags[i];
 
    uint8_t is_pivot_column[N] = {0};
-   int rref_ok = generator_RREF_pivot_reuse(&G_dagger,is_pivot_column, g_permuated_pivot_flags, pvt_reuse_limit, 0);
+   int rref_ok = generator_RREF_pivot_reuse(&G_dagger,is_pivot_column, g_permuated_pivot_flags, pvt_reuse_limit);
    ASSERT(rref_ok != 0);
 
    POSITION_T piv_idx = 0, non_piv_idx = K;
@@ -490,8 +444,7 @@ void apply_action_to_G(generator_mat_t* res,
                        const generator_mat_t* G,
                        const monomial_action_IS_t* Q_IS,
                        uint8_t initial_G_col_pivot[N],
-                       uint8_t permutated_G_col_pivot[N],
-                       int debug) {
+                       uint8_t permutated_G_col_pivot[N]) {
     /* sweep inorder Q_IS, pick cols from G, and note unpicked cols in support
      * array */
     uint8_t is_G_col_pivot[N];
@@ -501,12 +454,9 @@ void apply_action_to_G(generator_mat_t* res,
     for(uint32_t dst_col_idx = 0; dst_col_idx < K; dst_col_idx++){
         POSITION_T src_col_idx;
         src_col_idx = Q_IS->permutation[dst_col_idx];
-        if (debug) printf("%d -> %d (pvt: %d)\n", src_col_idx, dst_col_idx, initial_G_col_pivot[src_col_idx]);
         for(uint32_t i = 0; i < K; i++){
-            if (debug) printf("%d,", G->values[i][src_col_idx]);
             res->values[i][dst_col_idx] = fq_red( (FQ_DOUBLEPREC) G->values[i][src_col_idx] * Q_IS->coefficients[dst_col_idx]);
         }
-        if (debug) printf("\n");
         permutated_G_col_pivot[dst_col_idx] = initial_G_col_pivot[src_col_idx];
         is_G_col_pivot[src_col_idx] = 1;
     }
@@ -514,18 +464,13 @@ void apply_action_to_G(generator_mat_t* res,
     uint32_t dst_col_idx = K;
     for(uint32_t src_col_idx = 0; src_col_idx<N; src_col_idx++){
         if (!is_G_col_pivot[src_col_idx]){
-            if (debug) printf("%d -> %d (pvt: %d)\n", src_col_idx, dst_col_idx, initial_G_col_pivot[src_col_idx]);
             for(uint32_t i = 0; i < K; i++){
-                if (debug) printf("%d,", G->values[i][src_col_idx]);
                 res->values[i][dst_col_idx] = G->values[i][src_col_idx];
             }
-            if (debug) printf("\n");
             permutated_G_col_pivot[dst_col_idx] = initial_G_col_pivot[src_col_idx];
             dst_col_idx++;
         }
-    }
-    if (debug) printf("\n\n\n\n");
-    
+    }    
 }
 
 /* Compresses a generator matrix in RREF storing only non-pivot columns and

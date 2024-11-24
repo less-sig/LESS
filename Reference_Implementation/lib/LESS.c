@@ -239,8 +239,6 @@ int LESS_verify(const pubkey_t *const PK,
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
 
-    int first = 0;
-
     for (uint32_t i = 0; i < T; i++) {
         if (fixed_weight_string[i] == 0) {
             generator_get_pivot_flags (&G0_rref, g_initial_pivot_flags);
@@ -268,34 +266,14 @@ int LESS_verify(const pubkey_t *const PK,
                 return 0;
             }
 
-            if (first == 1) {
-                printf("g_initial_pivot_flags:");
-                for (int i = 0; i < N; i++)
-                    printf("%d,", g_initial_pivot_flags[i]);
-                printf("\n");
-            }
             apply_action_to_G(&G_hat,
                               &tmp_full_G,
                               &mono_action,
                               g_initial_pivot_flags,
-                              g_permuated_pivot_flags,
-                              first);
-
-            int pvt_sum;
-            if (first == 1) {
-                pvt_sum = 0;
-                printf("g_permuated_pivot_flags:");
-                for (int i = 0; i < N; i++) {
-                    pvt_sum +=  g_permuated_pivot_flags[i];
-                    printf("%d,", g_permuated_pivot_flags[i]);
-                }
-                printf("\n%d\n",pvt_sum);
-            }
-
+                              g_permuated_pivot_flags);
 
             uint8_t is_pivot_column[N] = {0};
-            generator_RREF_pivot_reuse(&G_hat, is_pivot_column, g_permuated_pivot_flags, VERIFY_PIVOT_REUSE_LIMIT, first);
-            first = 0;
+            generator_RREF_pivot_reuse(&G_hat, is_pivot_column, g_permuated_pivot_flags, VERIFY_PIVOT_REUSE_LIMIT);
 
 
             /* normalize non-pivot columns into the appropriate V_array slot */

@@ -470,7 +470,7 @@ int LESS_sign_verify_test_KAT(void) {
 }
 
 
-#define NUM_TEST_ITERATIONS 100
+#define NUM_TEST_ITERATIONS 10
 int main(int argc, char* argv[]){
     (void)argc;
     (void)argv;

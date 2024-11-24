@@ -66,8 +66,7 @@ int generator_RREF(generator_mat_t *G,
 int generator_RREF_pivot_reuse(generator_mat_t *G,
                                  uint8_t is_pivot_column[N],
                                  uint8_t was_pivot_column[N],
-                                 const int pvt_reuse_limit,
-                                 int debug);
+                                 const int pvt_reuse_limit);
 
 
 void lex_minimize(normalized_IS_t *V,
@@ -132,8 +131,7 @@ void apply_action_to_G(generator_mat_t* res,
                        const generator_mat_t* G,
                        const monomial_action_IS_t* Q_IS,
                        uint8_t initial_G_col_pivot[N],
-                       uint8_t permutated_G_col_pivot[N],
-                       int debug);
+                       uint8_t permutated_G_col_pivot[N]);
 
 /* samples a random monomial matrix */
 void generator_rnd(generator_mat_t *res);
