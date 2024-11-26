@@ -1,4 +1,0 @@
-/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "Unix Makefiles" -S /home/duda/Downloads/crypto/schemes/LESS/Optimized_Implementation/avx2 -B /home/duda/Downloads/crypto/schemes/LESS/Optimized_Implementation/avx2/cmake-build-debug
--- Configuring done (0.0s)
--- Generating done (0.1s)
--- Build files have been written to: /home/duda/Downloads/crypto/schemes/LESS/Optimized_Implementation/avx2/cmake-build-debug
