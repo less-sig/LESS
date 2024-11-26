@@ -9,6 +9,7 @@ let
     pythonPackages.scipy
     pythonPackages.jupyter
     pythonPackages.pycrypto
+    pythonPackages.galois
   ]);
 in
   { 

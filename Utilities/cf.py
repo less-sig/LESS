@@ -62,12 +62,14 @@ def lex_min_matrices(A, B):
      1 bigger :A > B
     """
     assert A.nrows == B.nrows
-    for i in range(A.nrows):
-        ret = -1
-        while ret == -1:
-            ret = lex_min_multisets(A[i], B[i])
-        return ret 
-    return -1
+
+    i = 0
+    ret = -1
+    while ret == -1 and i < A.nrows:
+        ret = lex_min_multisets(A[i], B[i])
+        i += 1
+
+    return ret 
 
 
 def sort_multisets(row_multisets):
@@ -195,9 +197,13 @@ def case_4_CF(B):
     """
     n = B.nrows 
     m = B.ncols 
-    Ap = Matrix(n, m, q)
+    Ap = Matrix(n, m, q).zero()
 
     for i in range(n):
+        if all(B[i, 0] == B[i, j] for j in range(m)):
+            for j in range(m): Ap[i, j] = 1
+            continue
+
         v = B[i]
         s = sum(v) % q
         sp = sum([pow(t, (q-2), q) for t in v]) % q
@@ -217,33 +223,63 @@ def case_4_CF(B):
 def case_5_CF(B):
     """
     """
-    A_j = []
     n = B.nrows 
     m = B.ncols 
-    D = Matrix(m, m, q).zero()
+    A_j = Matrix(n, m, q)
     for j in range(n):
         for i in range(m):
-            D[i, i] = pow(B[j, i], -1, q)
+            A_j[i, j] = q -1
 
-        A = B*D
-        t, _, A = case_4_CF(A)
+    for i in range(n):
+        cont = False 
+        for j in range(m):
+            if B[i, j] == 0:
+                cont = True
+                break
+        if cont:
+            continue
+
+        A = Matrix(n, m, q).zero()
+        for j in range(n):
+            sc = pow(B[i, j], -1, q)
+            for k in range(m):
+                A[k, j] = (sc * B[k, j]) % q
+        
+        t, _, T = case_4_CF(A)
+        print(A)
+        print(T)
+        print()
         if t != -1:
-            A_j.append(A)
+            if lex_min_matrices(A_j, T):
+                A_j = T
     
-    smallest = 0
-    for i in range(1, len(A_j)):
-        if lex_min_matrices(A_j[smallest], A_j[i]):
-            smallest = i
-    return 0, 0, A_j[smallest]
+    return 0, 0, A_j
 
 
     
 
 q = 127
-k = 3 
-n = 7
+k = 5
+n = 10
 
 A = Matrix(k, n-k, q).random()
+for i in range(k):
+    for j in range(k):
+        A[i, j] = 120 - 3*i - 2*j
+
+#_, _, B = case_3_CF(A)
+#print("B=CF3(A)")
+#print(B)
+#
+#_, _, B = case_4_CF(A)
+#print("B=CF4(A)")
+#print(B)
+
+_, _, B = case_5_CF(A)
+print("B=CF5(A)")
+print(B)
+exit(1)
+
 Pr = Permutation(k).random().to_matrix(q)
 Pc = Permutation(n-k).random().to_matrix(q)
 Dr = random_diagonal_matrix(k)
@@ -255,5 +291,5 @@ row_p, col_p, B_p = case_5_CF(A_prime)
 print(B)
 print(B_p)
 
-print(A)
-print(A_prime)
+# print(A)
+# print(A_prime)

@@ -8,7 +8,10 @@ from fq import Fq
 
 
 class Matrix:
-    """ simple matrix class """
+    """ simple matrix class 
+    NOTE: row major
+    NOTE: always zero initialized
+    """
     def __init__(self, nrows: int, ncols: int, q: int = 2) -> None:
         """ zero initialized """
         self.nrows = nrows
@@ -32,6 +35,11 @@ class Matrix:
         return self.data[tup]
 
     def __setitem__(self, tup, data):
+        """ nice access function
+        NOTE: access it via:
+            A[i, j] or  (returns field element)
+            A[i]        (returns row)
+        """
         if isinstance(tup, tuple):
             x, y = tup
             assert x < self.nrows and y < self.ncols
