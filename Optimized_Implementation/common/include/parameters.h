@@ -134,7 +134,6 @@
 #error define category for parameters
 #endif
 
-
 /***************** Derived parameters *****************************************/
 /*length of the output of the cryptographic hash, in bytes */
 #define HASH_DIGEST_LENGTH (2*SEED_LENGTH_BYTES)

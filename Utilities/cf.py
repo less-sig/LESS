@@ -246,9 +246,6 @@ def case_5_CF(B):
                 A[k, j] = (sc * B[k, j]) % q
         
         t, _, T = case_4_CF(A)
-        print(A)
-        print(T)
-        print()
         if t != -1:
             if lex_min_matrices(A_j, T):
                 A_j = T
@@ -259,18 +256,18 @@ def case_5_CF(B):
     
 
 q = 127
-k = 5
-n = 10
+k = 8
+n = 2*k
 
 A = Matrix(k, n-k, q).random()
 for i in range(k):
     for j in range(k):
-        A[i, j] = 120 - 3*i - 2*j
+        A[i, j] = 120 - i - j
 
 #_, _, B = case_3_CF(A)
 #print("B=CF3(A)")
 #print(B)
-#
+
 #_, _, B = case_4_CF(A)
 #print("B=CF4(A)")
 #print(B)

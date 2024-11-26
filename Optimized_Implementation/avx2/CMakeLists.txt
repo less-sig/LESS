@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(less)
+project(less-avx2)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -11,14 +11,14 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS "-Wno-unused-function -Wno-ignored-attributes")
+set(ALLOWED_WARNINGS "-Wno-unused-function -Wno-ignored-attributes -Wno-type-limits")
 
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
 set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0  -march=native -flax-vector-conversions")
-set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNING}")
+    set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNINGS}")
 else()
-set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0 -Wall -fpermissive  -Wpedantic -Wextra -fpermissive -mavx2 -mavx -fsanitize=address ${ALLOWED_WARNING}")
-set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -mavx2 -mavx -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNING}")
+    set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0 -Wall -Wpedantic -Wextra -mavx2 -mavx -fsanitize=address ${ALLOWED_WARNINGS}")
+    set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -march=native -mavx2 -mavx -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNINGS}")
 endif()
 
 

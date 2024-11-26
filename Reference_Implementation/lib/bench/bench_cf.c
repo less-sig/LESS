@@ -22,8 +22,10 @@ int cf3_bubble(normalized_IS_t *G,
 
 
 int cf4_bubble(normalized_IS_t *G,
-               permutation_t *P_r, diagonal_t *D_c,
+               permutation_t *P_r,
+               diagonal_t *D_c,
                permutation_t *P_c) {
+	(void) D_c;
 	for (uint32_t row = 0; row < K; row++) {
         // if we cant find a power
 		FQ_ELEM s = 0, sp = 0, tmp, q2=Q-2;
@@ -56,6 +58,7 @@ int cf5_bubble(normalized_IS_t *G,
               diagonal_t *D_c, permutation_t *P_c) {
 	normalized_IS_t Aj, smallest;
     int touched = 0;
+	(void) D_r;
 
 	// init the output matrix to some `invalid` data
 	memset(&smallest, -1, K*(N-K));
@@ -214,7 +217,7 @@ int bench_cf5(void) {
 
 int main(void) {
     // if (bench_cf3()) return 1;
-    // if (bench_cf4()) return 1;
+    if (bench_cf4()) return 1;
     if (bench_cf5()) return 1;
     return 0;
 }
