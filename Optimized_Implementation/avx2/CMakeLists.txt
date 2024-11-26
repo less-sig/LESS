@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(less-avx2)
+project(less_avx2)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -32,6 +32,8 @@ set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/seedtree.c
         ${PROJECT_SOURCE_DIR}/lib/sign.c
         ${PROJECT_SOURCE_DIR}/lib/utils.c
+        ${PROJECT_SOURCE_DIR}/lib/canonical.c
+        ${PROJECT_SOURCE_DIR}/lib/sort.c
         ${PROJECT_SOURCE_DIR}/lib/KeccakP-1600-AVX2.s
 )
 
@@ -48,6 +50,8 @@ set(HEADERS
         ${PROJECT_SOURCE_DIR}/include/rng.h
         ${PROJECT_SOURCE_DIR}/include/seedtree.h
         ${PROJECT_SOURCE_DIR}/include/utils.h
+        ${PROJECT_SOURCE_DIR}/include/canonical.h
+        ${PROJECT_SOURCE_DIR}/include/sort.h
 )
 
 include_directories(include)
@@ -73,6 +77,18 @@ foreach(category RANGE 1 5 2)
     # KATS generation
     set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimiz_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/nist/KAT_NIST_rng.c ${PROJECT_SOURCE_DIR}/lib/nist/PQCgenKAT_sign.c)
+    target_link_libraries(${TARGET_BINARY_NAME} m crypto)
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+
+    # TODO remove once everything is done
+    set(TARGET_BINARY_NAME LESS_test_cf_${category}_${optimiz_target})
+    add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/test/test_canonical.c ${SOURCES})
+    target_link_libraries(${TARGET_BINARY_NAME} m crypto)
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+
+    # TODO remove once everything is done
+    set(TARGET_BINARY_NAME LESS_bench_cf_${category}_${optimiz_target})
+    add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/bench/bench_cf.c ${SOURCES})
     target_link_libraries(${TARGET_BINARY_NAME} m crypto)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
   endforeach(optimiz_target)

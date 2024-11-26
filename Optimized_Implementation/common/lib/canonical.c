@@ -162,7 +162,7 @@ int compute_canonical_form_type5(normalized_IS_t *G,
 	// init the output matrix to some `invalid` data
 	memset(&smallest, -1, K*(N-K));
 
-	FQ_ELEM row_inv_data[N-K];
+	FQ_ELEM row_inv_data[N_K_pad];
 	for (uint32_t row = 0; row < K; row++) {
 		row_inv2(row_inv_data, G->values[row]);
 		for (uint32_t row2 = 0; row2 < K; row2++) {

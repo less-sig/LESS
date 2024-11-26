@@ -1,0 +1,180 @@
+{
+	"inputs" : 
+	[
+		{
+			"path" : "CMakeLists.txt"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-release/CMakeFiles/3.28.1/CMakeSystem.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/CMakeSystemSpecificInitialize.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Platform/Linux-Initialize.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-release/CMakeFiles/3.28.1/CMakeCCompiler.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-release/CMakeFiles/3.28.1/CMakeCXXCompiler.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/CMakeSystemSpecificInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/CMakeGenericSystem.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/CMakeInitializeConfigs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Platform/Linux.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Platform/UnixPaths.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/CMakeCInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/CMakeLanguageInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Compiler/Clang-C.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Compiler/Clang.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Compiler/CMakeCommonCompilerMacros.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Compiler/GNU.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Compiler/CMakeCommonCompilerMacros.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Platform/Linux-Clang-C.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Platform/Linux-GNU-C.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Platform/Linux-GNU.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/CMakeCommonLanguageInclude.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/CMakeCXXInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/CMakeLanguageInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Compiler/Clang-CXX.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Compiler/Clang.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Platform/Linux-Clang-CXX.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Platform/Linux-GNU-CXX.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Platform/Linux-GNU.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/CMakeCommonLanguageInclude.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-release/CMakeFiles/3.28.1/CMakeASMCompiler.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/CMakeASMInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Compiler/Clang-ASM.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/nix/store/p4kcxw06la5b9nmaksbss065c7j5dpwc-clion-2024.1.3/clion/bin/cmake/linux/x64/share/cmake-3.28/Modules/Compiler/Clang.cmake"
+		}
+	],
+	"kind" : "cmakeFiles",
+	"paths" : 
+	{
+		"build" : "/home/duda/Downloads/crypto/schemes/LESS/Optimized_Implementation/avx2/cmake-build-release",
+		"source" : "/home/duda/Downloads/crypto/schemes/LESS/Optimized_Implementation/avx2"
+	},
+	"version" : 
+	{
+		"major" : 1,
+		"minor" : 0
+	}
+}

@@ -1,0 +1,155 @@
+{
+	"kind" : "toolchains",
+	"toolchains" : 
+	[
+		{
+			"compiler" : 
+			{
+				"id" : "Clang",
+				"implicit" : {},
+				"path" : "/nix/store/wk45q17zzwwpsgary6hfc368567kmwiy-clang-wrapper-17.0.6/bin/clang",
+				"version" : ""
+			},
+			"language" : "ASM",
+			"sourceFileExtensions" : 
+			[
+				"s",
+				"S",
+				"asm"
+			]
+		},
+		{
+			"compiler" : 
+			{
+				"id" : "Clang",
+				"implicit" : 
+				{
+					"includeDirectories" : 
+					[
+						"/nix/store/fnd7wqbljsvnpyghrp13mqf8yaymih6v-python3-3.11.10-env/include",
+						"/nix/store/yn9fdh6gzgyy43k541q0wkpw6b2jlgrm-gnumake-4.4.1/include",
+						"/nix/store/2b49xza0pkdd3g6r9hx7j08b7mfafxwi-gdb-14.2/include",
+						"/nix/store/zx6nr9q69f9ah8x4lvbg10jsi7w3wmb5-valgrind-3.22.0-dev/include",
+						"/nix/store/g7ar3xqp2hla6xvp8230nlniswi2mn1z-openssl-3.0.14-dev/include",
+						"/nix/store/pn0s1dx5w2kg490l2rjwrfmvyvdyvfm8-libxslt-1.1.39-dev/include",
+						"/nix/store/hr7076jv448v3fk36h60qjs7xrw2yhsq-perf-linux-6.6.61/include",
+						"/nix/store/n88b4wwp0sh9057rs384i0sxfc5q9ys5-compiler-rt-libc-17.0.6-dev/include",
+						"/nix/store/wk45q17zzwwpsgary6hfc368567kmwiy-clang-wrapper-17.0.6/resource-root/include",
+						"/nix/store/0ywz89gl18p0y5m7m8kz8vh1bkry0syf-glibc-2.39-52-dev/include"
+					],
+					"linkDirectories" : 
+					[
+						"/nix/store/fnd7wqbljsvnpyghrp13mqf8yaymih6v-python3-3.11.10-env/lib",
+						"/nix/store/2b49xza0pkdd3g6r9hx7j08b7mfafxwi-gdb-14.2/lib",
+						"/nix/store/18b6frnaw53mwlcqssndd9n7z09x4f3d-openssl-3.0.14/lib",
+						"/nix/store/0difavczcqfhy1kw736h1f44jlylwg5p-libxslt-1.1.39/lib",
+						"/nix/store/kpy2cyd05vdr6j1h200av81fnlxl1jw0-glibc-2.39-52/lib",
+						"/nix/store/1hn524ifk2hqksf0m9klmh9gkfkfvgqv-gcc-13.2.0/lib/gcc/x86_64-unknown-linux-gnu/13.2.0",
+						"/nix/store/gwxqkkagvqcbf5ac4jm246c6mg7nbp3h-gcc-13.2.0-lib/lib",
+						"/nix/store/1hn524ifk2hqksf0m9klmh9gkfkfvgqv-gcc-13.2.0/lib",
+						"/nix/store/b60a6findsk5fv5080xkp7fzld280z4i-gcc-13.2.0-libgcc/lib",
+						"/nix/store/gbajxylcp99bbwakgvyrna9r8qrwb769-clang-17.0.6-lib/lib",
+						"/nix/store/1hn524ifk2hqksf0m9klmh9gkfkfvgqv-gcc-13.2.0/lib64/gcc/x86_64-unknown-linux-gnu/13.2.0",
+						"/nix/store/1hn524ifk2hqksf0m9klmh9gkfkfvgqv-gcc-13.2.0/lib64",
+						"/lib64",
+						"/lib"
+					],
+					"linkFrameworkDirectories" : [],
+					"linkLibraries" : 
+					[
+						"gcc",
+						"gcc_s",
+						"c",
+						"gcc",
+						"gcc_s"
+					]
+				},
+				"path" : "/nix/store/wk45q17zzwwpsgary6hfc368567kmwiy-clang-wrapper-17.0.6/bin/clang",
+				"version" : "17.0.6"
+			},
+			"language" : "C",
+			"sourceFileExtensions" : 
+			[
+				"c",
+				"m"
+			]
+		},
+		{
+			"compiler" : 
+			{
+				"id" : "Clang",
+				"implicit" : 
+				{
+					"includeDirectories" : 
+					[
+						"/nix/store/fnd7wqbljsvnpyghrp13mqf8yaymih6v-python3-3.11.10-env/include",
+						"/nix/store/yn9fdh6gzgyy43k541q0wkpw6b2jlgrm-gnumake-4.4.1/include",
+						"/nix/store/2b49xza0pkdd3g6r9hx7j08b7mfafxwi-gdb-14.2/include",
+						"/nix/store/zx6nr9q69f9ah8x4lvbg10jsi7w3wmb5-valgrind-3.22.0-dev/include",
+						"/nix/store/g7ar3xqp2hla6xvp8230nlniswi2mn1z-openssl-3.0.14-dev/include",
+						"/nix/store/pn0s1dx5w2kg490l2rjwrfmvyvdyvfm8-libxslt-1.1.39-dev/include",
+						"/nix/store/hr7076jv448v3fk36h60qjs7xrw2yhsq-perf-linux-6.6.61/include",
+						"/nix/store/n88b4wwp0sh9057rs384i0sxfc5q9ys5-compiler-rt-libc-17.0.6-dev/include",
+						"/nix/store/1hn524ifk2hqksf0m9klmh9gkfkfvgqv-gcc-13.2.0/include/c++/13.2.0",
+						"/nix/store/1hn524ifk2hqksf0m9klmh9gkfkfvgqv-gcc-13.2.0/include/c++/13.2.0/x86_64-unknown-linux-gnu",
+						"/nix/store/wk45q17zzwwpsgary6hfc368567kmwiy-clang-wrapper-17.0.6/resource-root/include",
+						"/nix/store/0ywz89gl18p0y5m7m8kz8vh1bkry0syf-glibc-2.39-52-dev/include"
+					],
+					"linkDirectories" : 
+					[
+						"/nix/store/fnd7wqbljsvnpyghrp13mqf8yaymih6v-python3-3.11.10-env/lib",
+						"/nix/store/2b49xza0pkdd3g6r9hx7j08b7mfafxwi-gdb-14.2/lib",
+						"/nix/store/18b6frnaw53mwlcqssndd9n7z09x4f3d-openssl-3.0.14/lib",
+						"/nix/store/0difavczcqfhy1kw736h1f44jlylwg5p-libxslt-1.1.39/lib",
+						"/nix/store/kpy2cyd05vdr6j1h200av81fnlxl1jw0-glibc-2.39-52/lib",
+						"/nix/store/1hn524ifk2hqksf0m9klmh9gkfkfvgqv-gcc-13.2.0/lib/gcc/x86_64-unknown-linux-gnu/13.2.0",
+						"/nix/store/gwxqkkagvqcbf5ac4jm246c6mg7nbp3h-gcc-13.2.0-lib/lib",
+						"/nix/store/1hn524ifk2hqksf0m9klmh9gkfkfvgqv-gcc-13.2.0/lib",
+						"/nix/store/b60a6findsk5fv5080xkp7fzld280z4i-gcc-13.2.0-libgcc/lib",
+						"/nix/store/gbajxylcp99bbwakgvyrna9r8qrwb769-clang-17.0.6-lib/lib",
+						"/nix/store/1hn524ifk2hqksf0m9klmh9gkfkfvgqv-gcc-13.2.0/lib64/gcc/x86_64-unknown-linux-gnu/13.2.0",
+						"/nix/store/1hn524ifk2hqksf0m9klmh9gkfkfvgqv-gcc-13.2.0/lib64",
+						"/lib64",
+						"/lib"
+					],
+					"linkFrameworkDirectories" : [],
+					"linkLibraries" : 
+					[
+						"stdc++",
+						"m",
+						"gcc_s",
+						"gcc",
+						"c",
+						"gcc_s",
+						"gcc"
+					]
+				},
+				"path" : "/nix/store/wk45q17zzwwpsgary6hfc368567kmwiy-clang-wrapper-17.0.6/bin/clang++",
+				"version" : "17.0.6"
+			},
+			"language" : "CXX",
+			"sourceFileExtensions" : 
+			[
+				"C",
+				"M",
+				"c++",
+				"cc",
+				"cpp",
+				"cxx",
+				"mm",
+				"mpp",
+				"CPP",
+				"ixx",
+				"cppm",
+				"ccm",
+				"cxxm",
+				"c++m"
+			]
+		}
+	],
+	"version" : 
+	{
+		"major" : 1,
+		"minor" : 0
+	}
+}

@@ -47,7 +47,9 @@ typedef struct {
 } normalized_IS_t;
 
 //
-void scale_row(generator_mat_t *G, const uint32_t row, const FQ_ELEM a);
+void scale_row(generator_mat_t *G,
+               const uint32_t row,
+               const FQ_ELEM a);
 
 void column_swap(normalized_IS_t *V,
                  const POSITION_T col1,

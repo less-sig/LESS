@@ -89,6 +89,17 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
 /* GCC actually inlines and vectorizes Barrett's reduction already.
  * Backup implementation for less aggressive compilers follows */
 
+
+/// todo remove both functions
+static inline
+FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
+      return (x + y) % Q;
+}
+static inline
+FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
+   return ((FQ_DOUBLEPREC)x * (FQ_DOUBLEPREC)y) % Q;
+}
+
 /*
  * Barrett multiplication for uint8_t Q = 127
  */
@@ -213,6 +224,7 @@ FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
 }
 
 /// scalar multiplication of a row
+/// NOTE: not a full reduction
 /// @param row[in/out] *= s for _ in range(N-K)
 /// @param s
 static inline
@@ -250,8 +262,8 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
 
         vpermute2(t, a_lo, a_hi, 0x20);
 
-        barrett_red8(r, t, c8_127, c8_1);
-        vstore256((vec256_t *)(row + col), r);
+        barrett_red8(t, r, c8_127, c8_1);
+        vstore256((vec256_t *)(row + col), t);
     }
 }
 
@@ -261,43 +273,41 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
 /// @param s
 static inline
 void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
+    vec256_t shuffle, t, c8_127, c8_1, r, b, a, a_lo, a_hi, b_lo, b_hi;
+    vec128_t tmp;
 
-    // vec256_t shuffle, t, c8_127, c8_1, r, a, a_lo, a_hi, b, b_lo, b_hi;
+    vload256(shuffle, (vec256_t *) shuff_low_half);
+    vset8(c8_127, 127);
+    vset8(c8_1, 1);
 
-    // vload256(shuffle, (vec256_t *) shuff_low_half);
-    // vset8(c8_127, 127);
-    // vset8(c8_1, 1);
+    // precompute b
+    vset8(b, s);
+    vget_lo(tmp, b);
+    vextend8_16(b_lo, tmp);
+    vget_hi(tmp, b);
+    vextend8_16(b_hi, tmp);
 
-    // for (uint32_t col = 0; col < (N-K); col++) {
-    //     vload256(a, (vec256_t *) &row);
-    //     vload256(b, (vec256_t *) &row);
+    for (uint32_t col = 0; col < N_K_pad; col+=32) {
+        vload256(a, (vec256_t *)(in + col));
 
-    //     vget_lo(tmp, a);
-    //     vextend8_16(a_lo, tmp);
-    //     vget_hi(tmp, a);
-    //     vextend8_16(a_hi, tmp);
-    //     vget_lo(tmp, b);
-    //     vextend8_16(b_lo, tmp);
-    //     vget_hi(tmp, b);
-    //     vextend8_16(b_hi, tmp);
+        vget_lo(tmp, a);
+        vextend8_16(a_lo, tmp);
+        vget_hi(tmp, a);
+        vextend8_16(a_hi, tmp);
 
-    //     barrett_mul_u16(a_lo, a_lo, b_lo, s);
-    //     barrett_mul_u16(a_hi, a_hi, b_hi, t);
+        barrett_mul_u16(a_lo, a_lo, b_lo, t);
+        barrett_mul_u16(a_hi, a_hi, b_hi, t);
 
-    //     vshuffle8(a_lo, a_lo, shuffle);
-    //     vshuffle8(a_hi, a_hi, shuffle);
+        vshuffle8(a_lo, a_lo, shuffle);
+        vshuffle8(a_hi, a_hi, shuffle);
 
-    //     vpermute_4x64(a_lo, a_lo, 0xd8);
-    //     vpermute_4x64(a_hi, a_hi, 0xd8);
+        vpermute_4x64(a_lo, a_lo, 0xd8);
+        vpermute_4x64(a_hi, a_hi, 0xd8);
 
-    //     vpermute2(s, a_lo, a_hi, 0x20);
+        vpermute2(t, a_lo, a_hi, 0x20);
 
-    //     barrett_red8(r, t, c8_127, c8_1);
-    //     // vstore256((vec256_t *) &buffer[src_col_idx], s);
-    //     // row[col] = fq_mul(s, row[col]);
-    // }
-    for (uint32_t col = 0; col < (N-K); col++) {
-        out[col] = br_mul(s, in[col]);
+        barrett_red8(t, r, c8_127, c8_1);
+        vstore256((vec256_t *)(out + col), t);
     }
 }
 
@@ -307,8 +317,40 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
 /// @param in2
 static inline
 void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
-    for (uint32_t col = 0; col < (N-K); col++) {
-        out[col] = br_mul(in1[col], in2[col]);
+
+    vec256_t shuffle, t, r, c8_127, c8_1, a, a_lo, a_hi, b, b_lo, b_hi;
+    vec128_t tmp;
+
+    vload256(shuffle, (vec256_t *) shuff_low_half);
+    vset8(c8_127, 127);
+    vset8(c8_1, 1);
+
+    for (uint32_t col = 0; col < N_K_pad; col+=32) {
+        vload256(a, (vec256_t *)(in1 + col));
+        vload256(b, (vec256_t *)(in2 + col));
+
+        vget_lo(tmp, a);
+        vextend8_16(a_lo, tmp);
+        vget_hi(tmp, a);
+        vextend8_16(a_hi, tmp);
+        vget_lo(tmp, b);
+        vextend8_16(b_lo, tmp);
+        vget_hi(tmp, b);
+        vextend8_16(b_hi, tmp);
+
+        barrett_mul_u16(a_lo, a_lo, b_lo, t);
+        barrett_mul_u16(a_hi, a_hi, b_hi, t);
+
+        vshuffle8(a_lo, a_lo, shuffle);
+        vshuffle8(a_hi, a_hi, shuffle);
+
+        vpermute_4x64(a_lo, a_lo, 0xd8);
+        vpermute_4x64(a_hi, a_hi, 0xd8);
+
+        vpermute2(t, a_lo, a_hi, 0x20);
+
+        barrett_red8(t, r, c8_127, c8_1);
+        vstore256((vec256_t *)(out + col), t);
     }
 }
 
@@ -328,6 +370,7 @@ void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
 ///         0 else
 static inline
 uint32_t row_all_same(const FQ_ELEM *in) {
+    // TODO last load must be limited
     vec256_t t1, t2, acc;
     vset8(acc, -1);
     vset8(t2, in[0]);

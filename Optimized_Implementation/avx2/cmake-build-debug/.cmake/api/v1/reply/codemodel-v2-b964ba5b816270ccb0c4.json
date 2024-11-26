@@ -1,0 +1,366 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.22"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						8,
+						9,
+						10,
+						11,
+						12,
+						13,
+						14,
+						15,
+						16,
+						17,
+						18,
+						19,
+						20,
+						21,
+						22,
+						23,
+						24,
+						25,
+						26,
+						27,
+						28,
+						29,
+						30,
+						31,
+						32,
+						33,
+						34
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "less_avx2",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6,
+						7,
+						8,
+						9,
+						10,
+						11,
+						12,
+						13,
+						14,
+						15,
+						16,
+						17,
+						18,
+						19,
+						20,
+						21,
+						22,
+						23,
+						24,
+						25,
+						26,
+						27,
+						28,
+						29,
+						30,
+						31,
+						32,
+						33,
+						34
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_bench_cf_1_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_bench_cf_1_BALANCED-Debug-e6953e53a57a329d8ad1.json",
+					"name" : "LESS_bench_cf_1_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_bench_cf_1_INTERMEDIATE::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_bench_cf_1_INTERMEDIATE-Debug-eedbbbe9d31d5e43be8c.json",
+					"name" : "LESS_bench_cf_1_INTERMEDIATE",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_bench_cf_1_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_bench_cf_1_SHORT_SIG-Debug-773d15f5a9f37d68895f.json",
+					"name" : "LESS_bench_cf_1_SHORT_SIG",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_bench_cf_3_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_bench_cf_3_BALANCED-Debug-66e25623fd21c2369984.json",
+					"name" : "LESS_bench_cf_3_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_bench_cf_3_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_bench_cf_3_SHORT_SIG-Debug-74a77520fad477ea0128.json",
+					"name" : "LESS_bench_cf_3_SHORT_SIG",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_bench_cf_5_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_bench_cf_5_BALANCED-Debug-305764d0e589099ffdd8.json",
+					"name" : "LESS_bench_cf_5_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_bench_cf_5_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_bench_cf_5_SHORT_SIG-Debug-1eba5d4435790902fff3.json",
+					"name" : "LESS_bench_cf_5_SHORT_SIG",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_benchmark_cat_1_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_benchmark_cat_1_BALANCED-Debug-2dc43036a92f6a7c7c7a.json",
+					"name" : "LESS_benchmark_cat_1_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_benchmark_cat_1_INTERMEDIATE::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_benchmark_cat_1_INTERMEDIATE-Debug-cb4fb6ee801f7c95bdf9.json",
+					"name" : "LESS_benchmark_cat_1_INTERMEDIATE",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_benchmark_cat_1_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_benchmark_cat_1_SHORT_SIG-Debug-12c5735e056d591b6bbf.json",
+					"name" : "LESS_benchmark_cat_1_SHORT_SIG",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_benchmark_cat_3_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_benchmark_cat_3_BALANCED-Debug-f6084dd8ca6459f42412.json",
+					"name" : "LESS_benchmark_cat_3_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_benchmark_cat_3_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_benchmark_cat_3_SHORT_SIG-Debug-5d732e2948c0ffe1bdd5.json",
+					"name" : "LESS_benchmark_cat_3_SHORT_SIG",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_benchmark_cat_5_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_benchmark_cat_5_BALANCED-Debug-acb8cef6865b8092480b.json",
+					"name" : "LESS_benchmark_cat_5_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_benchmark_cat_5_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_benchmark_cat_5_SHORT_SIG-Debug-75411bad1022b6d7d1d1.json",
+					"name" : "LESS_benchmark_cat_5_SHORT_SIG",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_nist_cat_1_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_nist_cat_1_BALANCED-Debug-c82ca137e3b31eb60793.json",
+					"name" : "LESS_nist_cat_1_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_nist_cat_1_INTERMEDIATE::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_nist_cat_1_INTERMEDIATE-Debug-8c37e0d663a3ce91926d.json",
+					"name" : "LESS_nist_cat_1_INTERMEDIATE",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_nist_cat_1_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_nist_cat_1_SHORT_SIG-Debug-8e0a54468fda27fb1926.json",
+					"name" : "LESS_nist_cat_1_SHORT_SIG",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_nist_cat_3_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_nist_cat_3_BALANCED-Debug-d4f0428360cee5019c6a.json",
+					"name" : "LESS_nist_cat_3_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_nist_cat_3_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_nist_cat_3_SHORT_SIG-Debug-8e058e6ff7cb615b87bf.json",
+					"name" : "LESS_nist_cat_3_SHORT_SIG",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_nist_cat_5_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_nist_cat_5_BALANCED-Debug-fe56fb74fe3b5872ec86.json",
+					"name" : "LESS_nist_cat_5_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_nist_cat_5_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_nist_cat_5_SHORT_SIG-Debug-e8ff30c6baa038598f01.json",
+					"name" : "LESS_nist_cat_5_SHORT_SIG",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_test_cat_1_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_test_cat_1_BALANCED-Debug-199d986d78f127c96c8d.json",
+					"name" : "LESS_test_cat_1_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_test_cat_1_INTERMEDIATE::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_test_cat_1_INTERMEDIATE-Debug-b08beff8229a51643dfd.json",
+					"name" : "LESS_test_cat_1_INTERMEDIATE",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_test_cat_1_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_test_cat_1_SHORT_SIG-Debug-2627d439ba9afced9f72.json",
+					"name" : "LESS_test_cat_1_SHORT_SIG",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_test_cat_3_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_test_cat_3_BALANCED-Debug-cad171a7d47ba231b7c6.json",
+					"name" : "LESS_test_cat_3_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_test_cat_3_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_test_cat_3_SHORT_SIG-Debug-0eecdeb58b34be8a0dd1.json",
+					"name" : "LESS_test_cat_3_SHORT_SIG",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_test_cat_5_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_test_cat_5_BALANCED-Debug-5de1d5e2c42102b0f3bc.json",
+					"name" : "LESS_test_cat_5_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_test_cat_5_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_test_cat_5_SHORT_SIG-Debug-afabed57e8f9d25e20c9.json",
+					"name" : "LESS_test_cat_5_SHORT_SIG",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_test_cf_1_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_test_cf_1_BALANCED-Debug-84859b9914ab03265d1f.json",
+					"name" : "LESS_test_cf_1_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_test_cf_1_INTERMEDIATE::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_test_cf_1_INTERMEDIATE-Debug-2a9f718d9e013cc23f82.json",
+					"name" : "LESS_test_cf_1_INTERMEDIATE",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_test_cf_1_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_test_cf_1_SHORT_SIG-Debug-d1a033d676ceff02de06.json",
+					"name" : "LESS_test_cf_1_SHORT_SIG",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_test_cf_3_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_test_cf_3_BALANCED-Debug-dfcdd0c60a3845b6b792.json",
+					"name" : "LESS_test_cf_3_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_test_cf_3_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_test_cf_3_SHORT_SIG-Debug-b03a03fa88f70c3f4d3c.json",
+					"name" : "LESS_test_cf_3_SHORT_SIG",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_test_cf_5_BALANCED::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_test_cf_5_BALANCED-Debug-b23fc8a44b4a7e39d725.json",
+					"name" : "LESS_test_cf_5_BALANCED",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_test_cf_5_SHORT_SIG::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_test_cf_5_SHORT_SIG-Debug-483efae8045c1a19501b.json",
+					"name" : "LESS_test_cf_5_SHORT_SIG",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/duda/Downloads/crypto/schemes/LESS/Optimized_Implementation/avx2/cmake-build-debug",
+		"source" : "/home/duda/Downloads/crypto/schemes/LESS/Optimized_Implementation/avx2"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 6
+	}
+}
