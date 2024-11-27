@@ -29,4 +29,6 @@ void canonical_col_lex_quicksort(normalized_IS_t *V,
                                  const int end,
                                  permutation_t *P);
 
+void canonical_col_lex_quicksort_transpose(normalized_IS_t *V,
+                                           permutation_t *P);
 #endif //SORT_H

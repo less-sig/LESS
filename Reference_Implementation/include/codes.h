@@ -42,8 +42,8 @@ typedef struct {
 
 /* Set of columns not constituting the IS for an RREF matrix
  * See algorithm PrepareDigestInput in specification (V matrix)*/
-typedef struct {
-   FQ_ELEM values[K][N-K];   /* values of the non-pivot columns */
+typedef struct { // TODO
+   FQ_ELEM values[128][128];   /* values of the non-pivot columns */
 } normalized_IS_t;
 
 //
@@ -191,3 +191,9 @@ void permutation_apply_col(normalized_IS_t *G, permutation_t *P);
 
 void diagonal_apply_row(diagonal_t *P, normalized_IS_t *G);
 void diagonal_apply_col(normalized_IS_t *G, diagonal_t *P);
+
+
+
+void matrix_transpose_opt(uint8_t *dst,
+                          const uint8_t *src,
+                          const size_t n);

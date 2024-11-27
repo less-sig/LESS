@@ -89,9 +89,9 @@ void bitonic_sort_i8(FQ_ELEM *x,
 
 /// helper function for the libc `qsort`
 /// \return a - b:
-///         -1: b > a;
+///         -x: b > a;
 ///          0: b == a;
-///          1: b < a;
+///          x: b < a;
 int fqcmp(const void *a,
           const void *b) {
    return (*(FQ_ELEM *)a) - (*(FQ_ELEM *)b);
@@ -443,4 +443,75 @@ void col_bitonic_sort(normalized_IS_t *G,
             }
         }
     }
+}
+
+
+///
+/// \param V
+/// \param G
+/// \param row_l
+/// \param row_h
+/// \param P_r
+/// \return
+int row_hoare_partition_transposed(normalized_IS_t *G,
+                                   const POSITION_T row_l,
+                                   const POSITION_T row_h,
+                                   permutation_t *P_r) {
+    FQ_ELEM pivot_row[N-K];
+    for(uint32_t i = 0; i < N-K; i++){
+       pivot_row[i] = G->values[row_l][i];
+    }
+
+    POSITION_T i = row_l-1, j = row_h+1;
+	int ret;
+    while(1){
+        do {
+            i++;
+        	ret = row_lex_compare_with_pivot(G->values, i, pivot_row);
+        } while(ret == 1);
+
+        do {
+            j--;
+        	ret = row_lex_compare_with_pivot(G->values, j, pivot_row);
+        } while(ret == -1);
+
+    	// if (ret == 0) { return -1; }
+        if(i >= j){ return j; }
+
+    	row_swap(G, i, j);
+    	if (P_r != NULL) { SWAP(P_r->permutation[i], P_r->permutation[j]); }
+    }
+}
+
+/// \param G non IS generator matrix
+/// \param start inclusive
+/// \param end inclusive
+/// \param P_r row permutation applied
+/// \return 1 on success
+///			0 if two rows generate the same multi set
+int row_lex_quicksort_transposed(normalized_IS_t *G,
+                                 const uint32_t start,
+                                 const uint32_t end,
+                                 permutation_t *P_r) {
+    if(start < end){
+        const int p = row_hoare_partition_transposed(G, start, end, P_r);
+    	if (p == -1) { return 0; }
+        row_lex_quicksort_transposed(G, start, p, P_r);
+        row_lex_quicksort_transposed(G, p+1, end, P_r);
+    }
+
+	return 1;
+}
+
+/// In-place quicksort
+/// the same as `col_lex_quicksort` except we are tracking the permutations
+/// \param V
+/// \param start
+/// \param end
+void canonical_col_lex_quicksort_transpose(normalized_IS_t *V,
+                                           permutation_t *P) {
+    normalized_IS_t VT;
+    matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, 128);
+    row_lex_quicksort_transposed(&VT, 0, N-K-1, P);
+    matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, 128);
 }

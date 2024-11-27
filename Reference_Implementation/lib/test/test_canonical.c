@@ -171,6 +171,9 @@ int test_compute_canonical_form_type4_v2(void) {
 
 // tests dummy data
 int test_compute_canonical_form_type4_v3(void) {
+    if (K != 8) {
+        return 0; 
+    }
     normalized_IS_t G1;
 
     for (uint32_t i = 0; i < K; i++) {

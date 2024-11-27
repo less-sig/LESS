@@ -164,6 +164,9 @@
 #define K8 ((K+7u)/8u)
 #define N8 ((N+7u)/8u)
 
+/// TODO
+#define N_K_pad (128)
+
 /***************** Derived parameters *****************************************/
 
 #define MAX_PUBLISHED_SEEDS (SEED_TREE_MAX_PUBLISHED_BYTES/SEED_LENGTH_BYTES)
