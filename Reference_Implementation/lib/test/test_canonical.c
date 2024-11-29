@@ -64,8 +64,8 @@ int test_compute_canonical_form_type3_v2(void) {
     if (compute_canonical_form_type3(&G1, &P_r1, &P_c1) == 0) return 1;
     if (compute_canonical_form_type3(&G2, &P_r2, &P_c2) == 0) return 1;
 
-    // normalized_pretty_print(&G1);
-    // normalized_pretty_print(&G2);
+    normalized_pretty_print(&G1);
+    normalized_pretty_print(&G2);
 
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < N-K; j++) {

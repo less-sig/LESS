@@ -58,7 +58,9 @@ int compute_canonical_form_type3(normalized_IS_t *G,
 								 permutation_t *P_r,
 								 permutation_t *P_c) {
     // first sort the rows
-    if (row_quick_sort(G, P_r) == 0) { return 0; }
+    // if (row_quick_sort(G, P_r) == 0) { return 0; }
+    if (row_bitonic_sort(G, P_r) == 0) { return 0; }
+
     // canonical_col_lex_quicksort(G, 0, N-K-1, P_c);
     canonical_col_lex_quicksort_transpose(G, P_c);
     return 1;

@@ -7,7 +7,7 @@
 #include "cycles.h"
 #include "sort.h"
 
-#define ITERS (1u << 8u)
+#define ITERS (1u << 13u)
 
 
 
@@ -92,42 +92,42 @@ int cf5_bubble(normalized_IS_t *G,
 
 
 int bench_cf3(void) {
-    normalized_IS_t G1;
+    normalized_IS_t G1, G2;
     permutation_t P_c, P_r;
     permutation_mat_id(&P_c);
     permutation_mat_id(&P_r);
 
 	printf("cf3:\n");
     uint64_t c = 0, c1, ctr = 0;
-	normalized_sf(&G1);
+	normalized_sf(&G2);
     for (uint64_t i = 0; i < ITERS; i++) {
-        // normalized_sf(&G1);
+		normalized_copy(&G1, &G2);
 
-        c -= x86_64_rtdsc();
+    	c -= x86_64_rtdsc();
         ctr += compute_canonical_form_type3(&G1, &P_r, &P_c);
         c += x86_64_rtdsc();
     }
     c1 = c/ITERS;
     printf("ct: %ld cyc, ctr: %ld\n", c1, ctr);
 
-	normalized_sf(&G1);
-    c = 0; ctr = 0;
-    for (uint64_t i = 0; i < ITERS; i++) {
-        // normalized_sf(&G1);
+	// normalized_sf(&G1);
+    // c = 0; ctr = 0;
+    // for (uint64_t i = 0; i < ITERS; i++) {
+    //     // normalized_sf(&G1);
 
-        c -= x86_64_rtdsc();
-        ctr += cf3_bubble(&G1, &P_r, &P_c);
-        c += x86_64_rtdsc();
-    }
+    //     c -= x86_64_rtdsc();
+    //     ctr += cf3_bubble(&G1, &P_r, &P_c);
+    //     c += x86_64_rtdsc();
+    // }
 
-    c = c/ITERS;
-    printf("bubble: %ld cyc, ctr: %ld\n", c, ctr);
-    printf("factor %lf\n\n", (double)c/(double)c1);
+    // c = c/ITERS;
+    // printf("bubble: %ld cyc, ctr: %ld\n", c, ctr);
+    // printf("factor %lf\n\n", (double)c/(double)c1);
     return 0;
 }
 
 int bench_cf4(void) {
-    normalized_IS_t G1;
+    normalized_IS_t G2, G1;
     permutation_t P_c, P_r;
     diagonal_t D_c;
     permutation_mat_id(&P_c);
@@ -135,10 +135,10 @@ int bench_cf4(void) {
     diagonal_mat_id(&D_c);
 
 	printf("cf4:\n");
-	normalized_sf(&G1);
+	normalized_sf(&G2);
     uint64_t c = 0, c1, ctr = 0;
     for (uint64_t i = 0; i < ITERS; i++) {
-        //normalized_sf(&G1);
+		normalized_copy(&G1, &G2);
 
         c -= x86_64_rtdsc();
         ctr += compute_canonical_form_type4(&G1, &P_r, &D_c, &P_c);
@@ -147,10 +147,10 @@ int bench_cf4(void) {
     c1 = c/ITERS;
     printf("ct: %ld cyc, ctr: %ld\n", c1, ctr);
 
-	normalized_sf(&G1);
+	normalized_sf(&G2);
     c = 0; ctr = 0;
     for (uint64_t i = 0; i < ITERS; i++) {
-        //normalized_sf(&G1);
+		normalized_copy(&G1, &G2);
 
         c -= x86_64_rtdsc();
         ctr += compute_canonical_form_type4_non_ct(&G1, &P_r, &D_c, &P_c);
@@ -178,7 +178,7 @@ int bench_cf4(void) {
 }
 
 int bench_cf5(void) {
-    normalized_IS_t G1;
+    normalized_IS_t G1, G2;
     permutation_t P_c, P_r;
     diagonal_t D_c, D_r;
     permutation_mat_id(&P_c);
@@ -186,11 +186,11 @@ int bench_cf5(void) {
     diagonal_mat_id(&D_c);
     diagonal_mat_id(&D_r);
 
-	normalized_sf(&G1);
+	normalized_sf(&G2);
 	printf("cf5:\n");
     uint64_t c = 0, c1, ctr = 0;
     for (uint64_t i = 0; i < ITERS; i++) {
-        // normalized_sf(&G1);
+		normalized_copy(&G1, &G2);
 
         c -= x86_64_rtdsc();
         ctr += compute_canonical_form_type5(&G1, NULL, &P_r, NULL, &P_c);
@@ -216,8 +216,8 @@ int bench_cf5(void) {
 }
 
 int main(void) {
-    // if (bench_cf3()) return 1;
+    if (bench_cf3()) return 1;
     if (bench_cf4()) return 1;
-    if (bench_cf5()) return 1;
+    //if (bench_cf5()) return 1;
     return 0;
 }

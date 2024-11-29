@@ -5,8 +5,9 @@
 
 #include "canonical.h"
 #include "cycles.h"
+#include "sort.h"
 
-#define ITERS (1u << 13u)
+#define ITERS (1u << 14u)
 
 
 int bench_sorting(void) {
@@ -18,7 +19,7 @@ int bench_sorting(void) {
         for (size_t j = 0; j < s; j++) { d1[j] = s-1-i; }
 
         c -= x86_64_rtdsc();
-        int8_sort(d1, s);
+        counting_sort_u8(d1, s);
         c += x86_64_rtdsc();
     }
     c1 = c/ITERS;
@@ -97,9 +98,9 @@ int bench_col_sorting(void) {
     normalized_IS_t G1;
     permutation_t P_c1;
 
+    normalized_sf(&G1);
     uint64_t c = 0, c1;
     for (uint64_t i = 0; i < ITERS; i++) {
-        normalized_sf(&G1);
 
         c -= x86_64_rtdsc();
         col_bitonic_sort(&G1, &P_c1);
@@ -108,9 +109,9 @@ int bench_col_sorting(void) {
     c1 = c/ITERS;
     printf("bitonic: %ld cyc\n", c1);
 
+    normalized_sf(&G1);
     c = 0;
     for (uint64_t i = 0; i < ITERS; i++) {
-        normalized_sf(&G1);
 
         c -= x86_64_rtdsc();
         canonical_col_lex_quicksort(&G1, 0, N-K-1, &P_c1);
@@ -119,12 +120,24 @@ int bench_col_sorting(void) {
     c = c/ITERS;
     printf("quick:  %ld cyc\n", c);
     printf("factor %lf\n", (double)c/(double)c1);
+
+    normalized_sf(&G1);
+    c = 0;
+    for (uint64_t i = 0; i < ITERS; i++) {
+
+        c -= x86_64_rtdsc();
+        canonical_col_lex_quicksort_transpose(&G1, &P_c1);
+        c += x86_64_rtdsc();
+    }
+    c = c/ITERS;
+    printf("trnps:  %ld cyc\n", c);
+    printf("factor %lf\n", (double)c/(double)c1);
     return 0;
 }
 
 int main(void) {
     //if (bench_sorting()) return 1;
-    if (bench_row_sorting()) return 1;
-    // if (bench_col_sorting()) return 1;
+    // if (bench_row_sorting()) return 1;
+    if (bench_col_sorting()) return 1;
     return 0;
 }
