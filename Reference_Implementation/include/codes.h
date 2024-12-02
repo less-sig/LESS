@@ -161,6 +161,11 @@ void apply_action_to_G(generator_mat_t* res,
                        const generator_mat_t* G,
                        const monomial_action_IS_t* Q_IS);
 
+//
+void apply_cf_action_to_G(generator_mat_t* res,
+                          const generator_mat_t *G,
+                          const uint8_t *const c);
+
 /* samples a random monomial matrix */
 void generator_rnd(generator_mat_t *res);
 void generator_sf(generator_mat_t *res);
@@ -186,8 +191,8 @@ int normalized_is_zero_in_column(const normalized_IS_t *const V,
 void normalized_mat_scale_row(normalized_IS_t *G, const uint32_t row, const FQ_ELEM a);
 
 // defined in monomial.c
-void permutation_apply_row(permutation_t *P, normalized_IS_t *G);
-void permutation_apply_col(normalized_IS_t *G, permutation_t *P);
+void permutation_apply_row(const permutation_t *P, normalized_IS_t *G);
+void permutation_apply_col(normalized_IS_t *G, const permutation_t *P);
 
 void diagonal_apply_row(diagonal_t *P, normalized_IS_t *G);
 void diagonal_apply_col(normalized_IS_t *G, diagonal_t *P);

@@ -51,11 +51,13 @@ int crypto_sign(unsigned char *sm,
 {
     /* sign cannot fail */
     memcpy((unsigned char *) sm, (const unsigned char *) m, (size_t) mlen);
+    /// TODO: we need to fix this somehow: But how do we do this?
+    /// The problem, iirc, is that always a different amount of seeds are opened.
     const uint32_t num_seeds_published = LESS_sign(
             (const prikey_t *)
                     sk,                                             // in parameter
             (const char *const) m, (const uint64_t) mlen,           // in parameter
-            (sign_t *) (sm + mlen));                                 // out parameter
+            (sign_t *) (sm + mlen));                                // out parameter
     const uint32_t sig_len = LESS_CRYPTO_BYTES(num_seeds_published);
     *smlen = mlen + sig_len;
     return 0;  // NIST convention: 0 == zero errors

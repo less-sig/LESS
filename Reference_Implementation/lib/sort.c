@@ -434,8 +434,7 @@ int compare_rows_bitonic_sort(FQ_ELEM **rows,
 /// \return the sorting algorithm works only inplace for the sorting of the columns
 /// 		0 on failure: row_i and row_j generate the same multiset
 /// 		1 on success
-int row_bubble_sort(normalized_IS_t *G,
-					permutation_t *P_r) {
+int row_bubble_sort(normalized_IS_t *G) {
     // first sort each row into a tmp buffer
     FQ_ELEM tmp[K][N-K];
     for (uint32_t i = 0; i < K; ++i) {
@@ -459,7 +458,6 @@ int row_bubble_sort(normalized_IS_t *G,
 
 			if (cmp > 0) {
 				row_swap(G, i, i+1);
-                permutation_swap(P_r, i, i+1);
 
                 // NOTE speedup: probably just move pointers
                 for (uint32_t j = 0; j < N-K; ++j) {
@@ -477,8 +475,7 @@ int row_bubble_sort(normalized_IS_t *G,
 /// \return the sorting algorithm works only inplace for the sorting of the columns
 /// 		0 on failure: row_i and row_j generate the same multiset
 /// 		1 on success
-int row_bitonic_sort(normalized_IS_t *G,
-                     permutation_t *P_r) {
+int row_bitonic_sort(normalized_IS_t *G) {
     // first sort each row into a tmp buffer
     FQ_ELEM  tmp[K][N-K];
     FQ_ELEM* ptr[K];
@@ -510,9 +507,6 @@ int row_bitonic_sort(normalized_IS_t *G,
                 const uintptr_t mask = -(1ull - (cmp >> 31));
                 cswap((uintptr_t *)(&ptr[i]), (uintptr_t *)(&ptr[i+p]), mask);
 				MASKED_SWAP(P[i], P[i+p], mask);
-
-            	// row_cswap(G, i, i+p, mask);
-            	// permutation_cswap(P_r, i, i+p, mask);
             }
         }
 
@@ -527,9 +521,6 @@ int row_bitonic_sort(normalized_IS_t *G,
                         const uintptr_t mask = -(1ull - (cmp >> 31));
                         cswap((uintptr_t *)(&ptr[i+p]), (uintptr_t *)(&ptr[i+r]), mask);
 						MASKED_SWAP(P[i+p], P[i+r], mask);
-
-                    	///permutation_cswap(P_r, i+p, i+r, mask);
-            			///row_cswap(G, i+p, i+r, mask);
                     }
                 }
             }
@@ -555,8 +546,7 @@ int row_bitonic_sort(normalized_IS_t *G,
 /// \return new lower bound
 int canonical_col_Hoare_partition(normalized_IS_t *V,
                                   const POSITION_T col_l,
-								  const POSITION_T col_h,
-								  permutation_t *P) {
+								  const POSITION_T col_h) {
     FQ_ELEM pivot_col[K] = {0};
     for(uint32_t i = 0; i < K; i++){
         pivot_col[i] = V->values[i][col_l];
@@ -576,10 +566,10 @@ int canonical_col_Hoare_partition(normalized_IS_t *V,
         }
 
         column_swap(V,i,j);
-        if (P != NULL) { permutation_swap(P, i, j); }
     }
 }
 
+/// TODO remove
 /// In-place quicksort
 /// the same as `col_lex_quicksort` except we are tracking the permutations
 /// \param V
@@ -587,12 +577,11 @@ int canonical_col_Hoare_partition(normalized_IS_t *V,
 /// \param end
 void canonical_col_lex_quicksort(normalized_IS_t *V,
                                  const int start,
-                                 const int end,
-                                 permutation_t *P) {
+                                 const int end) {
     if(start < end){
-        int p = canonical_col_Hoare_partition(V, start, end, P);
-        canonical_col_lex_quicksort(V, start, p, P);
-        canonical_col_lex_quicksort(V, p+1, end, P);
+        int p = canonical_col_Hoare_partition(V, start, end);
+        canonical_col_lex_quicksort(V, start, p);
+        canonical_col_lex_quicksort(V, p+1, end);
     }
 }
 
@@ -601,8 +590,8 @@ void canonical_col_lex_quicksort(normalized_IS_t *V,
 /// 	      -1 if it is smaller,
 /// 		   0 if it matches
 int row_lex_compare_with_pivot(FQ_ELEM V[K][N-K],
-                           const POSITION_T row_idx,
-                           FQ_ELEM pivot[N-K]){
+							   const POSITION_T row_idx,
+                               FQ_ELEM pivot[N-K]){
    uint32_t i=0;
    while((i<(N-K)) && (V[row_idx][i]-pivot[i] == 0)){
        i++;
@@ -623,13 +612,11 @@ int row_lex_compare_with_pivot(FQ_ELEM V[K][N-K],
 /// \param G
 /// \param row_l
 /// \param row_h
-/// \param P_r
 /// \return
 int row_hoare_partition(FQ_ELEM V[K][N-K],
                         normalized_IS_t *G,
                         const POSITION_T row_l,
-                        const POSITION_T row_h,
-                        permutation_t *P_r) {
+                        const POSITION_T row_h) {
     FQ_ELEM pivot_row[N-K];
     for(uint32_t i = 0; i < N-K; i++){
        pivot_row[i] = V[row_l][i];
@@ -652,7 +639,6 @@ int row_hoare_partition(FQ_ELEM V[K][N-K],
         if(i >= j){ return j; }
 
     	row_swap(G, i, j);
-    	if (P_r != NULL) { SWAP(P_r->permutation[i], P_r->permutation[j]); }
 		for(uint32_t k = 0; k < N-K; k++){
 			SWAP(V[i][k], V[j][k]);
 		}
@@ -663,19 +649,17 @@ int row_hoare_partition(FQ_ELEM V[K][N-K],
 /// \param G non IS generator matrix
 /// \param start inclusive
 /// \param end inclusive
-/// \param P_r row permutation applied
 /// \return 1 on success
 ///			0 if two rows generate the same multi set
 int row_lex_quicksort(FQ_ELEM V[K][N-K],
                       normalized_IS_t *G,
                       const uint32_t start,
-                      const uint32_t end,
-                      permutation_t *P_r) {
+                      const uint32_t end) {
     if(start < end){
-        const int p = row_hoare_partition(V, G, start, end, P_r);
+        const int p = row_hoare_partition(V, G, start, end);
     	if (p == -1) { return 0; }
-        row_lex_quicksort(V, G, start, p, P_r);
-        row_lex_quicksort(V, G, p+1, end, P_r);
+        row_lex_quicksort(V, G, start, p);
+        row_lex_quicksort(V, G, p+1, end);
     }
 
 	return 1;
@@ -683,11 +667,9 @@ int row_lex_quicksort(FQ_ELEM V[K][N-K],
 
 ///  inplace in g
 /// \param G: generator matrix to sort
-/// \param P_r: row permutatution applied
 /// \return 1 on success
 ///			0 if two rows generate the same multiset
-int row_quick_sort(normalized_IS_t *G,
-                   permutation_t *P_r) {
+int row_quick_sort(normalized_IS_t *G) {
 	// first sort each row into a tmp buffer
 	FQ_ELEM  tmp[K][N-K];
 	for (uint32_t i = 0; i < K; ++i) {
@@ -698,16 +680,14 @@ int row_quick_sort(normalized_IS_t *G,
 		// qsort(tmp[i], N-K, 1, fqcmp);
 	}
 
-	return row_lex_quicksort(tmp, G, 0, N-K-1, P_r);
+	return row_lex_quicksort(tmp, G, 0, N-K-1);
 }
 
 
 // NOTE: unstable sort, as we swap on equal elements
 /// sort is applied inplace in G
 /// \param G: generator matrix to sort
-/// \param P_c: column permutatution applied
-void col_bitonic_sort(normalized_IS_t *G,
-                      permutation_t *P_c) {
+void col_bitonic_sort(normalized_IS_t *G) {
     uint64_t r, i;
     const uint64_t n = N-K;
 	const uint64_t top = 1ul << (32 - __builtin_clz(K/2));
@@ -721,7 +701,6 @@ void col_bitonic_sort(normalized_IS_t *G,
 			    const uint32_t cmp = lex_compare_col(G, i, i + p);
                 const uintptr_t mask = -(1ull - (cmp >> 31));
             	column_cswap(G, i, i+p, mask);
-            	permutation_cswap(P_c, i, i+p, mask);
             }
         }
 
@@ -732,7 +711,6 @@ void col_bitonic_sort(normalized_IS_t *G,
                     for (r = q; r > p; r >>= 1) {
 						const uint32_t cmp = lex_compare_col(G, i+p, i+r);
             			const uintptr_t mask = -(1ull - (cmp >> 31));
-                    	permutation_cswap(P_c, i+p, i+r, mask);
             			column_cswap(G, i+p, i+r, mask);
                     }
                 }
@@ -741,16 +719,13 @@ void col_bitonic_sort(normalized_IS_t *G,
     }
 }
 
-
 /// \param G
 /// \param row_l
 /// \param row_h
-/// \param P_r
 /// \return
 int row_hoare_partition_transposed(normalized_IS_t *G,
                                    const POSITION_T row_l,
-                                   const POSITION_T row_h,
-                                   permutation_t *P_r) {
+                                   const POSITION_T row_h) {
     FQ_ELEM pivot_row[N-K];
     for(uint32_t i = 0; i < N-K; i++){
        pivot_row[i] = G->values[row_l][i];
@@ -773,25 +748,22 @@ int row_hoare_partition_transposed(normalized_IS_t *G,
         if(i >= j){ return j; }
 
     	row_swap(G, i, j);
-    	if (P_r != NULL) { SWAP(P_r->permutation[i], P_r->permutation[j]); }
     }
 }
 
 /// \param G non IS generator matrix
 /// \param start inclusive
 /// \param end inclusive
-/// \param P_r row permutation applied
 /// \return 1 on success
 ///			0 if two rows generate the same multi set
 int row_lex_quicksort_transposed(normalized_IS_t *G,
                                  const uint32_t start,
-                                 const uint32_t end,
-                                 permutation_t *P_r) {
+                                 const uint32_t end) {
     if(start < end){
-        const int p = row_hoare_partition_transposed(G, start, end, P_r);
+        const int p = row_hoare_partition_transposed(G, start, end);
     	if (p == -1) { return 0; }
-        row_lex_quicksort_transposed(G, start, p, P_r);
-        row_lex_quicksort_transposed(G, p+1, end, P_r);
+        row_lex_quicksort_transposed(G, start, p);
+        row_lex_quicksort_transposed(G, p+1, end);
     }
 
 	return 1;
@@ -853,14 +825,9 @@ int col_bitonic_sort_transposed(normalized_IS_t *G) {
 
 /// In-place quicksort
 /// the same as `col_lex_quicksort` except we are tracking the permutations
-void canonical_col_lex_quicksort_transpose(normalized_IS_t *V,
-                                           permutation_t *P) {
+void canonical_col_lex_quicksort_transpose(normalized_IS_t *V) {
     normalized_IS_t VT;
-	(void)P;
     matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, K);
-
 	col_bitonic_sort_transposed(&VT);
-	// row_bitonic_sort(&VT, P);
-	// row_lex_quicksort(tmp, G, 0, N-K-1, P_r);
     matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, K);
 }

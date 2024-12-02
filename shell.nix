@@ -6,6 +6,7 @@ let
     sage
 	python-lsp-server
     pythonPackages.pandas
+    pythonPackages.numpy
     pythonPackages.scipy
     pythonPackages.jupyter
     pythonPackages.pycrypto
@@ -30,6 +31,7 @@ gccStdenv.mkDerivation {
     cmake 
     clang
     clang-tools
+    llvm
     gcc
     gdb
     valgrind

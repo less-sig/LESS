@@ -128,7 +128,7 @@ void compress_monom_action(uint8_t *compressed,
 
 /* Compress MonomialAction via CF */
 void cf_compress_monom_action(uint8_t *compressed,
-                              const monomial_action_IS_t *mono);
+                              const monomial_t *mono);
 
 /* Decompress byte array to MonomialAction object */
 void expand_to_monom_action(monomial_action_IS_t *mono,
@@ -139,6 +139,7 @@ void cf_expand_to_monom_action(monomial_action_IS_t *mono,
 
 /* Validate MonomialAction object */
 int is_monom_action_valid(const monomial_action_IS_t * const mono);
+int is_cf_monom_action_valid(const uint8_t* const mono);
 
 /* pretty_print for monomial matrices */
 void monomial_mat_pretty_print_name(char *name, const monomial_t *to_print);

@@ -173,16 +173,17 @@ FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
 }
 
 /// NOTE: maybe dont use it for sensetive data
-static const uint8_t fq_inv_table[127] __attribute__((aligned(64))) = {
-   0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126
+static const uint8_t fq_inv_table[128] __attribute__((aligned(64))) = {
+   0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126, 0
 };
 
 
 /* Fermat's method for inversion employing r-t-l square and multiply,
  * unrolled for actual parameters */
 static inline
-FQ_ELEM fq_inv(FQ_ELEM x) {
-   return fq_inv_table[x];
+FQ_ELEM fq_inv(const FQ_ELEM x) {
+    const FQ_ELEM t = x%Q; // TODO, the problem is, that the pseudo reduction, does not fully reduce
+   return fq_inv_table[t];
 } /* end fq_inv */
 
 
@@ -290,7 +291,7 @@ static inline
 uint32_t row_all_same(const FQ_ELEM *in) {
     for (uint32_t col = 1; col < N-K; col++) {
         if (in[col] != in[col - 1]) {
-			   return 0;
+            return 0;
         }
     }
     return 1;

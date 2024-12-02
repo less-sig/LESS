@@ -257,7 +257,7 @@ void monomial_compose_action(monomial_action_IS_t* out,
 /// \param compressed
 /// \param mono
 void cf_compress_monom_action(uint8_t *compressed,
-                              const monomial_action_IS_t *mono) {
+                              const monomial_t *mono) {
     memset(compressed, 0, N8);
     for (uint32_t i = 0; i < K; i++) {
         const uint32_t limb = (mono->permutation[i])/8;
@@ -571,6 +571,8 @@ void expand_to_monom_action(monomial_action_IS_t *mono,
 
 }
 
+/// @param mono
+/// @return
 int is_monom_action_valid(const monomial_action_IS_t * const mono){
     for(uint32_t i = 0; i < K; i++){
         if ((mono->coefficients[i] <= 0) || (mono->coefficients[i] >= Q)){
@@ -590,20 +592,33 @@ int is_monom_action_valid(const monomial_action_IS_t * const mono){
     return 1;
 }
 
+///
+/// @param mono 
+/// @return 
+int is_cf_monom_action_valid(const uint8_t* const mono) {
+    uint32_t w = 0;
+    for (uint32_t i = 0; i < N8; i++) {
+        w += __builtin_popcount(mono[i]);
+    }
+
+    return w == K;
+}
 
 ////////////////////////////////////////////////////////////////////////
 ///                        Permutation                               ///
 ////////////////////////////////////////////////////////////////////////
 
-
-void permutation_apply_col(normalized_IS_t *G, permutation_t *P) {
+///
+void permutation_apply_col(normalized_IS_t *G,
+                          const permutation_t *P) {
     for (uint32_t i = 0; i < (N-K); i++) {
         column_swap(G, i, P->permutation[i]);
     }
 }
 
 ///
-void permutation_apply_row(permutation_t *P, normalized_IS_t *G) {
+void permutation_apply_row(const permutation_t *P,
+                           normalized_IS_t *G) {
     for (uint32_t i = 0; i < K; i++) {
         row_swap(G, i, P->permutation[i]);
     }
@@ -620,7 +635,11 @@ void permutation_swap(permutation_t *P,
     P->permutation[j] = tmp;
 }
 
-///
+/// 
+/// @param P 
+/// @param i 
+/// @param j 
+/// @param mask 
 void permutation_cswap(permutation_t *P,
                        const uint32_t i,
                        const uint32_t j,
@@ -630,30 +649,41 @@ void permutation_cswap(permutation_t *P,
     MASKED_SWAP(P->permutation[i], P->permutation[j], mask);
 }
 
-///
+/// 
+/// @param P 
 void permutation_mat_id(permutation_t *P) {
     for (uint32_t i = 0; i < N; ++i) {
         P->permutation[i] = i;
     }
 }
 
-///
+/// 
+/// @param P 
 void permutation_mat_rng(permutation_t *P) {
     permutation_mat_id(P);
     yt_shuffle(P->permutation);
 }
 
 ///
-void permutation_mat_id_v2(permutation_t *P, const uint32_t max) {
+void permutation_mat_id_v2(permutation_t *P,
+                           const uint32_t max) {
     for (uint32_t i = 0; i < max; ++i) {
         P->permutation[i] = i;
+    }
+    for (uint32_t i = max; i < N; ++i) {
+        P->permutation[i] = 0;
     }
 }
 
 ///
-void permutation_mat_rng_v2(permutation_t *P, const uint32_t max) {
+void permutation_mat_rng_v2(permutation_t *P,
+                            const uint32_t max) {
     permutation_mat_id_v2(P, max);
     yt_shuffle_v2(P->permutation, max);
+
+    for (uint32_t i = max; i < N; ++i) {
+        P->permutation[i] = 0;
+    }
 }
 
 ///
@@ -708,6 +738,9 @@ void diagonal_mat_rnd(diagonal_t *D) {
     csprng_randombytes((unsigned char *) &D->coefficients, sizeof(FQ_ELEM)*N, &platform_csprng_state);
     for (uint32_t i = 0; i < N; ++i) {
         D->coefficients[i] = fq_red(D->coefficients[i]);
+        while(D->coefficients[i] == 0) {
+            D->coefficients[i] = fq_red(D->coefficients[i]+1);
+        }
     }
 }
 
@@ -717,6 +750,9 @@ void diagonal_mat_id_v2(diagonal_t *D,
     for (uint32_t i = 0; i < max; ++i) {
         D->coefficients[i] = 1;
     }
+    for (uint32_t i = max; i < N; ++i) {
+        D->coefficients[i] = 0;
+    }
 }
 
 ///
@@ -725,6 +761,13 @@ void diagonal_mat_rnd_v2(diagonal_t *D,
     csprng_randombytes((unsigned char *) &D->coefficients, sizeof(FQ_ELEM)*max, &platform_csprng_state);
     for (uint32_t i = 0; i < max; ++i) {
         D->coefficients[i] = fq_red(D->coefficients[i]);
+        while(D->coefficients[i] == 0) {
+            D->coefficients[i] = fq_red(D->coefficients[i]+1);
+        }
+    }
+
+    for (uint32_t i = max; i < N; ++i) {
+        D->coefficients[i] = 0;
     }
 }
 

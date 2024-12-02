@@ -267,58 +267,7 @@ void rref_gen_compress_tester(void){
     }
 }
 
-/*
- * TODO explain
- */
-void mono_is_compress_tester(void){
-    monomial_action_IS_t Q_a, Qcheck;
-    uint8_t compressed [MONO_ACTION_PACKEDBYTES];
-
-    monomial_t mono_rnd;
-    monomial_mat_rnd(&mono_rnd);
-
-    // Create random q
-    for (int i = 0; i < K; i++) {
-        Q_a.coefficients[i] = mono_rnd.coefficients[i];
-        Q_a.permutation[i] = mono_rnd.permutation[i];
-    }
-
-     compress_monom_action(compressed,&Q_a);
-     expand_to_monom_action(&Qcheck,compressed);
-
-    if( memcmp( &Qcheck,&Q_a,sizeof(monomial_action_IS_t)) !=0 ){
-        printf("Monomial Action compression: ko\n");
-
-       fprintf(stderr,"perm = [");
-       for(int i = 0; i < K-1; i++) {
-          fprintf(stderr,"%03u, ",Q_a.permutation[i]);
-       }
-       fprintf(stderr,"%03u ]\n",Q_a.permutation[K-1]);
-       fprintf(stderr,"coeffs = [");
-       for(int i = 0; i < K-1; i++) {
-          fprintf(stderr,"%03u, ",Q_a.coefficients[i]);
-       }
-       fprintf(stderr,"%03u ]\n",Q_a.coefficients[K-1]);
-
-       fprintf(stderr,"\n\n\n");
-       fprintf(stderr,"perm = [");
-       for(int i = 0; i < K-1; i++
-        ) {
-          fprintf(stderr,"%03u, ",Qcheck.permutation[i]);
-       }
-       fprintf(stderr,"%03u ]\n",Qcheck.permutation[K-1]);
-       fprintf(stderr,"coeffs = [");
-       for(int i = 0; i < K-1; i++) {
-          fprintf(stderr,"%03u, ",Qcheck.coefficients[i]);
-       }
-       fprintf(stderr,"%03u ]\n",Qcheck.coefficients[K-1]);
-
-    } else {
-        printf("Monomial Action compression: ok\n");
-    }
-
-}
-
+/// TODO not finished
 void cf_mono_is_compress_tester(void) {
     monomial_action_IS_t Q_a, Qcheck;
     uint8_t compressed [N8];
@@ -523,10 +472,9 @@ int LESS_sign_verify_test_KAT(void) {
 int main(int argc, char* argv[]){
     (void)argc;
     (void)argv;
-    //return LESS_sign_verify_test();
     // return LESS_sign_verify_test_multiple();
 
-    cf_mono_is_compress_tester();
+    // cf_mono_is_compress_tester();
     // LESS_sign_verify_test_KAT();
 
     initialize_csprng(&platform_csprng_state,
@@ -534,6 +482,7 @@ int main(int argc, char* argv[]){
                       16);
     fprintf(stderr,"LESS reference implementation functional testbench\n");
     info();
+    return LESS_sign_verify_test();
 
     int tests_ok = 0;
     for (int i = 0; i < NUM_TEST_ITERATIONS; i++) {

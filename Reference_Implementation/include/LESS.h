@@ -51,10 +51,10 @@ typedef struct {
    unsigned char G_0_seed[SEED_LENGTH_BYTES];
 } prikey_t;
 
-// __attribute__((packed))
-typedef struct sig_t {
+
+typedef struct __attribute__((packed)) sig_t {
     unsigned char tree_salt[HASH_DIGEST_LENGTH];
-    uint8_t monom_actions[W][MONO_ACTION_PACKEDBYTES];
+    // uint8_t monom_actions[W][MONO_ACTION_PACKEDBYTES];
     uint8_t cf_monom_actions[W][N8];
     uint8_t digest[HASH_DIGEST_LENGTH];
     /// we need an additional byte to store the number of published seeds

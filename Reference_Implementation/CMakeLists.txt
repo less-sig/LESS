@@ -17,7 +17,7 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
 	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0  -march=native -flax-vector-conversions ${ALLOWED_WARNINGS}")
 	set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector -flto ${ALLOWED_WARNINGS}")
 else()
-	set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -Og -ggdb -Wall -Wpedantic -Wextra -fsanitize=address ${ALLOWED_WARNINGS}")
+	set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -O0 -ggdb -Wall -Wpedantic -Wextra -fsanitize=address ${ALLOWED_WARNINGS}")
     set(CMAKE_C_FLAGS_RELEASE "-DUSE_AVX2 -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -ftree-vectorize -fomit-frame-pointer -fno-stack-protector -flto ${ALLOWED_WARNINGS}")
 endif()
 
@@ -86,7 +86,7 @@ endforeach(category)
 # canonical forms test
 add_executable(test_canonical_form ${PROJECT_SOURCE_DIR}/lib/test/test_canonical.c ${SOURCES})
 target_link_libraries(test_canonical_form m crypto)
-set_property(TARGET test_canonical_form APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_0 -DBALANCED=1")
+set_property(TARGET test_canonical_form APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 
 add_executable(inv_table ${PROJECT_SOURCE_DIR}/lib/test/inv_table.c)
 target_link_libraries(inv_table m crypto)
