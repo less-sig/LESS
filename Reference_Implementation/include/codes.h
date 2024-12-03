@@ -95,7 +95,7 @@ void lex_minimize(normalized_IS_t *V,
 
 //
 int lex_compare_column(const generator_mat_t *G1, 
-					                  const generator_mat_t *G2,
+                       const generator_mat_t *G2,
                        const POSITION_T col1,
                        const POSITION_T col2);
 
@@ -126,18 +126,21 @@ void generator_rref_compact(rref_generator_mat_t *compact,
                             const generator_mat_t *const full,
                             const uint8_t is_pivot_column[N] );
 
+void generator_to_normalized(normalized_IS_t *v,
+                             const generator_mat_t *const G);
+
 /* Compresses a columns of an IS matrix */
 void compress_columns(uint8_t *compressed,
-                    const normalized_IS_t *const full);
+                      const normalized_IS_t *const full);
 
 /* Compresses a generator matrix in RREF into a array of bytes */
 void compress_rref(uint8_t *compressed,
-                    const generator_mat_t *const full,
-                    const uint8_t is_pivot_column[N]);
+                   const generator_mat_t *const full,
+                   const uint8_t is_pivot_column[N]);
 
 /* Expands a compressed RREF generator matrix into a full one */
 void expand_to_rref(generator_mat_t *full,
-                        const uint8_t *compressed);
+                    const uint8_t *compressed);
 
 /* Takes as input a compact RREF generator matrix, i.e. a set of N-K
  * columns and their position in the RREF and normalizes the columns themselves

@@ -130,6 +130,8 @@ void compress_monom_action(uint8_t *compressed,
 void cf_compress_monom_action(uint8_t *compressed,
                               const monomial_t *mono);
 
+void cf_compress_monomial_IS_action(uint8_t *compressed,
+                                    const monomial_action_IS_t *mono);
 /* Decompress byte array to MonomialAction object */
 void expand_to_monom_action(monomial_action_IS_t *mono,
                             const uint8_t *compressed);

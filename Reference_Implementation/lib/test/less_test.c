@@ -375,8 +375,7 @@ int LESS_sign_verify_test(void){
     char message[8] = "Signme!";
     LESS_keygen(&sk,&pk);
     LESS_sign(&sk,message,8,&signature);
-    int is_signature_ok;
-    is_signature_ok = LESS_verify(&pk,message,8,&signature);
+    int is_signature_ok = LESS_verify(&pk,message,8,&signature);
     fprintf(stderr,"Keygen-Sign-Verify: %s", is_signature_ok == 1 ? "functional\n": "not functional\n" );
     return is_signature_ok;
 }
@@ -439,10 +438,9 @@ int LESS_sign_verify_test_KAT(void) {
 
     const uint32_t mlen = 33;
     unsigned long long smlen = 0, mlen1;
-    //unsigned char *m  = (unsigned char *)calloc(mlen, sizeof(unsigned char));
     unsigned char *m1 = (unsigned char *)calloc(mlen+CRYPTO_BYTES, sizeof(unsigned char));
     unsigned char *sm = (unsigned char *)calloc(mlen+CRYPTO_BYTES, sizeof(unsigned char));
-    unsigned char       pk[CRYPTO_PUBLICKEYBYTES] = {0}, sk[CRYPTO_SECRETKEYBYTES] = {0};
+    unsigned char pk[CRYPTO_PUBLICKEYBYTES] = {0}, sk[CRYPTO_SECRETKEYBYTES] = {0};
 
     int ret_val;
     if ((ret_val = crypto_sign_keypair(pk, sk)) != 0) {
@@ -472,7 +470,7 @@ int LESS_sign_verify_test_KAT(void) {
 int main(int argc, char* argv[]){
     (void)argc;
     (void)argv;
-    // return LESS_sign_verify_test_multiple();
+    return LESS_sign_verify_test_multiple();
 
     // cf_mono_is_compress_tester();
     // LESS_sign_verify_test_KAT();

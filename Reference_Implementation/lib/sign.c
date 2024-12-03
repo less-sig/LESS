@@ -73,7 +73,7 @@ int crypto_sign_open(unsigned char *m,
                      const unsigned char *sm, unsigned long long smlen, // in parameter
                      const unsigned char *pk)                           // in parameter
 {
-
+    /// TODO
     const uint8_t num_seeds_published = sm[smlen - 1u];
     if (num_seeds_published >= MAX_PUBLISHED_SEEDS) {
         return -1;
@@ -91,8 +91,8 @@ int crypto_sign_open(unsigned char *m,
                          (const char *const) m, (const uint64_t) *mlen, // in parameter
                          (const sign_t *const) (sm + *mlen));            // in parameter
 
-
-    return ok - 1; // NIST convention: 0 == zero errors, -1 == error condition
+    // NIST convention: 0 == zero errors, -1 == error condition
+    return ok - 1;
 } // end crypto_sign_open
 
 /*----------------------------------------------------------------------------*/

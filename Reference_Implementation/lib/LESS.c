@@ -128,20 +128,22 @@ size_t LESS_sign(const prikey_t *SK,
     generator_mat_t full_G0;
     generator_rref_expand(&full_G0, &G0_rref);
 
-    monomial_t Q_tilde[T];
+    monomial_t Q_tilde;
+    // TODO: remove the values, as we only are interested in the permutation
+    monomial_action_IS_t Q_bar[T];
     normalized_IS_t V_array;
 
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
 
     for (uint32_t i = 0; i < T; i++) {
-        monomial_mat_seed_expand_salt_rnd(&Q_tilde[i],
+        monomial_mat_seed_expand_salt_rnd(&Q_tilde,
                                           ephem_monomial_seeds + i * SEED_LENGTH_BYTES,
                                           sig->tree_salt,
                                           i);
 
         /* Absorb input */
-        prepare_digest_input(&V_array, NULL, &full_G0, &Q_tilde[i]);
+        prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde);
         const int t = cf5(&V_array);
         if (t == 0) {
             i -= 1;
@@ -175,19 +177,17 @@ size_t LESS_sign(const prikey_t *SK,
                            indices_to_publish,
                            (unsigned char *) &sig->seed_storage);
 
-    monomial_t mono_action;
+    monomial_action_IS_t mono_action;
     for (uint32_t i = 0; i < T; i++) {
-        monomial_t Q_to_multiply, Q_to_multiply_inv;
+        monomial_t Q_to_multiply;
         if (fixed_weight_string[i] != 0) {
-            int sk_monom_seed_to_expand_idx = fixed_weight_string[i];
+            const int sk_monom_seed_to_expand_idx = fixed_weight_string[i];
 
             monomial_mat_seed_expand_prikey(&Q_to_multiply,
                                             private_monomial_seeds[sk_monom_seed_to_expand_idx - 1]);
-            monomial_mat_inv(&Q_to_multiply_inv, &Q_to_multiply);
-            monomial_mat_mul(&mono_action, &Q_to_multiply_inv, &Q_tilde[i]);
-            // TODO monomial_compose_action(&mono_action,&Q_to_multiply, &Q_bar_actions[i]);
+            monomial_compose_action(&mono_action, &Q_to_multiply, &Q_bar[i]);
 
-            cf_compress_monom_action(sig->cf_monom_actions[emitted_monoms], &mono_action);
+            cf_compress_monomial_IS_action(sig->cf_monom_actions[emitted_monoms], &mono_action);
             emitted_monoms++;
         }
     }
@@ -225,7 +225,7 @@ int LESS_verify(const pubkey_t *const PK,
 
     generator_mat_t tmp_full_G;
     generator_mat_t G_hat;
-
+    monomial_action_IS_t Q_to_discard;
     normalized_IS_t V_array;
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
@@ -239,26 +239,28 @@ int LESS_verify(const pubkey_t *const PK,
                                               ephem_monomial_seeds + i * SEED_LENGTH_BYTES,
                                               sig->tree_salt,
                                               i);
-
+            // TODO half of these operations can be optimized away
             prepare_digest_input(&V_array,
-                                 NULL,
+                                 &Q_to_discard,
                                  &tmp_full_G,
                                  &Q_to_multiply);
 
-
             const int r = cf5(&V_array);
-            if (r == 0) { printf("cf5 failed\n"); }// TODO
+            if (r == 0) {
+                printf("cf5 failed\n");
+                return 0;// TODO
+            }
             LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array, sizeof(normalized_IS_t));
         } else {
             expand_to_rref(&tmp_full_G, PK->SF_G[fixed_weight_string[i] - 1]);
-
             if (!is_cf_monom_action_valid(sig->cf_monom_actions[employed_monoms])) {
                 return 0;
             }
 
             apply_cf_action_to_G(&G_hat, &tmp_full_G, sig->cf_monom_actions[employed_monoms]);
             uint8_t is_pivot_column[N] = {0};
-            generator_RREF(&G_hat, is_pivot_column);
+            const int ret = generator_RREF(&G_hat, is_pivot_column);
+            if(ret != 1) { return 0; }
 
             // just copy the non IS
             for (uint32_t k = 0; k < K; k++) {
@@ -266,9 +268,12 @@ int LESS_verify(const pubkey_t *const PK,
                     V_array.values[k][j] = G_hat.values[k][j + K];
                 }
             }
-            const int r = cf5(&V_array);
 
-            if (r == 0) { printf("cf5 wt=1 failed\n"); }// TODO
+            const int r = cf5(&V_array);
+            if (r == 0) {
+                printf("cf5 wt=1 failed\n");
+                return 0;// TODO
+            }
             LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array, sizeof(normalized_IS_t));
             employed_monoms++;
         }

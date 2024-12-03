@@ -253,11 +253,28 @@ void monomial_compose_action(monomial_action_IS_t* out,
    }   
 }
 
+void cf_monomial_compose_action(monomial_action_IS_t* out,
+                                const monomial_t * Q_in,
+                                const monomial_action_IS_t * in) {
+}
 /// type5 compression
 /// \param compressed
 /// \param mono
 void cf_compress_monom_action(uint8_t *compressed,
                               const monomial_t *mono) {
+    memset(compressed, 0, N8);
+    for (uint32_t i = 0; i < K; i++) {
+        const uint32_t limb = (mono->permutation[i])/8;
+        const uint32_t pos  = (mono->permutation[i])%8;
+        compressed[limb] ^= 1u << pos;
+    }
+}
+
+/// type5 compression
+/// \param compressed
+/// \param mono
+void cf_compress_monomial_IS_action(uint8_t *compressed,
+                                    const monomial_action_IS_t *mono) {
     memset(compressed, 0, N8);
     for (uint32_t i = 0; i < K; i++) {
         const uint32_t limb = (mono->permutation[i])/8;

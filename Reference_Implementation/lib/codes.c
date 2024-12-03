@@ -361,7 +361,7 @@ void lex_sort_cols(normalized_IS_t *V){
 
 /// 
 /// @param V 
-/// @param Q_bar_IS 
+/// @param Q_bar_IS
 /// @param G 
 /// @param Q_tilde
 void prepare_digest_input(normalized_IS_t *V,
@@ -373,7 +373,7 @@ void prepare_digest_input(normalized_IS_t *V,
     generator_monomial_mul(&G_dagger, G, Q_tilde);
 
      uint8_t is_pivot_column[N] = {0};
-    int rref_ok = generator_RREF(&G_dagger,is_pivot_column);
+    int rref_ok = generator_RREF(&G_dagger, is_pivot_column);
     /// TODO, this is kind of bad, should be removed, and proper error handling should be applied
     ASSERT(rref_ok != 0);
 
@@ -384,6 +384,20 @@ void prepare_digest_input(normalized_IS_t *V,
         }
     }
 
+    POSITION_T piv_idx = 0;
+    for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
+        POSITION_T row_idx;
+        for(uint32_t i = 0; i < N; i++) {
+           if (Q_tilde->permutation[i] == col_idx) {
+              row_idx = i;
+           }
+        }
+
+        if(is_pivot_column[col_idx] == 1) {
+           Q_bar_IS->permutation[piv_idx] = row_idx;
+           piv_idx++;
+        }
+    }
    // POSITION_T piv_idx = 0, non_piv_idx = K;
    // for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
 
@@ -496,6 +510,14 @@ void generator_rref_compact(rref_generator_mat_t *compact,
    }
 } /* end generator_rref_compact */
 
+void generator_to_normalized(normalized_IS_t *V,
+                             const generator_mat_t *const G){
+    for (uint32_t i = 0; i < K; ++i) {
+        for (uint32_t j = 0; j < N - K; ++j) {
+            V->values[i][j] = G->values[i][K+j];
+        }
+    }
+}
 
 /* Compresses a generator matrix in RREF into a array of bytes */
 void compress_rref(uint8_t *compressed, const generator_mat_t *const full,
