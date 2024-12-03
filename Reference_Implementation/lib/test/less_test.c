@@ -267,12 +267,10 @@ void rref_gen_compress_tester(void){
     }
 }
 
-/*
- * TODO explain
- */
-void mono_is_compress_tester(void){
+/// TODO not finished
+void cf_mono_is_compress_tester(void) {
     monomial_action_IS_t Q_a, Qcheck;
-    uint8_t compressed [MONO_ACTION_PACKEDBYTES];
+    uint8_t compressed [N8];
 
     monomial_t mono_rnd;
     monomial_mat_rnd(&mono_rnd);
@@ -283,11 +281,12 @@ void mono_is_compress_tester(void){
         Q_a.permutation[i] = mono_rnd.permutation[i];
     }
 
-     compress_monom_action(compressed,&Q_a);
-     expand_to_monom_action(&Qcheck,compressed);
+     cf_compress_monom_action(compressed,&Q_a);
+     cf_expand_to_monom_action(&Qcheck,compressed);
 
-    if( memcmp( &Qcheck,&Q_a,sizeof(monomial_action_IS_t)) !=0 ){
-        printf("Monomial Action compression: ko\n");
+    // NOTE: this does note make so much sence
+    if( memcmp( &Qcheck.permutation,&Q_a.permutation,sizeof(POSITION_T) *K) !=0 ) {
+        printf("CF Monomial Action compression: ko\n");
 
        fprintf(stderr,"perm = [");
        for(int i = 0; i < K-1; i++) {
@@ -314,7 +313,7 @@ void mono_is_compress_tester(void){
        fprintf(stderr,"%03u ]\n",Qcheck.coefficients[K-1]);
 
     } else {
-        printf("Monomial Action compression: ok\n");
+        printf("CF Monomial Action compression: ok\n");
     }
 
 }
@@ -376,8 +375,7 @@ int LESS_sign_verify_test(void){
     char message[8] = "Signme!";
     LESS_keygen(&sk,&pk);
     LESS_sign(&sk,message,8,&signature);
-    int is_signature_ok;
-    is_signature_ok = LESS_verify(&pk,message,8,&signature);
+    int is_signature_ok = LESS_verify(&pk,message,8,&signature);
     fprintf(stderr,"Keygen-Sign-Verify: %s", is_signature_ok == 1 ? "functional\n": "not functional\n" );
     return is_signature_ok;
 }
@@ -442,10 +440,9 @@ int LESS_sign_verify_test_KAT(void) {
 
     const uint32_t mlen = 33;
     unsigned long long smlen = 0, mlen1;
-    //unsigned char *m  = (unsigned char *)calloc(mlen, sizeof(unsigned char));
     unsigned char *m1 = (unsigned char *)calloc(mlen+CRYPTO_BYTES, sizeof(unsigned char));
     unsigned char *sm = (unsigned char *)calloc(mlen+CRYPTO_BYTES, sizeof(unsigned char));
-    unsigned char       pk[CRYPTO_PUBLICKEYBYTES] = {0}, sk[CRYPTO_SECRETKEYBYTES] = {0};
+    unsigned char pk[CRYPTO_PUBLICKEYBYTES] = {0}, sk[CRYPTO_SECRETKEYBYTES] = {0};
 
     int ret_val;
     if ((ret_val = crypto_sign_keypair(pk, sk)) != 0) {
@@ -466,6 +463,7 @@ int LESS_sign_verify_test_KAT(void) {
         return -1;
     }
 
+    printf("all good\n");
     return 0;
 }
 
@@ -474,14 +472,17 @@ int LESS_sign_verify_test_KAT(void) {
 int main(int argc, char* argv[]){
     (void)argc;
     (void)argv;
-    // return LESS_sign_verify_test_multiple();
-    //LESS_sign_verify_test_KAT();
+    return LESS_sign_verify_test_multiple();
+
+    // cf_mono_is_compress_tester();
+    // LESS_sign_verify_test_KAT();
 
     initialize_csprng(&platform_csprng_state,
                       (const unsigned char *)"012345678912345",
                       16);
     fprintf(stderr,"LESS reference implementation functional testbench\n");
     info();
+    return LESS_sign_verify_test();
 
     int tests_ok = 0;
     for (int i = 0; i < NUM_TEST_ITERATIONS; i++) {
