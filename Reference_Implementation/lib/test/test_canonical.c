@@ -40,12 +40,12 @@ int test_compute_canonical_form_type3_v2(void) {
         if (compute_canonical_form_type3(&G1) == 0) return 1;
         if (compute_canonical_form_type3(&G2) == 0) return 1;
 
-        // normalized_pretty_print(&G1);
-        // normalized_pretty_print(&G2);
 
         for (uint32_t i = 0; i < K; i++) {
             for (uint32_t j = 0; j < N-K; j++) {
                 if (G1.values[i][j] != G2.values[i][j]) {
+                    normalized_pretty_print(&G1);
+                    normalized_pretty_print(&G2);
                     printf("error type3\n");
                     return 1;
                 }
@@ -292,47 +292,6 @@ uint32_t  test_compute_canonical_form_type5_gaus(void) {
     return 0;
 }
 
-// tests: if CF(GQ) and CF(RREF(G)) are the same
-uint32_t  test_compute_canonical_form_type5_gaus_v2(void) {
-    generator_mat_t G1, G2;
-    normalized_IS_t V1, V2;
-
-    monomial_t M;
-
-    for (uint32_t k = 0; k < ITERS; ++k) {
-        generator_sf(&G1);
-        monomial_mat_rnd(&M);
-        // TODO
-        memcpy(&G2.values, &G1.values, sizeof(generator_mat_t));
-
-        uint8_t is_pivot_column[N] = {0};
-        generator_RREF(&G2, is_pivot_column);
-
-        generator_to_normalized(&V1, &G1);
-        generator_to_normalized(&V2, &G2);
-
-        const int ret1 = cf5(&V1);
-        const int ret2 = cf5(&V2);
-
-        if (ret1 != ret2) {
-            printf("error: cf5 gaus ret\n");
-            return 1;
-        }
-
-        for (uint32_t i = 0; i < K; ++i) {
-            for (uint32_t j = 0; j < N - K; ++j) {
-                if (V1.values[i][j] != V2.values[i][j]) {
-                    normalized_pretty_print(&V1);
-                    normalized_pretty_print(&V2);
-                    printf("error: cf5 gaus\n");
-                    return 1;
-                }
-            }
-        }
-    }
-
-    return 0;
-}
 int main(void) {
     // generic matrices test, not really testing anything, just printing the result
     // if (test_compute_canonical_form_type3()) return 1;
@@ -340,12 +299,11 @@ int main(void) {
     // if (test_compute_canonical_form_type5()) return 1;
 
     // actual tests
-    // if (test_compute_canonical_form_type3_v2()) return 1;
-    // if (test_compute_canonical_form_type4_v2()) return 1;
+    if (test_compute_canonical_form_type3_v2()) return 1;
+    if (test_compute_canonical_form_type4_v2()) return 1;
     if (test_compute_canonical_form_type5_v2()) return 1;
 
     if (test_compute_canonical_form_type5_gaus()) return 1;
-    if (test_compute_canonical_form_type5_gaus_v2()) return 1;
 
 #if defined(CATEGORY_0)
     // value tests, (values taken from cf.py)

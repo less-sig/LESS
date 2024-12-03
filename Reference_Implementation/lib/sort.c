@@ -416,7 +416,7 @@ int compare_rows_bitonic_sort(FQ_ELEM **rows,
     ASSERT(row2 < K);
 
     uint32_t i = 0;
-    while((rows[row1][i] == rows[row2][i]) && (i < (N-K))) {
+    while((i < (N-K)) && (rows[row1][i] == rows[row2][i])) {
         i += 1;
     }
 

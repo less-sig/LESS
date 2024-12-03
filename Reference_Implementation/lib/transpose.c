@@ -97,7 +97,8 @@ void matrix_transpose_opt(uint8_t *dst,
         return ;
     }
 
-    for (uint64_t rb = 0; rb < n / bsize; rb++) {
+    uint64_t rb = 0;
+    for (; rb < n / bsize; rb++) {
         for (uint64_t cb = 0; cb < n / bsize; cb++) {
             const uint8_t *srcb_origin = src + (rb * n + cb) * bsize;
                   uint8_t *dstb_origin = dst + (cb * n + rb) * bsize;
@@ -108,6 +109,24 @@ void matrix_transpose_opt(uint8_t *dst,
                           uint8_t *dstw_origin = dstb_origin + (rw * n + cw) * 8;
                     matrix_transpose8x8(dstw_origin, srcw_origin, n, n);
                 }
+            }
+        }
+    }
+
+    const uint32_t rem = n % bsize;
+    if (rem) {
+        rb *= (64 / bsize);
+
+        // solve the last columns
+        for (uint32_t i = rb*bsize; i < n; i++) {
+            for(uint32_t j = 0; j < n; j++) {
+                dst[j*n + i] = src[i*n + j];
+            }
+        }
+        // solve the last rows
+        for (uint32_t i = 0; i < n; i++) {
+            for(uint32_t j = rb*bsize; j < n; j++) {
+                dst[j*n + i] = src[i*n + j];
             }
         }
     }

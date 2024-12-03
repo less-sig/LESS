@@ -44,81 +44,54 @@ int test_sorting_network(void) {
 
 int test_sorting_network_matrix(void) {
     normalized_IS_t G1, G2, G3;
-    permutation_t P_c1, P_c2, P_c3;
 
     normalized_sf(&G1);
-    permutation_mat_id(&P_c1);
-    permutation_mat_id(&P_c2);
-    permutation_mat_id(&P_c3);
-
     memcpy((void *)G2.values, (void*)G1.values, sizeof(normalized_IS_t));
     memcpy((void *)G3.values, (void*)G1.values, sizeof(normalized_IS_t));
 
-    row_bubble_sort(&G1, &P_c1);
-    row_bitonic_sort(&G2, &P_c2);
-    row_quick_sort(&G3, &P_c3);
-
-    // normalized_pretty_print(&G1);
-    // normalized_pretty_print(&G3);
-
-    // permutation_pretty_print(&P_c1);
-    // permutation_pretty_print(&P_c3);
+    row_bubble_sort(&G1);
+    row_bitonic_sort(&G2);
+    row_quick_sort(&G3);
 
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < N-K; j++) {
             if (G1.values[i][j] != G2.values[i][j]) {
+                normalized_pretty_print(&G1);
+                normalized_pretty_print(&G2);
                 printf("error1\n");
                 return 1;
             }
 
             if (G1.values[i][j] != G3.values[i][j]) {
+                normalized_pretty_print(&G1);
+                normalized_pretty_print(&G3);
                 printf("error2\n");
                 return 1;
             }
         }
     }
-
-    for (uint32_t i = 0; i < N; i++) {
-        if (P_c1.permutation[i] != P_c2.permutation[i]) {
-            printf("error11\n");
-            return 2;
-        }
-
-        if (P_c1.permutation[i] != P_c3.permutation[i]) {
-            printf("error12\n");
-            return 2;
-        }
-    }
-
     return 0;
 }
 
 
 int test_col_sorting_network_matrix(void) {
     normalized_IS_t G1, G2, G3, G4;
-    permutation_t P_c2, P_c3, P_c4;
 
     normalized_sf(&G1);
-    permutation_mat_id(&P_c2);
-    permutation_mat_id(&P_c3);
-    permutation_mat_id(&P_c4);
     memcpy((void *)G2.values, (void*)G1.values, sizeof(normalized_IS_t));
     memcpy((void *)G3.values, (void*)G1.values, sizeof(normalized_IS_t));
     memcpy((void *)G4.values, (void*)G1.values, sizeof(normalized_IS_t));
 
     //normalized_pretty_print(&G1);
     lex_sort_cols(&G1);
-    col_bitonic_sort(&G2, &P_c2);
-    canonical_col_lex_quicksort(&G3, 0, N-K-1, &P_c3);
-    canonical_col_lex_quicksort_transpose(&G4, &P_c4);
+    col_bitonic_sort(&G2);
+    canonical_col_lex_quicksort(&G3, 0, N-K-1);
+    canonical_col_lex_quicksort_transpose(&G4);
 
     // normalized_pretty_print(&G1);
     // normalized_pretty_print(&G2);
     // normalized_pretty_print(&G3);
     // normalized_pretty_print(&G4);
-
-    // permutation_pretty_print(&P_c2);
-    // permutation_pretty_print(&P_c3);
 
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < N-K; j++) {
@@ -138,15 +111,6 @@ int test_col_sorting_network_matrix(void) {
             }
         }
     }
-
-
-    for (uint32_t i = 0; i < N; i++) {
-        if (P_c2.permutation[i] != P_c3.permutation[i]) {
-            printf("error col sorting network perm\n");
-            return 2;
-        }
-    }
-
     return 0;
 }
 

@@ -98,7 +98,7 @@ set_property(TARGET arith APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED
 
 add_executable(test_sort ${PROJECT_SOURCE_DIR}/lib/test/sort.c ${SOURCES})
 target_link_libraries(test_sort m crypto)
-set_property(TARGET test_sort APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_0 -DBALANCED=1")
+set_property(TARGET test_sort APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 # set_property(TARGET test_sort APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 
 # canonical forms bench

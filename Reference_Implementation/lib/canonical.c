@@ -15,11 +15,11 @@
 /// 		1 on success
 int compute_canonical_form_type3(normalized_IS_t *G) {
     // first sort the rows
-    if (row_quick_sort(G) == 0) { return 0; }
-    // if (row_bitonic_sort(G) == 0) { return 0; }
+    // if (row_quick_sort(G) == 0) { return 0; }
+    if (row_bitonic_sort(G) == 0) { return 0; }
 
-    canonical_col_lex_quicksort(G, 0, N-K-1);
-    // canonical_col_lex_quicksort_transpose(G);
+    // canonical_col_lex_quicksort(G, 0, N-K-1);
+    canonical_col_lex_quicksort_transpose(G);
     return 1;
 }
 
