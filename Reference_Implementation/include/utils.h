@@ -30,7 +30,7 @@
 #include "codes.h"
 #include "sha3.h"
 
-#define SWAP(a, b) { a^=b; b^=a; a^=b; }
+#define SWAP(a, b) { (a)^=(b); (b)^=(a); (a)^=(b); }
 #define MASKED_SWAP(a,b,m) { a^=(m&b); b^=(m&a); a^=(m&b); }
 
 void cswap(uintptr_t *a,

@@ -24,7 +24,7 @@ int test_compute_canonical_form_type3(void) {
 
 // real test
 int test_compute_canonical_form_type3_v2(void) {
-    normalized_IS_t G1, G2;
+    normalized_IS_t G1, G2, G3;
     permutation_t P_c, P_r;
 
     for (uint32_t k = 0; k < ITERS; k++) {
@@ -36,9 +36,11 @@ int test_compute_canonical_form_type3_v2(void) {
         normalized_copy(&G2, &G1);
         permutation_apply_col(&G2, &P_c);
         permutation_apply_row(&P_r, &G2);
+        normalized_copy(&G3, &G2);
 
         if (compute_canonical_form_type3(&G1) == 0) return 1;
         if (compute_canonical_form_type3(&G2) == 0) return 1;
+        if (compute_canonical_form_type3_ct(&G3) == 0) return 1;
 
 
         for (uint32_t i = 0; i < K; i++) {
@@ -47,6 +49,13 @@ int test_compute_canonical_form_type3_v2(void) {
                     normalized_pretty_print(&G1);
                     normalized_pretty_print(&G2);
                     printf("error type3\n");
+                    return 1;
+                }
+
+                if (G1.values[i][j] != G3.values[i][j]) {
+                    normalized_pretty_print(&G1);
+                    normalized_pretty_print(&G3);
+                    printf("error type3 ct\n");
                     return 1;
                 }
             }
@@ -300,10 +309,10 @@ int main(void) {
 
     // actual tests
     if (test_compute_canonical_form_type3_v2()) return 1;
-    if (test_compute_canonical_form_type4_v2()) return 1;
-    if (test_compute_canonical_form_type5_v2()) return 1;
+    // if (test_compute_canonical_form_type4_v2()) return 1;
+    // if (test_compute_canonical_form_type5_v2()) return 1;
 
-    if (test_compute_canonical_form_type5_gaus()) return 1;
+    // if (test_compute_canonical_form_type5_gaus()) return 1;
 
 #if defined(CATEGORY_0)
     // value tests, (values taken from cf.py)

@@ -187,12 +187,19 @@ void apply_cf_action_to_G(generator_mat_t* res,
                           const generator_mat_t *G,
                           const uint8_t *const c);
 
+void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
+                                      const generator_mat_t *G,
+                                      const uint8_t *const c,
+                                      uint8_t initial_G_col_pivot[N],
+                                      uint8_t permuted_G_col_pivot[N]);
+
 /* samples a random monomial matrix */
 void generator_rnd(generator_mat_t *res);
 void generator_sf(generator_mat_t *res);
 
 void normalized_ind(normalized_IS_t *V);
 void normalized_sf(normalized_IS_t *V);
+void normalized_rng(normalized_IS_t *V);
 void normalized_copy(normalized_IS_t *V1, const normalized_IS_t *V2);
 
 /* expands a systematic form generator from a seed randomly drawing only

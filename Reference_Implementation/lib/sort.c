@@ -243,9 +243,11 @@ static inline void sortingnetwork_sort_u8x128(__m256i *a,
 	sortingnetwork_aftermerge_u8x64(c, d);
 }
 
-static inline void sortingnetwork(FQ_ELEM *arr,
-                                  const size_t s) {
+void sortingnetwork(FQ_ELEM *arr,
+                    const size_t s) {
 
+    // TODO s
+    (void )s;
     __m256i i1 = _mm256_loadu_si256((const __m256i *)(arr +  0));
     __m256i i2 = _mm256_loadu_si256((const __m256i *)(arr + 32));
     __m256i i3 = _mm256_loadu_si256((const __m256i *)(arr + 64));
@@ -302,33 +304,6 @@ void counting_sort_u8(FQ_ELEM *arr,
 	}
 }
 
-/// @param arr
-/// @param in
-/// @param size
-void counting_sort_u8_v2(FQ_ELEM *arr,
-                         const FQ_ELEM *in,
-                         const size_t size) {
-	/// NOTE: the type `uint32_t` is not completly arbitrary choose.
-	/// Floyd did a quick benchmark between `uint16_t`, `uint32_t`, `uint64_t`
-	/// and `uint32_t` seemed to be the fastest. But thats only true
-	/// on a Ryzen7600X. On your machine thats maybe different.
-	/// NOTE: `uint8_t` is not possible as there could be 256 times
-	/// the same field element. Unlikely but possible.
-	uint32_t cnt[128] __attribute__((aligned(512))) = { 0 };
-	size_t i;
-
-	for (i = 0 ; i < size ; ++i) {
-		cnt[in[i]]++;
-	}
-
-	i = 0;
-	for (size_t a = 0 ; a < Q; ++a) {
-		while (cnt[a]--) {
-			arr[i++] = a;
-		}
-	}
-}
-
 /// NOTE: taken from djbsort
 /// \param x input array
 /// \param n length
@@ -364,42 +339,6 @@ void bitonic_sort_i8(FQ_ELEM *x,
     }
 }
 
-/// helper function for the libc `qsort`
-/// \return a - b:
-///         -x: b > a;
-///          0: b == a;
-///          x: b < a;
-int fqcmp(const void *a,
-          const void *b) {
-   return (*(FQ_ELEM *)a) - (*(FQ_ELEM *)b);
-}
-
-/// NOTE: helper function for type3 canonical form.
-/// \input: rows: K x (N-K) matrix
-/// \input: row1: first row to compare
-/// \input: row2: secnd row to compare
-/// \return: 0 if multiset(row1) == multiset(row2)
-///          x if row1 > row2
-///         -x if row1 < row2
-int compare_rows(const FQ_ELEM rows[K][N-K],
-		         const uint32_t row1,
-                 const uint32_t row2) {
-    ASSERT(row1 < K);
-    ASSERT(row2 < K);
-
-	uint32_t i = 0;
-	while((rows[row1][i] == rows[row2][i]) && (i < (N-K))) {
-		i += 1;
-	}
-
-	// if they are the same, they generate the same multiset
-	if (i >= (N-K)) {
-		return 0;
-	}
-
-	return (int)rows[row1][i] - (int)rows[row2][i];
-}
-
 /// NOTE: helper function for type3 canonical form.
 /// NOTE: specially made for the bitonic sort, which
 ///		operates on pointers.
@@ -428,198 +367,41 @@ int compare_rows_bitonic_sort(FQ_ELEM **rows,
     return (int)rows[row1][i] - (int)rows[row2][i];
 }
 
-/// simple bubble sort implementation. Yeah Yeah I know, use quick sort or
-/// radix sort. True. But this is just a demo implementation.
-/// \input normalised non IS part of a generator matrix
-/// \return the sorting algorithm works only inplace for the sorting of the columns
-/// 		0 on failure: row_i and row_j generate the same multiset
-/// 		1 on success
-int row_bubble_sort(normalized_IS_t *G) {
-    // first sort each row into a tmp buffer
-    FQ_ELEM tmp[K][N-K];
-    for (uint32_t i = 0; i < K; ++i) {
-        memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
-        qsort(tmp[i], N-K, sizeof(FQ_ELEM), fqcmp);
-    }
-
-	uint32_t swapped;
-
-	do {
-		swapped = 0;
-
-        // for all rows
-		for (uint32_t i = 0; i < K-1; i++) {
-			const int cmp = compare_rows(tmp, i, i+1);
-
-			// if cmp==0, then row i,i+1 create the same multiset.
-			if (cmp == 0) {
-				return 0;
-			}
-
-			if (cmp > 0) {
-				row_swap(G, i, i+1);
-
-                // NOTE speedup: probably just move pointers
-                for (uint32_t j = 0; j < N-K; ++j) {
-                	SWAP(tmp[i][j], tmp[i+1][j]);
-                }
-                swapped = 1;
-			}
-		}
-	} while(swapped);
-	return 1;
-}
-
-/// TODO merge with  `void canonical_col_lex_quicksort_transpose`
-/// \input normalised non IS part of a generator matrix
-/// \return the sorting algorithm works only inplace for the sorting of the columns
-/// 		0 on failure: row_i and row_j generate the same multiset
-/// 		1 on success
-int row_bitonic_sort(normalized_IS_t *G) {
-    // first sort each row into a tmp buffer
-    FQ_ELEM  tmp[K][N-K];
-    FQ_ELEM* ptr[K];
-    uint32_t P[K];
-    for (uint32_t i = 0; i < K; ++i) {
-        memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
-        counting_sort_u8(tmp[i], N-K);
-    	//sortingnetwork(tmp[i], N-K);
-
-        // counting_sort_u8_v2(tmp[i], G->values, N-K);
-        ptr[i] = tmp[i];
-    	P[i] = i;
-    }
-
-    uint64_t top, r, i;
-    uint64_t n = K;
-
-    top = 1ul << (32 - __builtin_clz(K/2));
-
-    for (uint64_t p = top; p > 0; p >>= 1) {
-        for (i = 0; i < n - p; ++i) {
-            if (!(i & p)) {
-                // NOTE: here is a sign cast, this is needed, so the
-            	// sign extension needed for the mask is a unsigned one.
-			    const int32_t cmp1 = compare_rows_bitonic_sort(ptr, i, i + p);
-                const uint32_t cmp = cmp1;
-                if (cmp == 0) { return 0; }
-
-                const uintptr_t mask = -(1ull - (cmp >> 31));
-                cswap((uintptr_t *)(&ptr[i]), (uintptr_t *)(&ptr[i+p]), mask);
-				MASKED_SWAP(P[i], P[i+p], mask);
-            }
-        }
-
-        i = 0;
-        for (uint64_t q = top; q > p; q >>= 1) {
-            for (; i < n - q; ++i) {
-                if (!(i & p)) {
-                    for (r = q; r > p; r >>= 1) {
-			            const uint32_t cmp = compare_rows_bitonic_sort(ptr, i+p, i + r);
-                        if (cmp == 0) { return 0; }
-
-                        const uintptr_t mask = -(1ull - (cmp >> 31));
-                        cswap((uintptr_t *)(&ptr[i+p]), (uintptr_t *)(&ptr[i+r]), mask);
-						MASKED_SWAP(P[i+p], P[i+r], mask);
-                    }
-                }
-            }
-        }
-    }
-
-
-	// apply the permutation
-	for (uint32_t t = 0; t < K; t++) {
-		uint32_t ind = P[t];
-		while(ind<t) { ind = P[ind]; }
-
-		row_swap(G, t, ind);
-	}
-
-    return 1;
-}
-
-/// the same as `Hoare_partition` except that we track the permutation made
-/// \param V input matrix
-/// \param col_l lower bound of the hoare partition
-/// \param col_h upper bound of the hoare partition
-/// \return new lower bound
-int canonical_col_Hoare_partition(normalized_IS_t *V,
-                                  const POSITION_T col_l,
-								  const POSITION_T col_h) {
-    FQ_ELEM pivot_col[K] = {0};
-    for(uint32_t i = 0; i < K; i++){
-        pivot_col[i] = V->values[i][col_l];
-    }
-    POSITION_T i = col_l-1, j = col_h+1;
-    while(1) {
-        do {
-            i++;
-        } while(lex_compare_with_pivot(V,i,pivot_col) == 1);
-
-        do {
-            j--;
-        } while(lex_compare_with_pivot(V,j,pivot_col) == -1);
-
-        if(i >= j){
-            return j;
-        }
-
-        column_swap(V,i,j);
-    }
-}
-
-/// TODO remove
-/// In-place quicksort
-/// the same as `col_lex_quicksort` except we are tracking the permutations
-/// \param V
-/// \param start
-/// \param end
-void canonical_col_lex_quicksort(normalized_IS_t *V,
-                                 const int start,
-                                 const int end) {
-    if(start < end){
-        int p = canonical_col_Hoare_partition(V, start, end);
-        canonical_col_lex_quicksort(V, start, p);
-        canonical_col_lex_quicksort(V, p+1, end);
-    }
-}
-
 /// lexicographic comparison of a row with the pivot
 /// returns    1 if the pivot is greater,
 /// 	      -1 if it is smaller,
 /// 		   0 if it matches
-int row_lex_compare_with_pivot(FQ_ELEM V[K][N-K],
-							   const POSITION_T row_idx,
-                               FQ_ELEM pivot[N-K]){
-   uint32_t i=0;
-   while((i<(N-K)) && (V[row_idx][i]-pivot[i] == 0)){
-       i++;
-   }
-   if (i==(N-K)) {
-	   return 0;
-   }
+int row_quick_sort_internal_compare_with_pivot(uint8_t *ptr[K],
+                                               const POSITION_T row_idx,
+                                               const uint8_t pivot[K]){
+    uint32_t i=0;
+    while((i<(N-K)) && (ptr[row_idx][i]-pivot[i] == 0)){
+        i++;
+    }
+    if (i==(N-K)) {
+        return 0;
+    }
 
-   if ((int)V[row_idx][i]-(int)pivot[i] > 0){
-      return -1;
-   }
+    if ((int)ptr[row_idx][i]-(int)pivot[i] > 0){
+        return -1;
+    }
 
-   return 1;
+    return 1;
 }
 
-///
+/// TODO doc
 /// \param V
 /// \param G
 /// \param row_l
 /// \param row_h
 /// \return
-int row_hoare_partition(FQ_ELEM V[K][N-K],
-                        normalized_IS_t *G,
-                        const POSITION_T row_l,
-                        const POSITION_T row_h) {
+int row_quick_sort_internal_hoare_partition(FQ_ELEM* ptr[K],
+                                            uint32_t P[K],
+                                            const POSITION_T row_l,
+                                            const POSITION_T row_h) {
     FQ_ELEM pivot_row[N-K];
     for(uint32_t i = 0; i < N-K; i++){
-       pivot_row[i] = V[row_l][i];
+       pivot_row[i] = ptr[row_l][i];
     }
 
     POSITION_T i = row_l-1, j = row_h+1;
@@ -627,21 +409,19 @@ int row_hoare_partition(FQ_ELEM V[K][N-K],
     while(1){
         do {
             i++;
-        	ret = row_lex_compare_with_pivot(V, i, pivot_row);
+        	ret = row_quick_sort_internal_compare_with_pivot(ptr, i, pivot_row);
         } while(ret == 1);
 
         do {
             j--;
-        	ret = row_lex_compare_with_pivot(V, j, pivot_row);
+        	ret = row_quick_sort_internal_compare_with_pivot(ptr, j, pivot_row);
         } while(ret == -1);
 
     	// if (ret == 0) { return -1; }
         if(i >= j){ return j; }
 
-    	row_swap(G, i, j);
-		for(uint32_t k = 0; k < N-K; k++){
-			SWAP(V[i][k], V[j][k]);
-		}
+        SWAP(P[i], P[j]);
+        cswap((uintptr_t *)(&ptr[i]), (uintptr_t *)(&ptr[j]), -1ull);
     }
 }
 
@@ -651,125 +431,85 @@ int row_hoare_partition(FQ_ELEM V[K][N-K],
 /// \param end inclusive
 /// \return 1 on success
 ///			0 if two rows generate the same multi set
-int row_lex_quicksort(FQ_ELEM V[K][N-K],
-                      normalized_IS_t *G,
-                      const uint32_t start,
-                      const uint32_t end) {
+int row_quick_sort_internal(FQ_ELEM* ptr[K],
+                            uint32_t P[K],
+                            const uint32_t start,
+                            const uint32_t end) {
     if(start < end){
-        const int p = row_hoare_partition(V, G, start, end);
+        const int p = row_quick_sort_internal_hoare_partition(ptr, P, start, end);
     	if (p == -1) { return 0; }
-        row_lex_quicksort(V, G, start, p);
-        row_lex_quicksort(V, G, p+1, end);
+        row_quick_sort_internal(ptr, P, start, p);
+        row_quick_sort_internal(ptr, P, p + 1, end);
     }
 
 	return 1;
 }
 
-///  inplace in g
+/// NOTE: only operates on ptrs
+/// NOTE: not ct
 /// \param G: generator matrix to sort
 /// \return 1 on success
 ///			0 if two rows generate the same multiset
 int row_quick_sort(normalized_IS_t *G) {
 	// first sort each row into a tmp buffer
 	FQ_ELEM  tmp[K][N-K];
+    FQ_ELEM* ptr[K];
+    uint32_t P[K];
 	for (uint32_t i = 0; i < K; ++i) {
-		counting_sort_u8_v2(tmp[i], G->values[i], N-K);
+		memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
+#ifdef USE_AVX2 // TODO remove
+        sortingnetwork(tmp[i], N-K);
+#else
+        counting_sort_u8(tmp[i], N-K);
+#endif
 
-		// memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
-		// counting_sort_u8(tmp[i], N-K);
-		// qsort(tmp[i], N-K, 1, fqcmp);
+        ptr[i] = tmp[i];
+        P[i] = i;
 	}
 
-	return row_lex_quicksort(tmp, G, 0, N-K-1);
+	const int ret = row_quick_sort_internal(ptr, P, 0, N - K - 1);
+    if (ret == 0) { return 0; }
+
+    // apply the permutation
+    for (uint32_t t = 0; t < K; t++) {
+        uint32_t ind = P[t];
+        while(ind<t) { ind = P[ind]; }
+
+        row_swap(G, t, ind);
+    }
+
+    return 1;
 }
 
 
-// NOTE: unstable sort, as we swap on equal elements
-/// sort is applied inplace in G
-/// \param G: generator matrix to sort
-void col_bitonic_sort(normalized_IS_t *G) {
-    uint64_t r, i;
-    const uint64_t n = N-K;
-	const uint64_t top = 1ul << (32 - __builtin_clz(K/2));
-    // while (top < n - top) { top += top; }
+/// NOTE: non constant time
+/// NOTE: operates on the transposed
+/// \param V
+void col_quicksort_transpose(normalized_IS_t *V) {
+    normalized_IS_t VT;
+    matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, K);
 
-    for (uint64_t p = top; p > 0; p >>= 1) {
-        for (i = 0; i < n - p; ++i) {
-            if (!(i & p)) {
-                // NOTE: here is a sign cast, this is needed, so the
-            	// sign extension needed for the mask is a unsigned one.
-			    const uint32_t cmp = lex_compare_col(G, i, i + p);
-                const uintptr_t mask = -(1ull - (cmp >> 31));
-            	column_cswap(G, i, i+p, mask);
-            }
-        }
-
-        i = 0;
-        for (uint64_t q = top; q > p; q >>= 1) {
-            for (; i < n - q; ++i) {
-                if (!(i & p)) {
-                    for (r = q; r > p; r >>= 1) {
-						const uint32_t cmp = lex_compare_col(G, i+p, i+r);
-            			const uintptr_t mask = -(1ull - (cmp >> 31));
-            			column_cswap(G, i+p, i+r, mask);
-                    }
-                }
-            }
-        }
+    FQ_ELEM* ptr[K];
+    uint32_t P[K];
+    for (uint32_t i = 0; i < K; ++i) {
+        ptr[i] = VT.values[i];
+        P[i] = i;
     }
+
+    row_quick_sort_internal(ptr, P, 0, N - K - 1);
+
+    // apply the permutation
+    for (uint32_t t = 0; t < K; t++) {
+        uint32_t ind = P[t];
+        while(ind<t) { ind = P[ind]; }
+
+        row_swap(&VT, t, ind);
+    }
+
+    matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, K);
 }
 
-/// \param G
-/// \param row_l
-/// \param row_h
-/// \return
-int row_hoare_partition_transposed(normalized_IS_t *G,
-                                   const POSITION_T row_l,
-                                   const POSITION_T row_h) {
-    FQ_ELEM pivot_row[N-K];
-    for(uint32_t i = 0; i < N-K; i++){
-       pivot_row[i] = G->values[row_l][i];
-    }
-
-    POSITION_T i = row_l-1, j = row_h+1;
-	int ret;
-    while(1){
-        do {
-            i++;
-        	ret = row_lex_compare_with_pivot(G->values, i, pivot_row);
-        } while(ret == 1);
-
-        do {
-            j--;
-        	ret = row_lex_compare_with_pivot(G->values, j, pivot_row);
-        } while(ret == -1);
-
-    	// if (ret == 0) { return -1; }
-        if(i >= j){ return j; }
-
-    	row_swap(G, i, j);
-    }
-}
-
-/// \param G non IS generator matrix
-/// \param start inclusive
-/// \param end inclusive
-/// \return 1 on success
-///			0 if two rows generate the same multi set
-int row_lex_quicksort_transposed(normalized_IS_t *G,
-                                 const uint32_t start,
-                                 const uint32_t end) {
-    if(start < end){
-        const int p = row_hoare_partition_transposed(G, start, end);
-    	if (p == -1) { return 0; }
-        row_lex_quicksort_transposed(G, start, p);
-        row_lex_quicksort_transposed(G, p+1, end);
-    }
-
-	return 1;
-}
-
-
+/// NOTE: actually sorts the rows of the transposed
 /// \input normalised non IS part of a generator matrix
 int col_bitonic_sort_transposed(normalized_IS_t *G) {
     FQ_ELEM* ptr[K];
@@ -823,11 +563,81 @@ int col_bitonic_sort_transposed(normalized_IS_t *G) {
     return 1;
 }
 
-/// In-place quicksort
+/// NOTE: constant time
+/// In-place bitonic sort
 /// the same as `col_lex_quicksort` except we are tracking the permutations
-void canonical_col_lex_quicksort_transpose(normalized_IS_t *V) {
+void col_bitonic_sort_transpose(normalized_IS_t *V) {
     normalized_IS_t VT;
     matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, K);
 	col_bitonic_sort_transposed(&VT);
     matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, K);
+}
+
+/// NOTE: operates on pointers
+/// \input normalised non IS part of a generator matrix
+/// \return the sorting algorithm works only inplace for the sorting of the columns
+/// 		0 on failure: row_i and row_j generate the same multiset
+/// 		1 on success
+int row_bitonic_sort(normalized_IS_t *G) {
+    // first sort each row into a tmp buffer
+    FQ_ELEM  tmp[K][N-K];
+    FQ_ELEM* ptr[K];
+    uint32_t P[K];
+    for (uint32_t i = 0; i < K; ++i) {
+        memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
+#ifdef USE_AVX2 // TODO remove
+        sortingnetwork(tmp[i], N-K);
+#else
+        counting_sort_u8(tmp[i], N-K);
+#endif
+
+        ptr[i] = tmp[i];
+        P[i] = i;
+    }
+
+    uint64_t top, r, i;
+    uint64_t n = K;
+
+    top = 1ul << (32 - __builtin_clz(K/2));
+
+    for (uint64_t p = top; p > 0; p >>= 1) {
+        for (i = 0; i < n - p; ++i) {
+            if (!(i & p)) {
+                // NOTE: here is a sign cast, this is needed, so the
+                // sign extension needed for the mask is an unsigned one.
+                const int32_t cmp1 = compare_rows_bitonic_sort(ptr, i, i + p);
+                const uint32_t cmp = cmp1;
+                if (cmp == 0) { return 0; }
+
+                const uintptr_t mask = -(1ull - (cmp >> 31));
+                cswap((uintptr_t *)(&ptr[i]), (uintptr_t *)(&ptr[i+p]), mask);
+                MASKED_SWAP(P[i], P[i+p], mask);
+            }
+        }
+
+        for (uint64_t q = top; q > p; q >>= 1) {
+            for (i = 0; i < n - q; ++i) {
+                if (!(i & p)) {
+                    for (r = q; r > p; r >>= 1) {
+                        const uint32_t cmp = compare_rows_bitonic_sort(ptr, i+p, i + r);
+                        if (cmp == 0) { return 0; }
+
+                        const uintptr_t mask = -(1ull - (cmp >> 31));
+                        cswap((uintptr_t *)(&ptr[i+p]), (uintptr_t *)(&ptr[i+r]), mask);
+                        MASKED_SWAP(P[i+p], P[i+r], mask);
+                    }
+                }
+            }
+        }
+    }
+
+    // apply the permutation
+    for (uint32_t t = 0; t < K; t++) {
+        uint32_t ind = P[t];
+        while(ind<t) { ind = P[ind]; }
+
+        row_swap(G, t, ind);
+    }
+
+    return 1;
 }

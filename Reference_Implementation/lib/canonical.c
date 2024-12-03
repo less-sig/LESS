@@ -9,26 +9,36 @@
 #include "parameters.h"
 #include "sort.h"
 
-/// computes the result inplace
-/// first sort the rows, than the colums
+/// NOTE: non ct
+/// NOTE: computes the result inplace
+/// first sort the rows, than the columns
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
 int compute_canonical_form_type3(normalized_IS_t *G) {
-    // first sort the rows
-    // if (row_quick_sort(G) == 0) { return 0; }
-    if (row_bitonic_sort(G) == 0) { return 0; }
-
-    // canonical_col_lex_quicksort(G, 0, N-K-1);
-    canonical_col_lex_quicksort_transpose(G);
+    if (row_quick_sort(G) == 0) { return 0; }
+    // col_quicksort_transpose(G);
+    lex_sort_cols(G);
     return 1;
 }
 
+/// NOTE: constant time impl
 /// computes the result inplace
+/// first sort the rows, than the columns
+/// \return 0 on failure (identical rows, which create the same multiset)
+/// 		1 on success
+int compute_canonical_form_type3_ct(normalized_IS_t *G) {
+    if (row_bitonic_sort(G) == 0) { return 0; }
+    col_bitonic_sort_transpose(G);
+    return 1;
+}
+
+/// NOTE: constant time
+/// NOTE: computes the result inplace
 /// \return 0 on failure:
 /// 			- compute_power_column fails.
 /// 			- identical rows, which create the same multiset
 /// 		1 on success
-int compute_canonical_form_type4(normalized_IS_t *G) {
+int compute_canonical_form_type4_ct(normalized_IS_t *G) {
 	for (uint32_t row = 0; row < K; row++) {
 		if (row_all_same(G->values[row])) { continue; }
 
@@ -48,16 +58,16 @@ int compute_canonical_form_type4(normalized_IS_t *G) {
 		row_mul(G->values[row], s);
 	}
 
-	return compute_canonical_form_type3(G);
+	return compute_canonical_form_type3_ct(G);
 }
 
-/// NOTE: non constant time
-/// NOTE: computes the result inplace
+/// note: non constant time
+/// note: computes the result inplace
 /// \return 0 on failure:
 /// 			- compute_power_column fails.
 /// 			- identical rows, which create the same multiset
 /// 		1 on success
-int compute_canonical_form_type4_non_ct(normalized_IS_t *G) {
+int compute_canonical_form_type4(normalized_IS_t *G) {
 	for (uint32_t row = 0; row < K; row++) {
 		if (row_all_same(G->values[row])) { continue; }
 		FQ_ELEM s = row_acc(G->values[row]);
@@ -98,7 +108,8 @@ int compare_matrices(const normalized_IS_t *V1,
 	return 0;
 }
 
-/// computes the result inplace
+/// note: non constant time
+/// note: computes the result inplace
 /// \return 0 on failure
 /// 		1 on success
 int compute_canonical_form_type5(normalized_IS_t *G) {
@@ -128,9 +139,44 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
 	return 1;
 }
 
+/// note: constant time
+/// note: computes the result inplace
+/// \return 0 on failure
+/// 		1 on success
+int compute_canonical_form_type5_ct(normalized_IS_t *G) {
+    normalized_IS_t Aj, smallest;
+    int touched = 0;
+
+    // init the output matrix to some `invalid` data
+    memset(&smallest.values, -1, K*(N-K));
+
+    FQ_ELEM row_inv_data[N_K_pad];
+    for (uint32_t row = 0; row < K; row++) {
+        row_inv2(row_inv_data, G->values[row]);
+        for (uint32_t row2 = 0; row2 < K; row2++) {
+            row_mul3(Aj.values[row2], G->values[row2], row_inv_data);
+        }
+
+        const int ret = compute_canonical_form_type4_ct(&Aj);
+        if ((ret == 1) && (compare_matrices(&Aj, &smallest) < 0)) {
+            touched = 1;
+            normalized_copy(&smallest, &Aj);
+        }
+    }
+
+    if (!touched) { return 0; }
+
+    normalized_copy(G, &smallest);
+    return 1;
+}
+
 /// 
 /// @param G
 /// @return
 int cf5(normalized_IS_t *G) {
-	return compute_canonical_form_type5(G);
+	return compute_canonical_form_type5_ct(G);
+}
+
+int cf5_nonct(normalized_IS_t *G) {
+    return compute_canonical_form_type5(G);
 }

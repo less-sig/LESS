@@ -408,7 +408,6 @@ int LESS_sign_verify_test_multiple(void){
             printf("crypto_sign returned <%d>\n", ret_val);
             return -1;
         }
-        /*
         //fprintBstr(stdout, "sm = ", sm, smlen);
         if ( (ret_val = crypto_sign_open(m, &mlen1, sm, smlen, pk)) != 0) {
             printf("crypto_sign_open returned <%d>\n", ret_val);
@@ -416,7 +415,6 @@ int LESS_sign_verify_test_multiple(void){
         }
 
         ASSERT(mlen1 == msg_len);
-        */
         printf("OK: %zu\n", i);
 
         ret |= ret_val;

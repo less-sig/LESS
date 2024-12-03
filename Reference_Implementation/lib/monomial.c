@@ -253,10 +253,6 @@ void monomial_compose_action(monomial_action_IS_t* out,
    }   
 }
 
-void cf_monomial_compose_action(monomial_action_IS_t* out,
-                                const monomial_t * Q_in,
-                                const monomial_action_IS_t * in) {
-}
 /// type5 compression
 /// \param compressed
 /// \param mono
