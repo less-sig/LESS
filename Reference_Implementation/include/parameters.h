@@ -155,10 +155,15 @@
 #else
 #error define optimization corner in parameters.h
 #endif
-
 #else
 #error define category for parameters
 #endif
+
+#define SIGN_PIVOT_REUSE_LIMIT   (K/2)-32
+#define VERIFY_PIVOT_REUSE_LIMIT K 
+
+// #define SIGN_PIVOT_REUSE_LIMIT   0
+// #define VERIFY_PIVOT_REUSE_LIMIT 0
 
 /* */
 #define K8 ((K+7u)/8u)

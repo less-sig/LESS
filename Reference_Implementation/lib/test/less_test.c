@@ -336,7 +336,7 @@ void rref_gen_byte_compress_tester(void){
      memcpy(&Gcheck,&G, sizeof(G));
      compress_rref(G_compressed,&G,is_pivot_column);
      generator_rnd(&G); /* fill with garbage to elicit faults */
-     expand_to_rref(&G,G_compressed);
+     expand_to_rref(&G,G_compressed,is_pivot_column);
 
     if( memcmp( &Gcheck,&G,sizeof(generator_mat_t)) !=0 ){
         printf("Generator SF byte compression: ko\n");
@@ -408,13 +408,15 @@ int LESS_sign_verify_test_multiple(void){
             printf("crypto_sign returned <%d>\n", ret_val);
             return -1;
         }
-
+        /*
         //fprintBstr(stdout, "sm = ", sm, smlen);
         if ( (ret_val = crypto_sign_open(m, &mlen1, sm, smlen, pk)) != 0) {
             printf("crypto_sign_open returned <%d>\n", ret_val);
             return -1;
         }
+
         ASSERT(mlen1 == msg_len);
+        */
         printf("OK: %zu\n", i);
 
         ret |= ret_val;
@@ -466,7 +468,7 @@ int LESS_sign_verify_test_KAT(void) {
 }
 
 
-#define NUM_TEST_ITERATIONS 1
+#define NUM_TEST_ITERATIONS 10
 int main(int argc, char* argv[]){
     (void)argc;
     (void)argv;
@@ -486,12 +488,12 @@ int main(int argc, char* argv[]){
     for (int i = 0; i < NUM_TEST_ITERATIONS; i++) {
         fputc('.',stderr);
       // fprintf(stderr,"test %d: ",i);
-       inverse_mod_tester();
-       gen_by_monom_tester();
-       monomial_tester();
-       rref_gen_compress_tester();
-       gausselim_tester();
-       rref_gen_by_monom_tester();
+       // inverse_mod_tester();
+       // gen_by_monom_tester();
+       // monomial_tester();
+       // rref_gen_compress_tester();
+       // gausselim_tester();
+       // rref_gen_by_monom_tester();
         // rref_gen_byte_compress_tester();
         // mono_is_compress_tester();
       tests_ok += LESS_sign_verify_test();

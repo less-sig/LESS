@@ -38,6 +38,16 @@ void scale_row(generator_mat_t *G, const uint32_t row, const FQ_ELEM a) {
 	}
 }
 
+/* Calculate pivot flag array */
+void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t pivot_flag [N]) {
+    for (int i = 0; i < N; i = i + 1) {
+        pivot_flag[i] = 1;
+    }
+
+    for (int i = 0; i < K; i = i + 1) {
+        pivot_flag[G->column_pos[i]] = 0;
+    }
+}
 
 /* right-multiplies a generator by a monomial */
 void generator_monomial_mul(generator_mat_t *res,
@@ -150,6 +160,107 @@ int generator_RREF(generator_mat_t *G,
 
    return 1;
 } /* end generator_RREF */
+
+int generator_RREF_pivot_reuse(generator_mat_t *G,
+                   uint8_t is_pivot_column[N],
+                   uint8_t was_pivot_column[N],
+                   const int pvt_reuse_limit)
+{
+   int pvt_reuse_cnt;
+   int row_red_pvt_skip_cnt;
+   pvt_reuse_cnt = 0;
+
+    // row swap pre-process - swap previous pivot elements to corresponding row to reduce likelihood of corruption
+   int pivot_el_row;
+
+   if (pvt_reuse_limit != 0) {
+      for(int preproc_col = K-1; preproc_col >= 0; preproc_col--) {
+           if (was_pivot_column[preproc_col] == 1) {
+               // find pivot row
+               pivot_el_row = -1;
+               for (int row = 0; row < K; row = row + 1) {
+                   if (G->values[row][preproc_col] != 0) {
+                       pivot_el_row = row;
+                   }
+               }
+               swap_rows(G->values[preproc_col],G->values[pivot_el_row]);
+           }
+      }
+   }
+
+
+   for(int row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
+      int pivot_row = row_to_reduce;
+      /*start by searching the pivot in the col = row*/
+      int pivot_column = row_to_reduce;
+      while( (pivot_column < N) &&
+             (G->values[pivot_row][pivot_column] == 0) ) {
+         while ( (pivot_row < K) &&
+                 (G->values[pivot_row][pivot_column] == 0) ) {
+            pivot_row++;
+         }
+         if(pivot_row >= K) { /*entire column tail swept*/
+            pivot_column++; /* move to next col */
+            pivot_row = row_to_reduce; /*starting from row to red */
+         }
+      }
+      if ( pivot_column >=N ) {
+         return 0; /* no pivot candidates left, report failure */
+      }
+      is_pivot_column[pivot_column] = 1; /* pivot found, mark the column*/
+
+      /* if we found the pivot on a row which has an index > pivot_column
+       * we need to swap the rows */
+      if (row_to_reduce != pivot_row) {
+         was_pivot_column[pivot_row] = 0; // pivot no longer reusable - will be corrupted during reduce row
+         swap_rows(G->values[row_to_reduce],G->values[pivot_row]);
+      }
+      pivot_row = row_to_reduce; /* row with pivot now in place */
+
+
+      /* Compute rescaling factor */
+      FQ_DOUBLEPREC scaling_factor = fq_inv(G->values[pivot_row][pivot_column]);
+
+      /* rescale pivot row to have pivot = 1. Values at the left of the pivot
+       * are already set to zero by previous iterations */
+      for(int i = pivot_column; i < N; i++) {
+         G->values[pivot_row][i] = fq_red( (FQ_DOUBLEPREC) scaling_factor *
+                                           (FQ_DOUBLEPREC) (G->values[pivot_row][i]) );
+      }
+
+      if (was_pivot_column[pivot_column] == 0 || (pvt_reuse_cnt >= pvt_reuse_limit) || (pivot_column >= K)) { // Skip row-reduce on previous pivots
+      /* Subtract the now placed and reduced pivot rows, from the others,
+       * after rescaling it */
+          for(int row_idx = 0; row_idx < K; row_idx++) {
+             if (row_idx != pivot_row) { 
+                FQ_DOUBLEPREC multiplier = G->values[row_idx][pivot_column];
+                /* all elements before the pivot in the pivot row are null, no need to
+                 * subtract them from other rows. */
+                row_red_pvt_skip_cnt = 0;
+                for(int col_idx = 0; col_idx < N; col_idx++) {
+                    if (!(col_idx < K && was_pivot_column[col_idx]) || (row_red_pvt_skip_cnt >= pvt_reuse_limit)) { // skip row reduce of pivots we will reuse
+                       FQ_DOUBLEPREC tmp;
+                       tmp = fq_red( (FQ_DOUBLEPREC) multiplier *
+                                     (FQ_DOUBLEPREC) G->values[pivot_row][col_idx] );
+
+                       tmp = (FQ_DOUBLEPREC) Q + (FQ_DOUBLEPREC) G->values[row_idx][col_idx] - tmp;
+                       tmp = fq_red(tmp);
+
+                       G->values[row_idx][col_idx] = tmp;
+                   } else {
+                     row_red_pvt_skip_cnt++;
+                   }
+                }
+             }
+          }
+      } else {
+         pvt_reuse_cnt++;
+      }
+   }
+
+
+   return 1;
+} /* end generator_RREF_pivot_reuse */
 
 /* constant time lexical minimization of a column of G, writes the result
  * as the desired column of a normalized_IS_t matrix */
@@ -427,22 +538,77 @@ void prepare_digest_input(normalized_IS_t *V,
 } /* end prepare_digest_input */
 
 
+void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
+                          monomial_action_IS_t *Q_bar_IS,
+                          const generator_mat_t *const G,
+                          const monomial_t *const Q_in,
+                          const uint8_t initial_pivot_flags [N],
+                          const int pvt_reuse_limit)
+{
+   uint8_t g_permuated_pivot_flags[N];
+   int pivot_flags [N];
+   generator_mat_t G_dagger;
+   memset(&G_dagger,0,sizeof(generator_mat_t));
+//    monomial_mat_t Q_bar;
+   generator_monomial_mul(&G_dagger, G, Q_in);
+
+   for (int i = 0; i < N; i++)
+      g_permuated_pivot_flags[Q_in->permutation[i]] = initial_pivot_flags[i];
+
+   uint8_t is_pivot_column[N] = {0};
+   int rref_ok = generator_RREF_pivot_reuse(&G_dagger,is_pivot_column, g_permuated_pivot_flags, pvt_reuse_limit);
+   ASSERT(rref_ok != 0);
+
+   POSITION_T piv_idx = 0, non_piv_idx = K;
+   for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
+
+      /* nomenclature matching algorithm in spec, extract(q_col) */
+      POSITION_T row_idx = 0, val = 0;
+      for(uint32_t i = 0; i < N; i++) {
+         if ( Q_in->permutation[i] == col_idx) {
+            row_idx = i;
+            val = Q_in->coefficients[i];
+         }
+      }
+      /* Prepares a modified monomial matrix, which packs pivots as the 
+       * first K columns when applied to G. Allows the verifier to compute
+       * SF instead of RREF */
+      if(is_pivot_column[col_idx] == 0) {
+         /*lex minimize stores in a normalized_IS_t variable, which only
+          * contains non-pivot columns, no need to offset by K the storage*/
+         lex_minimize(V,non_piv_idx-K,&G_dagger,col_idx);
+         non_piv_idx++;
+      } else {
+         Q_bar_IS->permutation[piv_idx] = row_idx;
+         Q_bar_IS->coefficients[piv_idx] = val;
+         piv_idx++;
+      }
+   }
+   lex_sort_cols(V);
+} /* end prepare_digest_input_pivot_reuse */
+
 ///
 /// @param res
 /// @param G
 /// @param Q_IS
 void apply_action_to_G(generator_mat_t* res,
                        const generator_mat_t* G,
-                       const monomial_action_IS_t* Q_IS){
+                       const monomial_action_IS_t* Q_IS,
+                       uint8_t initial_G_col_pivot[N],
+                       uint8_t permutated_G_col_pivot[N]) {
     /* sweep inorder Q_IS, pick cols from G, and note unpicked cols in support
      * array */
-    uint8_t is_G_col_pivot[N] = {0};
+    uint8_t is_G_col_pivot[N];
+    for (int i = 0; i < N; i++)
+        is_G_col_pivot[i] = 0;
+
     for(uint32_t dst_col_idx = 0; dst_col_idx < K; dst_col_idx++){
         POSITION_T src_col_idx;
         src_col_idx = Q_IS->permutation[dst_col_idx];
         for(uint32_t i = 0; i < K; i++){
             res->values[i][dst_col_idx] = fq_red( (FQ_DOUBLEPREC) G->values[i][src_col_idx] * Q_IS->coefficients[dst_col_idx]);
         }
+        permutated_G_col_pivot[dst_col_idx] = initial_G_col_pivot[src_col_idx];
         is_G_col_pivot[src_col_idx] = 1;
     }
 
@@ -451,11 +617,11 @@ void apply_action_to_G(generator_mat_t* res,
         if (!is_G_col_pivot[src_col_idx]){
             for(uint32_t i = 0; i < K; i++){
                 res->values[i][dst_col_idx] = G->values[i][src_col_idx];
-            }            
+            }
+            permutated_G_col_pivot[dst_col_idx] = initial_G_col_pivot[src_col_idx];
             dst_col_idx++;
         }
-    }
-    
+    }    
 }
 
 /// NOTE: not constant time
@@ -608,9 +774,11 @@ void compress_rref(uint8_t *compressed, const generator_mat_t *const full,
 }
 
 /* Expands a compressed RREF generator matrix into a full one */
-void expand_to_rref(generator_mat_t *full, const uint8_t *compressed) {
+void expand_to_rref(generator_mat_t *full, const uint8_t *compressed, uint8_t is_pivot_column[N]) {
     // Decompress pivot flags
-    uint8_t is_pivot_column[N] = {0};
+    for (int i = 0; i < N; i++)
+        is_pivot_column[i] = 0;
+
     for (int col_byte = 0; col_byte < N / 8; col_byte++) {
         is_pivot_column[col_byte * 8 + 0] = compressed[col_byte] & 0x1;
         is_pivot_column[col_byte * 8 + 1] = (compressed[col_byte] >> 1) & 0x1;

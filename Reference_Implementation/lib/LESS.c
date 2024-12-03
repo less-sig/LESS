@@ -97,6 +97,8 @@ size_t LESS_sign(const prikey_t *SK,
                const char *const m,
                const uint64_t mlen,
                sign_t *sig) {
+    uint8_t g0_initial_pivot_flags [N];
+
     /*         Private key expansion        */
     /* expand sequence of seeds for private inverse-monomial matrices */
     SHAKE_STATE_STRUCT sk_shake_state;
@@ -125,6 +127,7 @@ size_t LESS_sign(const prikey_t *SK,
     /*         Public G_0 expansion                  */
     rref_generator_mat_t G0_rref;
     generator_SF_seed_expand(&G0_rref, SK->G_0_seed);
+    generator_get_pivot_flags (&G0_rref, g0_initial_pivot_flags);
     generator_mat_t full_G0;
     generator_rref_expand(&full_G0, &G0_rref);
 
@@ -143,6 +146,9 @@ size_t LESS_sign(const prikey_t *SK,
                                           i);
 
         /* Absorb input */
+        // TODO 
+        // prepare_digest_input_pivot_reuse(&V_array, &Q_bar_actions[i], &full_G0, &Q_tilde, g0_initial_pivot_flags, SIGN_PIVOT_REUSE_LIMIT);
+        // LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
         prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde);
         const int t = cf5(&V_array);
         if (t == 0) {
@@ -204,6 +210,8 @@ int LESS_verify(const pubkey_t *const PK,
                 const sign_t *const sig) {
 
     uint8_t fixed_weight_string[T] = {0};
+    uint8_t g_initial_pivot_flags [N];
+    uint8_t g_permuated_pivot_flags [N];
     expand_digest_to_fixed_weight(fixed_weight_string, sig->digest);
 
     uint8_t published_seed_indexes[T];
@@ -232,6 +240,8 @@ int LESS_verify(const pubkey_t *const PK,
 
     for (uint32_t i = 0; i < T; i++) {
         if (fixed_weight_string[i] == 0) {
+            generator_get_pivot_flags (&G0_rref, g_initial_pivot_flags);
+          
             // TODO mov this out of the loop and keep `tmp_full_G` constant
             generator_rref_expand(&tmp_full_G, &G0_rref);
             monomial_t Q_to_multiply;
@@ -239,6 +249,13 @@ int LESS_verify(const pubkey_t *const PK,
                                               ephem_monomial_seeds + i * SEED_LENGTH_BYTES,
                                               sig->tree_salt,
                                               i);
+            // TODO prepare_digest_input_pivot_reuse(&V_array,
+            //                     &Q_to_discard,
+            //                     &tmp_full_G,
+            //                     &Q_to_multiply,
+            //                     g_initial_pivot_flags, 
+            //                     VERIFY_PIVOT_REUSE_LIMIT);
+          
             // TODO half of these operations can be optimized away
             prepare_digest_input(&V_array,
                                  &Q_to_discard,
@@ -252,6 +269,7 @@ int LESS_verify(const pubkey_t *const PK,
             }
             LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array, sizeof(normalized_IS_t));
         } else {
+
             expand_to_rref(&tmp_full_G, PK->SF_G[fixed_weight_string[i] - 1]);
             if (!is_cf_monom_action_valid(sig->cf_monom_actions[employed_monoms])) {
                 return 0;
@@ -259,6 +277,7 @@ int LESS_verify(const pubkey_t *const PK,
 
             apply_cf_action_to_G(&G_hat, &tmp_full_G, sig->cf_monom_actions[employed_monoms]);
             uint8_t is_pivot_column[N] = {0};
+            // TODO generator_RREF_pivot_reuse(&G_hat, is_pivot_column, g_permuated_pivot_flags, VERIFY_PIVOT_REUSE_LIMIT);
             const int ret = generator_RREF(&G_hat, is_pivot_column);
             if(ret != 1) { return 0; }
 
