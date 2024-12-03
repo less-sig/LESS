@@ -98,7 +98,7 @@ int test_compute_canonical_form_type4_v2(void) {
         normalized_copy(&G3, &G2);
         const int ret1 = compute_canonical_form_type4(&G1);
         const int ret2 = compute_canonical_form_type4(&G2);
-        const int ret3 = compute_canonical_form_type4_non_ct(&G3);
+        const int ret3 = compute_canonical_form_type4_ct(&G3);
 
         if (ret1 != ret2) {
             printf("error ret cf4 2\n");
@@ -309,10 +309,10 @@ int main(void) {
 
     // actual tests
     if (test_compute_canonical_form_type3_v2()) return 1;
-    // if (test_compute_canonical_form_type4_v2()) return 1;
-    // if (test_compute_canonical_form_type5_v2()) return 1;
+    if (test_compute_canonical_form_type4_v2()) return 1;
+    if (test_compute_canonical_form_type5_v2()) return 1;
 
-    // if (test_compute_canonical_form_type5_gaus()) return 1;
+    if (test_compute_canonical_form_type5_gaus()) return 1;
 
 #if defined(CATEGORY_0)
     // value tests, (values taken from cf.py)
