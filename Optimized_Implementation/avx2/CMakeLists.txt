@@ -11,15 +11,9 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS "-Wno-unused-function -Wno-ignored-attributes -Wno-type-limits")
-
-IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
-set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0  -march=native -flax-vector-conversions")
-    set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNINGS}")
-else()
-    set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0 -Wall -Wpedantic -Wextra -mavx2 -mavx -fsanitize=address ${ALLOWED_WARNINGS}")
-    set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -flto -ftree-vectorize -funroll-loops -fomit-frame-pointer ${ALLOWED_WARNINGS}")
-endif()
+set(ALLOWED_WARNINGS "-Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal")
+set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0 -Wall -Wpedantic -Wextra -mavx2 -mavx -fsanitize=address ${ALLOWED_WARNINGS}")
+set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -flto -ftree-vectorize -funroll-loops -fomit-frame-pointer ${ALLOWED_WARNINGS}")
 
 
 set(SOURCES
@@ -34,6 +28,7 @@ set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/utils.c
         ${PROJECT_SOURCE_DIR}/lib/canonical.c
         ${PROJECT_SOURCE_DIR}/lib/sort.c
+        ${PROJECT_SOURCE_DIR}/lib/transpose.c
         ${PROJECT_SOURCE_DIR}/lib/KeccakP-1600-AVX2.s
 )
 
@@ -52,6 +47,7 @@ set(HEADERS
         ${PROJECT_SOURCE_DIR}/include/utils.h
         ${PROJECT_SOURCE_DIR}/include/canonical.h
         ${PROJECT_SOURCE_DIR}/include/sort.h
+        ${PROJECT_SOURCE_DIR}/include/transpose.h
 )
 
 include_directories(include)
