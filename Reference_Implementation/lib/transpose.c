@@ -3,7 +3,7 @@
 
 #include "transpose.h"
 
-///
+/// TODO doc
 /// @param dst
 /// @param src
 /// @param src_stride
@@ -78,7 +78,7 @@ inline const uint8_t* next_block(const uint8_t *src,
     return src + (rb1*n + cb1) * 64;
 }
 
-///
+/// TODO doc
 /// @param dst
 /// @param src
 /// @param n

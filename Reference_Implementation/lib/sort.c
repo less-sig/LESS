@@ -9,257 +9,6 @@
 #include "codes.h"
 #include "transpose.h"
 
-// TODO move to opt impl
-#ifdef USE_AVX2
-#include <immintrin.h>
-
-
-#define COEX_u8x16(a, b, tmp)             \
-	{                                     \
-		tmp = a;                 		  \
-		a = _mm_min_epu8(a, b);        	  \
-		b = _mm_max_epu8(tmp, b);  	      \
-	}
-#define COEX_u8x32(a, b, tmp)             \
-	{                                     \
-		tmp = a;                 		  \
-		a = _mm256_min_epu8(a, b);        \
-		b = _mm256_max_epu8(tmp, b);      \
-	}
-
-// TODO remove
-static int8_t blend[4][16] = {
-        {0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1,0,-1},
-        {0, 0,-1,-1,0,0,-1,-1,0,0,-1,-1,0,0,-1,-1},
-        {0,0,0,0,-1,-1,-1,-1,0,0,0,0,-1,-1,-1,-1},
-        {0,0,0,0,0,0,0,0, -1,-1,-1,-1,-1,-1,-1,-1},
-};
-static int8_t sortingnetwork_u8x32_shuffle_masks[6][32] __attribute((aligned(64))) = {
-        {1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14,1,0,3,2,5,4,7,6,9,8,11,10,13,12,15,14},
-        {3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12,3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12},
-        {7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8},
-        {2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13,2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13},
-        {15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0},
-        {4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3,12,13,14,15,8,9,10,11},
-};
-
-__m256i sortingnetwork_sort_u8x32_(__m256i v) {
-    __m256i t = v, tmp;
-    t = _mm256_shuffle_epi8(t, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]));
-    COEX_u8x32(t, v, tmp);
-    t = _mm256_blendv_epi8(t, v, _mm256_set1_epi16(0xFF));
-
-    // Step 2
-    v = _mm256_shuffle_epi8(t, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[1]));
-	COEX_u8x32(v, t, tmp);
-    v = _mm256_blendv_epi8(v, t, _mm256_set1_epi32(0xFFFF));
-
-    // Step 3
-    t = _mm256_shuffle_epi8(v, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]));
-	COEX_u8x32(t, v, tmp);
-    t = _mm256_blendv_epi8(t, v, _mm256_set1_epi16(0xFF));
-
-    // Step 4
-    v = _mm256_shuffle_epi8(t, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[2]));
-	COEX_u8x32(v, t, tmp);
-    v = _mm256_blendv_epi8(v, t, _mm256_set1_epi64x(0xFFFFFFFF));
-
-    // Step 5
-    t = _mm256_shuffle_epi8(v, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[3]));
-	COEX_u8x32(t, v, tmp);
-    t = _mm256_blendv_epi8(t, v, _mm256_set1_epi32(0xFFFF));
-
-    // Step 6
-    v = _mm256_shuffle_epi8(t, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]));
-	COEX_u8x32(v, t, tmp);
-    v = _mm256_blendv_epi8(v, t, _mm256_set1_epi16(0xFF));
-
-    // Step 7
-    t = _mm256_shuffle_epi8(v, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[4]));
-	COEX_u8x32(t, v, tmp);
-    t = _mm256_blendv_epi8(t, v, _mm256_setr_epi64x(0, -1ull, 0, -1ull));
-
-    // Step 8
-    v = _mm256_shuffle_epi8(t, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[5]));
-	COEX_u8x32(v, t, tmp);
-    v = _mm256_blendv_epi8(v, t, _mm256_set1_epi64x(0xFFFFFFFF));
-
-    // Step 9
-    t = _mm256_shuffle_epi8(v, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[3]));
-	COEX_u8x32(t, v, tmp);
-    t = _mm256_blendv_epi8(t, v, _mm256_set1_epi32(0xFFFF));
-
-    // Step 10
-    v = _mm256_shuffle_epi8(t, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]));
-	COEX_u8x32(v, t, tmp);
-    v = _mm256_blendv_epi8(v, t, _mm256_set1_epi16(0xFF));
-
-    __m128 tmp_;
-    __m128i L1 = _mm256_extractf128_si256(v, 0);
-    __m128i H1 = _mm256_extractf128_si256(v, 1);
-    H1 = _mm_shuffle_epi8(H1, _mm_load_si128((__m128i *)sortingnetwork_u8x32_shuffle_masks[4]));
-
-	COEX_u8x16(L1, H1, tmp_);
-    __m128i L1p = _mm_blendv_epi8(L1, _mm_bslli_si128(H1, 8), _mm_load_si128((__m128i *)blend[3]));
-    __m128i H1p = _mm_blendv_epi8(_mm_bsrli_si128(L1, 8), H1, _mm_load_si128((__m128i *)blend[3]));
-
-	COEX_u8x16(L1p, H1p, tmp_);
-    __m128i L2p = _mm_blendv_epi8(L1p, _mm_bslli_si128(H1p, 4), _mm_load_si128((__m128i *)blend[2]));
-    __m128i H2p = _mm_blendv_epi8(_mm_bsrli_si128(L1p, 4), H1p, _mm_load_si128((__m128i *)blend[2]));
-
-	COEX_u8x16(L2p, H2p, tmp_);
-    __m128i L3p = _mm_blendv_epi8(L2p, _mm_bslli_si128(H2p, 2), _mm_load_si128((__m128i *)blend[1]));
-    __m128i H3p = _mm_blendv_epi8(_mm_bsrli_si128(L2p, 2), H2p, _mm_load_si128((__m128i *)blend[1]));
-
-	COEX_u8x16(L3p, H3p, tmp_);
-    __m128i L4p = _mm_blendv_epi8(L3p, _mm_bslli_si128(H3p, 1), _mm_load_si128((__m128i *)blend[0]));
-    __m128i H4p = _mm_blendv_epi8(_mm_bsrli_si128(L3p, 1), H3p, _mm_load_si128((__m128i *)blend[0]));
-
-	COEX_u8x16(L4p, H4p, tmp_);
-    const __m128i kl = _mm_unpacklo_epi8(L4p, H4p);
-    const __m128i kh = _mm_unpackhi_epi8(L4p, H4p);
-    return _mm256_set_m128i(kh, kl);
-}
-
-
-/// implementation of 8 parrallel `simd_aftermerge_1V`
-static inline void sortingnetwork_aftermergesort_u8x64(__m256i *a,
-													   __m256i *b) {
-	__m256i L0 = *a;
-	__m256i H0 = *b;
-	__m256i mask, tmp;
-
-	// 3
-	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[2]);
-	__m256i L3p = _mm256_shuffle_epi8(L0, mask);
-	__m256i H3p = _mm256_shuffle_epi8(H0, mask);
-    COEX_u8x32(L0, L3p, tmp);
-    COEX_u8x32(H0, H3p, tmp);
-	mask = _mm256_set1_epi64x(0xFFFFFFFF);
-	L0 = _mm256_blendv_epi8(L3p, L0, mask);
-	H0 = _mm256_blendv_epi8(H3p, H0, mask);
-
-	// 4
-	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[1]);
-	__m256i L4p = _mm256_shuffle_epi8(L0, mask);
-	__m256i H4p = _mm256_shuffle_epi8(H0, mask);
-    COEX_u8x32(L0, L4p, tmp);
-    COEX_u8x32(H0, H4p, tmp);
-	mask = _mm256_set1_epi32(0xFFFF);
-	L0 = _mm256_blendv_epi8(L4p, L0, mask);
-	H0 = _mm256_blendv_epi8(H4p, H0, mask);
-
-	// 5
-	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]);
-	__m256i L5p = _mm256_shuffle_epi8(L0, mask);
-	__m256i H5p = _mm256_shuffle_epi8(H0, mask);
-    COEX_u8x32(L0, L5p, tmp);
-    COEX_u8x32(H0, H5p, tmp);
-	mask = _mm256_set1_epi16(0xFF);
-	*a = _mm256_blendv_epi8(L5p, L0, mask);
-	*b = _mm256_blendv_epi8(H5p, H0, mask);
-}
-static inline void sortingnetwork_mergesort_u8x64(__m256i *a,
-                                                  __m256i *b) {
-    __m256i L0 = *a, tmp, mask;
-    __m256i H0 = *b;
-
-	// reverse H0
-    __m256i H0p = _mm256_permute2x128_si256(H0, H0, 0b00000001);
-	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[4]);
-	H0 =_mm256_shuffle_epi8(H0p, mask);
-
-    // 0
-    COEX_u8x32(L0, H0, tmp);
-
-	//1
-    __m256i L1p = _mm256_permute2x128_si256(L0, L0, 0b00000001);
-    __m256i H1p = _mm256_permute2x128_si256(H0, H0, 0b00000001);
-    COEX_u8x32(L0, L1p, tmp);
-    COEX_u8x32(H0, H1p, tmp);
-	L0 = _mm256_blend_epi32(L0, L1p, 0b11110000);
-	H0 = _mm256_blend_epi32(H0, H1p, 0b11110000);
-
-	// 2
-	__m256i L2p = _mm256_permute4x64_epi64(L0, 0b10110001);
-	__m256i H2p = _mm256_permute4x64_epi64(H0, 0b10110001);
-    COEX_u8x32(L0, L2p, tmp);
-    COEX_u8x32(H0, H2p, tmp);
-	*a = _mm256_blend_epi32(L0, L2p, 0b11001100);
-	*b = _mm256_blend_epi32(H0, H2p, 0b11001100);
-
-	sortingnetwork_aftermergesort_u8x64(a, b);
-}
-
-static inline void sortingnetwork_sort_u8x64(__m256i *a,
-						                     __m256i *b) {
-    *a = sortingnetwork_sort_u8x32_(*a);
-    *b = sortingnetwork_sort_u8x32_(*b);
-    sortingnetwork_mergesort_u8x64(a, b);
-}
-
-/// implementation of `simd_aftermerge_8V`
-static inline void sortingnetwork_aftermerge_u8x64(__m256i *a,
-												   __m256i *b) {
-	__m256i tmp;
-    COEX_u8x32(*a, *b, tmp);
-
-	__m256i ap = _mm256_permute4x64_epi64(*a, 0b01001110);
-	__m256i bp = _mm256_permute4x64_epi64(*b, 0b01001110);
-    COEX_u8x32(*a, ap, tmp);
-    COEX_u8x32(*b, bp, tmp);
-	*a = _mm256_blend_epi32(*a, ap, 0b11110000);
-	*b = _mm256_blend_epi32(*b, bp, 0b11110000);
-
-	ap = _mm256_permute4x64_epi64(*a, 0b10110001);
-	bp = _mm256_permute4x64_epi64(*b, 0b10110001);
-    COEX_u8x32(*a, ap, tmp);
-    COEX_u8x32(*b, bp, tmp);
-	*a = _mm256_blend_epi32(*a, ap, 0b11001100);
-	*b = _mm256_blend_epi32(*b, bp, 0b11001100);
-
-	sortingnetwork_aftermergesort_u8x64(a, b);
-}
-static inline void sortingnetwork_sort_u8x128(__m256i *a,
-                                              __m256i *b,
-                                              __m256i *c,
-                                              __m256i *d) {
-	__m256i tmp, mask;
-	sortingnetwork_sort_u8x64(a, b);
-	sortingnetwork_sort_u8x64(c, d);
-
-	// reverse c and d
-    __m256i cp = _mm256_permute2x128_si256(*c, *c, 0b00000001);
-    __m256i dp = _mm256_permute2x128_si256(*d, *d, 0b00000001);
-	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[4]);
-	cp =_mm256_shuffle_epi8(cp, mask);
-    COEX_u8x32(*b, cp, tmp);
-	dp =_mm256_shuffle_epi8(dp, mask);
-    COEX_u8x32(*a, dp, tmp);
-
-	*c = cp;
-	*d = dp;
-	sortingnetwork_aftermerge_u8x64(a, b);
-	sortingnetwork_aftermerge_u8x64(c, d);
-}
-
-void sortingnetwork(FQ_ELEM *arr,
-                    const size_t s) {
-
-    // TODO s
-    (void )s;
-    __m256i i1 = _mm256_loadu_si256((const __m256i *)(arr +  0));
-    __m256i i2 = _mm256_loadu_si256((const __m256i *)(arr + 32));
-    __m256i i3 = _mm256_loadu_si256((const __m256i *)(arr + 64));
-    __m256i i4 = _mm256_loadu_si256((const __m256i *)(arr + 96));
-    sortingnetwork_sort_u8x128(&i1, &i2, &i3, &i4);
-    _mm256_storeu_si256((__m256i *)(arr +  0), i1);
-    _mm256_storeu_si256((__m256i *)(arr + 32), i2);
-    _mm256_storeu_si256((__m256i *)(arr + 64), i3);
-    _mm256_storeu_si256((__m256i *)(arr + 96), i4);
-}
-#endif
-
 /// taken from djbsort
 /// \param a first input
 /// \param b second input
@@ -390,8 +139,8 @@ int row_quick_sort_internal_compare_with_pivot(uint8_t *ptr[K],
 }
 
 /// TODO doc
-/// \param V
-/// \param G
+/// \param ptr
+/// \param P permutation: to keep track of the sorting
 /// \param row_l
 /// \param row_h
 /// \return
@@ -425,8 +174,8 @@ int row_quick_sort_internal_hoare_partition(FQ_ELEM* ptr[K],
     }
 }
 
-/// \param V copy of G with sorted rows
-/// \param G non IS generator matrix
+/// \param
+/// \param P a permutation to keep track of the sorting
 /// \param start inclusive
 /// \param end inclusive
 /// \return 1 on success
@@ -585,7 +334,7 @@ int row_bitonic_sort(normalized_IS_t *G) {
     uint32_t P[K];
     for (uint32_t i = 0; i < K; ++i) {
         memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
-#ifdef USE_AVX2 // TODO remove
+#ifdef USE_AVX2
         sortingnetwork(tmp[i], N-K);
 #else
         counting_sort_u8(tmp[i], N-K);
