@@ -49,7 +49,7 @@
 
 
 typedef struct {
-   /* coefficients listed in order of appearance columnwise */
+   /* coefficients listed in order of appearance column-wise */
    FQ_ELEM coefficients[N];
    /* considering the product GQ, permutation[...] stores into the cell with
     * index 0, the position of the DESTINATION of column 0 in G after the
@@ -58,13 +58,28 @@ typedef struct {
    POSITION_T permutation[N];
 } monomial_t;
 
+// wrapper struct around D_n
 typedef struct {
-   /* coefficients listed in order of appearance of the colums of the
+   /* coefficients listed in order of appearance column-wise */
+   FQ_ELEM coefficients[N];
+} diagonal_t;
+
+// wrapper struct around the set S_n
+typedef struct {
+   /* considering the product GQ, permutation[...] stores into the cell with
+    * index 0, the position of the DESTINATION of column 0 in G after the
+    * computation of GQ.
+    */
+   POSITION_T permutation[N];
+} permutation_t;
+
+typedef struct {
+   /* coefficients listed in order of appearance of the columns of the
     * target IS */
    FQ_ELEM coefficients[K];
    /* considering the product GQ, permutation[...] stores into the cell with
     * index 0, the position of the ORIGINAL column in G that goes into 0-th 
-    * column of the IS after after the computation of GQ.
+    * column of the IS after the computation of GQ.
     */
    POSITION_T permutation[K];
 } monomial_action_IS_t;
@@ -84,6 +99,7 @@ void monomial_mat_inv(monomial_t *res,
 
 /* samples a random monomial matrix from the systemwide csprng*/
 void monomial_mat_rnd(monomial_t *res);
+void monomial_mat_rnd_unique(monomial_t *res);
 
 /* expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
  * monomial matrices */
@@ -108,15 +124,24 @@ void monomial_compose_action(monomial_action_IS_t * out,
 
 /* Compress MonomialAction object to byte array */
 void compress_monom_action(uint8_t *compressed,
-                            const monomial_action_IS_t * mono);
+                           const monomial_action_IS_t * mono);
 
+/* Compress MonomialAction via CF */
+void cf_compress_monom_action(uint8_t *compressed,
+                              const monomial_t *mono);
+
+void cf_compress_monomial_IS_action(uint8_t *compressed,
+                                    const monomial_action_IS_t *mono);
 /* Decompress byte array to MonomialAction object */
 void expand_to_monom_action(monomial_action_IS_t *mono,
                             const uint8_t *compressed);
 
+void cf_expand_to_monom_action(monomial_action_IS_t *mono,
+                               const uint8_t *compressed);
 
 /* Validate MonomialAction object */
 int is_monom_action_valid(const monomial_action_IS_t * const mono);
+int is_cf_monom_action_valid(const uint8_t* const mono);
 
 /* pretty_print for monomial matrices */
 void monomial_mat_pretty_print_name(char *name, const monomial_t *to_print);
@@ -126,3 +151,26 @@ void monomial_mat_pretty_print_name(char *name, const monomial_t *to_print);
 /* pretty_print for monomial matrices in their expanded form */
 void monomial_mat_print_exp_name(char *name,const monomial_t *to_print);
 
+
+////////////////////////////////////////////////////////////////////////
+///                        Permutation                               ///
+////////////////////////////////////////////////////////////////////////
+
+void permutation_swap(permutation_t *P, uint32_t i, uint32_t j);
+void permutation_cswap(permutation_t *P, uint32_t i, uint32_t j, uintptr_t mask);
+void permutation_mat_id(permutation_t *P);
+void permutation_mat_rng(permutation_t *P);
+void permutation_mat_id_v2(permutation_t *P, const uint32_t max);
+void permutation_mat_rng_v2(permutation_t *P, const uint32_t max);
+void permutation_pretty_print(const permutation_t *P);
+
+
+////////////////////////////////////////////////////////////////////////
+///                             Diagonal                             ///
+////////////////////////////////////////////////////////////////////////
+void diagonal_mat_zero(diagonal_t *D);
+void diagonal_mat_id(diagonal_t *D);
+void diagonal_mat_rnd(diagonal_t *D);
+void diagonal_mat_id_v2(diagonal_t *D, uint32_t max);
+void diagonal_mat_rnd_v2(diagonal_t *D, uint32_t max);
+void diagonal_pretty_print(const diagonal_t *const D);

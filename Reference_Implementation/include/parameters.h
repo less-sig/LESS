@@ -26,10 +26,32 @@
 #pragma once
 #include <stdint.h>
 
+#define Qm1 (126)
+#define MMM 0x204081020408103ull
 /* Seed tree max size is computed according to Parameter Generation Script in Utilities folder */
 
 /********************************* Category 1 *********************************/
-#if defined(CATEGORY_1)
+
+#if defined(CATEGORY_0)
+// NOTE: this is the dev mode. only use it if you know what you are doing
+#warning "DEV MODE"
+
+#define SEED_LENGTH_BYTES (16)
+#define FQ_ELEM uint8_t
+#define FQ_DOUBLEPREC uint16_t
+#define FQ_TRIPLEPREC uint32_t
+#define POSITION_T uint8_t
+#define SEED_TREE_LABEL_T uint8_t
+
+#define   N (16)
+#define   K (8)
+#define   Q (127)
+#define NUM_KEYPAIRS (  2)
+#define   T (247)
+#define   W ( 30)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
+
+#elif defined(CATEGORY_1)
 #define SEED_LENGTH_BYTES (16)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
@@ -133,11 +155,22 @@
 #else
 #error define optimization corner in parameters.h
 #endif
-
 #else
 #error define category for parameters
 #endif
 
+#define SIGN_PIVOT_REUSE_LIMIT   (K/2)-32
+#define VERIFY_PIVOT_REUSE_LIMIT K 
+
+// #define SIGN_PIVOT_REUSE_LIMIT   0
+// #define VERIFY_PIVOT_REUSE_LIMIT 0
+
+/* */
+#define K8 ((K+7u)/8u)
+#define N8 ((N+7u)/8u)
+
+/// TODO
+#define N_K_pad (128)
 
 /***************** Derived parameters *****************************************/
 
@@ -183,11 +216,11 @@
 #define RREF_MAT_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*(N-K)*K + 7)/8 + (N + 7)/8)
 #define RREF_IS_COLUMNS_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*(N-K)*K + 7)/8)
 
-#define MONO_ACTION_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*K+7)/8 + (BITS_TO_REPRESENT(N)*K + 7) / 8)
+// #define MONO_ACTION_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*K+7)/8 + (BITS_TO_REPRESENT(N)*K + 7) / 8)
 
 #define LESS_CRYPTO_PUBLICKEYBYTES (NUM_KEYPAIRS*RREF_MAT_PACKEDBYTES)
 #define LESS_CRYPTO_SECRETKEYBYTES ((NUM_KEYPAIRS-1)*SEED_LENGTH_BYTES + RREF_MAT_PACKEDBYTES)
 
 // returns the maximum bytes the signature can occupy
-#define LESS_CRYPTO_MAX_BYTES (HASH_DIGEST_LENGTH*2 + MONO_ACTION_PACKEDBYTES*W + SEED_TREE_MAX_PUBLISHED_BYTES + 1)
-#define LESS_CRYPTO_BYTES(NR_LEAVES) (HASH_DIGEST_LENGTH*2 + MONO_ACTION_PACKEDBYTES*W + NR_LEAVES*SEED_LENGTH_BYTES + 1)
+#define LESS_CRYPTO_MAX_BYTES (HASH_DIGEST_LENGTH*2 + N8*W + SEED_TREE_MAX_PUBLISHED_BYTES + 1)
+#define LESS_CRYPTO_BYTES(NR_LEAVES) (HASH_DIGEST_LENGTH*2 + N8*W + NR_LEAVES*SEED_LENGTH_BYTES + 1)

@@ -134,6 +134,13 @@
 #error define category for parameters
 #endif
 
+#define FQ_ELEM uint8_t
+#define FQ_DOUBLEPREC uint16_t
+#define FQ_TRIPLEPREC uint32_t
+#define POSITION_T uint8_t
+#define SEED_TREE_LABEL_T uint8_t
+
+
 
 /***************** Derived parameters *****************************************/
 /*length of the output of the cryptographic hash, in bytes */

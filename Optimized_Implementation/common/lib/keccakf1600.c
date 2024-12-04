@@ -58,7 +58,7 @@ void KeccakF1600_StateXORBytes(uint64_t *state, const unsigned char *data,
 
 
 
-
+/// TODO lol, avx not enabled
 #if 0
 void KeccakP1600_Permute_24rounds(uint64_t *state);
 void KeccakF1600_StatePermute(uint64_t *state) {
