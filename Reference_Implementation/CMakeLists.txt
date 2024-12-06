@@ -4,6 +4,8 @@ enable_language(C ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
+find_package(OpenSSL)
+
 # needed for nvim
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 if(CMAKE_EXPORT_COMPILE_COMMANDS)
@@ -15,7 +17,7 @@ set(ALLOWED_WARNINGS " -Wno-gnu-binary-literal -Wno-unused-function -Wno-type-li
 
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
 	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0  -march=native -flax-vector-conversions ${ALLOWED_WARNINGS}")
-	set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector -flto ${ALLOWED_WARNINGS}")
+	set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -march=native -mtune=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector -flto ${ALLOWED_WARNINGS}")
 else()
 	set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -O0 -ggdb -Wall -Wpedantic -Wextra -fsanitize=address ${ALLOWED_WARNINGS}")
     set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -ftree-vectorize -fomit-frame-pointer -flto ${ALLOWED_WARNINGS}")
@@ -78,34 +80,35 @@ foreach(category RANGE 1 5 2)
     # KATS generation
     set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/nist/KAT_NIST_rng.c ${PROJECT_SOURCE_DIR}/lib/nist/PQCgenKAT_sign.c)
-    target_link_libraries(${TARGET_BINARY_NAME} m crypto)
+    target_link_libraries(${TARGET_BINARY_NAME} PRIVATE OpenSSL::Crypto)
+    include_directories(${OPENSSL_INCLUDE_DIR})
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimize_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
   endforeach(optimize_target)
 endforeach(category)
 
 # canonical forms test
 add_executable(test_canonical_form ${PROJECT_SOURCE_DIR}/lib/test/test_canonical.c ${SOURCES})
-target_link_libraries(test_canonical_form m crypto)
+target_link_libraries(test_canonical_form PRIVATE OpenSSL::Crypto)
 set_property(TARGET test_canonical_form APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 
 add_executable(inv_table ${PROJECT_SOURCE_DIR}/lib/test/inv_table.c)
-target_link_libraries(inv_table m crypto)
+target_link_libraries(inv_table PRIVATE OpenSSL::Crypto)
 set_property(TARGET inv_table APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 
 add_executable(arith ${PROJECT_SOURCE_DIR}/lib/test/arith.c)
-target_link_libraries(arith m crypto)
+target_link_libraries(arith PRIVATE OpenSSL::Crypto)
 set_property(TARGET arith APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 
 add_executable(test_sort ${PROJECT_SOURCE_DIR}/lib/test/sort.c ${SOURCES})
-target_link_libraries(test_sort m crypto)
+target_link_libraries(test_sort PRIVATE OpenSSL::Crypto)
 set_property(TARGET test_sort APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 # set_property(TARGET test_sort APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 
 # canonical forms bench
 add_executable(bench_cf ${PROJECT_SOURCE_DIR}/lib/bench/bench_cf.c ${SOURCES})
-target_link_libraries(bench_cf m crypto)
+target_link_libraries(bench_cf PRIVATE OpenSSL::Crypto)
 set_property(TARGET bench_cf APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 
 add_executable(bench_sorting ${PROJECT_SOURCE_DIR}/lib/bench/bench_sorting.c ${SOURCES})
-target_link_libraries(bench_sorting m crypto)
+target_link_libraries(bench_sorting PRIVATE OpenSSL::Crypto)
 set_property(TARGET bench_sorting APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
