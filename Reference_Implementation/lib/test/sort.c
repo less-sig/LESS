@@ -84,8 +84,8 @@ int test_col_sorting_network_matrix(void) {
 
     //normalized_pretty_print(&G1);
     lex_sort_cols(&G1);
-    col_bitonic_sort(&G2);
-    col_quicksort_transpose(&G3, 0, N - K - 1);
+//    col_bitonic_sort(&G2);
+    col_quicksort_transpose(&G3);//, 0, N - K - 1);
     col_bitonic_sort_transpose(&G4);
 
     // normalized_pretty_print(&G1);
