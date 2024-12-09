@@ -47,7 +47,6 @@
  *
  */
 
-
 typedef struct {
    /* coefficients listed in order of appearance column-wise */
    FQ_ELEM coefficients[N];
@@ -57,21 +56,6 @@ typedef struct {
     */
    POSITION_T permutation[N];
 } monomial_t;
-
-// wrapper struct around D_n
-typedef struct {
-   /* coefficients listed in order of appearance column-wise */
-   FQ_ELEM coefficients[N];
-} diagonal_t;
-
-// wrapper struct around the set S_n
-typedef struct {
-   /* considering the product GQ, permutation[...] stores into the cell with
-    * index 0, the position of the DESTINATION of column 0 in G after the
-    * computation of GQ.
-    */
-   POSITION_T permutation[N];
-} permutation_t;
 
 typedef struct {
    /* coefficients listed in order of appearance of the columns of the
@@ -88,7 +72,7 @@ typedef struct {
    unsigned char value[SEED_LENGTH_BYTES];
 } monomial_seed_t;
 
-/* multiplies two monomial matrices*/
+/* multiplies two monomial matrices */
 void monomial_mat_mul(monomial_t *res,
                       const monomial_t *const A,
                       const monomial_t *const B);
@@ -151,26 +135,3 @@ void monomial_mat_pretty_print_name(char *name, const monomial_t *to_print);
 /* pretty_print for monomial matrices in their expanded form */
 void monomial_mat_print_exp_name(char *name,const monomial_t *to_print);
 
-
-////////////////////////////////////////////////////////////////////////
-///                        Permutation                               ///
-////////////////////////////////////////////////////////////////////////
-
-void permutation_swap(permutation_t *P, uint32_t i, uint32_t j);
-void permutation_cswap(permutation_t *P, uint32_t i, uint32_t j, uintptr_t mask);
-void permutation_mat_id(permutation_t *P);
-void permutation_mat_rng(permutation_t *P);
-void permutation_mat_id_v2(permutation_t *P, const uint32_t max);
-void permutation_mat_rng_v2(permutation_t *P, const uint32_t max);
-void permutation_pretty_print(const permutation_t *P);
-
-
-////////////////////////////////////////////////////////////////////////
-///                             Diagonal                             ///
-////////////////////////////////////////////////////////////////////////
-void diagonal_mat_zero(diagonal_t *D);
-void diagonal_mat_id(diagonal_t *D);
-void diagonal_mat_rnd(diagonal_t *D);
-void diagonal_mat_id_v2(diagonal_t *D, uint32_t max);
-void diagonal_mat_rnd_v2(diagonal_t *D, uint32_t max);
-void diagonal_pretty_print(const diagonal_t *const D);

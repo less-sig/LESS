@@ -16,8 +16,8 @@
 /// 		1 on success
 int compute_canonical_form_type3(normalized_IS_t *G) {
     if (row_quick_sort(G) == 0) { return 0; }
-    col_quicksort_transpose(G);
-    // lex_sort_cols(G);
+    // col_quicksort_transpose(G);
+    lex_sort_cols(G);
     return 1;
 }
 

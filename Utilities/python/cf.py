@@ -3,6 +3,8 @@
 
 import random
 import copy
+import bitarray
+from ctypes import c_ushort 
 from Crypto.Cipher import AES
 from Crypto.Hash import SHAKE256
 

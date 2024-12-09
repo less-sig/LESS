@@ -25,7 +25,7 @@ int main(void) {
     char                fn_req[32], fn_rsp[32];
     FILE                *fp_req, *fp_rsp;
     unsigned char       seed[48];
-    unsigned char       msg[3300];
+    unsigned char       msg[5000];
     unsigned char       entropy_input[48];
     unsigned char       *m, *sm, *m1;
     unsigned long long  mlen, smlen, mlen1;
