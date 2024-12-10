@@ -194,8 +194,9 @@ def case_3_CF(B):
     return row_indices, col_indices, CF_B
 
 
-def case_4_CF(B):
+def case_4_CF(B: Matrix):
     """
+    standard version, taken from the paper
     """
     n = B.nrows 
     m = B.ncols 
@@ -206,7 +207,8 @@ def case_4_CF(B):
             for j in range(m): Ap[i, j] = 1
             continue
 
-        v = B[i]
+        v = [t.get() for t in B[i]]
+        assert type(v) == list
         s = sum(v) % q
         sp = sum([pow(t, (q-2), q) for t in v]) % q
         if s != 0:
@@ -221,9 +223,40 @@ def case_4_CF(B):
     return case_3_CF(Ap)
 
 
+def sub_CF4(sub_A: Matrix, min_multiset):
+    """
+    faster CF4 for popcount cf5
+    :param sub_A: sub matrix 
+    :param min_multiset: minimum multiset for current CF5
+    """
+    z = sub_A.nrows
+    nc = sub_A.ncols
+    exists = True
+    min_found = False
+    for i in range(z):
+        # sum the current row
+        s = sum([v.get() for v in sub_A[i]]) % q
+        if s == 0:
+            s = sum([pow(v.get(), (q-2), q) for v in sub_A[i]]) % q
+        else:
+            s = pow(s, -1, q)
+
+        if s == 0: 
+            exists = False
+            continue
+
+        w = [s*A[i, j].get() for j in range(nc)]
+        w.sort()
+
+        # compute the multiset and see if its less
+        if lex_min_multisets(w, min_multiset) != 0:
+            min_found = True
+    
+    return exists, min_found
 
 def case_5_CF(B):
     """
+    original version from the paper
     """
     n = B.nrows 
     m = B.ncols 
@@ -254,6 +287,11 @@ def case_5_CF(B):
     
     return 0, 0, A_j
 
+def case_5_CF_popcnt(B):
+    """
+    version from paolo based on counting zeros
+    """
+    
 
     
 

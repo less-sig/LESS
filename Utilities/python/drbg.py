@@ -22,7 +22,7 @@ class NIST_KAT_DRBG:
         x = int.from_bytes(self.ctr, 'big') + 1
         self.ctr = x.to_bytes(16, byteorder='big')
 
-    def get_bytes(self, num_bytes):
+    def get_bytes(self, num_bytes: int):
         tmp = b''
         cipher = AES.new(self.key, AES.MODE_ECB)
         while len(tmp) < num_bytes:
@@ -30,7 +30,7 @@ class NIST_KAT_DRBG:
             tmp  += cipher.encrypt(self.ctr)
         return tmp[:num_bytes]
 
-    def random_bytes(self, num_bytes):
+    def random_bytes(self, num_bytes: int):
         output_bytes = self.get_bytes(num_bytes)
         update = self.get_bytes(48)
         self.key = update[:32]

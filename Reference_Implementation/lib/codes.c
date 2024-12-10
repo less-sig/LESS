@@ -483,16 +483,26 @@ void prepare_digest_input(normalized_IS_t *V,
     memset(&G_dagger,0,sizeof(generator_mat_t));
     generator_monomial_mul(&G_dagger, G, Q_tilde);
 
-     uint8_t is_pivot_column[N] = {0};
+    uint8_t is_pivot_column[N] = {0};
     int rref_ok = generator_RREF(&G_dagger, is_pivot_column);
     /// TODO, this is kind of bad, should be removed, and proper error handling should be applied
     ASSERT(rref_ok != 0);
 
+
+    // TODO not CT, not correct if more than 1 col is not a pivot column. Somehow merge with the loop just below
     // just copy the non IS
-    for (uint32_t i = 0; i < K; i++) {
-        for (uint32_t j = 0; j < N-K; j++) {
-            V->values[i][j] = G_dagger.values[i][j + K];
+    uint32_t ctr = 0, offset = K;
+    for(uint32_t j = 0; j < N-K; j++) {
+        if (is_pivot_column[j+K]) {
+            ctr += 1;
+            offset = K - ctr;
         }
+
+        for (uint32_t i = 0; i < K; i++) {
+            V->values[i][j] = G_dagger.values[i][j + offset];
+        }
+
+        offset = K;
     }
 
     POSITION_T piv_idx = 0;

@@ -12,6 +12,7 @@ let
     pythonPackages.pycrypto
     pythonPackages.galois
     pythonPackages.bitarray
+    pythonPackages.pycryptodome 
   ]);
 in
   { 

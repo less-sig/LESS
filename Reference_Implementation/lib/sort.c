@@ -208,6 +208,7 @@ int row_quick_sort(normalized_IS_t *G) {
     uint32_t P[K];
 	for (uint32_t i = 0; i < K; ++i) {
 		memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
+        // TODO maybe just histogram?
         counting_sort_u8(tmp[i], N-K);
 
         ptr[i] = tmp[i];

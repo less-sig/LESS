@@ -145,7 +145,7 @@ size_t LESS_sign(const prikey_t *SK,
                                           sig->tree_salt,
                                           i);
 
-        // TODO
+        // TODO hide behind a compiler flag/preprocessor flag
         // prepare_digest_input_pivot_reuse(&V_array, &Q_bar[i], &full_G0, &Q_tilde, g0_initial_pivot_flags, SIGN_PIVOT_REUSE_LIMIT);
         prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde);
         const int t = cf5(&V_array);
@@ -189,8 +189,7 @@ size_t LESS_sign(const prikey_t *SK,
 
             monomial_mat_seed_expand_prikey(&Q_to_multiply,
                                             private_monomial_seeds[sk_monom_seed_to_expand_idx - 1]);
-            // TODO: simplify this function. We do not need the full monomial matrix.
-            // TODO: we only need the permutation.
+            // NOTE: this function is simplify. We do not need the full monomial matrix.
             monomial_compose_action(&mono_action, &Q_to_multiply, &Q_bar[i]);
 
             cf_compress_monomial_IS_action(sig->cf_monom_actions[emitted_monoms], &mono_action);
@@ -295,12 +294,20 @@ int LESS_verify(const pubkey_t *const PK,
                 return 0;
             }
 
-            /// TODO optimize this copy way.
+            // TODO not CT, not correct if more than 1 col is not a pivot column. Somehow merge with the loop just below
             // just copy the non IS
-            for (uint32_t k = 0; k < K; k++) {
-                for (uint32_t j = 0; j < N-K; j++) {
-                    V_array.values[k][j] = G_hat.values[k][j + K];
+            uint32_t ctr = 0, offset = K;
+            for(uint32_t j = 0; j < N-K; j++) {
+                if (is_pivot_column[j+K]) {
+                    ctr += 1;
+                    offset = K - ctr;
                 }
+
+                for (uint32_t t = 0; t < K; t++) {
+                    V_array.values[t][j] = G_hat.values[t][j + offset];
+                }
+
+                offset = K;
             }
 
             const int r = cf5_nonct(&V_array);
@@ -308,7 +315,7 @@ int LESS_verify(const pubkey_t *const PK,
                 printf("cf5 wt=1 failed\n");
                 return 0;// TODO
             }
-            LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array, sizeof(normalized_IS_t));
+            LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array.values, sizeof(normalized_IS_t));
             employed_monoms++;
         }
     }

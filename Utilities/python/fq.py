@@ -5,28 +5,39 @@ import random
 
 
 class Fq():
-    q = 127
-    def __init__(self, value: int) -> None:
-        self.__value = value % Fq.q
+    def __init__(self, value: int = 0, q: int = 127) -> None:
+        self.q = q
+        self.__value = value % self.q
     
     def get(self) -> int:
-        return self.__value 
+        """ returns the internal value as an int """
+        return self.__value
 
-    def add(self, value: int):
-        self.__value = (self.__value + value) % Fq.q
-        return self
+    def set(self, value: int):
+        """ sets the internal value to an int """
+        self.__value = value % self.q
 
-    def sub(self, value: int):
-        self.__value = (self.__value + (Fq.q - value)) % Fq.q
-        return self
+    def add(self, value: int) -> 'Fq':
+        """  """
+        ret = Fq((self.__value + value) % self.q, self.q)
+        return ret
 
-    def mul(self, value: int):
-        self.__value = (self.__value * value) % Fq.q
-        return self
+    def sub(self, value: int) -> 'Fq':
+        """  """
+        ret = Fq((self.__value + (self.q - value)) % self.q, self.q)
+        return ret
 
-    def random(self) -> 'Fq': 
+    def mul(self, value: int) -> 'Fq':
+        """  """
+        ret = Fq((self.__value * value) % self.q, self.q)
+        return ret
+
+    def random(self, lower: int = 0, upper: int = 0) -> 'Fq': 
         """ generates a random element """
-        self.__value = random.randint(0, Fq.q-1)
+        if upper == 0:
+            upper = self.q-1
+        assert (lower <= upper)
+        self.__value = random.randint(lower, upper)
         return self
 
     def __add__(self, fq: 'Fq') -> 'Fq':
@@ -40,10 +51,12 @@ class Fq():
 
     def __eq__(self, fq) -> bool:
         return self.__value == fq.__value
-
+    
+    def __str__(self) -> str:
+        return str(self.__value)
 
 if __name__ == "__main__":
-    # just some simple test
+    # just some simple test for q==127
     one = Fq(1)
     t = Fq(126)
     two = one + one

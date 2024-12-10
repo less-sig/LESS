@@ -5,6 +5,7 @@
 #include "monomial_mat.h"
 #include "codes.h"
 #include "canonical.h"
+#include "test_helpers.c"
 
 #define ITERS 100
 
