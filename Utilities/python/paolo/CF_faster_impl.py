@@ -278,7 +278,6 @@ def CF5_faster(A, k, q, Fq):
             coeffs = [A[i,j]**-1 for j in range(k)]
 
             #scale columns
-
             for j in range(k):
                 for ell in range(len(J)):
                     scaled_sub_A[ell,j] = coeffs[j]*sub_A[ell,j]

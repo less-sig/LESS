@@ -50,7 +50,6 @@ void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state, POSITION_T permu
 }
 
 /* FY shuffle on the permutation, sampling from the global TRNG state */
-static inline
 void yt_shuffle(POSITION_T permutation[N]) {
     yt_shuffle_state(&platform_csprng_state, permutation);
 }

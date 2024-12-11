@@ -72,6 +72,8 @@ typedef struct {
    unsigned char value[SEED_LENGTH_BYTES];
 } monomial_seed_t;
 
+void yt_shuffle(POSITION_T permutation[N]);
+
 /* multiplies two monomial matrices */
 void monomial_mat_mul(monomial_t *res,
                       const monomial_t *const A,

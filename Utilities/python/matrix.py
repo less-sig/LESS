@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ super simple matrix implementation. The only goal is to have zero dependencies """
 
-from typing import Union
+from typing import Union, List
 import random
 
 from fq import Fq
@@ -20,7 +20,7 @@ class Matrix:
         self.data = [[Fq(0, self.q) for _ in range(ncols)] for _ in range(nrows)] 
 
     def __getitem__(self,
-                    tup: int | list[int] | tuple[int, int]) -> Fq | list[Fq]:
+                    tup: int | list[int] | tuple[int, int]):# -> Fq | list[Fq]:
         """ nice access function
         NOTE: access it via:
             A[i, j] or  (returns field element)
@@ -80,6 +80,25 @@ class Matrix:
         for i in range(self.nrows):
             for j in range(self.ncols):
                 self.data[i][j] = Fq(i == j, self.q)
+        return self
+
+    def set(self, d: Union[int, Fq, List]) -> 'Matrix':
+        """ sets every element within in the matrix to `d`"""
+        # TODO: missing the case, where a only row is passed
+        if isinstance(d, list):
+            for i, a in enumerate(d):
+                for j, b in enumerate(a):
+                    if isinstance(b, int):
+                        b = Fq(b, self.q)
+                    self.data[i][j] = b
+            return self
+
+        if isinstance(d, int):
+            d = Fq(d, self.q)
+
+        for i in range(self.nrows):
+            for j in range(self.ncols):
+                self.data[i][j] = d
         return self
 
     def zero(self) -> 'Matrix':

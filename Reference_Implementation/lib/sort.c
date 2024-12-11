@@ -87,6 +87,27 @@ void counting_sort_u8(FQ_ELEM *arr,
 	}
 }
 
+/// \input row1[in]:
+/// \input row2[in]:
+/// \return: 0 if multiset(row1) == multiset(row2)
+///          x if row1 > row2
+///         -x if row1 < row2
+int compare_rows(const FQ_ELEM *row1,
+                 const FQ_ELEM *row2) {
+    uint32_t i = 0; 
+    while((i < (N-K)) && (row1[i] == row2[i])) {
+        i += 1;
+    }
+
+    // if they are the same, they generate the same multiset
+    if (i >= (N-K)) {
+        return 0;
+    }
+
+    return (int)row1[i] - (int)row2[i];
+}
+
+
 /// NOTE: helper function for type3 canonical form.
 /// NOTE: specially made for the bitonic sort, which
 ///		operates on pointers.
@@ -196,6 +217,13 @@ int row_quick_sort_internal(FQ_ELEM* ptr[K],
 	return 1;
 }
 
+/// \param ptr[in/out]: pointer to the row to sort
+/// \param len[in]: length of the row
+void row_sort(uint8_t *ptr, 
+              const uint32_t len) {
+    counting_sort_u8(ptr, len);
+}
+
 /// NOTE: only operates on ptrs
 /// NOTE: not constant time
 /// \param G[in/out]: generator matrix to sort
@@ -209,7 +237,7 @@ int row_quick_sort(normalized_IS_t *G) {
 	for (uint32_t i = 0; i < K; ++i) {
 		memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
         // TODO maybe just histogram?
-        counting_sort_u8(tmp[i], N-K);
+        row_sort(tmp[i], N-K);
 
         ptr[i] = tmp[i];
         P[i] = i;
@@ -345,7 +373,7 @@ int row_bitonic_sort(normalized_IS_t *G) {
     uint32_t P[K];
     for (uint32_t i = 0; i < K; ++i) {
         memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
-        counting_sort_u8(tmp[i], N-K);
+        row_sort(tmp[i], N-K);
 
         ptr[i] = tmp[i];
         P[i] = i;

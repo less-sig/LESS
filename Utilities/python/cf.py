@@ -154,7 +154,7 @@ def sort_vectors(vectors):
     return indices
 
 
-def case_3_CF(B):
+def case_3_CF(B: Matrix):
     """
     :param B: input matrix
     """
@@ -162,7 +162,7 @@ def case_3_CF(B):
     m = B.ncols 
     row_multisets = []
     for i in range(B.nrows):
-        b_i = copy.copy(B[i])
+        b_i = [B[i, j].get() for j in range(m)]
         b_i.sort()
         row_multisets.append(b_i)
 
@@ -254,7 +254,8 @@ def sub_CF4(sub_A: Matrix, min_multiset):
     
     return exists, min_found
 
-def case_5_CF(B):
+
+def case_5_CF(B: Matrix):
     """
     original version from the paper
     """
@@ -268,7 +269,7 @@ def case_5_CF(B):
     for i in range(n):
         cont = False 
         for j in range(m):
-            if B[i, j] == 0:
+            if B[i, j] == Fq(0, q):
                 cont = True
                 break
         if cont:
@@ -276,34 +277,114 @@ def case_5_CF(B):
 
         A = Matrix(n, m, q).zero()
         for j in range(n):
-            sc = pow(B[i, j], -1, q)
+            sc = pow(B[i, j].get(), -1, q)
             for k in range(m):
-                A[k, j] = (sc * B[k, j]) % q
+                A[k, j] = B[k, j] * sc
         
         t, _, T = case_4_CF(A)
-        if t != -1:
-            if lex_min_matrices(A_j, T):
-                A_j = T
+        if t != -1 and lex_min_matrices(A_j, T):
+            A_j = T
     
     return 0, 0, A_j
 
-def case_5_CF_popcnt(B):
+
+def case_5_CF_popcnt(B: Matrix):
     """
     version from paolo based on counting zeros
     """
-    
+    nr = B.nrows  
+    nc = B.ncols
+    # this remains 1 if all matrices lead to a failure
+    CF_fail = 1 
+    min_multiset = [q-1 for i in range(nc)]
+    A_j = Matrix(nr, nc, q).set(q-1)
 
-    
+    # count zeros in each row
+    max_zeros = 0
+    row_has_zero = [False for _ in range(nr)]
+    J = []
+    for i in range(k):
+        #count zeros of row i
+        num_zeros = 0
+        for j in range(k):
+            if A[i,j] == Fq(0):
+                num_zeros += 1
+        if num_zeros > 0:
+            row_has_zero[i] = True
+
+        if num_zeros > max_zeros:
+            J = [i]
+            max_zeros = num_zeros
+        else:
+            if num_zeros == max_zeros:
+                J.append(i)
+  
+    assert len(J) > 0
+    sub_A = Matrix(len(J), nc, q)
+    for i in range(len(J)):
+        for j in range(nc):
+            sub_A[i, j] = B[J[i], j]
+
+    scaled_sub_A = Matrix(len(J), nc, q)
+    scaled_A = Matrix(nr, nc, q)
+    # TODO 
+
+    for i in range(k):
+        # skip if i is in zero_rows (i-th row contains zeros for sure)
+        if not row_has_zero[i]:
+            min_multiset = [A_j[0, j].get() for j in range(nc)]
+            min_multiset.sort()
+
+            #we first scale the rows indexed by J
+            coeffs = [pow(B[i, j].get(), (q-2), q) for j in range(nc)]
+            
+            #scale columns
+            for j in range(k):
+                for ell in range(len(J)):
+                    scaled_sub_A[ell,j] = sub_A[ell,j]*coeffs[j]
+
+            cf_exists, min_found = sub_CF4(scaled_sub_A, min_multiset)
+
+            # continue only if min_found = 1
+            if min_found:
+                #scale full matrix A
+                for ell in range(k):
+                    for j in range(k):
+                        scaled_A[ell,j] = B[ell,j]*coeffs[j]
+
+
+                #call CF4
+                t, _, B_i = case_4_CF(scaled_A)   
+                if t != -1 and lex_min_matrices(A_j, B_i):
+                    CF_fail = False
+                    A_j = B_i
+
+    if CF_fail:
+        return -1, -1, A_j
+    else:
+        return 0, 0, A_j
 
 q = 127
 k = 8
 n = 2*k
 
-A = Matrix(k, n-k, q).random()
-for i in range(k):
-    for j in range(k):
-        A[i, j] = 120 - i - j
 
+A = Matrix(k, n-k, q).random()
+#for i in range(k):
+#    for j in range(k):
+#        A[i, j] = random.randint(0, q)# 120 - i - j
+#A[3, 2] = 0
+data = [
+    [ 99, 80, 65,119, 36, 48,110, 25],
+    [ 36, 43, 81,107, 90,  9,119, 64],
+    [ 87, 83,126,112, 95, 75, 49, 76],
+    [ 23, 81, 22, 86, 98,113, 36,116],
+    [ 14,116, 10,108, 95, 29,  0,102],
+    [121,102,123, 30, 98,  8, 35, 58],
+    [ 25, 28, 58, 37,124, 81, 50, 45],
+    [124, 40, 34, 21, 50,120, 59, 56],
+]
+A.set(data)
 #_, _, B = case_3_CF(A)
 #print("B=CF3(A)")
 #print(B)
@@ -314,6 +395,10 @@ for i in range(k):
 
 _, _, B = case_5_CF(A)
 print("B=CF5(A)")
+print(B)
+
+_, _, B = case_5_CF_popcnt(A)
+print("B=CF5_pop(A)")
 print(B)
 exit(1)
 

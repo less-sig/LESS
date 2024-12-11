@@ -4,7 +4,6 @@
 #include "codes.h"
 #include "monomial_mat.h"
 #include "utils.h"
-#include "utils.h"
 #include "rng.h"
 
 // wrapper struct around the set S_n

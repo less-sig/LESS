@@ -170,7 +170,7 @@
 #define N8 ((N+7u)/8u)
 
 /// TODO
-#define N_K_pad (128)
+#define N_K_pad (N-K)
 
 /***************** Derived parameters *****************************************/
 

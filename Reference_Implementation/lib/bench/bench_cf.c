@@ -104,8 +104,8 @@ int bench_cf5(void) {
 }
 
 int main(void) {
-    if (bench_cf3()) return 1;
-    if (bench_cf4()) return 1;
+    // if (bench_cf3()) return 1;
+    // if (bench_cf4()) return 1;
     if (bench_cf5()) return 1;
     return 0;
 }

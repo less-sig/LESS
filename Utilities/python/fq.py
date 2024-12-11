@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """ super simple fq implementation. The only goal is to have zero dependencies """
 
+from typing import Union
 import random
 
 
@@ -40,17 +41,37 @@ class Fq():
         self.__value = random.randint(lower, upper)
         return self
 
-    def __add__(self, fq: 'Fq') -> 'Fq':
-        return self.add(fq.__value)
+    def __add__(self, fq: Union['Fq', int]) -> 'Fq':
+        if isinstance(fq, Fq): fq = fq.__value
+        return self.add(fq)
 
-    def __sub__(self, fq: 'Fq') -> 'Fq':
-        return self.sub(fq.__value)
+    def __sub__(self, fq: Union['Fq', int]) -> 'Fq':
+        if isinstance(fq, Fq): fq = fq.__value
+        return self.sub(fq)
 
-    def __mul__(self, fq: 'Fq') -> 'Fq':
-        return self.mul(fq.__value)
+    def __mul__(self, fq: Union['Fq', int]) -> 'Fq':
+        if isinstance(fq, Fq): fq = fq.__value
+        return self.mul(fq)
 
     def __eq__(self, fq) -> bool:
-        return self.__value == fq.__value
+        if isinstance(fq, Fq): fq = fq.__value
+        return self.__value == fq
+    
+    def __lt__(self, fq) -> bool:
+        if isinstance(fq, Fq): fq = fq.__value
+        return self.__value < fq
+    
+    def __le__(self, fq) -> bool:
+        if isinstance(fq, Fq): fq = fq.__value
+        return self.__value <= fq
+    
+    def __gt__(self, fq) -> bool:
+        if isinstance(fq, Fq): fq = fq.__value
+        return self.__value > fq
+    
+    def __ge__(self, fq) -> bool:
+        if isinstance(fq, Fq): fq = fq.__value
+        return self.__value >= fq
     
     def __str__(self) -> str:
         return str(self.__value)
