@@ -3,6 +3,7 @@
 
 from typing import Union
 import random
+import math
 
 
 class Fq():
@@ -76,7 +77,45 @@ class Fq():
     def __str__(self) -> str:
         return str(self.__value)
 
+
+def rand_elements(rng, 
+                  q, 
+                  buffer: list,
+                  l: int, 
+                  MIN_VALUE=0, 
+                  MAX_VALUE=0):
+    """ generate a element mod Q
+    :param rng: shake state 
+    :param Q: prime 
+    """
+    if MAX_VALUE == 0:
+        MAX_VALUE = q-1
+
+    SPAN = MAX_VALUE - MIN_VALUE
+    REQ_BITS = math.ceil(math.log2(SPAN))
+    EL_MASK = (1 << REQ_BITS) - 1
+    counter = 0
+    while True:
+        word = int(rng.read(8).hex(), 16)
+        for _ in range(64//REQ_BITS):
+            rnd_value = word & EL_MASK
+            if (rnd_value <= SPAN):
+                buffer[counter] = Fq(rnd_value + MIN_VALUE, q)
+                counter += 1 
+            if(counter >= l):
+                return
+            word >>= REQ_BITS
+
+
 if __name__ == "__main__":
+    from Crypto.Hash import SHAKE256
+    l = [0 for _ in range(128)]
+    seed = bytearray(32)
+    rng = SHAKE256.new(seed)
+    rand_elements(rng, 127, l, len(l))
+    print(l)
+
+
     # just some simple test for q==127
     one = Fq(1)
     t = Fq(126)

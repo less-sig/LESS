@@ -78,6 +78,14 @@ class less:
         pk.G_0_seed = sk.G_0_seed
 
         # TODO expanding and stuff
+        G0_rref = Matrix(less.K, less.NK, less.Q).random_from_seed(sk.G_0_seed)
+        G0_rred_pivots = [less.K+i for i in range(less.NK)]
+
+        tmp_full_G = Matrix(less.K, less.N, less.Q)
+        self.generator_rref_expand(tmp_full_G, G0_rref, G0_rred_pivots)
+        
+        for i in range(less.NUM_KEYPAIRS):
+            Monomial 
 
     def sign(self):
         pass
@@ -96,6 +104,21 @@ class less:
             for j in range(self.NK):
                 G[i, j+self.K] = A[i, j]
         return G
+
+    def generator_rref_expand(self, 
+                              full: Matrix, 
+                              compact: Matrix,
+                              compact_pivots: list):
+        placed_dense_cols = 0 
+        for col_idx in range(less.N):
+            if (placed_dense_cols < less.NK) and (col_idx == compact_pivots[placed_dense_cols]):
+                for row_idx in range(less.K):
+                    full[row_idx, col_idx] = compact[row_idx, placed_dense_cols]
+            else:
+                for row_idx in range(less.K):
+                    full[row_idx, col_idx] = Fq(row_idx == (col_idx - placed_dense_cols), less.Q)
+                
+        pass
 
     def compress(self, A: Monomial) -> bytearray:
         """

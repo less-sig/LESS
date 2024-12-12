@@ -3,8 +3,9 @@
 
 from typing import Union, List
 import random
+import math
 
-from fq import Fq
+from fq import Fq, rand_elements
 
 
 class Matrix:
@@ -265,6 +266,21 @@ class Matrix:
             tmp = self.data[k][i]
             self.data[k][i] = self.data[k][j]
             self.data[k][j] = tmp
+    
+    def random_from_rng(self, rng):
+        """ 
+        generate a random matrix mod q, generated from a given 
+        random number generator.
+        :param rng: should be shake state already init
+        """
+        for i in range(self.nrows):
+            rand_elements(rng, self.q, self.data[i], self.ncols)
+        return self
+
+    def random_from_seed(self, seed):
+        from Crypto.Hash import SHAKE256
+        s = SHAKE256.new(seed)
+        return self.random_from_rng(s)
 
     def __add__(self, B: 'Matrix'):
         return self.add(B)
