@@ -202,10 +202,6 @@ int test_compute_canonical_form_type5_v2(void) {
         permutation_apply_row(&P_r, &G2);
         normalized_copy(&G3, &G2);
 
-        if (k == 2) {
-            normalized_pretty_print(&G2);
-        }
-
         const int ret1 = compute_canonical_form_type5_ct(&G1);
         const int ret2 = compute_canonical_form_type5(&G2);
         const int ret3 = compute_canonical_form_type5_popcnt(&G3);
@@ -220,7 +216,7 @@ int test_compute_canonical_form_type5_v2(void) {
         }
 
         // normalized_pretty_print(&G1);
-        // normalized_pretty_print(&G2);
+       //  normalized_pretty_print(&G2);
 
         for (uint32_t i = 0; i < K; i++) {
             for (uint32_t j = 0; j < N-K; j++) {
@@ -286,7 +282,7 @@ int test_compute_canonical_form_type5_v3(void) {
 // tests: if CF(G) and CF(RREF(G)) are the same
 uint32_t  test_compute_canonical_form_type5_gaus(void) {
     generator_mat_t G1, G2;
-    normalized_IS_t V1, V2;
+    normalized_IS_t V1, V2, V3;
     for (uint32_t k = 0; k < ITERS; ++k) {
         generator_sf(&G1);
         memcpy(&G2.values, &G1.values, sizeof(generator_mat_t));
@@ -296,11 +292,13 @@ uint32_t  test_compute_canonical_form_type5_gaus(void) {
 
         generator_to_normalized(&V1, &G1);
         generator_to_normalized(&V2, &G2);
+        generator_to_normalized(&V3, &G2);
 
         const int ret1 = cf5(&V1);
         const int ret2 = cf5_nonct(&V2);
+        const int ret3 = compute_canonical_form_type5_popcnt(&V3);
 
-        if (ret1 != ret2) {
+        if ((ret1 != ret2) && (ret1 != ret3)) {
             printf("error: cf5 gaus ret\n");
             return 1;
         }
@@ -312,6 +310,12 @@ uint32_t  test_compute_canonical_form_type5_gaus(void) {
                     normalized_pretty_print(&V1);
                     normalized_pretty_print(&V2);
                     printf("error: cf5 gaus\n");
+                    return 1;
+                }
+                if (V1.values[i][j] != V3.values[i][j]) {
+                    normalized_pretty_print(&V1);
+                    normalized_pretty_print(&V3);
+                    printf("error: cf5 pipcnt gaus \n");
                     return 1;
                 }
             }

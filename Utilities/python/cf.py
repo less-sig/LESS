@@ -329,6 +329,9 @@ def case_5_CF_popcnt(B: Matrix):
     scaled_A = Matrix(nr, nc, q)
     # TODO 
 
+    print(J, "\n")
+    print(row_has_zero)
+
     for i in range(k):
         # skip if i is in zero_rows (i-th row contains zeros for sure)
         if not row_has_zero[i]:
@@ -344,7 +347,8 @@ def case_5_CF_popcnt(B: Matrix):
                     scaled_sub_A[ell,j] = sub_A[ell,j]*coeffs[j]
 
             cf_exists, min_found = sub_CF4(scaled_sub_A, min_multiset)
-
+            
+            print(scaled_sub_A, min_found)
             # continue only if min_found = 1
             if min_found:
                 #scale full matrix A
@@ -375,14 +379,14 @@ A = Matrix(k, n-k, q).random()
 #        A[i, j] = random.randint(0, q)# 120 - i - j
 #A[3, 2] = 0
 data = [
-    [ 99, 80, 65,119, 36, 48,110, 25],
-    [ 36, 43, 81,107, 90,  9,119, 64],
-    [ 87, 83,126,112, 95, 75, 49, 76],
-    [ 23, 81, 22, 86, 98,113, 36,116],
-    [ 14,116, 10,108, 95, 29,  0,102],
-    [121,102,123, 30, 98,  8, 35, 58],
-    [ 25, 28, 58, 37,124, 81, 50, 45],
-    [124, 40, 34, 21, 50,120, 59, 56],
+    [113, 99, 60, 37, 44, 36,  7,105], 
+    [116, 90, 66, 37,  7, 43,111,111], 
+    [  2, 12, 92, 96, 38, 41, 79, 49], 
+    [109,119, 24, 36, 69,  0, 84, 99], 
+    [ 36, 68, 64, 46, 27,124,107, 36], 
+    [ 20,107, 63, 96,119, 83, 81, 27], 
+    [ 59, 63, 91, 75, 37,  2, 33, 21], 
+    [  0, 78, 89, 71,  4, 67, 12,  9]
 ]
 A.set(data)
 #_, _, B = case_3_CF(A)

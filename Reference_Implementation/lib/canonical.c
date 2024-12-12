@@ -149,10 +149,12 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
     int touched = 0;
 
 	// init the output matrix to some `invalid` data
-	memset(&smallest.values, -1, K*(N-K));
+	memset(&smallest.values, Q-1, K*(N-K));
 
 	FQ_ELEM row_inv_data[N_K_pad];
 	for (uint32_t row = 0; row < K; row++) {
+        if (row_contains_zero(G->values[row])) { continue; }
+
 		row_inv2(row_inv_data, G->values[row]);
 		for (uint32_t row2 = 0; row2 < K; row2++) {
 			row_mul3(Aj.values[row2], G->values[row2], row_inv_data);
@@ -209,7 +211,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
         }
     }
 
-    /// TODO remove: or maybe in this case fallback to the original implementation
+    /// NOTE: is this always correct?
     if (z == (N-K)) {
 	    return compute_canonical_form_type5(G);
     }
@@ -220,7 +222,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 
 	memset(min_multiset, Q-1, N-K);
 	for (uint32_t row = 0; row < K; row++) {
-        if (!row_has_zero[row]) { continue; }
+        if (row_has_zero[row]) { continue; }
 
 		row_inv2(row_inv_data, G->values[row]);
 		for (uint32_t row2 = 0; row2 < z; row2++) {
@@ -239,7 +241,8 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 		    	normalized_copy(&smallest, &Aj);
 
 				memcpy(min_multiset, smallest.values[0], N-K);
-				row_sort(min_multiset, N-K);
+				// should be already sorted
+                // row_sort(min_multiset, N-K);
 		    }
         }
 	}
@@ -259,10 +262,12 @@ int compute_canonical_form_type5_ct(normalized_IS_t *G) {
     int touched = 0;
 
     // init the output matrix to some `invalid` data
-    memset(&smallest.values, -1, K*(N-K));
+    memset(&smallest.values, Q-1, K*(N-K));
 
     FQ_ELEM row_inv_data[N_K_pad];
     for (uint32_t row = 0; row < K; row++) {
+        if (row_contains_zero(G->values[row])) { continue; }
+
         row_inv2(row_inv_data, G->values[row]);
         for (uint32_t row2 = 0; row2 < K; row2++) {
             row_mul3(Aj.values[row2], G->values[row2], row_inv_data);
