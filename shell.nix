@@ -11,6 +11,8 @@ let
     pythonPackages.jupyter
     pythonPackages.pycrypto
     pythonPackages.galois
+    pythonPackages.bitarray
+    pythonPackages.pycryptodome 
   ]);
 in
   { 

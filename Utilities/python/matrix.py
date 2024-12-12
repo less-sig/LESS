@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ super simple matrix implementation. The only goal is to have zero dependencies """
 
-from typing import Union
+from typing import Union, List
 import random
 
 from fq import Fq
@@ -17,9 +17,10 @@ class Matrix:
         self.nrows = nrows
         self.ncols = ncols
         self.q = q
-        self.data = [[0 for _ in range(ncols)] for _ in range(nrows)] 
+        self.data = [[Fq(0, self.q) for _ in range(ncols)] for _ in range(nrows)] 
 
-    def __getitem__(self, tup):
+    def __getitem__(self,
+                    tup: int | list[int] | tuple[int, int]):# -> Fq | list[Fq]:
         """ nice access function
         NOTE: access it via:
             A[i, j] or  (returns field element)
@@ -34,7 +35,9 @@ class Matrix:
         assert tup < self.nrows
         return self.data[tup]
 
-    def __setitem__(self, tup, data):
+    def __setitem__(self,
+                    tup: int | tuple[int, int],
+                    data):
         """ nice access function
         NOTE: access it via:
             A[i, j] or  (returns field element)
@@ -43,8 +46,12 @@ class Matrix:
         if isinstance(tup, tuple):
             x, y = tup
             assert x < self.nrows and y < self.ncols
-            assert isinstance(data, int)
-            self.data[x][y] = data % self.q
+            if isinstance(data, int):
+                self.data[x][y] = Fq(data, self.q)
+            elif isinstance(data, Fq):
+                self.data[x][y] = data
+            else:
+                assert(False)
             return
         
         assert isinstance(tup, int)
@@ -72,14 +79,33 @@ class Matrix:
         """ identity matrix """
         for i in range(self.nrows):
             for j in range(self.ncols):
-                self.data[i][j] = i == j
+                self.data[i][j] = Fq(i == j, self.q)
+        return self
+
+    def set(self, d: Union[int, Fq, List]) -> 'Matrix':
+        """ sets every element within in the matrix to `d`"""
+        # TODO: missing the case, where a only row is passed
+        if isinstance(d, list):
+            for i, a in enumerate(d):
+                for j, b in enumerate(a):
+                    if isinstance(b, int):
+                        b = Fq(b, self.q)
+                    self.data[i][j] = b
+            return self
+
+        if isinstance(d, int):
+            d = Fq(d, self.q)
+
+        for i in range(self.nrows):
+            for j in range(self.ncols):
+                self.data[i][j] = d
         return self
 
     def zero(self) -> 'Matrix':
         """ zeros all elements"""
         for i in range(self.nrows):
             for j in range(self.ncols):
-                self.data[i][j] = 0
+                self.data[i][j] = Fq(0, self.q)
         return self
 
     def row(self, i: int):
@@ -93,11 +119,14 @@ class Matrix:
         return [self.data[j][i] for j in range(self.nrows)]
 
 
-    def random(self) -> 'Matrix':
+    def random(self, seed = None) -> 'Matrix':
         """ generates a random matrix """
-        for i in range(self.nrows):
-            for j in range(self.ncols):
-                self.data[i][j] = random.randint(0, self.q - 1)
+        if seed is None:
+            for i in range(self.nrows):
+                for j in range(self.ncols):
+                    self.data[i][j] = Fq(0, self.q).random()
+        else:
+            assert(False) # not implemented
         return self
 
     def random_row_with_weight(self, row: int, w: int) -> 'Matrix':
@@ -105,7 +134,7 @@ class Matrix:
         assert w > 0 and w < self.ncols
         self.zero()
         for i in range(w):
-            self.data[row][i] = random.randint(1, self.q)
+            self.data[row][i] = Fq(0, self.q).random(1)
 
         # and now just simple apply a random permutation
         for i in range(self.ncols):
@@ -130,7 +159,7 @@ class Matrix:
             # find pivot
             sel = -1
             for i in range(row, self.nrows):
-                if self.data[i][col] == 1:
+                if self.data[i][col] == Fq(1, self.q):
                     sel = i 
                     break
 
@@ -142,11 +171,10 @@ class Matrix:
             # solve remaining coordinates
             for i in range(self.nrows):
                 if i == row: continue 
-                if self.data[i][col] == 0: continue
+                if self.data[i][col] == Fq(0, self.q): continue
 
                 for j in range(self.ncols):
                     self.data[i][j] += self.data[row][j]
-                    self.data[i][j] %= self.q
 
             row += 1
         
@@ -161,12 +189,13 @@ class Matrix:
         for i in range(B_c):
             # each row in A
             for j in range(self.nrows):  
-                sum = 0
+                s = Fq(0)
                 # each element in a row in A
                 for k in range(self.ncols):  
-                    sum += self[j, k] * B[k, i]
+                    t = self[j, k] * B[k, i]
+                    s = s + t 
 
-                C.data[j][i] = sum % self.q
+                C.data[j][i] = s
         return C
 
     def add(self, B: 'Matrix') -> 'Matrix':
@@ -176,7 +205,6 @@ class Matrix:
         for i in range(self.nrows):
             for j in range(self.ncols):
                 self.data[i][j] += B[i, j]
-                self.data[i][j] %= self.q
         return self
 
     def sub(self, B: 'Matrix') -> 'Matrix':
@@ -186,7 +214,6 @@ class Matrix:
         for i in range(self.nrows):
             for j in range(self.ncols):
                 self.data[i][j] = self.data[i][j] + (self.q - B[i, j])
-                self.data[i][j] %= self.q
         return self
 
     def eq(self, B: 'Matrix'):
@@ -258,6 +285,7 @@ class Matrix:
                 ret += str(self.data[i][j]).rjust(3, ' ') + " "
             ret += "\n"
         return ret
+
 
 if __name__ == "__main__":
     nc, nr, q, w = 10, 5, 2, 2

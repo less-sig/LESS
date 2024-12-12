@@ -262,6 +262,8 @@ def CF5_faster(A, k, q, Fq):
                 J.append(i)
 
     sub_A = A[J,:]
+    print("subA", sub_A)
+    print("J", J)
 
     scaled_sub_A = np.zeros((len(J),k),dtype=int)
     scaled_A = np.zeros((k,k), dtype = int)
@@ -276,7 +278,6 @@ def CF5_faster(A, k, q, Fq):
             coeffs = [A[i,j]**-1 for j in range(k)]
 
             #scale columns
-
             for j in range(k):
                 for ell in range(len(J)):
                     scaled_sub_A[ell,j] = coeffs[j]*sub_A[ell,j]
@@ -303,3 +304,22 @@ def CF5_faster(A, k, q, Fq):
         return -1
     else:
         return B_max
+
+
+if __name__ == "__main__":
+    from code_utils import sample_monomial, KeyGen, build_full_generator_matrix, apply_monomial, inverse_perm, combine_perms, verify_rsp, compress
+    import random
+    import numpy as np
+    import galois
+    k = 30
+    n = 60
+    q = 29
+    Fq = galois.GF(q); 
+
+    A, A_prime, perm, coeffs = KeyGen(Fq, n, k)
+    ephemeral_perm, ephemeral_coeffs = sample_monomial(Fq, n)
+    full_G = build_full_generator_matrix(Fq, n, k, A)
+    ephemeral_A = apply_monomial(Fq, n, k, full_G, ephemeral_perm, ephemeral_coeffs)
+
+    print("A\n", ephemeral_A, "\n")
+    cmt = CF5_faster(ephemeral_A, k, q, Fq)

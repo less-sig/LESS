@@ -217,10 +217,3 @@ void normalized_pretty_print(const normalized_IS_t *const G);
 int normalized_is_zero_in_column(const normalized_IS_t *const V,
                                  const uint32_t col);
 void normalized_mat_scale_row(normalized_IS_t *G, const uint32_t row, const FQ_ELEM a);
-
-// defined in monomial.c
-void permutation_apply_row(const permutation_t *P, normalized_IS_t *G);
-void permutation_apply_col(normalized_IS_t *G, const permutation_t *P);
-
-void diagonal_apply_row(diagonal_t *P, normalized_IS_t *G);
-void diagonal_apply_col(normalized_IS_t *G, diagonal_t *P);

@@ -170,7 +170,7 @@
 #define N8 ((N+7u)/8u)
 
 /// TODO
-#define N_K_pad (128)
+#define N_K_pad (N-K)
 
 /***************** Derived parameters *****************************************/
 
@@ -224,3 +224,6 @@
 // returns the maximum bytes the signature can occupy
 #define LESS_CRYPTO_MAX_BYTES (HASH_DIGEST_LENGTH*2 + N8*W + SEED_TREE_MAX_PUBLISHED_BYTES + 1)
 #define LESS_CRYPTO_BYTES(NR_LEAVES) (HASH_DIGEST_LENGTH*2 + N8*W + NR_LEAVES*SEED_LENGTH_BYTES + 1)
+
+// TODO
+//#define LESS_REUSE_PIVOTS

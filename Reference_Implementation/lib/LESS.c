@@ -145,7 +145,7 @@ size_t LESS_sign(const prikey_t *SK,
                                           sig->tree_salt,
                                           i);
 
-        // TODO
+        // TODO hide behind a compiler flag/preprocessor flag
         // prepare_digest_input_pivot_reuse(&V_array, &Q_bar[i], &full_G0, &Q_tilde, g0_initial_pivot_flags, SIGN_PIVOT_REUSE_LIMIT);
         prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde);
         const int t = cf5(&V_array);
@@ -189,15 +189,17 @@ size_t LESS_sign(const prikey_t *SK,
 
             monomial_mat_seed_expand_prikey(&Q_to_multiply,
                                             private_monomial_seeds[sk_monom_seed_to_expand_idx - 1]);
+            // NOTE: this function is simplify. We do not need the full monomial matrix.
             monomial_compose_action(&mono_action, &Q_to_multiply, &Q_bar[i]);
 
             cf_compress_monomial_IS_action(sig->cf_monom_actions[emitted_monoms], &mono_action);
             emitted_monoms++;
         }
     }
+    // TODO?
     assert(emitted_monoms == W);
 
-    sig->seed_storage[num_seeds_published*SEED_LENGTH_BYTES] = num_seeds_published;
+    sig->seed_storage[num_seeds_published*SEED_LENGTH_BYTES] = num_seeds_published; // TODO this needs to be changed
     return num_seeds_published;
 } /* end LESS_sign */
 
@@ -248,7 +250,7 @@ int LESS_verify(const pubkey_t *const PK,
                                               ephem_monomial_seeds + i * SEED_LENGTH_BYTES,
                                               sig->tree_salt,
                                               i);
-
+#if defined(LESS_REUSE_PIVOTS)
             // TODO half of these operations can be optimized away
             prepare_digest_input_pivot_reuse(&V_array,
                                              &Q_to_discard,
@@ -256,13 +258,14 @@ int LESS_verify(const pubkey_t *const PK,
                                              &Q_to_multiply,
                                              g_initial_pivot_flags,
                                              VERIFY_PIVOT_REUSE_LIMIT);
-          
-            // prepare_digest_input(&V_array,
-            //                      &Q_to_discard,
-            //                      &tmp_full_G,
-            //                      &Q_to_multiply);
+#else
+            prepare_digest_input(&V_array,
+                                 &Q_to_discard,
+                                 &tmp_full_G,
+                                 &Q_to_multiply);
+#endif
 
-            const int r = cf5(&V_array);
+            const int r = cf5_nonct(&V_array);
             if (r == 0) {
                 printf("cf5 failed\n");
                 return 0;// TODO
@@ -274,6 +277,7 @@ int LESS_verify(const pubkey_t *const PK,
                 return 0;
             }
 
+#if defined(LESS_REUSE_PIVOTS)
             apply_cf_action_to_G_with_pivots(&G_hat,
                                              &tmp_full_G,
                                              sig->cf_monom_actions[employed_monoms],
@@ -282,24 +286,36 @@ int LESS_verify(const pubkey_t *const PK,
             const int ret = generator_RREF_pivot_reuse(&G_hat, is_pivot_column,
                                                        g_permuted_pivot_flags,
                                                        VERIFY_PIVOT_REUSE_LIMIT);
-
-            // apply_cf_action_to_G(&G_hat, &tmp_full_G, sig->cf_monom_actions[employed_monoms]);
-            // const int ret = generator_RREF(&G_hat, is_pivot_column);
-            if(ret != 1) { return 0; }
-
-            // just copy the non IS
-            for (uint32_t k = 0; k < K; k++) {
-                for (uint32_t j = 0; j < N-K; j++) {
-                    V_array.values[k][j] = G_hat.values[k][j + K];
-                }
+#else
+            apply_cf_action_to_G(&G_hat, &tmp_full_G, sig->cf_monom_actions[employed_monoms]);
+            const int ret = generator_RREF(&G_hat, is_pivot_column);
+#endif
+            if(ret != 1) {
+                return 0;
             }
 
-            const int r = cf5(&V_array);
+            // TODO not CT, not correct if more than 1 col is not a pivot column. Somehow merge with the loop just below
+            // just copy the non IS
+            uint32_t ctr = 0, offset = K;
+            for(uint32_t j = 0; j < N-K; j++) {
+                if (is_pivot_column[j+K]) {
+                    ctr += 1;
+                    offset = K - ctr;
+                }
+
+                for (uint32_t t = 0; t < K; t++) {
+                    V_array.values[t][j] = G_hat.values[t][j + offset];
+                }
+
+                offset = K;
+            }
+
+            const int r = cf5_nonct(&V_array);
             if (r == 0) {
                 printf("cf5 wt=1 failed\n");
                 return 0;// TODO
             }
-            LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array, sizeof(normalized_IS_t));
+            LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array.values, sizeof(normalized_IS_t));
             employed_monoms++;
         }
     }
@@ -310,6 +326,5 @@ int LESS_verify(const pubkey_t *const PK,
 
     /* Squeeze output */
     LESS_SHA3_INC_FINALIZE(recomputed_digest, &state);
-
     return (verify(recomputed_digest, sig->digest, HASH_DIGEST_LENGTH) == 0);
 } /* end LESS_verify */

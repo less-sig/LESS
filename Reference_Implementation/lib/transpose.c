@@ -3,11 +3,10 @@
 
 #include "transpose.h"
 
-/// TODO doc
-/// @param dst
-/// @param src
-/// @param src_stride
-/// @param dst_stride
+/// \param dst[out]
+/// \param src[in] input bytes 8x8 matrix
+/// \param src_stride[in] in bytes
+/// \param dst_stride[in] in bytes
 void matrix_transpose8x8(uint8_t* dst,
                          const uint8_t* src,
                          const size_t src_stride,
@@ -64,6 +63,7 @@ void matrix_transpose8x8(uint8_t* dst,
 }
 
 /// Compute origin of the 64-block next to (rb, cb) in row-major order
+/// NOTE: internal function. Do no call directly.
 inline const uint8_t* next_block(const uint8_t *src,
                                  uint64_t rb,
                                  uint64_t cb,
@@ -79,9 +79,9 @@ inline const uint8_t* next_block(const uint8_t *src,
 }
 
 /// TODO doc
-/// @param dst
-/// @param src
-/// @param n
+/// \param dst
+/// \param src
+/// \param n
 void matrix_transpose_opt(uint8_t *dst,
                           const uint8_t *src,
                           const size_t n) {

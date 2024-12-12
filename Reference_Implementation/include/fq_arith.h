@@ -264,9 +264,9 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
 }
 
 ///
-/// @param out = in1[i]*in2[i] for i in range(N-K)
-/// @param in1
-/// @param in2
+/// /param out = in1[i]*in2[i] for i in range(N-K)
+/// /param in1
+/// /param in2
 static inline
 void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
     for (uint32_t col = 0; col < (N-K); col++) {
@@ -275,8 +275,8 @@ void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
 }
 
 /// invert a row
-/// @param out = in[i]**-1 for i in range(N-K)
-/// @param in
+/// /param out = in[i]**-1 for i in range(N-K)
+/// /param in
 static inline
 void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
     for (uint32_t col = 0; col < (N-K); col++) {
@@ -284,8 +284,8 @@ void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
     }
 }
 
-/// @param in
-/// @return 1 if all elements are the same
+/// /param in
+/// /return 1 if all elements are the same
 ///         0 else
 static inline
 uint32_t row_all_same(const FQ_ELEM *in) {
@@ -295,4 +295,18 @@ uint32_t row_all_same(const FQ_ELEM *in) {
         }
     }
     return 1;
+}
+
+/// TODO write ct version
+/// \param in
+/// \return 0 if no zero was found
+///         1 if the row contains a least a single 0
+static inline
+uint32_t row_contains_zero(const FQ_ELEM *in) {
+    for (uint32_t col = 0; col < N-K; col++) {
+        if (in[col] == 0) {
+            return 1;
+        }
+    }
+    return 0;
 }

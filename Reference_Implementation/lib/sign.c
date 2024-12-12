@@ -6,6 +6,7 @@
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
+ * @author Floyd Zweydinge <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *

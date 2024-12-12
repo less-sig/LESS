@@ -470,11 +470,11 @@ void lex_sort_cols(normalized_IS_t *V){
    col_lex_quicksort(V,0,(N-K)-1);
 }
 
-/// 
-/// @param V 
-/// @param Q_bar_IS
-/// @param G 
-/// @param Q_tilde
+/// TODO
+/// \param V
+/// \param Q_bar_IS
+/// \param G
+/// \param Q_tilde
 void prepare_digest_input(normalized_IS_t *V,
                           monomial_action_IS_t *Q_bar_IS,
                           const generator_mat_t *const G,
@@ -483,16 +483,26 @@ void prepare_digest_input(normalized_IS_t *V,
     memset(&G_dagger,0,sizeof(generator_mat_t));
     generator_monomial_mul(&G_dagger, G, Q_tilde);
 
-     uint8_t is_pivot_column[N] = {0};
+    uint8_t is_pivot_column[N] = {0};
     int rref_ok = generator_RREF(&G_dagger, is_pivot_column);
     /// TODO, this is kind of bad, should be removed, and proper error handling should be applied
     ASSERT(rref_ok != 0);
 
+
+    // TODO not CT, not correct if more than 1 col is not a pivot column. Somehow merge with the loop just below
     // just copy the non IS
-    for (uint32_t i = 0; i < K; i++) {
-        for (uint32_t j = 0; j < N-K; j++) {
-            V->values[i][j] = G_dagger.values[i][j + K];
+    uint32_t ctr = 0, offset = K;
+    for(uint32_t j = 0; j < N-K; j++) {
+        if (is_pivot_column[j+K]) {
+            ctr += 1;
+            offset = K - ctr;
         }
+
+        for (uint32_t i = 0; i < K; i++) {
+            V->values[i][j] = G_dagger.values[i][j + offset];
+        }
+
+        offset = K;
     }
 
     POSITION_T piv_idx = 0;
@@ -784,6 +794,8 @@ void compress_rref(uint8_t *compressed, const generator_mat_t *const full,
 void expand_to_rref(generator_mat_t *full,
                     const uint8_t *compressed,
                     uint8_t is_pivot_column[N]) {
+    /// TODO: this whole decompression code, can be removed. Specially since we moved to
+    /// the `reusage of pivots` strategy, which makes this very inefficient.
     // Decompress pivot flags
     for (int i = 0; i < N; i++) {
         is_pivot_column[i] = 0;
@@ -928,7 +940,8 @@ void generator_sf(generator_mat_t *res) {
     }
 }
 
-
+/// generates a K \times (N-K) identity matrix.
+/// \param V[in/out]
 void normalized_ind(normalized_IS_t *V) {
     for (uint32_t i = 0; i < K; ++i) {
         for (uint32_t j = 0; j < N-K; ++j) {
@@ -937,6 +950,8 @@ void normalized_ind(normalized_IS_t *V) {
     }
 }
 
+/// generates a
+/// @param V [in/out]
 void normalized_sf(normalized_IS_t *V) {
     normalized_ind(V);
 
@@ -958,24 +973,13 @@ void normalized_sf(normalized_IS_t *V) {
     }
 }
 
-/// NOTE: only for testing
-void normalized_rng(normalized_IS_t *V) {
-    randombytes((uint8_t *)V->values, K*(N-K));
-    const uint8_t mask = 0x7F;
-    for (uint32_t i = 0; i < K; ++i) {
-        for (uint32_t j = 0; j < K; ++j) {
-            V->values[i][j] &= mask;
-        }
-    }
-}
-
 // V1 =V2
 void normalized_copy(normalized_IS_t *V1,
                      const normalized_IS_t *V2) {
     memcpy(V1->values, V2->values, K * (N-K) * sizeof(FQ_ELEM));
 }
 
-/// \param G
+/// \param G: non IS part: G[row] *= a;
 /// \param row
 /// \param a
 void normalized_mat_scale_row(normalized_IS_t *G,
