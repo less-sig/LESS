@@ -67,6 +67,7 @@
 // #define   T (247)
 // #define   W ( 30)
 
+// NOTE: these are the possible new parameters
 #define NUM_KEYPAIRS (4)
 #define   T (68)
 #define   W (42)

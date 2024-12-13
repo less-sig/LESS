@@ -290,7 +290,10 @@ int compute_canonical_form_type5_ct(normalized_IS_t *G) {
 /// \param G
 /// \return
 int cf5(normalized_IS_t *G) {
-	return compute_canonical_form_type5_ct(G);
+    // return compute_canonical_form_type5_ct(G);
+    // TODO for speed reasons, we dont care about CT right now.
+    // TODO add the "blinding" feature proposed by Toni
+    return compute_canonical_form_type5_popcnt(G);
 }
 
 /// non-constant time implementation

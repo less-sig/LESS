@@ -150,9 +150,10 @@ size_t LESS_sign(const prikey_t *SK,
         prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde);
         const int t = cf5(&V_array);
         if (t == 0) {
+            *(ephem_monomial_seeds + i*SEED_LENGTH_BYTES) += 1;
             i -= 1;
             // TODO, what happens in this case?
-            printf("cf5 failed\n");
+            // printf("cf5 failed\n");
         } else {
             LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
         }
