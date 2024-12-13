@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "transpose.h"
 
@@ -85,9 +86,11 @@ inline const uint8_t* next_block(const uint8_t *src,
 void matrix_transpose_opt(uint8_t *dst,
                           const uint8_t *src,
                           const size_t n) {
+    // TODO: remove if unneeded
+    memset(dst, 0, n*n);
     const size_t bsize = 64;
 
-    if (n < 32) {
+    if (n < bsize) {
         for (uint32_t i = 0; i < n; i++) {
             for (uint32_t j = 0; j < n; j++) {
                 dst[j*n + i] = src[i*n + j];

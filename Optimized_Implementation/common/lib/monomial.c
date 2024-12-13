@@ -519,6 +519,55 @@ int is_monom_action_valid(const monomial_action_IS_t * const mono){
     return 1;
 }
 
+/// checks if the given (N+7/8) bytes are a valid
+/// canonical form action.
+/// \param mono
+/// \return true: if the weight is K
+///         false: if the weight is not K
+int is_cf_monom_action_valid(const uint8_t* const mono) {
+    uint32_t w = 0;
+    for (uint32_t i = 0; i < N8; i++) {
+        w += __builtin_popcount(mono[i]);
+    }
+
+    return w == K;
+}
+/// type5 compression
+/// \param compressed
+/// \param mono
+void cf_compress_monomial_IS_action(uint8_t *compressed,
+                                    const monomial_action_IS_t *mono) {
+    memset(compressed, 0, N8);
+    for (uint32_t i = 0; i < K; i++) {
+        const uint32_t limb = (mono->permutation[i])/8;
+        const uint32_t pos  = (mono->permutation[i])%8;
+        compressed[limb] ^= 1u << pos;
+    }
+}
+
+/// \param mono
+/// \param compressed
+void cf_expand_to_monom_action(monomial_action_IS_t *mono,
+                               const uint8_t *compressed) {
+    for (uint32_t i = 0; i < K; i++) {
+        mono->coefficients[i] = 1;
+    }
+    memset(mono->permutation, 0, K*sizeof(POSITION_T));
+
+    uint32_t ctr = 0;
+    for (uint32_t i = 0; i < N8; i++) {
+        uint8_t tmp = compressed[i];
+        while (tmp) {
+            const uint32_t pos = __builtin_ctz(tmp);
+            tmp ^= 1u << pos;
+
+            mono->permutation[ctr++] = i*8 + pos;
+        }
+    }
+
+    assert(ctr == K);
+}
+
 
 ////////////////////////////////////////////////////////////////////////
 ///                        Permutation                               ///

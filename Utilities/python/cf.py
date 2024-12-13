@@ -12,6 +12,7 @@ from fq import Fq
 from matrix import Matrix
 from permutation import Permutation
 
+
 def random_diagonal_matrix(k):
     """
     :param k: 
@@ -223,6 +224,43 @@ def case_4_CF(B: Matrix):
     return case_3_CF(Ap)
 
 
+def case_4_CF_tony(B: Matrix,
+                   nz:list ):
+    """
+    implements tonys improvement
+    :param B: matrix
+    :param nz: number of zeros in the matrix, in the current row
+    """
+    n = B.nrows 
+    m = B.ncols 
+    Ap = Matrix(n, m, q).zero()
+
+    print(nz)
+
+    for i in range(n):
+        s = [0 for _ in range(n)]
+        v = [t.get() for t in B[i]]
+        touched = False
+        for j in range(m):
+            if v[j] != 0:
+                touched = True
+                s[nz[j]] += v[j]
+
+        if not touched:
+            return False
+        
+        print(s)
+        t = 0
+        for j in range(len(s)):
+            if s[j] != 0:
+                t = pow(s[j], (q-2), q)
+                break
+
+        for j in range(len(s)):
+            Ap[i, j] = (t*v[j]) % q 
+
+    return case_3_CF(Ap)
+
 def sub_CF4(sub_A: Matrix, min_multiset):
     """
     faster CF4 for popcount cf5
@@ -245,6 +283,7 @@ def sub_CF4(sub_A: Matrix, min_multiset):
             exists = False
             continue
 
+        # TODO: 
         w = [s*A[i, j].get() for j in range(nc)]
         w.sort()
 
@@ -255,9 +294,51 @@ def sub_CF4(sub_A: Matrix, min_multiset):
     return exists, min_found
 
 
+def sub_CF4_tony(sub_A: Matrix,
+                 min_multiset: list,
+                 nz: list):
+    """
+    faster CF4 for popcount cf5 including tonys improvement
+    :param sub_A: sub matrix 
+    :param min_multiset: minimum multiset for current CF5
+    """
+    z = sub_A.nrows
+    nc = sub_A.ncols
+    exists = True
+    min_found = False
+    for i in range(z):
+        s = [Fq(0, q) for _ in range(nc)]
+        touched = False
+        for j in range(nc):
+            # can also remove this line
+            if sub_A[i, j] != Fq(0, q): 
+                touched = True
+                s[nz[j]] += sub_A[i, j]
+           
+        if not touched:
+            return False
+
+        t = 0
+        for j in range(len(s)):
+            if s[j] != 0:
+                # ret[r,:] = (v/s[j])[:]
+                t = pow(s[j].get(), (q-2), q)
+
+        w = [(t*A[i, j].get())%q for j in range(nc)]
+        w.sort()
+
+        # compute the multiset and see if its less
+        if lex_min_multisets(w, min_multiset) < 0:
+            min_found = True
+            return exists, min_found
+
+    return exists, min_found
+
+
 def case_5_CF(B: Matrix):
     """
     original version from the paper
+    :param B:
     """
     n = B.nrows 
     m = B.ncols 
@@ -327,10 +408,6 @@ def case_5_CF_popcnt(B: Matrix):
 
     scaled_sub_A = Matrix(len(J), nc, q)
     scaled_A = Matrix(nr, nc, q)
-    # TODO 
-
-    print(J, "\n")
-    print(row_has_zero)
 
     for i in range(k):
         # skip if i is in zero_rows (i-th row contains zeros for sure)
@@ -348,7 +425,86 @@ def case_5_CF_popcnt(B: Matrix):
 
             cf_exists, min_found = sub_CF4(scaled_sub_A, min_multiset)
             
-            print(scaled_sub_A, min_found)
+            # continue only if min_found = 1
+            if min_found:
+                #scale full matrix A
+                for ell in range(k):
+                    for j in range(k):
+                        scaled_A[ell,j] = B[ell,j]*coeffs[j]
+
+                #call CF4
+                t, _, B_i = case_4_CF(scaled_A)   
+                if t != -1 and lex_min_matrices(A_j, B_i):
+                    CF_fail = False
+                    A_j = B_i
+
+    if CF_fail:
+        return -1, -1, A_j
+    else:
+        return 0, 0, A_j
+
+
+def case_5_CF_tony(B: Matrix):
+    """
+    version from  based on counting zeros
+    """
+    nr = B.nrows  
+    nc = B.ncols
+    # this remains 1 if all matrices lead to a failure
+    CF_fail = 1 
+    min_multiset = [q-1 for i in range(nc)]
+    A_j = Matrix(nr, nc, q).set(q-1)
+
+    # count zeros in each row
+    max_zeros = 0
+    row_zeros = [0 for _ in range(nr)]
+    col_zeros = [0 for _ in range(nr)]
+    J = []
+    for i in range(nr):
+        #count zeros of row i
+        num_zeros = 0
+        for j in range(nc):
+            if A[i,j] == Fq(0):
+                num_zeros += 1
+
+        row_zeros[i] = num_zeros
+        if num_zeros > max_zeros:
+            J = [i]
+            max_zeros = num_zeros
+        else:
+            if num_zeros == max_zeros:
+                J.append(i)
+    
+    for i in range(nc):
+        for j in range(nr):
+            if A[i,j] == Fq(0):
+                col_zeros[j] += 1
+  
+    assert len(J) > 0
+    sub_A = Matrix(len(J), nc, q)
+    for i in range(len(J)):
+        for j in range(nc):
+            sub_A[i, j] = B[J[i], j]
+
+    scaled_sub_A = Matrix(len(J), nc, q)
+    scaled_A = Matrix(nr, nc, q)
+
+    for i in range(k):
+        # skip if i is in zero_rows (i-th row contains zeros for sure)
+        if not row_zeros[i]:
+            min_multiset = [A_j[0, j].get() for j in range(nc)]
+            min_multiset.sort()
+
+            #we first scale the rows indexed by J
+            coeffs = [pow(B[i, j].get(), (q-2), q) for j in range(nc)]
+            
+            #scale columns
+            for j in range(k):
+                for ell in range(len(J)):
+                    scaled_sub_A[ell,j] = sub_A[ell,j]*coeffs[j]
+
+            _, min_found = sub_CF4_tony(scaled_sub_A, min_multiset, col_zeros)
+            
             # continue only if min_found = 1
             if min_found:
                 #scale full matrix A
@@ -358,7 +514,8 @@ def case_5_CF_popcnt(B: Matrix):
 
 
                 #call CF4
-                t, _, B_i = case_4_CF(scaled_A)   
+                t, _, B_i = case_4_CF_tony(scaled_A, col_zeros)   
+                # t, _, B_i = case_4_CF(scaled_A)   
                 if t != -1 and lex_min_matrices(A_j, B_i):
                     CF_fail = False
                     A_j = B_i
@@ -403,6 +560,10 @@ print(B)
 
 _, _, B = case_5_CF_popcnt(A)
 print("B=CF5_pop(A)")
+print(B)
+
+_, _, B = case_5_CF_tony(A)
+print("B=CF5_tony(A)")
 print(B)
 exit(1)
 

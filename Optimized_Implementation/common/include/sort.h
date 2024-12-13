@@ -1,6 +1,10 @@
 #ifndef SORT_H
 #define SORT_H
 
+#include <stdlib.h>
+#include <stddef.h>
+#include <string.h>
+
 #include "monomial_mat.h"
 #include "codes.h"
 

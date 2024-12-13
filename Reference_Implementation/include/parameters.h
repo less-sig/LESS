@@ -63,9 +63,13 @@
 #define   N (252)
 #define   K (126)
 #define   Q (127)
-#define NUM_KEYPAIRS (  2)
-#define   T (247)
-#define   W ( 30)
+// #define   NUM_KEYPAIRS (2)
+// #define   T (247)
+// #define   W ( 30)
+
+#define NUM_KEYPAIRS (4)
+#define   T (68)
+#define   W (42)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
 
 #elif defined(INTERMEDIATE)
@@ -155,6 +159,24 @@
 #else
 #error define optimization corner in parameters.h
 #endif
+
+#elif defined(CATEGORY_6)
+// TODO remove
+#define SEED_LENGTH_BYTES (16)
+#define FQ_ELEM uint8_t
+#define FQ_DOUBLEPREC uint16_t
+#define FQ_TRIPLEPREC uint32_t
+#define POSITION_T uint8_t
+#define SEED_TREE_LABEL_T uint8_t
+
+#define   N (252)
+#define   K (126)
+#define   Q (127)
+#define   NUM_KEYPAIRS (4)
+#define   T (68)
+#define   W (42)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
+
 #else
 #error define category for parameters
 #endif
@@ -225,5 +247,5 @@
 #define LESS_CRYPTO_MAX_BYTES (HASH_DIGEST_LENGTH*2 + N8*W + SEED_TREE_MAX_PUBLISHED_BYTES + 1)
 #define LESS_CRYPTO_BYTES(NR_LEAVES) (HASH_DIGEST_LENGTH*2 + N8*W + NR_LEAVES*SEED_LENGTH_BYTES + 1)
 
-// TODO
+// TODO enable
 //#define LESS_REUSE_PIVOTS

@@ -141,6 +141,9 @@
 #define SEED_TREE_LABEL_T uint8_t
 
 
+#define K8 ((K+7u)/8u)
+#define N8 ((N+7u)/8u)
+
 
 /***************** Derived parameters *****************************************/
 /*length of the output of the cryptographic hash, in bytes */

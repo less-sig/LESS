@@ -303,13 +303,12 @@ int col_bitonic_sort_transposed(normalized_IS_t *G) {
     	P[i] = i;
     }
 
-    uint64_t r, i;
     uint64_t n = K;
 
     const uint64_t top = 1ul << (32 - __builtin_clz(K/2));
 
     for (uint64_t p = top; p > 0; p >>= 1) {
-        for (i = 0; i < n - p; ++i) {
+        for (uint64_t i = 0; i < n - p; ++i) {
             if (!(i & p)) {
                 // NOTE: here is a sign cast, this is needed, so the
             	// sign extension needed for the mask is a unsigned one.
@@ -321,11 +320,10 @@ int col_bitonic_sort_transposed(normalized_IS_t *G) {
             }
         }
 
-        i = 0;
         for (uint64_t q = top; q > p; q >>= 1) {
-            for (; i < n - q; ++i) {
+            for (uint64_t i = 0; i < n - q; ++i) {
                 if (!(i & p)) {
-                    for (r = q; r > p; r >>= 1) {
+                    for (uint64_t r = q; r > p; r >>= 1) {
 			            const uint32_t cmp = compare_rows_bitonic_sort(ptr, i+p, i + r);
                         const uintptr_t mask = -(1ull - (cmp >> 31));
                         cswap((uintptr_t *)(&ptr[i+p]), (uintptr_t *)(&ptr[i+r]), mask);

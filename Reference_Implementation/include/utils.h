@@ -48,6 +48,7 @@ void cswap_array(uintptr_t *a,
 
 void expand_digest_to_fixed_weight(uint8_t fixed_weight_string[T],
                                    const uint8_t digest[HASH_DIGEST_LENGTH]);
+
 int verify(const uint8_t *a,
            const uint8_t *b,
            const size_t len);

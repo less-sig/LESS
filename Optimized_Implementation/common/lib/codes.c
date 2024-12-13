@@ -51,6 +51,50 @@ void scale_row(generator_mat_t *G, const uint32_t row, const FQ_ELEM a) {
 		G->values[row][col] = fq_mul(G->values[row][col], a);
 	}
 }
+/* Calculate pivot flag array */
+void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t pivot_flag [N]) {
+    for (int i = 0; i < N; i = i + 1) {
+        pivot_flag[i] = 1;
+    }
+
+    for (int i = 0; i < K; i = i + 1) {
+        pivot_flag[G->column_pos[i]] = 0;
+    }
+}
+
+/// NOTE: not constant time
+/// @param res
+/// @param G
+/// @param c
+void apply_cf_action_to_G(generator_mat_t* res,
+                          const generator_mat_t *G,
+                          const uint8_t *const c) {
+    uint32_t l = 0, r = 0;
+    for (uint32_t i = 0; i < N8; i++) {
+        for (uint32_t j = 0; j < 8; j++) {
+            if ((i*8 + j) >= N) { goto finish; }
+
+            const uint8_t bit = (c[i] >> j) & 1u;
+            uint32_t pos;
+            if (bit) {
+                pos = l;
+                l += 1;
+            } else {
+                pos = K + r;
+                r += 1;
+            }
+
+            // copy the column
+            for (uint32_t k = 0; k < K; k++) {
+                res->values[k][pos] = G->values[k][i*8 + j];
+            }
+        }
+    }
+finish:
+    assert(l == K);
+    assert(r == (N-K));
+    return;
+}
 
 
 /* right-multiplies a generator by a monomial */
@@ -628,7 +672,8 @@ void compress_rref(uint8_t *compressed,
 
 /* Expands a compressed RREF generator matrix into a full one */
 void expand_to_rref(generator_mat_t *full,
-                        const uint8_t *compressed)
+                    const uint8_t *compressed, 
+                    const uint8_t *TODO)
 {
     // Decompress pivot flags
     uint8_t is_pivot_column[N_pad] = {0};

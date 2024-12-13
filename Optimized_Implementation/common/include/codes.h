@@ -46,6 +46,10 @@ typedef struct {
    FQ_ELEM values[K][N_K_pad];   /* values of the non-pivot columns */
 } normalized_IS_t;
 
+/* Calculate pivot flag array */
+void generator_get_pivot_flags (const rref_generator_mat_t *const G,
+                                uint8_t pivot_flag [N]);
+
 //
 void scale_row(generator_mat_t *G,
                const uint32_t row,
@@ -134,7 +138,8 @@ void compress_rref(uint8_t *compressed,
 
 /* Expands a compressed RREF generator matrix into a full one */
 void expand_to_rref(generator_mat_t *full,
-                        const uint8_t *compressed);
+                    const uint8_t *compressed,
+                    const uint8_t *TODO);
 
 /* Takes as input a compact RREF generator matrix, i.e. a set of N-K
  * columns and their position in the RREF and normalizes the columns themselves
@@ -157,6 +162,10 @@ int generator_gausselim(generator_mat_t *G);
 void apply_action_to_G(generator_mat_t* res,
                        const generator_mat_t* G,
                        const monomial_action_IS_t* Q_IS);
+//
+void apply_cf_action_to_G(generator_mat_t* res,
+                          const generator_mat_t *G,
+                          const uint8_t *const c);
 
 /* samples a random monomial matrix */
 void generator_rnd(generator_mat_t *res);

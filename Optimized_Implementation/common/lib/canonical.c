@@ -297,6 +297,6 @@ int cf5(normalized_IS_t *G) {
 /// \param G
 /// \return
 int cf5_nonct(normalized_IS_t *G) {
-    // return compute_canonical_form_type5(G);
-    return compute_canonical_form_type5_popcnt(G);
+    return compute_canonical_form_type5(G);
+    // return compute_canonical_form_type5_popcnt(G);
 }

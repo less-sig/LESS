@@ -49,27 +49,20 @@ int test_sorting_network_matrix(void) {
     memcpy((void *)G2.values, (void*)G1.values, sizeof(normalized_IS_t));
     memcpy((void *)G3.values, (void*)G1.values, sizeof(normalized_IS_t));
 
-    row_bubble_sort(&G1);
     row_bitonic_sort(&G2);
     row_quick_sort(&G3);
 
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < N-K; j++) {
-            if (G1.values[i][j] != G2.values[i][j]) {
-                normalized_pretty_print(&G1);
+            if (G2.values[i][j] != G3.values[i][j]) {
                 normalized_pretty_print(&G2);
-                printf("error1\n");
-                return 1;
-            }
-
-            if (G1.values[i][j] != G3.values[i][j]) {
-                normalized_pretty_print(&G1);
                 normalized_pretty_print(&G3);
-                printf("error2\n");
+                printf("error test_sorting_network_matrix\n");
                 return 1;
             }
         }
     }
+
     return 0;
 }
 
@@ -84,7 +77,6 @@ int test_col_sorting_network_matrix(void) {
 
     //normalized_pretty_print(&G1);
     lex_sort_cols(&G1);
-//    col_bitonic_sort(&G2);
     col_quicksort_transpose(&G3);//, 0, N - K - 1);
     col_bitonic_sort_transpose(&G4);
 
@@ -95,11 +87,6 @@ int test_col_sorting_network_matrix(void) {
 
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < N-K; j++) {
-            if (G1.values[i][j] != G2.values[i][j]) {
-                printf("error col sorting network2\n");
-                return 1;
-            }
-
             if (G1.values[i][j] != G3.values[i][j]) {
                 printf("error col sorting network3\n");
                 return 1;
@@ -115,9 +102,9 @@ int test_col_sorting_network_matrix(void) {
 }
 
 int main(void) {
-    // if (test_counting_sort()) return 1;
-    // if (test_sorting_network()) return 1;
-    // if (test_sorting_network_matrix()) return 1;
+    if (test_counting_sort()) return 1;
+    if (test_sorting_network()) return 1;
+    if (test_sorting_network_matrix()) return 1;
     if (test_col_sorting_network_matrix()) return 1;
 
     return 0;
