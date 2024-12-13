@@ -188,7 +188,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
       }
    }
 
-
    for(int row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
       int pivot_row = row_to_reduce;
       /*start by searching the pivot in the col = row*/
@@ -216,7 +215,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
          swap_rows(G->values[row_to_reduce],G->values[pivot_row]);
       }
       pivot_row = row_to_reduce; /* row with pivot now in place */
-
 
       /* Compute rescaling factor */
       FQ_DOUBLEPREC scaling_factor = fq_inv(G->values[pivot_row][pivot_column]);
@@ -530,6 +528,7 @@ void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
                                       const int pvt_reuse_limit) {
    uint8_t g_permuated_pivot_flags[N];
    generator_mat_t G_dagger;
+    // TODO unneeded
    memset(&G_dagger,0,sizeof(generator_mat_t));
    generator_monomial_mul(&G_dagger, G, Q_tilde);
 
@@ -976,7 +975,7 @@ void normalized_sf(normalized_IS_t *V) {
 // V1 =V2
 void normalized_copy(normalized_IS_t *V1,
                      const normalized_IS_t *V2) {
-    memcpy(V1->values, V2->values, K * (N-K) * sizeof(FQ_ELEM));
+    memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
 }
 
 /// \param G: non IS part: G[row] *= a;
@@ -994,7 +993,7 @@ void normalized_mat_scale_row(normalized_IS_t *G,
 /// \param V
 /// \param col
 /// \return 0 if the column is zero
-///         1 if the columns is non zero
+///         1 if the columns is non-zero
 int normalized_is_zero_column(const normalized_IS_t *const V,
                               const uint32_t col) {
     for (uint32_t i = 0; i < K; i++) {

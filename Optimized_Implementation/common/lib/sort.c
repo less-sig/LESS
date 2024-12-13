@@ -92,6 +92,7 @@ __m256i sortingnetwork_sort_u8x32_(__m256i v) {
 	COEX_u8x32(v, t, tmp);
     v = _mm256_blendv_epi8(v, t, _mm256_set1_epi16(0xFF));
 
+    /// TODO im not happy with this
     __m128i tmp_;
     __m128i L1 = _mm256_extractf128_si256(v, 0);
     __m128i H1 = _mm256_extractf128_si256(v, 1);
@@ -336,6 +337,33 @@ void bitonic_sort_i8(FQ_ELEM *x,
     }
 }
 
+/// \param ptr[in/out]: pointer to the row to sort
+/// \param len[in]: length of the row
+void row_sort(uint8_t *ptr, 
+              const uint32_t len) {
+    sortingnetwork(ptr, len);
+}
+
+/// \input row1[in]:
+/// \input row2[in]:
+/// \return: 0 if multiset(row1) == multiset(row2)
+///          x if row1 > row2
+///         -x if row1 < row2
+int compare_rows(const FQ_ELEM *row1,
+                 const FQ_ELEM *row2) {
+    uint32_t i = 0; 
+    while((i < (N-K)) && (row1[i] == row2[i])) {
+        i += 1;
+    }
+
+    // if they are the same, they generate the same multiset
+    if (i >= (N-K)) {
+        return 0;
+    }
+
+    return (int)row1[i] - (int)row2[i];
+}
+
 /// NOTE: helper function for type3 canonical form.
 /// NOTE: specially made for the bitonic sort, which
 ///		operates on pointers.
@@ -454,11 +482,7 @@ int row_quick_sort(normalized_IS_t *G) {
     uint32_t P[K];
 	for (uint32_t i = 0; i < K; ++i) {
 		memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
-#ifdef USE_AVX2 // TODO remove
-        sortingnetwork(tmp[i], N-K);
-#else
-        counting_sort_u8(tmp[i], N-K);
-#endif
+        row_sort(tmp[i], N-K);
 
         ptr[i] = tmp[i];
         P[i] = i;
@@ -582,11 +606,7 @@ int row_bitonic_sort(normalized_IS_t *G) {
     uint32_t P[K];
     for (uint32_t i = 0; i < K; ++i) {
         memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
-#ifdef USE_AVX2
-        sortingnetwork(tmp[i], N-K);
-#else
-        counting_sort_u8(tmp[i], N-K);
-#endif
+        row_sort(tmp[i], N-K);
 
         ptr[i] = tmp[i];
         P[i] = i;

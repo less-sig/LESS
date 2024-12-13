@@ -192,8 +192,8 @@ DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
 /// NOTE: these functions are outsourced to this file, to make the
 /// optimizied implementation as easy as possible.
 /// accumulates a row
-/// @param d
-/// @return sum(d) for _ in range(N-K)
+/// \param d
+/// \return sum(d) for _ in range(N-K)
 static inline
 FQ_ELEM row_acc(const FQ_ELEM *d) {
     vec256_t s, t, c1, c127;
@@ -211,11 +211,12 @@ FQ_ELEM row_acc(const FQ_ELEM *d) {
 }
 
 /// accumulates the inverse of a row
-/// @param d
-/// @return sum(d[i]**-1) for i in range(N-K)
+/// \param d
+/// \return sum(d[i]**-1) for i in range(N-K)
 static inline
 FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
-    FQ_ELEM inv_data[N_K_pad] = {0}; // TODO actually only the last pos need to be 0
+    // TODO actually only the last pos need to be 0
+    FQ_ELEM inv_data[N_K_pad] = {0}; 
     for (uint32_t col = 0; col < (N-K); col++) {
         inv_data[col] = fq_inv(d[col]);
 	 }
@@ -225,8 +226,8 @@ FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
 
 /// scalar multiplication of a row
 /// NOTE: not a full reduction
-/// @param row[in/out] *= s for _ in range(N-K)
-/// @param s
+/// \param row[in/out] *= s for _ in range(N-K)
+/// \param s
 static inline
 void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
     vec256_t shuffle, t, c8_127, c8_1, r, b, a, a_lo, a_hi, b_lo, b_hi;
@@ -268,9 +269,9 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
 }
 
 /// scalar multiplication of a row
-/// @param out = s*in[i] for i in range(N-K)
-/// @param in
-/// @param s
+/// \param out = s*in[i] for i in range(N-K)
+/// \param in
+/// \param s
 static inline
 void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
     vec256_t shuffle, t, c8_127, c8_1, r, b, a, a_lo, a_hi, b_lo, b_hi;
@@ -312,9 +313,9 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
 }
 
 ///
-/// @param out = in1[i]*in2[i] for i in range(N-K)
-/// @param in1
-/// @param in2
+/// \param out = in1[i]*in2[i] for i in range(N-K)
+/// \param in1
+/// \param in2
 static inline
 void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
 
@@ -355,8 +356,8 @@ void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
 }
 
 /// invert a row
-/// @param out = in[i]**-1 for i in range(N-K)
-/// @param in
+/// \param out[out]: in[i]**-1 for i in range(N-K)
+/// \param in [in]
 static inline
 void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
     for (uint32_t col = 0; col < (N-K); col++) {
@@ -364,9 +365,9 @@ void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
     }
 }
 
-/// TODO avx512 optimized version (it has a special instruction for stuff like)
-/// @param in
-/// @return 1 if all elements are the same
+/// TODO avx512 optimized version (it has a special instruction for stuff like this)
+/// \param in
+/// \return 1 if all elements are the same
 ///         0 else
 static inline
 uint32_t row_all_same(const FQ_ELEM *in) {
@@ -382,4 +383,22 @@ uint32_t row_all_same(const FQ_ELEM *in) {
 
     const uint32_t t3 = vmovemask8(acc);
     return t3 == -1u;
+}
+
+/// \param in[in] row
+/// \return 1 if a zero was found
+///         0 else
+static inline
+uint32_t row_contains_zero(const FQ_ELEM *in) {
+    vec256_t t1, t2, acc;
+    vset8(t2, 0);
+    vset8(acc, 0);
+    for (uint32_t col = 0; col < N_K_pad; col += 32) {
+        vload256(t1, (vec256_t *)(in + col));
+        vcmp8(t1, t1, t2);
+        vxor(acc, acc, t1);
+    }
+    
+        const uint32_t t3 = vmovemask8(acc);
+    return t3 == 0;
 }

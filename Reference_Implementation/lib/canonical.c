@@ -11,7 +11,7 @@
 
 /// NOTE: non ct
 /// NOTE: computes the result inplace
-/// first sort the rows, than the columns
+/// first sort the rows, then the columns
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
 int compute_canonical_form_type3(normalized_IS_t *G) {
@@ -24,7 +24,7 @@ int compute_canonical_form_type3(normalized_IS_t *G) {
 
 /// NOTE: constant time impl
 /// computes the result inplace
-/// first sort the rows, than the columns
+/// first sort the rows, then the columns
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
 int compute_canonical_form_type3_ct(normalized_IS_t *G) {
@@ -64,7 +64,7 @@ int compute_canonical_form_type4_ct(normalized_IS_t *G) {
 	return compute_canonical_form_type3_ct(G);
 }
 
-/// NOTE: non constant time
+/// NOTE: non-constant time
 /// NOTE: computes the result inplace
 /// \return 0 on failure:
 /// 			- compute_power_column fails.
@@ -88,7 +88,7 @@ int compute_canonical_form_type4(normalized_IS_t *G) {
 	return compute_canonical_form_type3(G);
 }
 
-/// NOTE: non constant time
+/// NOTE: non-constant time
 /// \param G[in] sub matrix with only z rows
 /// \param z[in] number of rows in G
 /// \param min_multiset[in]
@@ -140,7 +140,7 @@ int compare_matrices(const normalized_IS_t *V1,
 	return 0;
 }
 
-/// NOTE: non constant time
+/// NOTE: non-constant time
 /// NOTE: computes the result inplace
 /// \return 0 on failure
 /// 		1 on success
@@ -173,7 +173,7 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
 	return 1;
 }
 
-/// NOTE: non constant time
+/// NOTE: non-constant time
 /// NOTE: computes the result inplace
 /// \return 0 on failure
 /// 		1 on success
@@ -220,6 +220,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 	FQ_ELEM min_multiset[N_K_pad];
 	FQ_ELEM row_inv_data[N_K_pad];
 
+	/// NOTE: this is already "sorted"
 	memset(min_multiset, Q-1, N-K);
 	for (uint32_t row = 0; row < K; row++) {
         if (row_has_zero[row]) { continue; }
@@ -230,7 +231,6 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 		}
 
         if (compute_canonical_form_type4_sub(&scaled_sub_G, z, min_multiset)) {
-            // row_inv2(row_inv_data, G->values[row]);
             for (uint32_t row2 = 0; row2 < K; row2++) {
                 row_mul3(Aj.values[row2], G->values[row2], row_inv_data);
             }
@@ -286,17 +286,17 @@ int compute_canonical_form_type5_ct(normalized_IS_t *G) {
     return 1;
 }
 
-/// 
+/// constant time implementation
 /// \param G
 /// \return
 int cf5(normalized_IS_t *G) {
-	// return compute_canonical_form_type5_ct(G);
-    return compute_canonical_form_type5(G);
+	return compute_canonical_form_type5_ct(G);
 }
 
-///
+/// non-constant time implementation
 /// \param G
 /// \return
 int cf5_nonct(normalized_IS_t *G) {
-    return compute_canonical_form_type5(G);
+    // return compute_canonical_form_type5(G);
+    return compute_canonical_form_type5_popcnt(G);
 }

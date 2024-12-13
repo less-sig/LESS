@@ -9,6 +9,18 @@
 
 #define ITERS (1u << 12u)
 
+
+/// NOTE: only for testing
+void normalized_rng(normalized_IS_t *V) {
+    randombytes((uint8_t *)V->values, K*(N-K));
+    const uint8_t mask = 0x7F;
+    for (uint32_t i = 0; i < K; ++i) {
+        for (uint32_t j = 0; j < K; ++j) {
+            V->values[i][j] &= mask;
+        }
+    }
+}
+
 int bench_cf3(void) {
     normalized_IS_t G1, G2;
 
@@ -78,7 +90,8 @@ int bench_cf5(void) {
 	printf("cf5:\n");
     uint64_t c = 0, c1, ctr = 0;
     for (uint64_t i = 0; i < ITERS; i++) {
-		normalized_copy(&G1, &G2);
+		// normalized_copy(&G1, &G2);
+        normalized_rng(&G1);
 
         c -= x86_64_rtdsc();
         ctr += compute_canonical_form_type5(&G1);
@@ -90,15 +103,16 @@ int bench_cf5(void) {
 
     c = 0; ctr = 0;
     for (uint64_t i = 0; i < ITERS; i++) {
-        normalized_copy(&G1, &G2);
+        // normalized_copy(&G1, &G2);
+        normalized_rng(&G1);
 
         c -= x86_64_rtdsc();
-        ctr += compute_canonical_form_type5_ct(&G1);
+        ctr += compute_canonical_form_type5_popcnt(&G1);
         c += x86_64_rtdsc();
     }
 
     c = c/ITERS;
-    printf("ct: %ld cyc, ctr: %ld\n", c, ctr);
+    printf("pop: %ld cyc, ctr: %ld\n", c, ctr);
     printf("factor %lf\n\n", (double)c/(double)c1);
     return 0;
 }

@@ -488,7 +488,7 @@ void apply_action_to_G(generator_mat_t* res,
 // V1 =V2
 void normalized_copy(normalized_IS_t *V1,
                      const normalized_IS_t *V2) {
-    memcpy(V1->values, V2->values, K * (N-K) * sizeof(FQ_ELEM));
+    memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
 }
 
 /// TODO remove, currently only needed for debugging cf
