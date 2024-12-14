@@ -4,8 +4,7 @@
  *
  * @version 1.1 (March 2023)
  *
- * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
- * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -36,67 +35,15 @@
 #include "keccakf1600.h"
 #include "sha3.h"
 
-void LESS_keygen(prikey_t *SK,
-                 pubkey_t *PK) {
-    /* generating private key from a single seed */
-    randombytes(SK->compressed_sk, PRIVATE_KEY_SEED_LENGTH_BYTES);
-    /* expanding it onto private (inverse) monomial seeds */
-    SHAKE_STATE_STRUCT sk_shake_state;
-    initialize_csprng(&sk_shake_state, SK->compressed_sk, PRIVATE_KEY_SEED_LENGTH_BYTES);
-
-    /* The first private key monomial is an ID matrix, no need for random
-     * generation, hence NUM_KEYPAIRS-1 */
-    unsigned char private_monomial_seeds[NUM_KEYPAIRS - 1][PRIVATE_KEY_SEED_LENGTH_BYTES];
-    for (uint32_t i = 0; i < NUM_KEYPAIRS - 1; i++) {
-        csprng_randombytes(private_monomial_seeds[i],
-                           PRIVATE_KEY_SEED_LENGTH_BYTES,
-                           &sk_shake_state);
-    }
-
-    /* Generating public code G_0 */
-    randombytes(SK->G_0_seed, SEED_LENGTH_BYTES);
-    memcpy(PK->G_0_seed, SK->G_0_seed, SEED_LENGTH_BYTES);
-
-    rref_generator_mat_t G0_rref;
-    generator_SF_seed_expand(&G0_rref, SK->G_0_seed);
-
-    generator_mat_t tmp_full_G;
-    generator_rref_expand(&tmp_full_G, &G0_rref);
-    uint8_t is_pivot_column[N];
-
-    /* note that the first "keypair" is just the public generator G_0, stored
-     * as a seed and the identity matrix (not stored) */
-    for (uint32_t i = 0; i < NUM_KEYPAIRS - 1; i++) {
-        /* expand inverse monomial from seed */
-        monomial_t private_Q;
-        monomial_t private_Q_inv;
-        monomial_mat_seed_expand_prikey(&private_Q_inv, private_monomial_seeds[i]);
-        monomial_mat_inv(&private_Q, &private_Q_inv);
-
-        generator_mat_t result_G;
-        generator_monomial_mul(&result_G,
-                               &tmp_full_G,
-                               &private_Q);
-        memset(is_pivot_column, 0, sizeof(is_pivot_column));
-        generator_RREF(&result_G, is_pivot_column);
-        /* note that the result is stored at i-1 as the first
-         * public key element is just a seed */
-        compress_rref(PK->SF_G[i],
-                      &result_G,
-                      is_pivot_column);
-    }
-} /* end LESS_keygen */
-
-/// returns the number of opened seeds in the tree.
 /// \param SK
 /// \param m
 /// \param mlen
 /// \param sig
-/// \return
-size_t LESS_sign(const prikey_t *SK,
-               const char *const m,
-               const uint64_t mlen,
-               sign_t *sig) {
+/// \return TODO
+uint32_t LESS_without_tree_sign(const prikey_t *SK,
+                                const char *const m,
+                                const uint64_t mlen,
+                                sign_t *sig) {
     uint8_t g0_initial_pivot_flags [N];
 
     /*         Private key expansion        */
