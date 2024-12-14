@@ -87,6 +87,9 @@ void LESS_keygen(prikey_t *SK,
     }
 } /* end LESS_keygen */
 
+// TODO, quick and dirty hack
+#ifdef CATEGORY_1
+
 /// returns the number of opened seeds in the tree.
 /// \param SK
 /// \param m
@@ -94,9 +97,9 @@ void LESS_keygen(prikey_t *SK,
 /// \param sig
 /// \return
 size_t LESS_sign(const prikey_t *SK,
-               const char *const m,
-               const uint64_t mlen,
-               sign_t *sig) {
+                 const char *const m,
+                 const uint64_t mlen,
+                 sign_t *sig) {
     uint8_t g0_initial_pivot_flags [N];
 
     /*         Private key expansion        */
@@ -329,3 +332,5 @@ int LESS_verify(const pubkey_t *const PK,
     LESS_SHA3_INC_FINALIZE(recomputed_digest, &state);
     return (verify(recomputed_digest, sig->digest, HASH_DIGEST_LENGTH) == 0);
 } /* end LESS_verify */
+
+#endif

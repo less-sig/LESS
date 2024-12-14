@@ -244,9 +244,17 @@
 #define LESS_CRYPTO_PUBLICKEYBYTES (NUM_KEYPAIRS*RREF_MAT_PACKEDBYTES)
 #define LESS_CRYPTO_SECRETKEYBYTES ((NUM_KEYPAIRS-1)*SEED_LENGTH_BYTES + RREF_MAT_PACKEDBYTES)
 
+#ifdef CATEGORY_1
+
 // returns the maximum bytes the signature can occupy
 #define LESS_CRYPTO_MAX_BYTES (HASH_DIGEST_LENGTH*2 + N8*W + SEED_TREE_MAX_PUBLISHED_BYTES + 1)
 #define LESS_CRYPTO_BYTES(NR_LEAVES) (HASH_DIGEST_LENGTH*2 + N8*W + NR_LEAVES*SEED_LENGTH_BYTES + 1)
+#else
+// returns the maximum bytes the signature can occupy
+#define LESS_CRYPTO_MAX_BYTES (HASH_DIGEST_LENGTH + N8*T)
+#define LESS_CRYPTO_BYTES (HASH_DIGEST_LENGTH + N8*T)
+#endif
 
-// TODO enable
+
+// TODO enable, currently disable because I want to benchmark it first
 //#define LESS_REUSE_PIVOTS

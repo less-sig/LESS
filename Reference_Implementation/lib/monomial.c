@@ -98,6 +98,17 @@ void monomial_mat_seed_expand_prikey(monomial_t *res,
 } /* end monomial_mat_seed_expand */
 
 
+void monomial_mat_seed_expand_rnd(monomial_t *res,
+                                  SHAKE_STATE_STRUCT *shake_monomial_state) {
+   fq_star_rnd_state_elements(shake_monomial_state, res->coefficients, N);
+   for(uint32_t i = 0; i < N; i++) {
+      res->permutation[i] = i;
+   }
+
+   /* FY shuffle on the permutation */
+   yt_shuffle_state(shake_monomial_state, res->permutation);
+}
+
 /* samples a random perm matrix */
 void monomial_mat_rnd(monomial_t *res) {
    fq_star_rnd_elements(res->coefficients, N);

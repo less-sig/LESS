@@ -99,6 +99,10 @@ void monomial_mat_seed_expand_salt_rnd(monomial_t *res,
 void monomial_mat_seed_expand_prikey(monomial_t *res,
                                      const unsigned char seed[PRIVATE_KEY_SEED_LENGTH_BYTES]);
 
+///
+void monomial_mat_seed_expand_rnd(monomial_t *res,
+                                       SHAKE_STATE_STRUCT *shake_monomial_state);
+
 /* yields the identity matrix */
 void monomial_mat_id(monomial_t *res);
 
