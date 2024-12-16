@@ -97,7 +97,6 @@ int compute_canonical_form_type4(normalized_IS_t *G) {
 int compute_canonical_form_type4_sub(normalized_IS_t *G,
                                      const uint32_t z,
                                      const FQ_ELEM *min_multiset) {
-    
     for (uint32_t i = 0; i < z; i++) {
 		FQ_ELEM s = row_acc(G->values[i]);
 
@@ -110,13 +109,14 @@ int compute_canonical_form_type4_sub(normalized_IS_t *G,
 
 		row_mul(G->values[i], s);
         row_sort(G->values[i], N-K);
-        if (compare_rows(G->values[i], min_multiset) < 0) {
+        if (compare_rows(G->values[i], min_multiset) <= 0) {
             return 1;
         }
     }
     return 0;
 }
 
+/// NOTE: non-constant time
 /// implements a total order on matrices
 /// we simply compare the columns lexicographically
 /// \return -x if V2 > V1
@@ -149,7 +149,7 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
     int touched = 0;
 
 	// init the output matrix to some `invalid` data
-	memset(&smallest.values, Q-1, K*(N-K));
+	memset(&smallest.values, Q-1, sizeof(normalized_IS_t));
 
 	FQ_ELEM row_inv_data[N_K_pad];
 	for (uint32_t row = 0; row < K; row++) {
@@ -182,7 +182,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
     int touched = 0;
 
 	// init the output matrix to some `invalid` data
-	memset(&smallest.values, Q-1, K*(N-K));
+	memset(&smallest.values, Q-1, sizeof(normalized_IS_t));
 
 	FQ_ELEM J[N-K];
     uint32_t z = 0;
@@ -200,14 +200,15 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
             row_has_zero[row] = 1;
         }
 
-        if (num_zeros == max_zeros) {
-            J[z++] = row; 
-        }
-
         if (num_zeros > max_zeros) {
             z = 1;
             J[0] = row;
             max_zeros = num_zeros;
+        	continue;
+        }
+
+        if (num_zeros == max_zeros) {
+            J[z++] = row; 
         }
     }
 
@@ -221,7 +222,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 	FQ_ELEM row_inv_data[N_K_pad];
 
 	/// NOTE: this is already "sorted"
-	memset(min_multiset, Q-1, N-K);
+	memset(min_multiset, Q-1, N_K_pad);
 	for (uint32_t row = 0; row < K; row++) {
         if (row_has_zero[row]) { continue; }
 
@@ -240,9 +241,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 		    	touched = 1;
 		    	normalized_copy(&smallest, &Aj);
 
-				memcpy(min_multiset, smallest.values[0], N-K);
-				// should be already sorted
-                // row_sort(min_multiset, N-K);
+				memcpy(min_multiset, smallest.values[0], N_K_pad);
 		    }
         }
 	}
@@ -262,7 +261,7 @@ int compute_canonical_form_type5_ct(normalized_IS_t *G) {
     int touched = 0;
 
     // init the output matrix to some `invalid` data
-    memset(&smallest.values, Q-1, K*(N-K));
+	memset(&smallest.values, Q-1, sizeof(normalized_IS_t));
 
     FQ_ELEM row_inv_data[N_K_pad];
     for (uint32_t row = 0; row < K; row++) {

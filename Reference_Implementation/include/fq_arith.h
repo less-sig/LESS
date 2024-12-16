@@ -217,8 +217,8 @@ DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
 /// NOTE: these functions are outsourced to this file, to make the
 /// optimizied implementation as easy as possible.
 /// accumulates a row
-/// @param d
-/// @return sum(d) for _ in range(N-K)
+/// \param d
+/// \return sum(d) for _ in range(N-K)
 static inline
 FQ_ELEM row_acc(const FQ_ELEM *d) {
     FQ_ELEM s = 0;
@@ -230,8 +230,8 @@ FQ_ELEM row_acc(const FQ_ELEM *d) {
 }
 
 /// accumulates the inverse of a row
-/// @param d
-/// @return sum(d) for _ in range(N-K)
+/// \param d
+/// \return sum(d) for _ in range(N-K)
 static inline
 FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
     FQ_ELEM s = 0;
@@ -243,8 +243,8 @@ FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
 }
 
 /// scalar multiplication of a row
-/// @param row[in/out] *= s for _ in range(N-K)
-/// @param s
+/// /param row[in/out] *= s for _ in range(N-K)
+/// /param s
 static inline
 void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
     for (uint32_t col = 0; col < (N-K); col++) {
@@ -253,9 +253,9 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
 }
 
 /// scalar multiplication of a row
-/// @param out = s*in[i] for i in range(N-K)
-/// @param in
-/// @param s
+/// \param out = s*in[i] for i in range(N-K)
+/// \param in
+/// \param s
 static inline
 void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
     for (uint32_t col = 0; col < (N-K); col++) {
@@ -264,9 +264,9 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
 }
 
 ///
-/// /param out = in1[i]*in2[i] for i in range(N-K)
-/// /param in1
-/// /param in2
+/// \param out = in1[i]*in2[i] for i in range(N-K)
+/// \param in1
+/// \param in2
 static inline
 void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
     for (uint32_t col = 0; col < (N-K); col++) {
@@ -275,8 +275,8 @@ void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
 }
 
 /// invert a row
-/// /param out = in[i]**-1 for i in range(N-K)
-/// /param in
+/// \param out = in[i]**-1 for i in range(N-K)
+/// \param in
 static inline
 void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
     for (uint32_t col = 0; col < (N-K); col++) {
@@ -284,8 +284,8 @@ void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
     }
 }
 
-/// /param in
-/// /return 1 if all elements are the same
+/// \param in
+/// \return 1 if all elements are the same
 ///         0 else
 static inline
 uint32_t row_all_same(const FQ_ELEM *in) {

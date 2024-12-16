@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "transpose.h"
+#include "parameters.h"
 
 ///
 /// @param dst
@@ -86,11 +87,13 @@ void matrix_transpose_opt(uint8_t *dst,
                           const uint8_t *src,
                           const size_t n) {
     const size_t bsize = 64;
+    // stride
+    const size_t s = N_K_pad;
 
     if (n < 32) {
         for (uint32_t i = 0; i < n; i++) {
             for (uint32_t j = 0; j < n; j++) {
-                dst[j*n + i] = src[i*n + j];
+                dst[j*s + i] = src[i*s + j];
             }
         }
 
@@ -100,14 +103,14 @@ void matrix_transpose_opt(uint8_t *dst,
     uint64_t rb = 0;
     for (; rb < n / bsize; rb++) {
         for (uint64_t cb = 0; cb < n / bsize; cb++) {
-            const uint8_t *srcb_origin = src + (rb * n + cb) * bsize;
-                  uint8_t *dstb_origin = dst + (cb * n + rb) * bsize;
+            const uint8_t *srcb_origin = src + (rb * s + cb) * bsize;
+                  uint8_t *dstb_origin = dst + (cb * s + rb) * bsize;
 
             for (size_t rw = 0; rw < 64 / 8; rw++) {
                 for (size_t cw = 0; cw < 64 / 8; cw++) {
-                    const uint8_t *srcw_origin = srcb_origin + (cw * n + rw) * 8;
-                          uint8_t *dstw_origin = dstb_origin + (rw * n + cw) * 8;
-                    matrix_transpose8x8(dstw_origin, srcw_origin, n, n);
+                    const uint8_t *srcw_origin = srcb_origin + (cw * s + rw) * 8;
+                          uint8_t *dstw_origin = dstb_origin + (rw * s + cw) * 8;
+                    matrix_transpose8x8(dstw_origin, srcw_origin, s, s);
                 }
             }
         }
@@ -120,13 +123,13 @@ void matrix_transpose_opt(uint8_t *dst,
         // solve the last columns
         for (uint32_t i = rb*bsize; i < n; i++) {
             for(uint32_t j = 0; j < n; j++) {
-                dst[j*n + i] = src[i*n + j];
+                dst[j*s + i] = src[i*s + j];
             }
         }
         // solve the last rows
         for (uint32_t i = 0; i < n; i++) {
             for(uint32_t j = rb*bsize; j < n; j++) {
-                dst[j*n + i] = src[i*n + j];
+                dst[j*s + i] = src[i*s + j];
             }
         }
     }

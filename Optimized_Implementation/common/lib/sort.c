@@ -55,6 +55,7 @@ static inline void sortingnetwork_reverse_u8x32(__m256i *a) {
 	*a =_mm256_shuffle_epi8(p, mask);
 }
 
+/// TODO doc
 __m256i sortingnetwork_sort_u8x32(__m256i v) {
     __m256i t = v, tmp;
     t = _mm256_shuffle_epi8(t, _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]));
@@ -133,6 +134,52 @@ __m256i sortingnetwork_sort_u8x32(__m256i v) {
     return _mm256_set_m128i(kh, kl);
 }
 
+///
+static inline void sortingnetwork_aftermergesort_u8x32(__m256i *a)  {
+	__m256i mask, tmp, L0;
+    L0 = (__m256i)_mm256_permute_ps((__m256)*a, 0b10110001);
+
+	// 3
+    COEX_u8x32(*a, L0, tmp);
+	mask = _mm256_set1_epi64x(0xFFFFFFFF);
+	L0 = _mm256_blendv_epi8(L0, *a, mask);
+
+	// 4
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[0]);
+	__m256i L4p = _mm256_shuffle_epi8(L0, mask);
+    COEX_u8x32(L0, L4p, tmp);
+	mask = _mm256_set1_epi16(0x00FF);
+	L0 = _mm256_blendv_epi8(L4p, L0, mask);
+
+	// 5
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[6]);
+	__m256i L5p = _mm256_shuffle_epi8(L0, mask);
+    COEX_u8x32(L0, L5p, tmp);
+	mask = _mm256_set1_epi32(0x0000FFFF);
+	L0 = _mm256_blendv_epi8(L5p, L0, mask);
+
+	mask = _mm256_load_si256((__m256i *)sortingnetwork_u8x32_shuffle_masks[7]);
+	__m256i L6p = _mm256_shuffle_epi8(L0, mask);
+    COEX_u8x32(L0, L6p, tmp);
+	mask = _mm256_set1_epi32(0x0000FF00);
+	*a = _mm256_blendv_epi8(L6p, L0, mask);
+}
+
+// implementation of `simd_aftermerge_4V`
+static inline void sortingnetwork_aftermerge_u8x32(__m256i *a) {
+	__m256i tmp, L0 = *a;
+
+    __m256i L1p = _mm256_permute2x128_si256(L0, L0, 0b00000001);
+    COEX_u8x32(L0, L1p, tmp);
+	L0 = _mm256_blend_epi32(L0, L1p, 0b11110000);
+
+	// 2 (a b, a c)
+	__m256i L2p = _mm256_permute4x64_epi64(L0, 0b10110001);
+    COEX_u8x32(L0, L2p, tmp);
+	*a = _mm256_blend_epi32(L0, L2p, 0b11001100);
+
+    sortingnetwork_aftermergesort_u8x32(a);
+}
 
 /// implementation of 8 parallel "simd_aftermerge_1V",  NOT the implementation of 2 parallel `simd_aftermerge_2V`
 static inline void sortingnetwork_aftermergesort_u8x64(__m256i *a,
@@ -331,6 +378,25 @@ static inline void sortingnetwork_aftermerge_u8x256(__m256i *a,
     sortingnetwork_aftermerge_u8x128(e, f, g, h);
 }
 
+/// implementation of `simd_sort_33V`
+static inline void sortingnetwork_sort_u8x288(__m256i *a,
+											  __m256i *b,
+											  __m256i *c,
+											  __m256i *d,
+											  __m256i *e,
+											  __m256i *f,
+											  __m256i *g,
+											  __m256i *h,
+											  __m256i *i) {
+	__m256i tmp;
+	sortingnetwork_sort_u8x256(a, b, c, d, e, f, g, h);
+	*i = sortingnetwork_sort_u8x32(*i);
+	sortingnetwork_reverse_u8x32(i);
+	COEX_u8x32(*h, *i, tmp);
+	sortingnetwork_aftermerge_u8x256(a, b, c, d, e, f, g, h);
+	sortingnetwork_aftermerge_u8x32(i);
+}
+
 
 ///
 static inline void sortingnetwork_sort_u8x512(__m256i *a,
@@ -378,8 +444,8 @@ static inline void sortingnetwork_sort_u8x512(__m256i *a,
 
 void sortingnetwork(FQ_ELEM *arr,
                     const size_t s) {
+	uint8_t tmp[32] __attribute__((aligned(32)));
 #ifdef CATEGORY_1
-	uint8_t tmp[32];
     __m256i i1 = _mm256_loadu_si256((const __m256i *)(arr +  0));
     __m256i i2 = _mm256_loadu_si256((const __m256i *)(arr + 32));
     __m256i i3 = _mm256_loadu_si256((const __m256i *)(arr + 64));
@@ -395,7 +461,6 @@ void sortingnetwork(FQ_ELEM *arr,
     _mm256_storeu_si256((__m256i *)tmp, i4);
 	for (uint32_t i = 0; i < (s%32); i++) { arr[96 + i] =  tmp[i];}
 #elif defined(CATEGORY_3)
-	uint8_t tmp[32];
     __m256i i1 = _mm256_loadu_si256((const __m256i *)(arr +  0));
     __m256i i2 = _mm256_loadu_si256((const __m256i *)(arr + 32));
     __m256i i3 = _mm256_loadu_si256((const __m256i *)(arr + 64));
@@ -418,7 +483,6 @@ void sortingnetwork(FQ_ELEM *arr,
     _mm256_storeu_si256((__m256i *)tmp, i7);
 	for (uint32_t i = 0; i < (s%32); i++) { arr[192 + i] =  tmp[i];}
 #elif defined(CATEGORY_5)
-	uint8_t tmp[32];
     __m256i  i1 = _mm256_loadu_si256((const __m256i *)(arr +  0));
     __m256i  i2 = _mm256_loadu_si256((const __m256i *)(arr + 32));
     __m256i  i3 = _mm256_loadu_si256((const __m256i *)(arr + 64));
@@ -427,21 +491,13 @@ void sortingnetwork(FQ_ELEM *arr,
     __m256i  i6 = _mm256_loadu_si256((const __m256i *)(arr +160));
     __m256i  i7 = _mm256_loadu_si256((const __m256i *)(arr +192));
     __m256i  i8 = _mm256_loadu_si256((const __m256i *)(arr +224));
-    __m256i  i9 = _mm256_loadu_si256((const __m256i *)(arr +256));
-    __m256i i10 = _mm256_loadu_si256((const __m256i *)(arr +288));
-    __m256i i11 = _mm256_loadu_si256((const __m256i *)(arr +320));
-    __m256i i12 = _mm256_loadu_si256((const __m256i *)(arr +352));
-    __m256i i13 = _mm256_loadu_si256((const __m256i *)(arr +384));
-    __m256i i14 = _mm256_loadu_si256((const __m256i *)(arr +416));
-    __m256i i15 = _mm256_loadu_si256((const __m256i *)(arr +448));
 
-	/// TODO not correct, as n-k is much smaller than expected
 	uint32_t i = 0;
-	for (; i < (s%32); i++) { tmp[i] = arr[480 + i];}
+	for (; i < (s%32); i++) { tmp[i] = arr[256 + i];}
 	for (; i < 32; i++) { tmp[i] = -1;}
-    __m256i i16 = _mm256_loadu_si256((const __m256i *)tmp);
+    __m256i i9 = _mm256_loadu_si256((const __m256i *)tmp);
 
-    sortingnetwork_sort_u8x256(&i1, &i2, &i3, &i4, &i5, &i6, &i7, &i8);
+    sortingnetwork_sort_u8x288(&i1, &i2, &i3, &i4, &i5, &i6, &i7, &i8, &i9);
 
     _mm256_storeu_si256((__m256i *)(arr +  0), i1);
     _mm256_storeu_si256((__m256i *)(arr + 32), i2);
@@ -449,97 +505,11 @@ void sortingnetwork(FQ_ELEM *arr,
     _mm256_storeu_si256((__m256i *)(arr + 96), i4);
     _mm256_storeu_si256((__m256i *)(arr +128), i5);
     _mm256_storeu_si256((__m256i *)(arr +160), i6);
-    _mm256_storeu_si256((__m256i *)(arr +192), i1);
-    _mm256_storeu_si256((__m256i *)(arr +224), i2);
-    _mm256_storeu_si256((__m256i *)(arr +256), i3);
-    _mm256_storeu_si256((__m256i *)(arr +288), i4);
-    _mm256_storeu_si256((__m256i *)(arr +320), i5);
-    _mm256_storeu_si256((__m256i *)(arr +352), i6);
-    _mm256_storeu_si256((__m256i *)(arr +384), i1);
-    _mm256_storeu_si256((__m256i *)(arr +416), i2);
-    _mm256_storeu_si256((__m256i *)(arr +448), i3);
-    _mm256_storeu_si256((__m256i *)tmp, i7);
-	for (uint32_t i = 0; i < (s%32); i++) { arr[192 + i] =  tmp[i];}
+    _mm256_storeu_si256((__m256i *)(arr +192), i7);
+    _mm256_storeu_si256((__m256i *)(arr +224), i8);
+    _mm256_storeu_si256((__m256i *)tmp, i9);
+	for (uint32_t k = 0; k < (s%32); k++) { arr[256 + k] =  tmp[k];}
 #endif
-}
-
-/// taken from djbsort
-/// \param a first input
-/// \param b second input
-/// \returns nothing but: a = min(a, b),
-///						  b = max(a, b)
-#define int8_MINMAX(a,b)\
-do {                    \
-    int8_t ab = b ^ a;  \
-    int8_t c = b - a;   \
-    c ^= ab & (c ^ b);  \
-    c >>= 7;            \
-    c &= ab;            \
-    a ^= c;             \
-    b ^= c;             \
-} while(0)
-
-/// NOTE: specialised counting sort for Fq. Thus,
-/// this implementation assumes that every input element
-/// is reduced mod 127
-/// \param arr input array
-/// \param size length
-void counting_sort_u8(FQ_ELEM *arr,
-                      const size_t size) {
-	/// NOTE: the type `uint32_t` is not completly arbitrary choose.
-	/// Floyd did a quick benchmark between `uint16_t`, `uint32_t`, `uint64_t`
-	/// and `uint32_t` seemed to be the fastest. But thats only true
-	/// on a Ryzen7600X. On your machine thats maybe different.
-	/// NOTE: `uint8_t` is not possible as there could be 256 times
-	/// the same field element. Unlikely but possible.
-	uint32_t cnt[128] __attribute__((aligned(512))) = { 0 };
-	size_t i;
-
-	for (i = 0 ; i < size ; ++i) {
-		cnt[arr[i]]++;
-	}
-
-	i = 0;
-	for (size_t a = 0 ; a < Q; ++a) {
-		while (cnt[a]--) {
-			arr[i++] = a;
-		}
-	}
-}
-
-/// NOTE: taken from djbsort
-/// \param x input array
-/// \param n length
-void bitonic_sort_i8(FQ_ELEM *x,
-                     const long long n) {
-    long long p, q, r, i;
-    if (n < 2) {
-        return;
-    }
-    const long long top = 1ul << (32 - __builtin_clz(K/2));
-    // while (top < n - top) { top += top; }
-
-    for (p = top; p > 0; p >>= 1) {
-        for (i = 0; i < n - p; ++i) {
-            if (!(i & p)) {
-                int8_MINMAX(x[i], x[i + p]);
-            }
-        }
-
-        i = 0;
-        for (q = top; q > p; q >>= 1) {
-            for (; i < n - q; ++i) {
-                if (!(i & p)) {
-                    int8_t a = x[i + p];
-                    for (r = q; r > p; r >>= 1) {
-                        int8_MINMAX(a, x[i + r]);
-                    }
-
-                    x[i + p] = a;
-                }
-            }
-        }
-    }
 }
 
 /// \param ptr[in/out]: pointer to the row to sort
@@ -708,7 +678,7 @@ int row_quick_sort(normalized_IS_t *G) {
 }
 
 
-/// NOTE: non constant time
+/// NOTE: non-constant time
 /// NOTE: operates on the transposed
 /// \param V
 void col_quicksort_transpose(normalized_IS_t *V) {

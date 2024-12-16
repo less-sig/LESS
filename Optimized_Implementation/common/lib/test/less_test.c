@@ -267,93 +267,6 @@ void rref_gen_compress_tester(void){
     }
 }
 
-/*
- * TODO explain
- */
-void mono_is_compress_tester(void){
-    monomial_action_IS_t Q_a, Qcheck;
-    uint8_t compressed [MONO_ACTION_PACKEDBYTES];
-
-    monomial_t mono_rnd;
-    monomial_mat_rnd(&mono_rnd);
-
-    // Create random q
-    for (int i = 0; i < K; i++) {
-        Q_a.coefficients[i] = mono_rnd.coefficients[i];
-        Q_a.permutation[i] = mono_rnd.permutation[i];
-    }
-
-     compress_monom_action(compressed,&Q_a);
-     expand_to_monom_action(&Qcheck,compressed);
-
-    if( memcmp( &Qcheck,&Q_a,sizeof(monomial_action_IS_t)) !=0 ){
-        printf("Monomial Action compression: ko\n");
-
-       fprintf(stderr,"perm = [");
-       for(int i = 0; i < K-1; i++) {
-          fprintf(stderr,"%03u, ",Q_a.permutation[i]);
-       }
-       fprintf(stderr,"%03u ]\n",Q_a.permutation[K-1]);
-       fprintf(stderr,"coeffs = [");
-       for(int i = 0; i < K-1; i++) {
-          fprintf(stderr,"%03u, ",Q_a.coefficients[i]);
-       }
-       fprintf(stderr,"%03u ]\n",Q_a.coefficients[K-1]);
-
-       fprintf(stderr,"\n\n\n");
-       fprintf(stderr,"perm = [");
-       for(int i = 0; i < K-1; i++
-        ) {
-          fprintf(stderr,"%03u, ",Qcheck.permutation[i]);
-       }
-       fprintf(stderr,"%03u ]\n",Qcheck.permutation[K-1]);
-       fprintf(stderr,"coeffs = [");
-       for(int i = 0; i < K-1; i++) {
-          fprintf(stderr,"%03u, ",Qcheck.coefficients[i]);
-       }
-       fprintf(stderr,"%03u ]\n",Qcheck.coefficients[K-1]);
-
-    } else {
-        printf("Monomial Action compression: ok\n");
-    }
-
-}
-
-
-/*
- * TODO explain
- */
-void rref_gen_byte_compress_tester(void){
-     generator_mat_t G = {0}, Gcheck;
-     uint8_t G_compressed [RREF_MAT_PACKEDBYTES];
-     uint8_t is_pivot_column[NN];
-
-     /* randomly generate a non-singular G */
-     do {
-         generator_rnd(&G);
-         memset(is_pivot_column,0,sizeof(is_pivot_column));
-     } while ( generator_RREF(&G,is_pivot_column) == 0);
-
-     memcpy(&Gcheck,&G, sizeof(G));
-     compress_rref(G_compressed,&G,is_pivot_column);
-     generator_rnd(&G); /* fill with garbage to elicit faults */
-     expand_to_rref(&G,G_compressed);
-
-    if( memcmp( &Gcheck,&G,sizeof(generator_mat_t)) !=0 ){
-        printf("Generator SF byte compression: ko\n");
-       fprintf(stderr," Comp-decomp\n");
-       generator_pretty_print_name("G",&G);
-
-       fprintf(stderr,"is_pivot = \n [ ");
-       for(int x=0;x < N ;x++){fprintf(stderr," %d ",is_pivot_column[x]); }
-       fprintf(stderr,"]\n");
-
-       fprintf(stderr," \n\n\n\n\n\n\n\n\nReference\n");
-       generator_pretty_print_name("Gcheck",&Gcheck);
-    } else {
-        printf("Generator SF compression: ok\n");
-    }
-}
 
 /*
  * TODO explain
@@ -417,7 +330,7 @@ int LESS_sign_verify_test_multiple(void){
             return -1;
         }
         ASSERT(mlen1 == msg_len);
-        printf("OK: %i\n", i);
+        printf("OK: %zu\n", i);
 
         ret |= ret_val;
     }

@@ -75,10 +75,12 @@ void counting_sort_u8(FQ_ELEM *arr,
 	uint32_t cnt[128] __attribute__((aligned(512))) = { 0 };
 	size_t i;
 
+    /// compute the histogram
 	for (i = 0 ; i < size ; ++i) {
 		cnt[arr[i]]++;
 	}
 
+    /// compute the prefixsum
 	i = 0;
 	for (size_t a = 0 ; a < Q; ++a) {
 		while (cnt[a]--) {

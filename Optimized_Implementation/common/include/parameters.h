@@ -134,12 +134,6 @@
 #error define category for parameters
 #endif
 
-#define FQ_ELEM uint8_t
-#define FQ_DOUBLEPREC uint16_t
-#define FQ_TRIPLEPREC uint32_t
-#define POSITION_T uint8_t
-#define SEED_TREE_LABEL_T uint8_t
-
 
 #define K8 ((K+7u)/8u)
 #define N8 ((N+7u)/8u)
