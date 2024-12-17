@@ -468,7 +468,7 @@ void lex_sort_cols(normalized_IS_t *V){
    col_lex_quicksort(V,0,(N-K)-1);
 }
 
-/// TODO
+/// TODO doc
 /// \param V
 /// \param Q_bar_IS
 /// \param G
@@ -519,7 +519,13 @@ void prepare_digest_input(normalized_IS_t *V,
     }
 } /* end prepare_digest_input */
 
-
+/// TODO doc
+/// \param V
+/// \param Q_bar_IS
+/// \param G
+/// \param Q_tilde
+/// \param initial_pivot_flags
+/// \param pvt_reuse_limit
 void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
                                       monomial_action_IS_t *Q_bar_IS,
                                       const generator_mat_t *const G,
@@ -565,9 +571,9 @@ void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
 
 } /* end prepare_digest_input_pivot_reuse */
 
-/// @param res
-/// @param G
-/// @param Q_IS
+/// \param res
+/// \param G
+/// \param Q_IS
 void apply_action_to_G(generator_mat_t* res,
                        const generator_mat_t* G,
                        const monomial_action_IS_t* Q_IS,
@@ -603,9 +609,9 @@ void apply_action_to_G(generator_mat_t* res,
 }
 
 /// NOTE: not constant time
-/// @param res
-/// @param G
-/// @param c
+/// \param res
+/// /param G
+/// param c
 void apply_cf_action_to_G(generator_mat_t* res,
                           const generator_mat_t *G,
                           const uint8_t *const c) {

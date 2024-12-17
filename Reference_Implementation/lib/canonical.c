@@ -289,10 +289,7 @@ int compute_canonical_form_type5_ct(normalized_IS_t *G) {
 /// \param G
 /// \return
 int cf5(normalized_IS_t *G) {
-    // return compute_canonical_form_type5_ct(G);
-    // TODO for speed reasons, we dont care about CT right now.
-    // TODO add the "blinding" feature proposed by Toni
-    return compute_canonical_form_type5_popcnt(G);
+    return compute_canonical_form_type5_ct(G);
 }
 
 /// non-constant time implementation
@@ -301,4 +298,38 @@ int cf5(normalized_IS_t *G) {
 int cf5_nonct(normalized_IS_t *G) {
     // return compute_canonical_form_type5(G);
     return compute_canonical_form_type5_popcnt(G);
+}
+
+void blind(normalized_IS_t *G,
+           SHAKE_STATE_STRUCT *prng) {
+    monomial_action_IS_t left, right;
+    normalized_IS_t B;
+
+    fq_star_rnd_state_elements(prng, left.coefficients, N-K);
+    fq_star_rnd_state_elements(prng, right.coefficients, N-K);
+    for(uint32_t i = 0; i < N-K; i++) {
+        left.permutation[i] = i;
+        right.permutation[i] = i;
+    }
+
+    yt_shuffle_state_limit(prng, left.permutation, N-K);
+    yt_shuffle_state_limit(prng, right.permutation, N-K);
+
+    for (uint32_t i = 0; i < K; i++) {
+        const FQ_ELEM a = right.coefficients[i];
+        const POSITION_T pos = right.permutation[i];
+
+        for (uint32_t j = 0; j < N-K; j++) {
+            B.values[j][i] = fq_mul(a, G->values[j][pos]);
+        }
+    }
+
+    for (uint32_t i = 0; i < K; i++) {
+        const FQ_ELEM a = left.coefficients[i];
+        const POSITION_T pos = left.permutation[i];
+
+        for (uint32_t j = 0; j < N-K; j++) {
+            G->values[i][j] = fq_mul(a, B.values[pos][j]);
+        }
+    }
 }

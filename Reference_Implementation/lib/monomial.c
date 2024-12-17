@@ -32,7 +32,27 @@
 #define POS_BITS BITS_TO_REPRESENT(N-1)
 #define POS_MASK (((POSITION_T) 1 << POS_BITS) - 1)
 
-static inline
+///
+/// \param shake_monomial_state
+/// \param permutation
+/// \param n <= N
+void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
+                            POSITION_T *permutation,
+                            const uint32_t n) {
+    uint32_t rand_u32[N] = {0};
+    POSITION_T tmp;
+
+    csprng_randombytes((unsigned char *) &rand_u32, sizeof(uint32_t)*n, shake_monomial_state);
+    for (size_t i = 0; i < n - 1; ++i) {
+        rand_u32[i] = i + rand_u32[i] % (n - i);
+    }
+
+    for (size_t i = 0; i < n - 1; ++i) {
+        tmp = permutation[i];
+        permutation[i] = permutation[rand_u32[i]];
+        permutation[rand_u32[i]] = tmp;
+    }
+}
 void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state, POSITION_T permutation[N]) {
     uint32_t rand_u32[N] = {0};
     POSITION_T tmp;

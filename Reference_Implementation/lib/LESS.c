@@ -121,6 +121,11 @@ size_t LESS_sign(const prikey_t *SK,
     randombytes(ephem_monomials_seed, SEED_LENGTH_BYTES);
     randombytes(sig->tree_salt, HASH_DIGEST_LENGTH);
 
+    /* create the prng for the "blinding" monomials for the canonical form computation */
+    uint8_t cf_seed[SEED_LENGTH_BYTES];
+    randombytes(cf_seed, SEED_LENGTH_BYTES);
+    SHAKE_STATE_STRUCT cf_shake_state;
+    initialize_csprng(&cf_shake_state, cf_seed, SEED_LENGTH_BYTES);
 
     unsigned char seed_tree[NUM_NODES_OF_SEED_TREE * SEED_LENGTH_BYTES] = {0};
     generate_seed_tree_from_root(seed_tree, ephem_monomials_seed, sig->tree_salt);
@@ -151,7 +156,8 @@ size_t LESS_sign(const prikey_t *SK,
         // TODO hide behind a compiler flag/preprocessor flag
         // prepare_digest_input_pivot_reuse(&V_array, &Q_bar[i], &full_G0, &Q_tilde, g0_initial_pivot_flags, SIGN_PIVOT_REUSE_LIMIT);
         prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde);
-        const int t = cf5(&V_array);
+        blind(&V_array, &cf_shake_state);
+        const int t = cf5_nonct(&V_array);
         if (t == 0) {
             *(ephem_monomial_seeds + i*SEED_LENGTH_BYTES) += 1;
             i -= 1;
