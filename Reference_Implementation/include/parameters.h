@@ -104,8 +104,8 @@
 #define   K (200)
 #define   Q (127)
 #define NUM_KEYPAIRS (  2)
-#define   T (759)
-#define   W ( 33)
+#define   T (68)
+#define   W (42)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (3912)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
@@ -251,8 +251,8 @@
 #define LESS_CRYPTO_BYTES(NR_LEAVES) (HASH_DIGEST_LENGTH*2 + N8*W + NR_LEAVES*SEED_LENGTH_BYTES + 1)
 #else
 // returns the maximum bytes the signature can occupy
-#define LESS_CRYPTO_MAX_BYTES (HASH_DIGEST_LENGTH + N8*T)
-#define LESS_CRYPTO_BYTES (HASH_DIGEST_LENGTH + N8*T)
+#define LESS_CRYPTO_MAX_BYTES (HASH_DIGEST_LENGTH + N8*W + (W-T)*SEED_LENGTH_BYTES)
+#define LESS_CRYPTO_BYTES (HASH_DIGEST_LENGTH + N8*W + (W-T)*SEED_LENGTH_BYTES)
 #endif
 
 

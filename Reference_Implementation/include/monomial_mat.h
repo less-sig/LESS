@@ -101,8 +101,8 @@ void monomial_mat_seed_expand_prikey(monomial_t *res,
 
 ///
 void monomial_mat_seed_expand_rnd(monomial_t *res,
-                                       SHAKE_STATE_STRUCT *shake_monomial_state);
-
+                                  const unsigned char seed[SEED_LENGTH_BYTES],
+                                  const uint16_t round_index);
 /* yields the identity matrix */
 void monomial_mat_id(monomial_t *res);
 

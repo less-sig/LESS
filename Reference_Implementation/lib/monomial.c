@@ -99,14 +99,25 @@ void monomial_mat_seed_expand_prikey(monomial_t *res,
 
 
 void monomial_mat_seed_expand_rnd(monomial_t *res,
-                                  SHAKE_STATE_STRUCT *shake_monomial_state) {
-   fq_star_rnd_state_elements(shake_monomial_state, res->coefficients, N);
-   for(uint32_t i = 0; i < N; i++) {
-      res->permutation[i] = i;
-   }
+                                  const unsigned char seed[SEED_LENGTH_BYTES],
+                                  const uint16_t round_index) {
+    SHAKE_STATE_STRUCT shake_monomial_state = {0};
+    const int shake_buffer_len = SEED_LENGTH_BYTES+HASH_DIGEST_LENGTH+sizeof(uint16_t);
+    uint8_t shake_input_buffer[shake_buffer_len];
+    memcpy(shake_input_buffer,seed,SEED_LENGTH_BYTES);
+    memcpy(shake_input_buffer+SEED_LENGTH_BYTES,
+           &round_index,
+           sizeof(uint16_t));
 
-   /* FY shuffle on the permutation */
-   yt_shuffle_state(shake_monomial_state, res->permutation);
+    initialize_csprng(&shake_monomial_state,shake_input_buffer,shake_buffer_len);
+    fq_star_rnd_state_elements(&shake_monomial_state, res->coefficients, N);
+    for(uint32_t i = 0; i < N; i++) {
+        res->permutation[i] = i;
+    }
+
+    /* FY shuffle on the permutation */
+    yt_shuffle_state(&shake_monomial_state, res->permutation);
+
 }
 
 /* samples a random perm matrix */

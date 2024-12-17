@@ -121,6 +121,9 @@ FQ_ELEM fq_red(FQ_DOUBLEPREC x)
 }
 #endif
 
+///
+/// \param x
+/// \return
 static inline
 FQ_ELEM fq_red(FQ_DOUBLEPREC x) {
    return ((FQ_DOUBLEPREC) Q+x) % (FQ_DOUBLEPREC) Q;

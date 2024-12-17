@@ -62,12 +62,14 @@ size_t LESS_sign(const prikey_t *SK,
     }
 
     /*         Ephemeral monomial generation        */
-    unsigned char ephem_monomials_seed[SEED_LENGTH_BYTES];
+    uint8_t ephem_monomials_seed[SEED_LENGTH_BYTES];
     randombytes(ephem_monomials_seed, SEED_LENGTH_BYTES);
 
     // TODO salt is missing?
     SHAKE_STATE_STRUCT shake_monomial_state = {0};
     initialize_csprng(&shake_monomial_state, ephem_monomials_seed, SEED_LENGTH_BYTES);
+    uint8_t seeds[T * SEED_LENGTH_BYTES] = {0};
+    csprng_randombytes((unsigned char *) seeds, T*SEED_LENGTH_BYTES, &shake_monomial_state);
 
     /*         Public G_0 expansion                  */
     rref_generator_mat_t G0_rref;
@@ -85,7 +87,7 @@ size_t LESS_sign(const prikey_t *SK,
     LESS_SHA3_INC_INIT(&state);
 
     for (uint32_t i = 0; i < T; i++) {
-        monomial_mat_seed_expand_rnd(&Q_tilde, &shake_monomial_state);
+        monomial_mat_seed_expand_rnd(&Q_tilde, seeds + i*SEED_LENGTH_BYTES, i);
 
 #if defined(LESS_REUSE_PIVOTS)
         // prepare_digest_input_pivot_reuse(&V_array, &Q_bar[i], &full_G0, &Q_tilde, g0_initial_pivot_flags, SIGN_PIVOT_REUSE_LIMIT);
@@ -111,16 +113,23 @@ size_t LESS_sign(const prikey_t *SK,
     expand_digest_to_fixed_weight(fixed_weight_string, sig->digest);
 
     monomial_action_IS_t mono_action;
+    uint32_t ctr1 = 0, ctr2=0;
     for (uint32_t i = 0; i < T; i++) {
-        monomial_t Q_to_multiply;
-        const int sk_monom_seed_to_expand_idx = fixed_weight_string[i];
+        if (fixed_weight_string[i] != 0) {
+            monomial_t Q_to_multiply;
+            const int sk_monom_seed_to_expand_idx = fixed_weight_string[i];
 
-        monomial_mat_seed_expand_prikey(&Q_to_multiply,
-                                        private_monomial_seeds[sk_monom_seed_to_expand_idx - 1]);
-        // NOTE: this function is simplify. We do not need the full monomial matrix.
-        monomial_compose_action(&mono_action, &Q_to_multiply, &Q_bar[i]);
+            monomial_mat_seed_expand_prikey(&Q_to_multiply,
+                                            private_monomial_seeds[sk_monom_seed_to_expand_idx - 1]);
+            // NOTE: this function is simplify. We do not need the full monomial matrix.
+            monomial_compose_action(&mono_action, &Q_to_multiply, &Q_bar[i]);
 
-        cf_compress_monomial_IS_action(sig->cf_monom_actions[i], &mono_action);
+            cf_compress_monomial_IS_action(sig->cf_monom_actions[ctr2], &mono_action);
+            ctr2 += 1;
+        } else {
+            memcpy(sig->seed_storage + ctr1*SEED_LENGTH_BYTES, seeds + i*SEED_LENGTH_BYTES, SEED_LENGTH_BYTES);
+            ctr1 += 1;
+        }
     }
 
     // always return ok
@@ -147,50 +156,78 @@ int LESS_verify(const pubkey_t *const PK,
 
     uint8_t is_pivot_column[N] = {0};
     generator_mat_t tmp_full_G;
+    monomial_action_IS_t Q_to_discard;
     generator_mat_t G_hat;
     normalized_IS_t V_array;
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
 
+    uint32_t ctr1 = 0, ctr2 = 0;
     for (uint32_t i = 0; i < T; i++) {
-        expand_to_rref(&tmp_full_G, PK->SF_G[fixed_weight_string[i] - 1], g_initial_pivot_flags);
-        if (!is_cf_monom_action_valid(sig->cf_monom_actions[i])) {
-            return 0;
-        }
+        if (fixed_weight_string[i] == 0) {
+            generator_get_pivot_flags(&G0_rref, g_initial_pivot_flags);
+
+            // TODO mov this out of the loop and keep `tmp_full_G` constant
+            generator_rref_expand(&tmp_full_G, &G0_rref);
+            monomial_t Q_to_multiply;
+
+            monomial_mat_seed_expand_rnd(&Q_to_multiply, sig->seed_storage + ctr1*SEED_LENGTH_BYTES, i);
+#if defined(LESS_REUSE_PIVOTS)
+            // TODO half of these operations can be optimized away
+            prepare_digest_input_pivot_reuse(&V_array,
+                                             &Q_to_discard,
+                                             &tmp_full_G,
+                                             &Q_to_multiply,
+                                             g_initial_pivot_flags,
+                                             VERIFY_PIVOT_REUSE_LIMIT);
+#else
+            prepare_digest_input(&V_array,
+                                 &Q_to_discard,
+                                 &tmp_full_G,
+                                 &Q_to_multiply);
+#endif
+            ctr1+=1;
+        } else {
+            expand_to_rref(&tmp_full_G, PK->SF_G[fixed_weight_string[i] - 1], g_initial_pivot_flags);
+            if (!is_cf_monom_action_valid(sig->cf_monom_actions[ctr2])) {
+                return 0;
+            }
 
 #if defined(LESS_REUSE_PIVOTS)
-        apply_cf_action_to_G_with_pivots(&G_hat,
-                                         &tmp_full_G,
-                                         sig->cf_monom_actions[employed_monoms],
-                                         g_initial_pivot_flags,
-                                         g_permuted_pivot_flags);
-        const int ret = generator_RREF_pivot_reuse(&G_hat, is_pivot_column,
-                                                   g_permuted_pivot_flags,
-                                                   VERIFY_PIVOT_REUSE_LIMIT);
+            apply_cf_action_to_G_with_pivots(&G_hat,
+                                             &tmp_full_G,
+                                             sig->cf_monom_actions[employed_monoms],
+                                             g_initial_pivot_flags,
+                                             g_permuted_pivot_flags);
+            const int ret = generator_RREF_pivot_reuse(&G_hat, is_pivot_column,
+                                                       g_permuted_pivot_flags,
+                                                       VERIFY_PIVOT_REUSE_LIMIT);
 #else
-        apply_cf_action_to_G(&G_hat, &tmp_full_G, sig->cf_monom_actions[i]);
-        const int ret = generator_RREF(&G_hat, is_pivot_column);
+            apply_cf_action_to_G(&G_hat, &tmp_full_G, sig->cf_monom_actions[ctr2]);
+            const int ret = generator_RREF(&G_hat, is_pivot_column);
 #endif
-        if(ret != 1) {
-            return 0;
-        }
-
-        // TODO not correct if more than 1 col is not a pivot column. Somehow merge with the loop just below
-        // just copy the non IS
-        uint32_t ctr = 0, offset = K;
-        for(uint32_t j = 0; j < N-K; j++) {
-            if (is_pivot_column[j+K]) {
-                ctr += 1;
-                offset = K - ctr;
+            if (ret != 1) {
+                return 0;
             }
 
-            for (uint32_t t = 0; t < K; t++) {
-                V_array.values[t][j] = G_hat.values[t][j + offset];
+            // TODO not correct if more than 1 col is not a pivot column. Somehow merge with the loop just below
+            // just copy the non IS
+            uint32_t ctr = 0, offset = K;
+            for (uint32_t j = 0; j < N - K; j++) {
+                if (is_pivot_column[j + K]) {
+                    ctr += 1;
+                    offset = K - ctr;
+                }
+
+                for (uint32_t t = 0; t < K; t++) {
+                    V_array.values[t][j] = G_hat.values[t][j + offset];
+                }
+
+                offset = K;
             }
 
-            offset = K;
+            ctr2+=1;
         }
-
         const int r = cf5_nonct(&V_array);
         if (r == 0) { return 0; }
         LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array.values, sizeof(normalized_IS_t));
