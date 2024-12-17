@@ -219,6 +219,7 @@ int row_quick_sort_internal(FQ_ELEM* ptr[K],
 	return 1;
 }
 
+// TODO maybe just histogram?
 /// \param ptr[in/out]: pointer to the row to sort
 /// \param len[in]: length of the row
 void row_sort(uint8_t *ptr, 
@@ -231,14 +232,14 @@ void row_sort(uint8_t *ptr,
 /// \param G[in/out]: generator matrix to sort
 /// \return 1 on success
 ///			0 if two rows generate the same multiset
-int row_quick_sort(normalized_IS_t *G) {
+int row_quick_sort(normalized_IS_t *G,
+                   const uint32_t n) {
 	// first sort each row into a tmp buffer
 	FQ_ELEM  tmp[K][N-K];
     FQ_ELEM* ptr[K];
     uint32_t P[K];
-	for (uint32_t i = 0; i < K; ++i) {
+	for (uint32_t i = 0; i < n; ++i) {
 		memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
-        // TODO maybe just histogram?
         row_sort(tmp[i], N-K);
 
         ptr[i] = tmp[i];
@@ -249,7 +250,7 @@ int row_quick_sort(normalized_IS_t *G) {
     if (ret == 0) { return 0; }
 
     // apply the permutation
-    for (uint32_t t = 0; t < K; t++) {
+    for (uint32_t t = 0; t < n; t++) {
         uint32_t ind = P[t];
         while(ind<t) { ind = P[ind]; }
 
@@ -258,6 +259,7 @@ int row_quick_sort(normalized_IS_t *G) {
 
     return 1;
 }
+
 
 
 /// NOTE: non constant time

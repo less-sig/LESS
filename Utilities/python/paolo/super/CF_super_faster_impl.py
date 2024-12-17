@@ -371,6 +371,7 @@ def CF5_super_faster(A, k, q, Fq, num_full_CF):
             this_sub_CF_3 = CF3(this_sub_CF_4, q)
 #            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> CF3 = ", this_sub_CF_3)
             if str(this_sub_CF_3) !=str(-1):
+
                 all_sub_CFs.append(this_sub_CF_3)
                 good_indices.append(i)
     

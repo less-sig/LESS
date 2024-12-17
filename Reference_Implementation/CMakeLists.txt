@@ -90,7 +90,7 @@ endforeach(category)
 # canonical forms test
 add_executable(test_canonical_form ${PROJECT_SOURCE_DIR}/lib/test/test_canonical.c ${SOURCES})
 target_link_libraries(test_canonical_form PRIVATE OpenSSL::Crypto)
-set_property(TARGET test_canonical_form APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_5 -DBALANCED=1")
+set_property(TARGET test_canonical_form APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 
 add_executable(inv_table ${PROJECT_SOURCE_DIR}/lib/test/inv_table.c)
 target_link_libraries(inv_table PRIVATE OpenSSL::Crypto)

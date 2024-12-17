@@ -9,16 +9,20 @@
 #include "parameters.h"
 #include "sort.h"
 
+/// maximal number of rows each sub scaled matrix has in expectation
+#define Z_STAR 10
+
+/// maximal number of matrices we allow to be minimal
+#define C_STAR 10
+
 /// NOTE: non ct
 /// NOTE: computes the result inplace
 /// first sort the rows, then the columns
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
 int compute_canonical_form_type3(normalized_IS_t *G) {
-    if (row_quick_sort(G) == 0) { return 0; }
+    if (row_quick_sort(G, K) == 0) { return 0; }
     col_quicksort_transpose(G);
-    // TODO
-    // lex_sort_cols(G);
     return 1;
 }
 
@@ -30,8 +34,21 @@ int compute_canonical_form_type3(normalized_IS_t *G) {
 int compute_canonical_form_type3_ct(normalized_IS_t *G) {
     if (row_bitonic_sort(G) == 0) { return 0; }
     col_bitonic_sort_transpose(G);
-    // TODO something breaks in release mode?
-    // lex_sort_cols(G);
+    return 1;
+}
+
+/// NOTE: only operates on the first z rows
+/// NOTE: non ct
+/// NOTE: computes the result inplace
+/// first sort the rows, then the columns
+/// \return 0 on failure (identical rows, which create the same multiset)
+/// 		1 on success
+int compute_canonical_form_type3_sub(normalized_IS_t *G,
+                                     const uint32_t z) {
+    if (z == 1) { return 1; }
+    if (row_quick_sort(G, z) == 0) { return 0; }
+    // TODO only sort z rows within each column
+    col_quicksort_transpose(G);
     return 1;
 }
 
@@ -116,15 +133,43 @@ int compute_canonical_form_type4_sub(normalized_IS_t *G,
     return 0;
 }
 
+
+/// NOTE: non-constant time
+/// \param G[in] sub matrix with only z rows
+/// \param z[in] number of rows in G
+/// \return 0: if a row cannnot be scaled any further
+///         1: on success
+int compute_canonical_form_type4_sub_v2(normalized_IS_t *G,
+                                        const uint32_t z) {
+    for (uint32_t i = 0; i < z; i++) {
+		FQ_ELEM s = row_acc(G->values[i]);
+
+		if (s != 0) {
+			s = fq_inv(s);
+		} else {
+			s = row_acc_inv(G->values[i]);
+			if (s == 0) { return 0; }
+		}
+
+		row_mul(G->values[i], s);
+    }
+
+    return 1;
+}
+
 /// NOTE: non-constant time
 /// implements a total order on matrices
 /// we simply compare the columns lexicographically
+/// \param V1[in]
+/// \param V2[in]
+/// \param z[in]: number of rows within bot matrices
 /// \return -x if V2 > V1
 ///			 0 if V2 == V1
 ///			+x
 int compare_matrices(const normalized_IS_t *V1,
-                     const normalized_IS_t *V2) {
-	for (uint32_t row = 0; row < K; row++) {
+                     const normalized_IS_t *V2,
+                     const uint32_t z) {
+	for (uint32_t row = 0; row < z; row++) {
         uint32_t i=0;
         while((i < N-K) &&
              ((V1->values[row][i] - V2->values[row][i]) == 0)) {
@@ -134,6 +179,34 @@ int compare_matrices(const normalized_IS_t *V1,
         if (i >= K) { continue; }
 
         return (int)(V1->values[row][i]) - (int)(V2->values[row][i]);
+	}
+	
+	// if we are here the two matrices are equal
+	return 0;
+}
+
+/// NOTE: non-constant time
+/// implements a total order on matrices
+/// we simply compare the columns lexicographically
+/// \param V1[in]
+/// \param V2[in]
+/// \param z[in]: number of rows within bot matrices
+/// \return -x if V2 > V1
+///			 0 if V2 == V1
+///			+x
+int compare_matrices_raw(const normalized_IS_t *V1,
+                         const FQ_ELEM *V2,
+                         const uint32_t z) {
+	for (uint32_t row = 0; row < z; row++) {
+        uint32_t i=0;
+        while((i < N-K) &&
+             ((V1->values[row][i] - V2[row*N_K_pad + i]) == 0)) {
+            i++;
+        }
+
+        if (i >= K) { continue; }
+
+        return (int)(V1->values[row][i]) - (int)(V2[row*N_K_pad + i]);
 	}
 	
 	// if we are here the two matrices are equal
@@ -161,7 +234,7 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
 		}
 
 		const int ret = compute_canonical_form_type4(&Aj);
-		if ((ret == 1) && (compare_matrices(&Aj, &smallest) < 0)) {
+		if ((ret == 1) && (compare_matrices(&Aj, &smallest, K) < 0)) {
 			touched = 1;
 			normalized_copy(&smallest, &Aj);
 		}
@@ -237,7 +310,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
             }
 
 		    const int ret = compute_canonical_form_type4(&Aj);
-		    if ((ret == 1) && (compare_matrices(&Aj, &smallest) < 0)) {
+		    if ((ret == 1) && (compare_matrices(&Aj, &smallest, K) < 0)) {
 		    	touched = 1;
 		    	normalized_copy(&smallest, &Aj);
 
@@ -273,7 +346,7 @@ int compute_canonical_form_type5_ct(normalized_IS_t *G) {
         }
 
         const int ret = compute_canonical_form_type4_ct(&Aj);
-        if ((ret == 1) && (compare_matrices(&Aj, &smallest) < 0)) {
+        if ((ret == 1) && (compare_matrices(&Aj, &smallest, K) < 0)) {
             touched = 1;
             normalized_copy(&smallest, &Aj);
         }
@@ -283,6 +356,23 @@ int compute_canonical_form_type5_ct(normalized_IS_t *G) {
 
     normalized_copy(G, &smallest);
     return 1;
+}
+
+/// note: non constant time
+/// note: computes the result inplace
+/// \param G 
+/// \param row: 
+/// \return 0 on failure
+/// 		1 on success
+int compute_canonical_form_type5_single_row(normalized_IS_t *G,
+                                           const uint32_t row) {
+    FQ_ELEM row_inv_data[N_K_pad];
+    row_inv2(row_inv_data, G->values[row]);
+    for (uint32_t row2 = 0; row2 < K; row2++) {
+        row_mul3(G->values[row2], G->values[row2], row_inv_data);
+    }
+
+    return compute_canonical_form_type4_ct(G);
 }
 
 /// constant time implementation
@@ -332,4 +422,84 @@ void blind(normalized_IS_t *G,
             G->values[i][j] = fq_mul(a, B.values[pos][j]);
         }
     }
+}
+
+/// not constant time
+/// \param G
+/// \return
+int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
+	FQ_ELEM J[N-K];
+    uint32_t z = 0;
+
+    // count zeros in each row
+    uint32_t max_zeros = 0;
+	FQ_ELEM row_has_zero[K] = {0};
+	for (uint32_t row = 0; row < K; row++) {
+        uint32_t num_zeros = 0;
+	    for (uint32_t col = 0; col < N-K; col++) {
+            num_zeros += G->values[row][col] == 0; 
+        }
+
+        if (num_zeros > 0) {
+            row_has_zero[row] = 1;
+        }
+
+        if (num_zeros > max_zeros) {
+            z = 1;
+            J[0] = row;
+            max_zeros = num_zeros;
+        	continue;
+        }
+
+        if (num_zeros == max_zeros) {
+            J[z++] = row; 
+        }
+    }
+
+    /// NOTE: is this always correct?
+    if (z == (N-K)) {
+	    return compute_canonical_form_type5(G);
+    }
+
+    normalized_IS_t scaled_sub_G, scaled_sub_G_smallest;
+	FQ_ELEM coeffs[N_K_pad];
+	memset(&scaled_sub_G_smallest.values, Q-1, sizeof(normalized_IS_t));
+
+    // Storage for the shortest matrices
+    normalized_IS_t min_CF;
+    memset(min_CF.values, Q-1, K*z);
+    uint32_t all_sub_CF_z = 0;
+    uint32_t all_sub_CF[K];
+
+    for (uint32_t i = 0; i < K; i++) {
+        if (row_has_zero[i]) { continue; }
+
+		row_inv2(coeffs, G->values[i]);
+		for (uint32_t row2 = 0; row2 < z; row2++) {
+			row_mul3(scaled_sub_G.values[row2], G->values[J[row2]], coeffs);
+		}
+
+        if (compute_canonical_form_type4_sub_v2(&scaled_sub_G, z) &&
+            compute_canonical_form_type3_sub(&scaled_sub_G, z)) {
+            const int r = compare_matrices(&scaled_sub_G, &min_CF, z);
+            if (r == 0) {
+                all_sub_CF[all_sub_CF_z++] = i;
+            }
+            if (r < 0) {
+                memcpy(&min_CF, &scaled_sub_G, z * (N-K));
+                all_sub_CF_z = 1;
+                all_sub_CF[0] = i;
+            }
+        }
+    }
+
+    if (all_sub_CF_z == 0) { return 0; }
+
+    /// TODO not correct need to make a copy
+    for (uint32_t i = 0; i < all_sub_CF_z; i++) {
+        if (compute_canonical_form_type5_single_row(G, all_sub_CF[i])) {
+            return 1;
+        }
+    }
+    return 0;
 }

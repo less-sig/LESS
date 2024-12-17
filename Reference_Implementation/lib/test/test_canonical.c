@@ -183,7 +183,7 @@ int test_compute_canonical_form_type5(void) {
 }
 
 int test_compute_canonical_form_type5_v2(void) {
-    normalized_IS_t G1, G2, G3;
+    normalized_IS_t G1, G2, G3, G4;
     permutation_t P_c, P_r;
     diagonal_t D_r, D_c;
 
@@ -202,27 +202,29 @@ int test_compute_canonical_form_type5_v2(void) {
         permutation_apply_row(&P_r, &G2);
 
         normalized_copy(&G3, &G2);
-
-        normalized_IS_t G4;
         normalized_copy(&G4, &G2);
-        if (k==3) {
-            printf("t\n");
-        }
+
         const int ret1 = compute_canonical_form_type5_ct(&G1);
         const int ret2 = compute_canonical_form_type5(&G2);
         const int ret3 = compute_canonical_form_type5_popcnt(&G3);
+        const int ret4 = compute_canonical_form_type5_fastest(&G4);
         if (ret1 != ret2) {
             printf("error ret cf5\n");
             return 1;
         }
-        
         if (ret1 != ret3) {
             printf("error ret cf5, popcnt\n");
             return 1;
         }
+        if (ret1 != ret4) {
+            printf("error ret cf5, popcnt\n");
+            return 1;
+        }
 
-        // normalized_pretty_print(&G1);
-        // normalized_pretty_print(&G2);
+        if (ret1 == 0) {
+            printf("THIS SHOULD NOT HAPPEN\n");
+            continue;
+        }
 
         for (uint32_t i = 0; i < K; i++) {
             for (uint32_t j = 0; j < N-K; j++) {
@@ -241,6 +243,17 @@ int test_compute_canonical_form_type5_v2(void) {
                     normalized_pretty_print(&G1);
                     normalized_pretty_print(&G3);
                     printf("error cf5 %d popcnt %d %d\n", k, i, j);
+                    return 1;
+                }
+            }
+        }
+
+        for (uint32_t i = 0; i < K; i++) {
+            for (uint32_t j = 0; j < N-K; j++) {
+                if (G2.values[i][j] != G4.values[i][j]) {
+                    normalized_pretty_print(&G1);
+                    normalized_pretty_print(&G4);
+                    printf("error cf5 %d fastest %d %d\n", k, i, j);
                     return 1;
                 }
             }
@@ -311,7 +324,6 @@ uint32_t  test_compute_canonical_form_type5_gaus(void) {
             printf("error: cf5 gaus ret\n");
             return 1;
         }
-
 
         for (uint32_t i = 0; i < K; ++i) {
             for (uint32_t j = 0; j < N - K; ++j) {
