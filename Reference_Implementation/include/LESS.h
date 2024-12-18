@@ -58,9 +58,9 @@ typedef struct sig_t {
 #ifdef SEED_TREE
     uint8_t tree_salt[HASH_DIGEST_LENGTH];
     /// we need an additional byte to store the number of published seeds
-    unsigned char seed_storage[SEED_TREE_MAX_PUBLISHED_BYTES + 1u];
+    uint8_t seed_storage[SEED_TREE_MAX_PUBLISHED_BYTES + 1u];
 #else
-    unsigned char seed_storage[(T-W)*SEED_LENGTH_BYTES];
+    uint8_t seed_storage[(T-W)*SEED_LENGTH_BYTES];
 #endif
 } sign_t;
 

@@ -31,20 +31,25 @@
 #include "fq_arith.h"
 #include "parameters.h"
 
+/// TODO remove and replace with
+//          void row_mul2
 // computes G[row] = a*G[row]
-void scale_row(generator_mat_t *G, const uint32_t row, const FQ_ELEM a) {
+void scale_row(generator_mat_t *G,
+               const uint32_t row,
+               const FQ_ELEM a) {
 	for (uint32_t col = 0; col < N; col++) {
 		G->values[row][col] = fq_mul(G->values[row][col], a);
 	}
 }
 
 /* Calculate pivot flag array */
-void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t pivot_flag [N]) {
-    for (int i = 0; i < N; i = i + 1) {
+void generator_get_pivot_flags (const rref_generator_mat_t *const G,
+                                uint8_t pivot_flag [N]) {
+    for (uint32_t i = 0; i < N; i = i + 1) {
         pivot_flag[i] = 1;
     }
 
-    for (int i = 0; i < K; i = i + 1) {
+    for (uint32_t i = 0; i < K; i = i + 1) {
         pivot_flag[G->column_pos[i]] = 0;
     }
 }
@@ -484,10 +489,9 @@ void prepare_digest_input(normalized_IS_t *V,
     /// TODO, this is kind of bad, should be removed, and proper error handling should be applied
     ASSERT(rref_ok != 0);
 
+    // just copy the non IS
     // TODO not CT, not correct if more than 1 col is not a pivot column.
     // TODO Somehow merge with the loop just below
-
-    // just copy the non IS
     uint32_t ctr = 0, offset = K;
     for(uint32_t j = 0; j < N-K; j++) {
         if (is_pivot_column[j+K]) {
@@ -547,11 +551,22 @@ void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
    ASSERT(rref_ok != 0);
 
     // just copy the non IS
-    for (uint32_t i = 0; i < K; i++) {
-        for (uint32_t j = 0; j < N-K; j++) {
-            V->values[i][j] = G_dagger.values[i][j + K];
+    // TODO not CT, not correct if more than 1 col is not a pivot column.
+    // TODO Somehow merge with the loop just below
+    uint32_t ctr = 0, offset = K;
+    for(uint32_t j = 0; j < N-K; j++) {
+        if (is_pivot_column[j+K]) {
+            ctr += 1;
+            offset = K - ctr;
         }
+
+        for (uint32_t i = 0; i < K; i++) {
+            V->values[i][j] = G_dagger.values[i][j + offset];
+        }
+
+        offset = K;
     }
+
 
     POSITION_T piv_idx = 0;
     for(uint32_t col_idx = 0; col_idx < N; col_idx++) {

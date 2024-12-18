@@ -65,7 +65,7 @@ int crypto_sign(unsigned char *sm,
 #if defined(SEED_TREE)
     const uint32_t sig_len = LESS_CRYPTO_BYTES(num_seeds_published);
 #else
-    const uint32_t sig_len = LESS_CRYPTO_BYTES;
+    const uint32_t sig_len = sizeof(struct sig_t);//LESS_CRYPTO_BYTES;
 #endif
 
     *smlen = mlen + sig_len;
@@ -92,7 +92,7 @@ int crypto_sign_open(unsigned char *m,
     // the size of the signature in bytes
     const uint32_t sig_len = LESS_CRYPTO_BYTES((uint32_t)num_seeds_published);
 #else
-    const uint32_t sig_len = LESS_CRYPTO_BYTES;
+    const uint32_t sig_len = sizeof(struct sig_t);//LESS_CRYPTO_BYTES;
 #endif
 
     *mlen = smlen - (unsigned long long)sig_len;

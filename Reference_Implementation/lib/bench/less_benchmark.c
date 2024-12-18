@@ -90,7 +90,7 @@ long double welford_mean(const welford_t state) {
 #elif defined(CATEGORY_3)
 #define NUM_TESTS 12
 #else
-#define NUM_TESTS 16
+#define NUM_TESTS 32
 // #define NUM_TESTS 256
 #endif
 
@@ -131,7 +131,7 @@ void info(void){
 }
 
 #define MONO_ITERS 250000000
-void monomial_distribution(){
+void monomial_distribution(void){
     monomial_t mono;
     int num_l_r_swaps;
     int dist [K] = {0};

@@ -88,15 +88,12 @@ size_t LESS_sign(const prikey_t *SK,
 
     for (uint32_t i = 0; i < T; i++) {
         monomial_mat_seed_expand_rnd(&Q_tilde, seeds + i*SEED_LENGTH_BYTES, i);
-
-#if defined(LESS_REUSE_PIVOTS)
-        // prepare_digest_input_pivot_reuse(&V_array, &Q_bar[i], &full_G0, &Q_tilde, g0_initial_pivot_flags, SIGN_PIVOT_REUSE_LIMIT);
-#else
         prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde);
-#endif
 
+        // TODO blind
         const int t = cf5_nonct(&V_array);
         if (t == 0) {
+            *(seeds + i*SEED_LENGTH_BYTES) += 1;
             i -= 1;
         } else {
             LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
@@ -113,7 +110,7 @@ size_t LESS_sign(const prikey_t *SK,
     expand_digest_to_fixed_weight(fixed_weight_string, sig->digest);
 
     monomial_action_IS_t mono_action;
-    uint32_t ctr1 = 0, ctr2=0;
+    uint32_t ctr1=0, ctr2=0;
     for (uint32_t i = 0; i < T; i++) {
         if (fixed_weight_string[i] != 0) {
             monomial_t Q_to_multiply;
@@ -162,7 +159,7 @@ int LESS_verify(const pubkey_t *const PK,
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
 
-    uint32_t ctr1 = 0, ctr2 = 0;
+    uint32_t ctr1=0, ctr2=0;
     for (uint32_t i = 0; i < T; i++) {
         if (fixed_weight_string[i] == 0) {
             generator_get_pivot_flags(&G0_rref, g_initial_pivot_flags);
@@ -196,7 +193,7 @@ int LESS_verify(const pubkey_t *const PK,
 #if defined(LESS_REUSE_PIVOTS)
             apply_cf_action_to_G_with_pivots(&G_hat,
                                              &tmp_full_G,
-                                             sig->cf_monom_actions[employed_monoms],
+                                             sig->cf_monom_actions[ctr2],
                                              g_initial_pivot_flags,
                                              g_permuted_pivot_flags);
             const int ret = generator_RREF_pivot_reuse(&G_hat, is_pivot_column,
