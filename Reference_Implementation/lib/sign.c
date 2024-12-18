@@ -62,7 +62,7 @@ int crypto_sign(unsigned char *sm,
                     sk,                                             // in parameter
             (const char *const) m, (const uint64_t) mlen,           // in parameter
             (sign_t *) (sm + mlen));                                // out parameter
-#ifdef CATEGORY_1
+#if defined(SEED_TREE)
     const uint32_t sig_len = LESS_CRYPTO_BYTES(num_seeds_published);
 #else
     const uint32_t sig_len = LESS_CRYPTO_BYTES;
@@ -82,8 +82,8 @@ int crypto_sign_open(unsigned char *m,
                      const unsigned char *sm, unsigned long long smlen, // in parameter
                      const unsigned char *pk)                           // in parameter
 {
-    /// TODO, see sign for explenation
-#if defined(CATEGORY_1)
+#if defined(SEED_TREE)
+    /// TODO, see sign for explanation
     const uint8_t num_seeds_published = sm[smlen - 1u];
     if (num_seeds_published >= MAX_PUBLISHED_SEEDS) {
         return -1;

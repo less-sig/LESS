@@ -13,7 +13,7 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS " -Wno-gnu-binary-literal -Wno-unused-function -Wno-type-limits ")
+set(ALLOWED_WARNINGS " -Wno-gnu-binary-literal -Wno-unused-function -Wno-type-limits -fno-inline")
 
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
 	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0  -march=native -flax-vector-conversions ${ALLOWED_WARNINGS}")

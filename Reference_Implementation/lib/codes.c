@@ -300,11 +300,10 @@ void column_swap(normalized_IS_t *V,
    }
 }
 
-///
-/// @param V
-/// @param col1
-/// @param col2
-/// @param mask
+/// \param V
+/// \param col1
+/// \param col2
+/// \param mask
 void column_cswap(normalized_IS_t *V,
                   const POSITION_T col1,
                   const POSITION_T col2,
@@ -315,9 +314,9 @@ void column_cswap(normalized_IS_t *V,
 }
 
 ///
-/// @param V
-/// @param row1
-/// @param row2
+/// \param V
+/// \param row1
+/// \param row2
 void row_swap(normalized_IS_t *V,
               const POSITION_T row1,
               const POSITION_T row2) {
@@ -345,9 +344,9 @@ void row_cswap(normalized_IS_t *V,
     }
 }
 
-/// @param V
-/// @param row1
-/// @param row2
+/// \param V
+/// \param row1
+/// \param row2
 void generator_row_swap(generator_mat_t *V,
                         const POSITION_T row1,
                         const POSITION_T row2) {
@@ -462,7 +461,6 @@ void col_lex_quicksort(normalized_IS_t *V,
     }
 }
 
-
 /* Sorts the columns of V in lexicographic order */
 void lex_sort_cols(normalized_IS_t *V){
    col_lex_quicksort(V,0,(N-K)-1);
@@ -486,8 +484,9 @@ void prepare_digest_input(normalized_IS_t *V,
     /// TODO, this is kind of bad, should be removed, and proper error handling should be applied
     ASSERT(rref_ok != 0);
 
+    // TODO not CT, not correct if more than 1 col is not a pivot column.
+    // TODO Somehow merge with the loop just below
 
-    // TODO not CT, not correct if more than 1 col is not a pivot column. Somehow merge with the loop just below
     // just copy the non IS
     uint32_t ctr = 0, offset = K;
     for(uint32_t j = 0; j < N-K; j++) {
@@ -984,7 +983,7 @@ void normalized_copy(normalized_IS_t *V1,
     memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
 }
 
-/// \param G: non IS part: G[row] *= a;
+/// \param G: non IS part: G[row] *= a
 /// \param row
 /// \param a
 void normalized_mat_scale_row(normalized_IS_t *G,

@@ -55,7 +55,7 @@ typedef struct {
 typedef struct sig_t {
     uint8_t cf_monom_actions[W][N8];
     uint8_t digest[HASH_DIGEST_LENGTH];
-#ifdef CATEGORY_1
+#ifdef SEED_TREE
     uint8_t tree_salt[HASH_DIGEST_LENGTH];
     /// we need an additional byte to store the number of published seeds
     unsigned char seed_storage[SEED_TREE_MAX_PUBLISHED_BYTES + 1u];

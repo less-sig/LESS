@@ -50,7 +50,7 @@ int test_sorting_network_matrix(void) {
     memcpy((void *)G3.values, (void*)G1.values, sizeof(normalized_IS_t));
 
     row_bitonic_sort(&G2);
-    row_quick_sort(&G3);
+    row_quick_sort(&G3, K);
 
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < N-K; j++) {
@@ -77,7 +77,7 @@ int test_col_sorting_network_matrix(void) {
 
     //normalized_pretty_print(&G1);
     lex_sort_cols(&G1);
-    col_quicksort_transpose(&G3);//, 0, N - K - 1);
+    col_quicksort_transpose(&G3, K);//, 0, N - K - 1);
     col_bitonic_sort_transpose(&G4);
 
     // normalized_pretty_print(&G1);
@@ -107,5 +107,6 @@ int main(void) {
     if (test_sorting_network_matrix()) return 1;
     if (test_col_sorting_network_matrix()) return 1;
 
+    printf("Done, all worked\n");
     return 0;
 }

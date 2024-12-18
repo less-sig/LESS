@@ -35,7 +35,7 @@
 #include "keccakf1600.h"
 #include "sha3.h"
 
-#if !defined(CATEGORY_1)
+#if !defined(SEED_TREE)
 /// \param SK
 /// \param m
 /// \param mlen
@@ -95,7 +95,7 @@ size_t LESS_sign(const prikey_t *SK,
         prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde);
 #endif
 
-        const int t = cf5(&V_array);
+        const int t = cf5_nonct(&V_array);
         if (t == 0) {
             i -= 1;
         } else {
@@ -225,6 +225,7 @@ int LESS_verify(const pubkey_t *const PK,
 
                 offset = K;
             }
+            assert(ctr <= 1);
 
             ctr2+=1;
         }

@@ -26,6 +26,9 @@ int row_bitonic_sort(normalized_IS_t *G);
 int row_quick_sort(normalized_IS_t *G, const uint32_t n);
 
 void col_bitonic_sort_transpose(normalized_IS_t *V);
-void col_quicksort_transpose(normalized_IS_t *V);
-
+//void col_quicksort_transpose(normalized_IS_t *V);
+void col_quicksort_transpose(normalized_IS_t *V,
+                             const uint32_t z);
+void col_quicksort(normalized_IS_t *V,
+                   const uint32_t z);
 #endif //SORT_H

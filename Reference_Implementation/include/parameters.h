@@ -43,8 +43,8 @@
 #define POSITION_T uint8_t
 #define SEED_TREE_LABEL_T uint8_t
 
-#define   N (16)
-#define   K (8)
+#define   N (32)
+#define   K (16)
 #define   Q (127)
 #define NUM_KEYPAIRS (  2)
 #define   T (247)
@@ -63,33 +63,27 @@
 #define   N (252)
 #define   K (126)
 #define   Q (127)
-// #define   NUM_KEYPAIRS (2)
-// #define   T (247)
-// #define   W ( 30)
-
-// NOTE: these are the possible new parameters
-#define NUM_KEYPAIRS (4)
-#define   T (68)
-#define   W (42)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
+#define   NUM_KEYPAIRS (2)
+#define   T (256)
+#define   W (30)
+#define   SEED_TREE_MAX_PUBLISHED_BYTES (1472)
+#define   SEED_TREE
 
 #elif defined(INTERMEDIATE)
 #define   N (252)
 #define   K (126)
 #define   Q (127)
-#define NUM_KEYPAIRS (  4)
-#define   T (244)
-#define   W ( 20)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1152)
+#define   NUM_KEYPAIRS (4)
+#define   T (68)
+#define   W (42)
 
 #elif defined(SHORT_SIG)
 #define   N (252)
 #define   K (126)
 #define   Q (127)
-#define NUM_KEYPAIRS (  8)
-#define   T (198)
-#define   W ( 17)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1056)
+#define   NUM_KEYPAIRS (8)
+#define   T (45)
+#define   W (32)
 
 #else
 #error define optimization corner in parameters.h
@@ -244,15 +238,14 @@
 #define LESS_CRYPTO_PUBLICKEYBYTES (NUM_KEYPAIRS*RREF_MAT_PACKEDBYTES)
 #define LESS_CRYPTO_SECRETKEYBYTES ((NUM_KEYPAIRS-1)*SEED_LENGTH_BYTES + RREF_MAT_PACKEDBYTES)
 
-#ifdef CATEGORY_1
+#if defined(SEED_TREE)
 
 // returns the maximum bytes the signature can occupy
 #define LESS_CRYPTO_MAX_BYTES (HASH_DIGEST_LENGTH*2 + N8*W + SEED_TREE_MAX_PUBLISHED_BYTES + 1)
 #define LESS_CRYPTO_BYTES(NR_LEAVES) (HASH_DIGEST_LENGTH*2 + N8*W + NR_LEAVES*SEED_LENGTH_BYTES + 1)
 #else
 // returns the maximum bytes the signature can occupy
-#define LESS_CRYPTO_MAX_BYTES (HASH_DIGEST_LENGTH + N8*W + (W-T)*SEED_LENGTH_BYTES)
-#define LESS_CRYPTO_BYTES (HASH_DIGEST_LENGTH + N8*W + (W-T)*SEED_LENGTH_BYTES)
+#define LESS_CRYPTO_BYTES     (HASH_DIGEST_LENGTH + N8*W + (W-T)*SEED_LENGTH_BYTES)
 #endif
 
 

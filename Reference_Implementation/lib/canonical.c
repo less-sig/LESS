@@ -9,11 +9,6 @@
 #include "parameters.h"
 #include "sort.h"
 
-/// maximal number of rows each sub scaled matrix has in expectation
-#define Z_STAR 10
-
-/// maximal number of matrices we allow to be minimal
-#define C_STAR 10
 
 /// NOTE: non ct
 /// NOTE: computes the result inplace
@@ -21,9 +16,9 @@
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
 int compute_canonical_form_type3(normalized_IS_t *G) {
-    if (row_quick_sort(G, K) == 0) { return 0; }
-    col_quicksort_transpose(G);
-    return 1;
+    const int ret = row_quick_sort(G, K);
+    col_quicksort_transpose(G, K);
+    return ret;
 }
 
 /// NOTE: constant time impl
@@ -38,17 +33,23 @@ int compute_canonical_form_type3_ct(normalized_IS_t *G) {
 }
 
 /// NOTE: only operates on the first z rows
-/// NOTE: non ct
+/// NOTE: non-constant time
 /// NOTE: computes the result inplace
 /// first sort the rows, then the columns
+/// \param G[in/out] scaled submatrix which is going to sorted
+/// \param z[in] number of rows in G
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
 int compute_canonical_form_type3_sub(normalized_IS_t *G,
                                      const uint32_t z) {
-    if (z == 1) { return 1; }
+    if (z == 1) {
+        // if only 1 row needs to be sorted: that
+        // equivalent to just sort the row normally
+        row_sort(G->values[0], N-K);
+        return 1;
+    }
     if (row_quick_sort(G, z) == 0) { return 0; }
-    // TODO only sort z rows within each column
-    col_quicksort_transpose(G);
+    col_quicksort_transpose(G, z);
     return 1;
 }
 
@@ -135,9 +136,10 @@ int compute_canonical_form_type4_sub(normalized_IS_t *G,
 
 
 /// NOTE: non-constant time
-/// \param G[in] sub matrix with only z rows
+/// Applies the row scaling to only z rows
+/// \param G[in/out] sub matrix with only z rows
 /// \param z[in] number of rows in G
-/// \return 0: if a row cannnot be scaled any further
+/// \return 0: if a row cannot be scaled any further
 ///         1: on success
 int compute_canonical_form_type4_sub_v2(normalized_IS_t *G,
                                         const uint32_t z) {
@@ -257,12 +259,12 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 	// init the output matrix to some `invalid` data
 	memset(&smallest.values, Q-1, sizeof(normalized_IS_t));
 
-	FQ_ELEM J[N-K];
+	uint32_t J[N-K];
     uint32_t z = 0;
 
     // count zeros in each row
     uint32_t max_zeros = 0;
-	FQ_ELEM row_has_zero[K] = {0};
+	uint8_t row_has_zero[K] = {0};
 	for (uint32_t row = 0; row < K; row++) {
         uint32_t num_zeros = 0;
 	    for (uint32_t col = 0; col < N-K; col++) {
@@ -358,7 +360,7 @@ int compute_canonical_form_type5_ct(normalized_IS_t *G) {
     return 1;
 }
 
-/// note: non constant time
+/// note: non-constant time
 /// note: computes the result inplace
 /// \param G 
 /// \param row: 
@@ -366,13 +368,13 @@ int compute_canonical_form_type5_ct(normalized_IS_t *G) {
 /// 		1 on success
 int compute_canonical_form_type5_single_row(normalized_IS_t *G,
                                            const uint32_t row) {
-    FQ_ELEM row_inv_data[N_K_pad];
-    row_inv2(row_inv_data, G->values[row]);
+    FQ_ELEM coeffs[N_K_pad];
+    row_inv2(coeffs, G->values[row]);
     for (uint32_t row2 = 0; row2 < K; row2++) {
-        row_mul3(G->values[row2], G->values[row2], row_inv_data);
+        row_mul3(G->values[row2], G->values[row2], coeffs);
     }
 
-    return compute_canonical_form_type4_ct(G);
+    return compute_canonical_form_type4(G);
 }
 
 /// constant time implementation
@@ -390,11 +392,16 @@ int cf5_nonct(normalized_IS_t *G) {
     return compute_canonical_form_type5_popcnt(G);
 }
 
+/// TODO doc
+/// \param G
+/// \param prng
 void blind(normalized_IS_t *G,
            SHAKE_STATE_STRUCT *prng) {
     monomial_action_IS_t left, right;
     normalized_IS_t B;
 
+    // We compute the following matrix multiplication G = left * G * right
+    // where `left` and `right` are randomly sampled monomials
     fq_star_rnd_state_elements(prng, left.coefficients, N-K);
     fq_star_rnd_state_elements(prng, right.coefficients, N-K);
     for(uint32_t i = 0; i < N-K; i++) {
@@ -405,6 +412,7 @@ void blind(normalized_IS_t *G,
     yt_shuffle_state_limit(prng, left.permutation, N-K);
     yt_shuffle_state_limit(prng, right.permutation, N-K);
 
+    // apply the right multiplication
     for (uint32_t i = 0; i < K; i++) {
         const FQ_ELEM a = right.coefficients[i];
         const POSITION_T pos = right.permutation[i];
@@ -414,6 +422,7 @@ void blind(normalized_IS_t *G,
         }
     }
 
+    // apply the left multiplication
     for (uint32_t i = 0; i < K; i++) {
         const FQ_ELEM a = left.coefficients[i];
         const POSITION_T pos = left.permutation[i];
@@ -428,12 +437,12 @@ void blind(normalized_IS_t *G,
 /// \param G
 /// \return
 int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
-	FQ_ELEM J[N-K];
+	uint32_t J[N-K];
     uint32_t z = 0;
 
     // count zeros in each row
     uint32_t max_zeros = 0;
-	FQ_ELEM row_has_zero[K] = {0};
+	uint8_t row_has_zero[K] = {0};
 	for (uint32_t row = 0; row < K; row++) {
         uint32_t num_zeros = 0;
 	    for (uint32_t col = 0; col < N-K; col++) {
@@ -461,9 +470,9 @@ int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
 	    return compute_canonical_form_type5(G);
     }
 
-    normalized_IS_t scaled_sub_G, scaled_sub_G_smallest;
+    /// Storage fo the scaled matrix
+    normalized_IS_t scaled_sub_G;
 	FQ_ELEM coeffs[N_K_pad];
-	memset(&scaled_sub_G_smallest.values, Q-1, sizeof(normalized_IS_t));
 
     // Storage for the shortest matrices
     normalized_IS_t min_CF;
@@ -495,7 +504,11 @@ int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
 
     if (all_sub_CF_z == 0) { return 0; }
 
-    /// TODO not correct need to make a copy
+    // in this case we know that there is at least a single shortest
+    // memset(min_CF.values, Q-1,  sizeof(normalized_IS_t));
+
+    /// TODO not looping over the last correct rows. Assumes its always 1
+    assert(all_sub_CF_z == 1);
     for (uint32_t i = 0; i < all_sub_CF_z; i++) {
         if (compute_canonical_form_type5_single_row(G, all_sub_CF[i])) {
             return 1;

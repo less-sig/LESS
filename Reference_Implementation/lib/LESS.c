@@ -88,7 +88,7 @@ void LESS_keygen(prikey_t *SK,
 } /* end LESS_keygen */
 
 // TODO, quick and dirty hack
-#ifdef CATEGORY_1
+#ifdef SEED_TREE
 
 /// returns the number of opened seeds in the tree.
 /// \param SK

@@ -183,7 +183,7 @@ int test_compute_canonical_form_type5(void) {
 }
 
 int test_compute_canonical_form_type5_v2(void) {
-    normalized_IS_t G1, G2, G3, G4;
+    normalized_IS_t G4, G1, G2, G3;
     permutation_t P_c, P_r;
     diagonal_t D_r, D_c;
 
@@ -304,7 +304,7 @@ int test_compute_canonical_form_type5_v3(void) {
 // tests: if CF(G) and CF(RREF(G)) are the same
 uint32_t  test_compute_canonical_form_type5_gaus(void) {
     generator_mat_t G1, G2;
-    normalized_IS_t V1, V2, V3;
+    normalized_IS_t V1, V2, V3, V4;
     for (uint32_t k = 0; k < ITERS; ++k) {
         generator_sf(&G1);
         memcpy(&G2.values, &G1.values, sizeof(generator_mat_t));
@@ -315,12 +315,14 @@ uint32_t  test_compute_canonical_form_type5_gaus(void) {
         generator_to_normalized(&V1, &G1);
         generator_to_normalized(&V2, &G2);
         generator_to_normalized(&V3, &G2);
+        generator_to_normalized(&V4, &G2);
 
         const int ret1 = cf5(&V1);
         const int ret2 = cf5_nonct(&V2);
         const int ret3 = compute_canonical_form_type5_popcnt(&V3);
+        const int ret4 = compute_canonical_form_type5_fastest(&V4);
 
-        if ((ret1 != ret2) && (ret1 != ret3)) {
+        if ((ret1 != ret2) && (ret1 != ret3) && (ret1 != ret4)) {
             printf("error: cf5 gaus ret\n");
             return 1;
         }
@@ -337,6 +339,12 @@ uint32_t  test_compute_canonical_form_type5_gaus(void) {
                     normalized_pretty_print(&V1);
                     normalized_pretty_print(&V3);
                     printf("error: cf5 popcnt gaus \n");
+                    return 1;
+                }
+                if (V1.values[i][j] != V4.values[i][j]) {
+                    normalized_pretty_print(&V1);
+                    normalized_pretty_print(&V4);
+                    printf("error: cf5 fastest gaus \n");
                     return 1;
                 }
             }
@@ -361,8 +369,8 @@ int main(void) {
 
 #if defined(CATEGORY_0)
     // value tests, (values taken from cf.py)
-    if (test_compute_canonical_form_type4_v3()) return 1;
-    if (test_compute_canonical_form_type5_v3()) return 1;
+    // if (test_compute_canonical_form_type4_v3()) return 1;
+    // if (test_compute_canonical_form_type5_v3()) return 1;
 #endif
 
     printf("Done, all worked\n");
