@@ -95,6 +95,7 @@ size_t LESS_sign(const prikey_t *SK,
         if (t == 0) {
             *(seeds + i*SEED_LENGTH_BYTES) += 1;
             i -= 1;
+            printf("cf5 failed\n"); // TODO remove
         } else {
             LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
         }

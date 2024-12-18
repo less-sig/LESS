@@ -134,7 +134,6 @@ int compute_canonical_form_type4_sub(normalized_IS_t *G,
     return 0;
 }
 
-
 /// NOTE: non-constant time
 /// Applies the row scaling to only z rows
 /// \param G[in/out] sub matrix with only z rows
@@ -377,21 +376,6 @@ int compute_canonical_form_type5_single_row(normalized_IS_t *G,
     return compute_canonical_form_type4(G);
 }
 
-/// constant time implementation
-/// \param G
-/// \return
-int cf5(normalized_IS_t *G) {
-    return compute_canonical_form_type5_ct(G);
-}
-
-/// non-constant time implementation
-/// \param G
-/// \return
-int cf5_nonct(normalized_IS_t *G) {
-    // return compute_canonical_form_type5(G);
-    return compute_canonical_form_type5_popcnt(G);
-}
-
 /// TODO doc
 /// \param G
 /// \param prng
@@ -515,4 +499,20 @@ int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
         }
     }
     return 0;
+}
+
+/// constant time implementation
+/// \param G
+/// \return
+int cf5(normalized_IS_t *G) {
+    return compute_canonical_form_type5_ct(G);
+}
+
+/// non-constant time implementation
+/// \param G
+/// \return
+int cf5_nonct(normalized_IS_t *G) {
+    // return compute_canonical_form_type5(G);
+    return compute_canonical_form_type5_popcnt(G);
+    return compute_canonical_form_type5_popcnt(G);
 }
