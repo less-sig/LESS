@@ -13,7 +13,7 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS " -Wno-gnu-binary-literal -Wno-unused-function -Wno-type-limits ")
+set(ALLOWED_WARNINGS " -Wno-gnu-binary-literal -Wno-unused-function -Wno-type-limits")
 
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
 	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0  -march=native -flax-vector-conversions ${ALLOWED_WARNINGS}")
@@ -29,6 +29,7 @@ set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/fips202.c
         ${PROJECT_SOURCE_DIR}/lib/keccakf1600.c
         ${PROJECT_SOURCE_DIR}/lib/LESS.c
+        ${PROJECT_SOURCE_DIR}/lib/LESS_without_tree.c
         ${PROJECT_SOURCE_DIR}/lib/monomial.c
         ${PROJECT_SOURCE_DIR}/lib/rng.c
         ${PROJECT_SOURCE_DIR}/lib/seedtree.c

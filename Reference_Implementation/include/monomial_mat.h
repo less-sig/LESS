@@ -72,6 +72,11 @@ typedef struct {
    unsigned char value[SEED_LENGTH_BYTES];
 } monomial_seed_t;
 
+void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
+                            POSITION_T *permutation,
+                            const uint32_t n);
+void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state,
+                      POSITION_T permutation[N]);
 void yt_shuffle(POSITION_T permutation[N]);
 
 /* multiplies two monomial matrices */
@@ -99,6 +104,10 @@ void monomial_mat_seed_expand_salt_rnd(monomial_t *res,
 void monomial_mat_seed_expand_prikey(monomial_t *res,
                                      const unsigned char seed[PRIVATE_KEY_SEED_LENGTH_BYTES]);
 
+///
+void monomial_mat_seed_expand_rnd(monomial_t *res,
+                                  const unsigned char seed[SEED_LENGTH_BYTES],
+                                  const uint16_t round_index);
 /* yields the identity matrix */
 void monomial_mat_id(monomial_t *res);
 

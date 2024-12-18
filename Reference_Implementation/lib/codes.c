@@ -31,20 +31,25 @@
 #include "fq_arith.h"
 #include "parameters.h"
 
+/// TODO remove and replace with
+//          void row_mul2
 // computes G[row] = a*G[row]
-void scale_row(generator_mat_t *G, const uint32_t row, const FQ_ELEM a) {
+void scale_row(generator_mat_t *G,
+               const uint32_t row,
+               const FQ_ELEM a) {
 	for (uint32_t col = 0; col < N; col++) {
 		G->values[row][col] = fq_mul(G->values[row][col], a);
 	}
 }
 
 /* Calculate pivot flag array */
-void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t pivot_flag [N]) {
-    for (int i = 0; i < N; i = i + 1) {
+void generator_get_pivot_flags (const rref_generator_mat_t *const G,
+                                uint8_t pivot_flag [N]) {
+    for (uint32_t i = 0; i < N; i = i + 1) {
         pivot_flag[i] = 1;
     }
 
-    for (int i = 0; i < K; i = i + 1) {
+    for (uint32_t i = 0; i < K; i = i + 1) {
         pivot_flag[G->column_pos[i]] = 0;
     }
 }
@@ -300,11 +305,10 @@ void column_swap(normalized_IS_t *V,
    }
 }
 
-///
-/// @param V
-/// @param col1
-/// @param col2
-/// @param mask
+/// \param V
+/// \param col1
+/// \param col2
+/// \param mask
 void column_cswap(normalized_IS_t *V,
                   const POSITION_T col1,
                   const POSITION_T col2,
@@ -315,9 +319,9 @@ void column_cswap(normalized_IS_t *V,
 }
 
 ///
-/// @param V
-/// @param row1
-/// @param row2
+/// \param V
+/// \param row1
+/// \param row2
 void row_swap(normalized_IS_t *V,
               const POSITION_T row1,
               const POSITION_T row2) {
@@ -345,9 +349,9 @@ void row_cswap(normalized_IS_t *V,
     }
 }
 
-/// @param V
-/// @param row1
-/// @param row2
+/// \param V
+/// \param row1
+/// \param row2
 void generator_row_swap(generator_mat_t *V,
                         const POSITION_T row1,
                         const POSITION_T row2) {
@@ -462,13 +466,12 @@ void col_lex_quicksort(normalized_IS_t *V,
     }
 }
 
-
 /* Sorts the columns of V in lexicographic order */
 void lex_sort_cols(normalized_IS_t *V){
    col_lex_quicksort(V,0,(N-K)-1);
 }
 
-/// TODO
+/// TODO doc
 /// \param V
 /// \param Q_bar_IS
 /// \param G
@@ -486,9 +489,9 @@ void prepare_digest_input(normalized_IS_t *V,
     /// TODO, this is kind of bad, should be removed, and proper error handling should be applied
     ASSERT(rref_ok != 0);
 
-
-    // TODO not CT, not correct if more than 1 col is not a pivot column. Somehow merge with the loop just below
     // just copy the non IS
+    // TODO not CT, not correct if more than 1 col is not a pivot column.
+    // TODO Somehow merge with the loop just below
     uint32_t ctr = 0, offset = K;
     for(uint32_t j = 0; j < N-K; j++) {
         if (is_pivot_column[j+K]) {
@@ -519,7 +522,13 @@ void prepare_digest_input(normalized_IS_t *V,
     }
 } /* end prepare_digest_input */
 
-
+/// TODO doc
+/// \param V
+/// \param Q_bar_IS
+/// \param G
+/// \param Q_tilde
+/// \param initial_pivot_flags
+/// \param pvt_reuse_limit
 void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
                                       monomial_action_IS_t *Q_bar_IS,
                                       const generator_mat_t *const G,
@@ -542,11 +551,22 @@ void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
    ASSERT(rref_ok != 0);
 
     // just copy the non IS
-    for (uint32_t i = 0; i < K; i++) {
-        for (uint32_t j = 0; j < N-K; j++) {
-            V->values[i][j] = G_dagger.values[i][j + K];
+    // TODO not CT, not correct if more than 1 col is not a pivot column.
+    // TODO Somehow merge with the loop just below
+    uint32_t ctr = 0, offset = K;
+    for(uint32_t j = 0; j < N-K; j++) {
+        if (is_pivot_column[j+K]) {
+            ctr += 1;
+            offset = K - ctr;
         }
+
+        for (uint32_t i = 0; i < K; i++) {
+            V->values[i][j] = G_dagger.values[i][j + offset];
+        }
+
+        offset = K;
     }
+
 
     POSITION_T piv_idx = 0;
     for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
@@ -565,9 +585,9 @@ void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
 
 } /* end prepare_digest_input_pivot_reuse */
 
-/// @param res
-/// @param G
-/// @param Q_IS
+/// \param res
+/// \param G
+/// \param Q_IS
 void apply_action_to_G(generator_mat_t* res,
                        const generator_mat_t* G,
                        const monomial_action_IS_t* Q_IS,
@@ -603,9 +623,9 @@ void apply_action_to_G(generator_mat_t* res,
 }
 
 /// NOTE: not constant time
-/// @param res
-/// @param G
-/// @param c
+/// \param res
+/// /param G
+/// param c
 void apply_cf_action_to_G(generator_mat_t* res,
                           const generator_mat_t *G,
                           const uint8_t *const c) {
@@ -978,7 +998,7 @@ void normalized_copy(normalized_IS_t *V1,
     memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
 }
 
-/// \param G: non IS part: G[row] *= a;
+/// \param G: non IS part: G[row] *= a
 /// \param row
 /// \param a
 void normalized_mat_scale_row(normalized_IS_t *G,

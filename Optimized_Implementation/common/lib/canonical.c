@@ -17,8 +17,6 @@
 int compute_canonical_form_type3(normalized_IS_t *G) {
     if (row_quick_sort(G) == 0) { return 0; }
     col_quicksort_transpose(G);
-    // TODO
-    // lex_sort_cols(G);
     return 1;
 }
 
@@ -30,8 +28,6 @@ int compute_canonical_form_type3(normalized_IS_t *G) {
 int compute_canonical_form_type3_ct(normalized_IS_t *G) {
     if (row_bitonic_sort(G) == 0) { return 0; }
     col_bitonic_sort_transpose(G);
-    // TODO something breaks in release mode?
-    // lex_sort_cols(G);
     return 1;
 }
 

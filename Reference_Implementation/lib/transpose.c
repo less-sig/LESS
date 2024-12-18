@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "transpose.h"
+#include "parameters.h"
 
 /// \param dst[out]
 /// \param src[in] input bytes 8x8 matrix
@@ -82,18 +83,22 @@ inline const uint8_t* next_block(const uint8_t *src,
 /// TODO doc
 /// \param dst
 /// \param src
-/// \param n
+/// \param n nr cols
+/// \param z nr rows
 void matrix_transpose_opt(uint8_t *dst,
                           const uint8_t *src,
-                          const size_t n) {
-    // TODO: remove if unneeded
-    memset(dst, 0, n*n);
+                          const uint32_t n,
+                          const uint32_t z) {
     const size_t bsize = 64;
+    // TODO:
+    //  - stride parameter is missing
+    //  - optimize in the
 
-    if (n < bsize) {
-        for (uint32_t i = 0; i < n; i++) {
+    if ((n < bsize) || (z < bsize)) {
+        for (uint32_t i = 0; i < z; i++) {
             for (uint32_t j = 0; j < n; j++) {
-                dst[j*n + i] = src[i*n + j];
+                /// NOTE: hardcoded stride here
+                dst[j*K + i] = src[i*K + j];
             }
         }
 

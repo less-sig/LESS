@@ -47,7 +47,7 @@ void bitonic_sort_i8(FQ_ELEM *x,
         for (q = top; q > p; q >>= 1) {
             for (; i < n - q; ++i) {
                 if (!(i & p)) {
-                    int8_t a = x[i + p];
+                    FQ_ELEM a = x[i + p];
                     for (r = q; r > p; r >>= 1) {
                         int8_MINMAX(a, x[i + r]);
                     }
@@ -75,10 +75,12 @@ void counting_sort_u8(FQ_ELEM *arr,
 	uint32_t cnt[128] __attribute__((aligned(512))) = { 0 };
 	size_t i;
 
+    /// compute the histogram
 	for (i = 0 ; i < size ; ++i) {
 		cnt[arr[i]]++;
 	}
 
+    /// compute the prefixsum
 	i = 0;
 	for (size_t a = 0 ; a < Q; ++a) {
 		while (cnt[a]--) {
@@ -217,6 +219,7 @@ int row_quick_sort_internal(FQ_ELEM* ptr[K],
 	return 1;
 }
 
+///  TODO maybe just histogram, instead of the full?
 /// \param ptr[in/out]: pointer to the row to sort
 /// \param len[in]: length of the row
 void row_sort(uint8_t *ptr, 
@@ -227,27 +230,28 @@ void row_sort(uint8_t *ptr,
 /// NOTE: only operates on ptrs
 /// NOTE: not constant time
 /// \param G[in/out]: generator matrix to sort
+/// \param n[in] number of elements to sort
 /// \return 1 on success
 ///			0 if two rows generate the same multiset
-int row_quick_sort(normalized_IS_t *G) {
+int row_quick_sort(normalized_IS_t *G,
+                   const uint32_t n) {
 	// first sort each row into a tmp buffer
 	FQ_ELEM  tmp[K][N-K];
     FQ_ELEM* ptr[K];
     uint32_t P[K];
-	for (uint32_t i = 0; i < K; ++i) {
+	for (uint32_t i = 0; i < n; ++i) {
 		memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
-        // TODO maybe just histogram?
         row_sort(tmp[i], N-K);
 
         ptr[i] = tmp[i];
         P[i] = i;
 	}
 
-	const int ret = row_quick_sort_internal(ptr, P, 0, N - K - 1);
+	const int ret = row_quick_sort_internal(ptr, P, 0,  n - 1u);
     if (ret == 0) { return 0; }
 
     // apply the permutation
-    for (uint32_t t = 0; t < K; t++) {
+    for (uint32_t t = 0; t < n; t++) {
         uint32_t ind = P[t];
         while(ind<t) { ind = P[ind]; }
 
@@ -257,15 +261,16 @@ int row_quick_sort(normalized_IS_t *G) {
     return 1;
 }
 
-
-/// NOTE: non constant time
+/// NOTE: non-constant time
 /// Sorts the columns of the input matrix, via first transposing
 /// the matrix, subsequent sorting rows, and finally transposing
 /// it back.
 /// \param V[in/out]: non IS-part of a generator matrix
-void col_quicksort_transpose(normalized_IS_t *V) {
+/// \param z[in]: number of rows within each col to sort
+void col_quicksort_transpose(normalized_IS_t *V,
+                             const uint32_t z) {
     normalized_IS_t VT;
-    matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, K);
+    matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, K, z);
 
     FQ_ELEM* ptr[K];
     uint32_t P[K];
@@ -284,7 +289,7 @@ void col_quicksort_transpose(normalized_IS_t *V) {
         row_swap(&VT, t, ind);
     }
 
-    matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, K);
+    matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, z, K);
 }
 
 /// NOTE: internal function, do not call it directly.
@@ -311,7 +316,7 @@ int col_bitonic_sort_transposed(normalized_IS_t *G) {
         for (uint64_t i = 0; i < n - p; ++i) {
             if (!(i & p)) {
                 // NOTE: here is a sign cast, this is needed, so the
-            	// sign extension needed for the mask is a unsigned one.
+            	// sign extension needed for the mask is an unsigned one.
 			    const uint32_t cmp = compare_rows_bitonic_sort(ptr, i, i + p);
 
                 const uintptr_t mask = -(1ull - (cmp >> 31));
@@ -354,9 +359,9 @@ int col_bitonic_sort_transposed(normalized_IS_t *G) {
 /// \input G[in/out]: normalised non IS part of a generator matrix
 void col_bitonic_sort_transpose(normalized_IS_t *V) {
     normalized_IS_t VT;
-    matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, K);
+    matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, K, K);
 	col_bitonic_sort_transposed(&VT);
-    matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, K);
+    matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, K, K);
 }
 
 /// NOTE: operates on pointers
@@ -422,4 +427,129 @@ int row_bitonic_sort(normalized_IS_t *G) {
     }
 
     return 1;
+}
+
+
+
+
+
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// ah still TODO
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// lexicographic comparison of a column with the pivot
+/// returns 1 if the pivot is greater, -1 if it is smaller,
+/// 0 if it matches */
+int col_quicksort_internal_compare_with_pivot(FQ_ELEM *V[K],
+                                              const POSITION_T col_idx,
+                                              const FQ_ELEM pivot[K],
+                                              const uint32_t z) {
+    uint32_t i=0;
+    printf("%d\n", col_idx);
+    while(i<z && V[col_idx][i*K]-pivot[i] == 0){
+        i++;
+    }
+    if (i==z) return 0;
+
+     /// TODO: optimize the
+    if (V[col_idx][i*K]-pivot[i] > 0){
+       return -1;
+    }
+
+    return 1;
+}
+
+void col_quicksort_internal_column_swap(normalized_IS_t *V,
+                                        const POSITION_T col1,
+                                        const POSITION_T col2,
+                                        const uint32_t z){
+   for(uint32_t i = 0; i<z;i++ ){
+      const POSITION_T tmp = V->values[i][col2];
+      V->values[i][col2] = V->values[i][col1];
+      V->values[i][col1] = tmp;
+   }
+}
+///
+uint32_t col_quicksort_internal_hoare_partition(FQ_ELEM *V[K],
+                                                uint32_t P[K],
+                                                const POSITION_T col_l,
+                                                const POSITION_T col_h,
+                                                const uint32_t z){
+    FQ_ELEM pivot_col[K];
+    for(uint32_t i = 0; i < z; i++){
+       pivot_col[i] = V[col_l][i*K];
+    }
+
+    POSITION_T i = col_l, j = col_h+1;
+    do {
+        j--;
+    } while(col_quicksort_internal_compare_with_pivot(V, j, pivot_col, z) == -1);
+
+    if(i >= j){
+        return j;
+    }
+
+    // column_swap(V,i,j);
+    SWAP(P[i], P[j]);
+    cswap((uintptr_t *)V[i], (uintptr_t *)V[j], -1ull);
+
+    while(1){
+        do {
+            i++;
+        } while(col_quicksort_internal_compare_with_pivot(V, i, pivot_col, z) == 1);
+        do {
+            j--;
+        } while(col_quicksort_internal_compare_with_pivot(V, j, pivot_col, z) == -1);
+
+        if(i >= j){
+            return j;
+        }
+
+        // column_swap(V,i,j);
+        SWAP(P[i], P[j]);
+        cswap((uintptr_t *)V[i], (uintptr_t *)V[j], -1ull);
+    }
+}
+
+/// TODO doc and unfinished
+/// \param V
+/// \param P
+/// \param start
+/// \param end
+/// \param z
+void col_quicksort_internal(FQ_ELEM *V[K],
+                            uint32_t P[K],
+                            const uint32_t start,
+                            const uint32_t end,
+                            const uint32_t z) {
+    if(start < end){
+        const uint32_t p = col_quicksort_internal_hoare_partition(V, P, start, end, z);
+        col_quicksort_internal(V, P, start, p, z);
+        col_quicksort_internal(V, P, p+1, end, z);
+    }
+}
+
+/// \param V[in/out]:
+/// \param z[in]: number of rows in each column
+void col_quicksort(normalized_IS_t *V,
+                   const uint32_t z) {
+    uint32_t P[K];
+    FQ_ELEM* ptr[K];
+    for (uint32_t i = 0; i < K; ++i) {
+        ptr[i] = &(V->values[0][i]);
+        P[i] = i;
+    }
+
+    col_quicksort_internal(ptr, P, 0, K-1, z);
+
+    // apply the permutation
+    for (uint32_t t = 0; t < K; t++) {
+        uint32_t ind = P[t];
+        while(ind<t) { ind = P[ind]; }
+
+        column_swap(V, t, ind);
+    }
 }

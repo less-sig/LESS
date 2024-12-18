@@ -32,7 +32,27 @@
 #define POS_BITS BITS_TO_REPRESENT(N-1)
 #define POS_MASK (((POSITION_T) 1 << POS_BITS) - 1)
 
-static inline
+///
+/// \param shake_monomial_state
+/// \param permutation
+/// \param n <= N
+void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
+                            POSITION_T *permutation,
+                            const uint32_t n) {
+    uint32_t rand_u32[N] = {0};
+    POSITION_T tmp;
+
+    csprng_randombytes((unsigned char *) &rand_u32, sizeof(uint32_t)*n, shake_monomial_state);
+    for (size_t i = 0; i < n - 1; ++i) {
+        rand_u32[i] = i + rand_u32[i] % (n - i);
+    }
+
+    for (size_t i = 0; i < n - 1; ++i) {
+        tmp = permutation[i];
+        permutation[i] = permutation[rand_u32[i]];
+        permutation[rand_u32[i]] = tmp;
+    }
+}
 void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state, POSITION_T permutation[N]) {
     uint32_t rand_u32[N] = {0};
     POSITION_T tmp;
@@ -97,6 +117,28 @@ void monomial_mat_seed_expand_prikey(monomial_t *res,
    yt_shuffle_state(&shake_monomial_state, res->permutation);
 } /* end monomial_mat_seed_expand */
 
+
+void monomial_mat_seed_expand_rnd(monomial_t *res,
+                                  const unsigned char seed[SEED_LENGTH_BYTES],
+                                  const uint16_t round_index) {
+    SHAKE_STATE_STRUCT shake_monomial_state = {0};
+    const int shake_buffer_len = SEED_LENGTH_BYTES+sizeof(uint16_t);
+    uint8_t shake_input_buffer[shake_buffer_len];
+    memcpy(shake_input_buffer,seed,SEED_LENGTH_BYTES);
+    memcpy(shake_input_buffer+SEED_LENGTH_BYTES,
+           &round_index,
+           sizeof(uint16_t));
+
+    initialize_csprng(&shake_monomial_state,shake_input_buffer,shake_buffer_len);
+    fq_star_rnd_state_elements(&shake_monomial_state, res->coefficients, N);
+    for(uint32_t i = 0; i < N; i++) {
+        res->permutation[i] = i;
+    }
+
+    /* FY shuffle on the permutation */
+    yt_shuffle_state(&shake_monomial_state, res->permutation);
+
+}
 
 /* samples a random perm matrix */
 void monomial_mat_rnd(monomial_t *res) {
