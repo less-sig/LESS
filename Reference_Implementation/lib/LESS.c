@@ -155,7 +155,17 @@ size_t LESS_sign(const prikey_t *SK,
 
         // TODO hide behind a compiler flag/preprocessor flag
         // prepare_digest_input_pivot_reuse(&V_array, &Q_bar[i], &full_G0, &Q_tilde, g0_initial_pivot_flags, SIGN_PIVOT_REUSE_LIMIT);
+#if defined(LESS_REUSE_PIVOTS_SG)
+            // TODO half of these operations can be optimized away
+            prepare_digest_input_pivot_reuse(&V_array,
+                                             &Q_bar[i],
+                                             &full_G0,
+                                             &Q_tilde,
+                                             g0_initial_pivot_flags,
+                                             SIGN_PIVOT_REUSE_LIMIT);
+#else
         prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde);
+#endif
         blind(&V_array, &cf_shake_state);
         const int t = cf5_nonct(&V_array);
         if (t == 0) {
@@ -260,7 +270,7 @@ int LESS_verify(const pubkey_t *const PK,
                                               ephem_monomial_seeds + i * SEED_LENGTH_BYTES,
                                               sig->tree_salt,
                                               i);
-#if defined(LESS_REUSE_PIVOTS)
+#if defined(LESS_REUSE_PIVOTS_VY)
             // TODO half of these operations can be optimized away
             prepare_digest_input_pivot_reuse(&V_array,
                                              &Q_to_discard,
@@ -287,7 +297,7 @@ int LESS_verify(const pubkey_t *const PK,
                 return 0;
             }
 
-#if defined(LESS_REUSE_PIVOTS)
+#if defined(LESS_REUSE_PIVOTS_VY)
             apply_cf_action_to_G_with_pivots(&G_hat,
                                              &tmp_full_G,
                                              sig->cf_monom_actions[employed_monoms],

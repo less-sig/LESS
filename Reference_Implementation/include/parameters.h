@@ -53,6 +53,7 @@
 
 #elif defined(CATEGORY_1)
 #define SEED_LENGTH_BYTES (16)
+#define SIGN_PIVOT_REUSE_LIMIT (25) // Ensures probability of non-CT operaiton is < 2^-64
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
 #define FQ_TRIPLEPREC uint32_t
@@ -92,6 +93,7 @@
 /********************************* Category 3 *********************************/
 #elif defined(CATEGORY_3)
 #define SEED_LENGTH_BYTES (24)
+#define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operaiton is < 2^-64
 
 #if defined(BALANCED)
 #define   N (400)
@@ -125,6 +127,7 @@
 /********************************* Category 5 *********************************/
 #elif defined(CATEGORY_5)
 #define SEED_LENGTH_BYTES (32)
+#define SIGN_PIVOT_REUSE_LIMIT (79) // Ensures probability of non-CT operaiton is < 2^-64
 
 #if defined(BALANCED)
 #define   N (548)
@@ -176,7 +179,7 @@
 #error define category for parameters
 #endif
 
-#define SIGN_PIVOT_REUSE_LIMIT   (K/2)-32
+
 #define VERIFY_PIVOT_REUSE_LIMIT K 
 
 // #define SIGN_PIVOT_REUSE_LIMIT   0
@@ -246,4 +249,5 @@
 #endif
 
 // TODO doc
-// #define LESS_REUSE_PIVOTS
+#define LESS_REUSE_PIVOTS_VY
+#define LESS_REUSE_PIVOTS_SG
