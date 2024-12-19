@@ -31,17 +31,6 @@
 #include "fq_arith.h"
 #include "parameters.h"
 
-/// TODO remove and replace with
-//          void row_mul2
-// computes G[row] = a*G[row]
-void scale_row(generator_mat_t *G,
-               const uint32_t row,
-               const FQ_ELEM a) {
-	for (uint32_t col = 0; col < N; col++) {
-		G->values[row][col] = fq_mul(G->values[row][col], a);
-	}
-}
-
 /* Calculate pivot flag array */
 void generator_get_pivot_flags (const rref_generator_mat_t *const G,
                                 uint8_t pivot_flag [N]) {
@@ -583,43 +572,6 @@ void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
 
 } /* end prepare_digest_input_pivot_reuse */
 
-/// \param res
-/// \param G
-/// \param Q_IS
-void apply_action_to_G(generator_mat_t* res,
-                       const generator_mat_t* G,
-                       const monomial_action_IS_t* Q_IS,
-                       uint8_t initial_G_col_pivot[N],
-                       uint8_t permutated_G_col_pivot[N]) {
-    /* sweep inorder Q_IS, pick cols from G, and note unpicked cols in support
-     * array */
-    uint8_t is_G_col_pivot[N];
-    for (int i = 0; i < N; i++) {
-        is_G_col_pivot[i] = 0;
-    }
-
-    for(uint32_t dst_col_idx = 0; dst_col_idx < K; dst_col_idx++){
-        POSITION_T src_col_idx;
-        src_col_idx = Q_IS->permutation[dst_col_idx];
-        for(uint32_t i = 0; i < K; i++){
-            res->values[i][dst_col_idx] = fq_mul((FQ_DOUBLEPREC) G->values[i][src_col_idx], Q_IS->coefficients[dst_col_idx]);
-        }
-        permutated_G_col_pivot[dst_col_idx] = initial_G_col_pivot[src_col_idx];
-        is_G_col_pivot[src_col_idx] = 1;
-    }
-
-    uint32_t dst_col_idx = K;
-    for(uint32_t src_col_idx = 0; src_col_idx<N; src_col_idx++){
-        if (!is_G_col_pivot[src_col_idx]){
-            for(uint32_t i = 0; i < K; i++){
-                res->values[i][dst_col_idx] = G->values[i][src_col_idx];
-            }
-            permutated_G_col_pivot[dst_col_idx] = initial_G_col_pivot[src_col_idx];
-            dst_col_idx++;
-        }
-    }    
-}
-
 /// NOTE: not constant time
 /// \param res
 /// /param G
@@ -996,50 +948,6 @@ void normalized_copy(normalized_IS_t *V1,
     memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
 }
 
-/// \param G: non IS part: G[row] *= a
-/// \param row
-/// \param a
-void normalized_mat_scale_row(normalized_IS_t *G,
-                              const uint32_t row,
-                              const FQ_ELEM a) {
-    for (uint32_t col = 0; col < N-K; col++) {
-        G->values[row][col] = fq_mul(G->values[row][col], a);
-    }
-}
-
-///
-/// \param V
-/// \param col
-/// \return 0 if the column is zero
-///         1 if the columns is non-zero
-int normalized_is_zero_column(const normalized_IS_t *const V,
-                              const uint32_t col) {
-    for (uint32_t i = 0; i < K; i++) {
-        if (V->values[i][col] > 0) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-///
-/// \param V
-/// \param col
-/// \return 0 if every value in columns is non zerp
-///         1 otherwise
-int normalized_is_zero_in_column(const normalized_IS_t *const V,
-                              const uint32_t col) {
-    for (uint32_t i = 0; i < K; i++) {
-        if (V->values[i][col] == 0) {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-
 void generator_SF_seed_expand(rref_generator_mat_t *res,
                               const unsigned char seed[SEED_LENGTH_BYTES])
 {
@@ -1115,16 +1023,6 @@ void normalized_pretty_print(const normalized_IS_t *const G) {
             printf("%3d,", G->values[i][j]);
         }
         printf("%3d\n", G->values[i][N-K-1]);
-    }
-
-    printf("\n");
-}
-void normalized_pretty_print_v(const FQ_ELEM values[K][N-K]) {
-    for (uint32_t i = 0; i < K; ++i) {
-        for (uint32_t j = 0; j < (N-K-1); ++j) {
-            printf("%3d,", values[i][j]);
-        }
-        printf("%3d\n", values[i][N-K-1]);
     }
 
     printf("\n");
