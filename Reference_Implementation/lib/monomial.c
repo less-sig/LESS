@@ -146,6 +146,16 @@ void monomial_mat_seed_expand_rnd(monomial_t *res,
 
 }
 
+/* samples a random perm matrix */
+void monomial_mat_rnd(monomial_t *res) {
+   fq_star_rnd_elements(res->coefficients, N);
+   for(uint32_t i = 0; i < N; i++) {
+      res->permutation[i] = i;
+   }
+   /* FY shuffle on the permutation */
+   yt_shuffle(res->permutation);
+} /* end monomial_mat_rnd */
+
 /// \param res[out] = to_invert**-1
 /// \param to_invert[in]
 void monomial_mat_inv(monomial_t *res,
