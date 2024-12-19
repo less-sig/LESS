@@ -58,6 +58,22 @@ typedef struct {
    POSITION_T permutation[N_pad];
 } monomial_t;
 
+// wrapper struct around D_n
+typedef struct {
+   /* coefficients listed in order of appearance column-wise */
+   FQ_ELEM coefficients[N_pad];
+} diagonal_t;
+
+// wrapper struct around the set S_n
+typedef struct {
+   /* considering the product GQ, permutation[...] stores into the cell with
+    * index 0, the position of the DESTINATION of column 0 in G after the
+    * computation of GQ.
+    */
+   POSITION_T permutation[N_pad];
+} permutation_t;
+
+
 typedef struct {
    /* coefficients listed in order of appearance of the colums of the
     * target IS */
@@ -110,13 +126,20 @@ void monomial_compose_action(monomial_action_IS_t * out,
 void compress_monom_action(uint8_t *compressed,
                             const monomial_action_IS_t * mono);
 
+void cf_compress_monomial_IS_action(uint8_t *compressed,
+                                    const monomial_action_IS_t *mono);
+
 /* Decompress byte array to MonomialAction object */
 void expand_to_monom_action(monomial_action_IS_t *mono,
                             const uint8_t *compressed);
 
+void cf_expand_to_monom_action(monomial_action_IS_t *mono,
+                               const uint8_t *compressed);
+
 
 /* Validate MonomialAction object */
 int is_monom_action_valid(const monomial_action_IS_t * const mono);
+int is_cf_monom_action_valid(const uint8_t* const mono);
 
 /* pretty_print for monomial matrices */
 void monomial_mat_pretty_print_name(char *name, const monomial_t *to_print);
@@ -126,3 +149,26 @@ void monomial_mat_pretty_print_name(char *name, const monomial_t *to_print);
 /* pretty_print for monomial matrices in their expanded form */
 void monomial_mat_print_exp_name(char *name,const monomial_t *to_print);
 
+
+////////////////////////////////////////////////////////////////////////
+///                        Permutation                               ///
+////////////////////////////////////////////////////////////////////////
+
+void permutation_swap(permutation_t *P, uint32_t i, uint32_t j);
+void permutation_cswap(permutation_t *P, uint32_t i, uint32_t j, uintptr_t mask);
+void permutation_mat_id(permutation_t *P);
+void permutation_mat_rng(permutation_t *P);
+void permutation_mat_id_v2(permutation_t *P, const uint32_t max);
+void permutation_mat_rng_v2(permutation_t *P, const uint32_t max);
+void permutation_pretty_print(const permutation_t *P);
+
+
+////////////////////////////////////////////////////////////////////////
+///                             Diagonal                             ///
+////////////////////////////////////////////////////////////////////////
+void diagonal_mat_zero(diagonal_t *D);
+void diagonal_mat_id(diagonal_t *D);
+void diagonal_mat_rnd(diagonal_t *D);
+void diagonal_mat_id_v2(diagonal_t *D, uint32_t max);
+void diagonal_mat_rnd_v2(diagonal_t *D, uint32_t max);
+void diagonal_pretty_print(const diagonal_t *const D);

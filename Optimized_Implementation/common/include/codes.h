@@ -42,8 +42,36 @@ typedef struct {
 /* Set of columns not constituting the IS for an RREF matrix
  * See algorithm PrepareDigestInput in specification (V matrix)*/
 typedef struct {
-   FQ_ELEM values[K][N-K];   /* values of the non-pivot columns */
+   // TODO is this stupid?
+   FQ_ELEM values[K][N_K_pad];   /* values of the non-pivot columns */
 } normalized_IS_t;
+
+/* Calculate pivot flag array */
+void generator_get_pivot_flags (const rref_generator_mat_t *const G,
+                                uint8_t pivot_flag [N]);
+
+//
+void scale_row(generator_mat_t *G,
+               const uint32_t row,
+               const uint8_t a);
+
+void column_swap(normalized_IS_t *V,
+                 const POSITION_T col1,
+                 const POSITION_T col2);
+
+void column_cswap(normalized_IS_t *V,
+                 const POSITION_T col1,
+                 const POSITION_T col2,
+                 const uintptr_t mask);
+
+void row_swap(normalized_IS_t *V,
+                 const POSITION_T row1,
+                 const POSITION_T row2);
+
+void row_cswap(normalized_IS_t *V,
+              const POSITION_T row1,
+              const POSITION_T row2,
+              const uintptr_t mask);
 
 
 /* multiplies a monomial matrix by a generator matrix */
@@ -65,6 +93,25 @@ void lex_minimize(normalized_IS_t *V,
                   POSITION_T dst_col_idx,
                   const generator_mat_t *const G,
                   const POSITION_T col_idx);
+
+//
+int lex_compare_column(const generator_mat_t *G1, 
+					   const generator_mat_t *G2,
+                       const POSITION_T col1,
+                       const POSITION_T col2);
+
+int lex_compare_col(const normalized_IS_t *G1,
+                    const POSITION_T col1,
+                    const POSITION_T col2);
+
+int lex_compare_with_pivot(normalized_IS_t *V, 
+                           const POSITION_T col_idx,
+                           FQ_ELEM pivot[K]);
+
+// in place quick sort
+void col_lex_quicksort(normalized_IS_t *V, 
+                       int start, 
+                       int end);
 
 /* performs lexicographic sorting of the IS complement */
 void lex_sort_cols(normalized_IS_t *V);
@@ -91,7 +138,8 @@ void compress_rref(uint8_t *compressed,
 
 /* Expands a compressed RREF generator matrix into a full one */
 void expand_to_rref(generator_mat_t *full,
-                        const uint8_t *compressed);
+                    const uint8_t *compressed,
+                    const uint8_t *TODO);
 
 /* Takes as input a compact RREF generator matrix, i.e. a set of N-K
  * columns and their position in the RREF and normalizes the columns themselves
@@ -114,9 +162,19 @@ int generator_gausselim(generator_mat_t *G);
 void apply_action_to_G(generator_mat_t* res,
                        const generator_mat_t* G,
                        const monomial_action_IS_t* Q_IS);
+//
+void apply_cf_action_to_G(generator_mat_t* res,
+                          const generator_mat_t *G,
+                          const uint8_t *const c);
 
 /* samples a random monomial matrix */
 void generator_rnd(generator_mat_t *res);
+
+
+
+void normalized_ind(normalized_IS_t *V);
+void normalized_sf(normalized_IS_t *V);
+void normalized_copy(normalized_IS_t *V1, const normalized_IS_t *V2);
 
 
 /* expands a systematic form generator from a seed randomly drawing only
@@ -127,3 +185,12 @@ void generator_SF_seed_expand(rref_generator_mat_t *res,
 void generator_pretty_print_name(char *name, const generator_mat_t *const G);
 void generator_rref_pretty_print_name(char *name,
                                       const rref_generator_mat_t *const G);
+
+void permutation_apply_col(normalized_IS_t *G, permutation_t *P);
+void permutation_apply_row(permutation_t *P, normalized_IS_t *G);
+
+void diagonal_apply_col(normalized_IS_t *G,
+                        diagonal_t *P);
+
+void diagonal_apply_row(diagonal_t *P,
+                        normalized_IS_t *G);

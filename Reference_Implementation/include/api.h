@@ -37,27 +37,25 @@
 /*  no. of bytes of the public key */
 #define CRYPTO_PUBLICKEYBYTES (sizeof(pubkey_t))
 
+// TODO this is wrong. in the case of SEED_TREE
 /* no. of bytes of overhead in a signed message */
 #define CRYPTO_BYTES (sizeof(sign_t))
 
 /* required bytes of input randomness */
-#define  CRYPTO_RANDOMBYTES (SEED_LENGTH_BYTES) //LESS library -  parameters.h
+#define  CRYPTO_RANDOMBYTES (SEED_LENGTH_BYTES)
 
 
 int crypto_sign_keypair(unsigned char *pk,
-                        unsigned char *sk
-                       );
+                        unsigned char *sk);
 
 int crypto_sign(unsigned char *sm,
                 unsigned long long *smlen,
                 const unsigned char *m,
                 unsigned long long mlen,
-                const unsigned char *sk
-               );
+                const unsigned char *sk);
 
 int crypto_sign_open(unsigned char *m,
                      unsigned long long *mlen,
                      const unsigned char *sm,
                      unsigned long long smlen,
-                     const unsigned char *pk
-                    );
+                     const unsigned char *pk);

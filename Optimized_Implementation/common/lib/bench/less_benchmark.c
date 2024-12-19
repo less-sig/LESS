@@ -115,7 +115,7 @@ long double welford_mean(const welford_t state) {
 #elif defined(CATEGORY_3)
 #define NUM_TESTS 12
 #else
-#define NUM_TESTS 256
+#define NUM_TESTS 32
 #endif
 
 #ifdef N_pad

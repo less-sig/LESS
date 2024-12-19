@@ -51,13 +51,17 @@ typedef struct {
    unsigned char G_0_seed[SEED_LENGTH_BYTES];
 } prikey_t;
 
-// __attribute__((packed))
+
 typedef struct sig_t {
-    unsigned char tree_salt[HASH_DIGEST_LENGTH];
-    uint8_t monom_actions[W][MONO_ACTION_PACKEDBYTES];
+    uint8_t cf_monom_actions[W][N8];
     uint8_t digest[HASH_DIGEST_LENGTH];
+#ifdef SEED_TREE
+    uint8_t tree_salt[HASH_DIGEST_LENGTH];
     /// we need an additional byte to store the number of published seeds
-    unsigned char seed_storage[SEED_TREE_MAX_PUBLISHED_BYTES + 1u];
+    uint8_t seed_storage[SEED_TREE_MAX_PUBLISHED_BYTES + 1u];
+#else
+    uint8_t seed_storage[(T-W)*SEED_LENGTH_BYTES];
+#endif
 } sign_t;
 
 /* keygen cannot fail */
@@ -75,3 +79,15 @@ int LESS_verify(const pubkey_t *const PK,
                 const char *const m,
                 const uint64_t mlen,
                 const sign_t *const sig);
+
+/* sign cannot fail */
+uint32_t LESS_without_tree_sign(const prikey_t *SK,
+                                const char *const m,
+                                const uint64_t mlen,
+                                sign_t *sig);
+
+/* verify returns 1 if signature is ok, 0 otherwise */
+int LESS_without_tree_verify(const pubkey_t *const PK,
+                             const char *const m,
+                             const uint64_t mlen,
+                             const sign_t *const sig);

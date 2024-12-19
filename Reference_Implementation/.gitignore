@@ -1,3 +1,7 @@
+.idea/
+.cache/
+*.o
+*.json
 build/
 cmake-build-debug/
 cmake-build-release/

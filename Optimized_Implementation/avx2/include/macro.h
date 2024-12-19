@@ -30,6 +30,8 @@
 #include <stdio.h>
 #include <immintrin.h>
 
+#include "fq_arith.h"
+
 typedef __m256i vec256_t;
 typedef __m128i vec128_t;
 
@@ -41,6 +43,22 @@ static void print256_num(vec256_t var, const char *string) {
            val[8], val[9], val[10], val[11], val[12], val[13], val[14], val[15],
            val[16], val[17], val[18], val[19], val[20], val[21], val[22], val[23],
            val[24], val[25], val[26], val[27], val[28], val[29], val[30], val[31]);
+}
+
+/// \return in[0] + in[1] + ... + in[31] % q
+static inline uint8_t vhadd8(const __m256i in) {
+    uint8_t data[32] __attribute__((aligned(64)));
+    _mm256_store_si256((__m256i *)data, in);
+
+    uint8_t s1 = 0, s2 = 0, s3 = 0, s4 = 0;
+    for (uint32_t i = 0; i < 8; i++) {
+        s1 = br_red(s1 + data[i +  0]);
+        s2 = br_red(s2 + data[i +  8]);
+        s3 = br_red(s3 + data[i + 16]);
+        s4 = br_red(s4 + data[i + 24]);
+    }
+
+    return br_red(br_red(s1 + s2) + br_red(s3 + s4));
 }
 
 // c <- src
@@ -79,7 +97,13 @@ static void print256_num(vec256_t var, const char *string) {
 
 // c[0..16] = n
 #define vset8(c, n) c = _mm256_set1_epi8(n);
-#define vset16(c, n) c = _mm256_set1_epi16(n);
+#define vset17(c, n) c = _mm256_set1_epi16(n);
+
+// c = a == b
+#define vcmp8(c, a, b) c = _mm256_cmpeq_epi8(a, b);
+
+/// move the msb of each 8bit limb into an integer
+#define vmovemask8(a) _mm256_movemask_epi8(a);
 
 // Unpack 8-bit low: a[0] | b[0] ... a[7] | b[7]
 #define vunpackl8(c, a, b) c = _mm256_unpacklo_epi8(a, b);
@@ -136,6 +160,7 @@ static void print256_num(vec256_t var, const char *string) {
     a = _mm_and_si128(a, c127);
 
 /*
+ * t = tmp register
  * Fix width 16-bit Barrett multiplication Q = 127
  * c = (a * b) % q
  */

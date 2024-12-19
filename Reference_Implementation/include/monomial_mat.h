@@ -47,9 +47,8 @@
  *
  */
 
-
 typedef struct {
-   /* coefficients listed in order of appearance columnwise */
+   /* coefficients listed in order of appearance column-wise */
    FQ_ELEM coefficients[N];
    /* considering the product GQ, permutation[...] stores into the cell with
     * index 0, the position of the DESTINATION of column 0 in G after the
@@ -59,12 +58,12 @@ typedef struct {
 } monomial_t;
 
 typedef struct {
-   /* coefficients listed in order of appearance of the colums of the
+   /* coefficients listed in order of appearance of the columns of the
     * target IS */
    FQ_ELEM coefficients[K];
    /* considering the product GQ, permutation[...] stores into the cell with
     * index 0, the position of the ORIGINAL column in G that goes into 0-th 
-    * column of the IS after after the computation of GQ.
+    * column of the IS after the computation of GQ.
     */
    POSITION_T permutation[K];
 } monomial_action_IS_t;
@@ -73,7 +72,14 @@ typedef struct {
    unsigned char value[SEED_LENGTH_BYTES];
 } monomial_seed_t;
 
-/* multiplies two monomial matrices*/
+void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
+                            POSITION_T *permutation,
+                            const uint32_t n);
+void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state,
+                      POSITION_T permutation[N]);
+void yt_shuffle(POSITION_T permutation[N]);
+
+/* multiplies two monomial matrices */
 void monomial_mat_mul(monomial_t *res,
                       const monomial_t *const A,
                       const monomial_t *const B);
@@ -84,6 +90,7 @@ void monomial_mat_inv(monomial_t *res,
 
 /* samples a random monomial matrix from the systemwide csprng*/
 void monomial_mat_rnd(monomial_t *res);
+void monomial_mat_rnd_unique(monomial_t *res);
 
 /* expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
  * monomial matrices */
@@ -97,6 +104,10 @@ void monomial_mat_seed_expand_salt_rnd(monomial_t *res,
 void monomial_mat_seed_expand_prikey(monomial_t *res,
                                      const unsigned char seed[PRIVATE_KEY_SEED_LENGTH_BYTES]);
 
+///
+void monomial_mat_seed_expand_rnd(monomial_t *res,
+                                  const unsigned char seed[SEED_LENGTH_BYTES],
+                                  const uint16_t round_index);
 /* yields the identity matrix */
 void monomial_mat_id(monomial_t *res);
 
@@ -108,15 +119,24 @@ void monomial_compose_action(monomial_action_IS_t * out,
 
 /* Compress MonomialAction object to byte array */
 void compress_monom_action(uint8_t *compressed,
-                            const monomial_action_IS_t * mono);
+                           const monomial_action_IS_t * mono);
 
+/* Compress MonomialAction via CF */
+void cf_compress_monom_action(uint8_t *compressed,
+                              const monomial_t *mono);
+
+void cf_compress_monomial_IS_action(uint8_t *compressed,
+                                    const monomial_action_IS_t *mono);
 /* Decompress byte array to MonomialAction object */
 void expand_to_monom_action(monomial_action_IS_t *mono,
                             const uint8_t *compressed);
 
+void cf_expand_to_monom_action(monomial_action_IS_t *mono,
+                               const uint8_t *compressed);
 
 /* Validate MonomialAction object */
 int is_monom_action_valid(const monomial_action_IS_t * const mono);
+int is_cf_monom_action_valid(const uint8_t* const mono);
 
 /* pretty_print for monomial matrices */
 void monomial_mat_pretty_print_name(char *name, const monomial_t *to_print);

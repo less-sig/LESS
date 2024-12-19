@@ -26,11 +26,34 @@
 #pragma once
 #include <stdint.h>
 
+#define Qm1 (126)
+#define MMM 0x204081020408103ull
 /* Seed tree max size is computed according to Parameter Generation Script in Utilities folder */
 
 /********************************* Category 1 *********************************/
-#if defined(CATEGORY_1)
+
+#if defined(CATEGORY_0)
+// NOTE: this is the dev mode. only use it if you know what you are doing
+#warning "DEV MODE"
+
 #define SEED_LENGTH_BYTES (16)
+#define FQ_ELEM uint8_t
+#define FQ_DOUBLEPREC uint16_t
+#define FQ_TRIPLEPREC uint32_t
+#define POSITION_T uint8_t
+#define SEED_TREE_LABEL_T uint8_t
+
+#define   N (32)
+#define   K (16)
+#define   Q (127)
+#define NUM_KEYPAIRS (  2)
+#define   T (247)
+#define   W ( 30)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
+
+#elif defined(CATEGORY_1)
+#define SEED_LENGTH_BYTES (16)
+#define SIGN_PIVOT_REUSE_LIMIT (25) // Ensures probability of non-CT operaiton is < 2^-64
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
 #define FQ_TRIPLEPREC uint32_t
@@ -41,28 +64,27 @@
 #define   N (252)
 #define   K (126)
 #define   Q (127)
-#define NUM_KEYPAIRS (  2)
-#define   T (247)
-#define   W ( 30)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
+#define   NUM_KEYPAIRS (2)
+#define   T (256)
+#define   W (30)
+#define   SEED_TREE_MAX_PUBLISHED_BYTES (1472)
+#define   SEED_TREE
 
 #elif defined(INTERMEDIATE)
 #define   N (252)
 #define   K (126)
 #define   Q (127)
-#define NUM_KEYPAIRS (  4)
-#define   T (244)
-#define   W ( 20)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1152)
+#define   NUM_KEYPAIRS (4)
+#define   T (68)
+#define   W (42)
 
 #elif defined(SHORT_SIG)
 #define   N (252)
 #define   K (126)
 #define   Q (127)
-#define NUM_KEYPAIRS (  8)
-#define   T (198)
-#define   W ( 17)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1056)
+#define   NUM_KEYPAIRS (8)
+#define   T (45)
+#define   W (32)
 
 #else
 #error define optimization corner in parameters.h
@@ -71,14 +93,15 @@
 /********************************* Category 3 *********************************/
 #elif defined(CATEGORY_3)
 #define SEED_LENGTH_BYTES (24)
+#define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operaiton is < 2^-64
 
 #if defined(BALANCED)
 #define   N (400)
 #define   K (200)
 #define   Q (127)
 #define NUM_KEYPAIRS (  2)
-#define   T (759)
-#define   W ( 33)
+#define   T (68)
+#define   W (42)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (3912)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
@@ -104,6 +127,7 @@
 /********************************* Category 5 *********************************/
 #elif defined(CATEGORY_5)
 #define SEED_LENGTH_BYTES (32)
+#define SIGN_PIVOT_REUSE_LIMIT (79) // Ensures probability of non-CT operaiton is < 2^-64
 
 #if defined(BALANCED)
 #define   N (548)
@@ -134,10 +158,39 @@
 #error define optimization corner in parameters.h
 #endif
 
+#elif defined(CATEGORY_6)
+// TODO remove
+#define SEED_LENGTH_BYTES (16)
+#define FQ_ELEM uint8_t
+#define FQ_DOUBLEPREC uint16_t
+#define FQ_TRIPLEPREC uint32_t
+#define POSITION_T uint8_t
+#define SEED_TREE_LABEL_T uint8_t
+
+#define   N (252)
+#define   K (126)
+#define   Q (127)
+#define   NUM_KEYPAIRS (4)
+#define   T (68)
+#define   W (42)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
+
 #else
 #error define category for parameters
 #endif
 
+
+#define VERIFY_PIVOT_REUSE_LIMIT K 
+
+// #define SIGN_PIVOT_REUSE_LIMIT   0
+// #define VERIFY_PIVOT_REUSE_LIMIT 0
+
+/* */
+#define K8 ((K+7u)/8u)
+#define N8 ((N+7u)/8u)
+
+/// TODO
+#define N_K_pad (N-K)
 
 /***************** Derived parameters *****************************************/
 
@@ -183,11 +236,18 @@
 #define RREF_MAT_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*(N-K)*K + 7)/8 + (N + 7)/8)
 #define RREF_IS_COLUMNS_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*(N-K)*K + 7)/8)
 
-#define MONO_ACTION_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*K+7)/8 + (BITS_TO_REPRESENT(N)*K + 7) / 8)
-
 #define LESS_CRYPTO_PUBLICKEYBYTES (NUM_KEYPAIRS*RREF_MAT_PACKEDBYTES)
 #define LESS_CRYPTO_SECRETKEYBYTES ((NUM_KEYPAIRS-1)*SEED_LENGTH_BYTES + RREF_MAT_PACKEDBYTES)
 
+#if defined(SEED_TREE)
 // returns the maximum bytes the signature can occupy
-#define LESS_CRYPTO_MAX_BYTES (HASH_DIGEST_LENGTH*2 + MONO_ACTION_PACKEDBYTES*W + SEED_TREE_MAX_PUBLISHED_BYTES + 1)
-#define LESS_CRYPTO_BYTES(NR_LEAVES) (HASH_DIGEST_LENGTH*2 + MONO_ACTION_PACKEDBYTES*W + NR_LEAVES*SEED_LENGTH_BYTES + 1)
+#define LESS_CRYPTO_MAX_BYTES        (HASH_DIGEST_LENGTH*2 + N8*W + SEED_TREE_MAX_PUBLISHED_BYTES + 1)
+#define LESS_CRYPTO_BYTES(NR_LEAVES) (HASH_DIGEST_LENGTH*2 + N8*W + NR_LEAVES*SEED_LENGTH_BYTES + 1)
+#else
+// returns the maximum bytes the signature can occupy
+#define LESS_CRYPTO_BYTES     (HASH_DIGEST_LENGTH + (N8*W) + ((W-T)*SEED_LENGTH_BYTES))
+#endif
+
+// TODO doc
+#define LESS_REUSE_PIVOTS_VY
+#define LESS_REUSE_PIVOTS_SG

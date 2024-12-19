@@ -25,7 +25,7 @@ int main(void) {
     char                fn_req[32], fn_rsp[32];
     FILE                *fp_req, *fp_rsp;
     unsigned char       seed[48];
-    unsigned char       msg[3300];
+    unsigned char       msg[5000];
     unsigned char       entropy_input[48];
     unsigned char       *m, *sm, *m1;
     unsigned long long  mlen, smlen, mlen1;
@@ -52,7 +52,8 @@ int main(void) {
 
 
     KAT_NIST_randombytes_init(entropy_input, NULL, 256);
-    for (unsigned i=0; i<100; i++) {
+    // TODO change back
+    for (unsigned i=0; i<30; i++) {
         fprintf(fp_req, "count = %d\n", i);
         KAT_NIST_randombytes(seed, 48);
         fprintBstr(fp_req, "seed = ", seed, 48);

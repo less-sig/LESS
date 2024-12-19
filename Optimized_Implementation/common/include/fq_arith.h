@@ -7,6 +7,7 @@
  * @author Duc Tri Nguyen <dnguye69@gmu.edu>
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -26,6 +27,7 @@
 
 #pragma once
 #include <stdint.h>
+
 #include "parameters.h"
 #include "rng.h"
 
@@ -87,6 +89,17 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
 /* GCC actually inlines and vectorizes Barrett's reduction already.
  * Backup implementation for less aggressive compilers follows */
 
+
+/// todo remove both functions
+static inline
+FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
+      return (x + y) % Q;
+}
+static inline
+FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
+   return ((FQ_DOUBLEPREC)x * (FQ_DOUBLEPREC)y) % Q;
+}
+
 /*
  * Barrett multiplication for uint8_t Q = 127
  */
@@ -137,25 +150,30 @@ FQ_ELEM fq_red(FQ_DOUBLEPREC x)
    return ((FQ_DOUBLEPREC) Q+x) % (FQ_DOUBLEPREC) Q;
 }
 
+/// NOTE: maybe dont use it for sensetive data
+static const uint8_t fq_inv_table[127] __attribute__((aligned(64))) = {
+   0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126
+};
+
+
 /* Fermat's method for inversion employing r-t-l square and multiply,
  * unrolled for actual parameters */
 static inline
-FQ_ELEM fq_inv(FQ_ELEM x)
-{
-
-   FQ_ELEM xlift;
-   xlift = x;
-   FQ_ELEM accum = 1;
-   /* No need for square and mult always, Q-2 is public*/
-   uint32_t exp = Q-2;
-   while(exp) {
-      if(exp & 1) {
-         accum = br_red(br_mul(accum, xlift));
-      }
-      xlift = br_red(br_mul(xlift, xlift));
-      exp >>= 1;
-   }
-   return accum;
+FQ_ELEM fq_inv(FQ_ELEM x) {
+   return fq_inv_table[x];
+   // FQ_ELEM xlift;
+   // xlift = x;
+   // FQ_ELEM accum = 1;
+   // /* No need for square and mult always, Q-2 is public*/
+   // uint32_t exp = Q-2;
+   // while(exp) {
+   //    if(exp & 1) {
+   //       accum = br_red(br_mul(accum, xlift));
+   //    }
+   //    xlift = br_red(br_mul(xlift, xlift));
+   //    exp >>= 1;
+   // }
+   // return accum;
 } /* end fq_inv */
 
 /* Sampling functions from the global TRNG state */
@@ -168,3 +186,219 @@ DEF_RAND(rand_range_q_elements, FQ_ELEM, 0, Q-1)
 DEF_RAND_STATE(fq_star_rnd_state_elements, FQ_ELEM, 1, Q-1)
 
 DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
+
+#include "macro.h"
+
+/// NOTE: these functions are outsourced to this file, to make the
+/// optimizied implementation as easy as possible.
+/// accumulates a row
+/// \param d
+/// \return sum(d) for _ in range(N-K)
+static inline
+FQ_ELEM row_acc(const FQ_ELEM *d) {
+    vec256_t s, t, c1, c127;
+    vset8(s, 0);
+    vset8(c1, 0x01);
+    vset8(c127, 0x7F);
+
+    for (uint32_t col = 0; col < N_K_pad; col+=32) {
+        vload256(t, (const vec256_t *)(d + col));
+        vadd8(s, s, t);
+        barrett_red8(s, t, c127, c1);
+	 }
+
+    return vhadd8(s);
+}
+
+/// accumulates the inverse of a row
+/// \param d
+/// \return sum(d[i]**-1) for i in range(N-K)
+static inline
+FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
+    // TODO actually only the last pos need to be 0
+    FQ_ELEM inv_data[N_K_pad] = {0}; 
+    for (uint32_t col = 0; col < (N-K); col++) {
+        inv_data[col] = fq_inv(d[col]);
+	 }
+
+    return row_acc(inv_data);
+}
+
+/// scalar multiplication of a row
+/// NOTE: not a full reduction
+/// \param row[in/out] *= s for _ in range(N-K)
+/// \param s
+static inline
+void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
+    vec256_t shuffle, t, c8_127, c8_1, r, b, a, a_lo, a_hi, b_lo, b_hi;
+    vec128_t tmp;
+
+    vload256(shuffle, (vec256_t *) shuff_low_half);
+    vset8(c8_127, 127);
+    vset8(c8_1, 1);
+
+    // precompute b
+    vset8(b, s);
+    vget_lo(tmp, b);
+    vextend8_16(b_lo, tmp);
+    vget_hi(tmp, b);
+    vextend8_16(b_hi, tmp);
+
+    for (uint32_t col = 0; col < N_K_pad; col+=32) {
+        vload256(a, (vec256_t *)(row + col));
+
+        vget_lo(tmp, a);
+        vextend8_16(a_lo, tmp);
+        vget_hi(tmp, a);
+        vextend8_16(a_hi, tmp);
+
+        barrett_mul_u16(a_lo, a_lo, b_lo, t);
+        barrett_mul_u16(a_hi, a_hi, b_hi, t);
+
+        vshuffle8(a_lo, a_lo, shuffle);
+        vshuffle8(a_hi, a_hi, shuffle);
+
+        vpermute_4x64(a_lo, a_lo, 0xd8);
+        vpermute_4x64(a_hi, a_hi, 0xd8);
+
+        vpermute2(t, a_lo, a_hi, 0x20);
+
+        barrett_red8(t, r, c8_127, c8_1);
+        vstore256((vec256_t *)(row + col), t);
+    }
+}
+
+/// scalar multiplication of a row
+/// \param out = s*in[i] for i in range(N-K)
+/// \param in
+/// \param s
+static inline
+void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
+    vec256_t shuffle, t, c8_127, c8_1, r, b, a, a_lo, a_hi, b_lo, b_hi;
+    vec128_t tmp;
+
+    vload256(shuffle, (vec256_t *) shuff_low_half);
+    vset8(c8_127, 127);
+    vset8(c8_1, 1);
+
+    // precompute b
+    vset8(b, s);
+    vget_lo(tmp, b);
+    vextend8_16(b_lo, tmp);
+    vget_hi(tmp, b);
+    vextend8_16(b_hi, tmp);
+
+    for (uint32_t col = 0; col < N_K_pad; col+=32) {
+        vload256(a, (vec256_t *)(in + col));
+
+        vget_lo(tmp, a);
+        vextend8_16(a_lo, tmp);
+        vget_hi(tmp, a);
+        vextend8_16(a_hi, tmp);
+
+        barrett_mul_u16(a_lo, a_lo, b_lo, t);
+        barrett_mul_u16(a_hi, a_hi, b_hi, t);
+
+        vshuffle8(a_lo, a_lo, shuffle);
+        vshuffle8(a_hi, a_hi, shuffle);
+
+        vpermute_4x64(a_lo, a_lo, 0xd8);
+        vpermute_4x64(a_hi, a_hi, 0xd8);
+
+        vpermute2(t, a_lo, a_hi, 0x20);
+
+        barrett_red8(t, r, c8_127, c8_1);
+        vstore256((vec256_t *)(out + col), t);
+    }
+}
+
+///
+/// \param out = in1[i]*in2[i] for i in range(N-K)
+/// \param in1
+/// \param in2
+static inline
+void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
+
+    vec256_t shuffle, t, r, c8_127, c8_1, a, a_lo, a_hi, b, b_lo, b_hi;
+    vec128_t tmp;
+
+    vload256(shuffle, (vec256_t *) shuff_low_half);
+    vset8(c8_127, 127);
+    vset8(c8_1, 1);
+
+    for (uint32_t col = 0; col < N_K_pad; col+=32) {
+        vload256(a, (vec256_t *)(in1 + col));
+        vload256(b, (vec256_t *)(in2 + col));
+
+        vget_lo(tmp, a);
+        vextend8_16(a_lo, tmp);
+        vget_hi(tmp, a);
+        vextend8_16(a_hi, tmp);
+        vget_lo(tmp, b);
+        vextend8_16(b_lo, tmp);
+        vget_hi(tmp, b);
+        vextend8_16(b_hi, tmp);
+
+        barrett_mul_u16(a_lo, a_lo, b_lo, t);
+        barrett_mul_u16(a_hi, a_hi, b_hi, t);
+
+        vshuffle8(a_lo, a_lo, shuffle);
+        vshuffle8(a_hi, a_hi, shuffle);
+
+        vpermute_4x64(a_lo, a_lo, 0xd8);
+        vpermute_4x64(a_hi, a_hi, 0xd8);
+
+        vpermute2(t, a_lo, a_hi, 0x20);
+
+        barrett_red8(t, r, c8_127, c8_1);
+        vstore256((vec256_t *)(out + col), t);
+    }
+}
+
+/// invert a row
+/// \param out[out]: in[i]**-1 for i in range(N-K)
+/// \param in [in]
+static inline
+void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
+    for (uint32_t col = 0; col < (N-K); col++) {
+        out[col] = fq_inv(in[col]);
+    }
+}
+
+/// TODO avx512 optimized version (it has a special instruction for stuff like this)
+/// \param in
+/// \return 1 if all elements are the same
+///         0 else
+static inline
+uint32_t row_all_same(const FQ_ELEM *in) {
+    // TODO last load must be limited
+    vec256_t t1, t2, acc;
+    vset8(acc, -1);
+    vset8(t2, in[0]);
+    for (uint32_t col = 0; col < N_K_pad; col += 32) {
+        vload256(t1, (vec256_t *)(in + col));
+        vcmp8(t1, t1, t2);
+        vand(acc, acc, t1);
+    }
+
+    const uint32_t t3 = vmovemask8(acc);
+    return t3 == -1u;
+}
+
+/// \param in[in] row
+/// \return 1 if a zero was found
+///         0 else
+static inline
+uint32_t row_contains_zero(const FQ_ELEM *in) {
+    vec256_t t1, t2, acc;
+    vset8(t2, 0);
+    vset8(acc, 0);
+    for (uint32_t col = 0; col < N_K_pad; col += 32) {
+        vload256(t1, (vec256_t *)(in + col));
+        vcmp8(t1, t1, t2);
+        vxor(acc, acc, t1);
+    }
+    
+        const uint32_t t3 = vmovemask8(acc);
+    return t3 == 0;
+}

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(less)
+project(less_avx2)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -11,15 +11,9 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS "-Wno-unused-function -Wno-ignored-attributes")
-
-IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
-set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0  -march=native -flax-vector-conversions")
-set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNING}")
-else()
-set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0 -Wall -fpermissive  -Wpedantic -Wextra -fpermissive -mavx2 -mavx -fsanitize=address ${ALLOWED_WARNING}")
-set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -mavx2 -mavx -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNING}")
-endif()
+set(ALLOWED_WARNINGS "-Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal")
+set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0 -Wall -Wpedantic -Wextra -mavx2 -mavx ${ALLOWED_WARNINGS}")
+set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -flto -ftree-vectorize -funroll-loops -fomit-frame-pointer ${ALLOWED_WARNINGS}")
 
 
 set(SOURCES
@@ -32,6 +26,9 @@ set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/seedtree.c
         ${PROJECT_SOURCE_DIR}/lib/sign.c
         ${PROJECT_SOURCE_DIR}/lib/utils.c
+        ${PROJECT_SOURCE_DIR}/lib/canonical.c
+        ${PROJECT_SOURCE_DIR}/lib/sort.c
+        ${PROJECT_SOURCE_DIR}/lib/transpose.c
         ${PROJECT_SOURCE_DIR}/lib/KeccakP-1600-AVX2.s
 )
 
@@ -48,6 +45,9 @@ set(HEADERS
         ${PROJECT_SOURCE_DIR}/include/rng.h
         ${PROJECT_SOURCE_DIR}/include/seedtree.h
         ${PROJECT_SOURCE_DIR}/include/utils.h
+        ${PROJECT_SOURCE_DIR}/include/canonical.h
+        ${PROJECT_SOURCE_DIR}/include/sort.h
+        ${PROJECT_SOURCE_DIR}/include/transpose.h
 )
 
 include_directories(include)
@@ -73,6 +73,24 @@ foreach(category RANGE 1 5 2)
     # KATS generation
     set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimiz_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/nist/KAT_NIST_rng.c ${PROJECT_SOURCE_DIR}/lib/nist/PQCgenKAT_sign.c)
+    target_link_libraries(${TARGET_BINARY_NAME} m crypto)
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+
+    # TODO remove once everything is done
+    set(TARGET_BINARY_NAME LESS_test_cf_${category}_${optimiz_target})
+    add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/test/test_canonical.c ${SOURCES})
+    target_link_libraries(${TARGET_BINARY_NAME} m crypto)
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+
+    # TODO remove once everything is done
+    set(TARGET_BINARY_NAME LESS_bench_cf_${category}_${optimiz_target})
+    add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/bench/bench_cf.c ${SOURCES})
+    target_link_libraries(${TARGET_BINARY_NAME} m crypto)
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+
+    # TODO remove once everything is done
+    set(TARGET_BINARY_NAME LESS_test_sort_${category}_${optimiz_target})
+    add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/test/sort.c ${SOURCES})
     target_link_libraries(${TARGET_BINARY_NAME} m crypto)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
   endforeach(optimiz_target)

@@ -37,6 +37,9 @@
 
 SHAKE_STATE_STRUCT platform_csprng_state;
 
+/// \param shake_state[in/out]
+/// \param seed[in]
+/// \param seed_len_bytes[in]
 void initialize_csprng(SHAKE_STATE_STRUCT *shake_state,
                        const unsigned char *seed,
                        const uint32_t seed_len_bytes)

@@ -27,10 +27,12 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #include "codes.h"
 #include "fq_arith.h"
 #include "macro.h"
+#include "utils.h"
 
 #define LESS_WSZ 32
 #define NW ((N + LESS_WSZ - 1) / LESS_WSZ)
@@ -42,6 +44,58 @@ const uint8_t shuff_low_half[32] = {
         0x0, 0x2, 0x4, 0x6, 0x8, 0xa, 0xc, 0xe,
         0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
 };
+
+// computes G[row] = a*G[row]
+void scale_row(generator_mat_t *G, const uint32_t row, const FQ_ELEM a) {
+	for (uint32_t col = 0; col < N; col++) {
+		G->values[row][col] = fq_mul(G->values[row][col], a);
+	}
+}
+/* Calculate pivot flag array */
+void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t pivot_flag [N]) {
+    for (int i = 0; i < N; i = i + 1) {
+        pivot_flag[i] = 1;
+    }
+
+    for (int i = 0; i < K; i = i + 1) {
+        pivot_flag[G->column_pos[i]] = 0;
+    }
+}
+
+/// NOTE: not constant time
+/// @param res
+/// @param G
+/// @param c
+void apply_cf_action_to_G(generator_mat_t* res,
+                          const generator_mat_t *G,
+                          const uint8_t *const c) {
+    uint32_t l = 0, r = 0;
+    for (uint32_t i = 0; i < N8; i++) {
+        for (uint32_t j = 0; j < 8; j++) {
+            if ((i*8 + j) >= N) { goto finish; }
+
+            const uint8_t bit = (c[i] >> j) & 1u;
+            uint32_t pos;
+            if (bit) {
+                pos = l;
+                l += 1;
+            } else {
+                pos = K + r;
+                r += 1;
+            }
+
+            // copy the column
+            for (uint32_t k = 0; k < K; k++) {
+                res->values[k][pos] = G->values[k][i*8 + j];
+            }
+        }
+    }
+finish:
+    assert(l == K);
+    assert(r == (N-K));
+    return;
+}
+
 
 /* right-multiplies a generator by a monomial */
 void generator_monomial_mul(generator_mat_t *res,
@@ -97,18 +151,84 @@ void generator_monomial_mul(generator_mat_t *res,
 
 
 
-static inline
+void swap_rows(FQ_ELEM r[N], FQ_ELEM s[N]){
+   FQ_ELEM tmp;
+   for(uint32_t i=0; i<N; i++) {
+      tmp = r[i];
+      r[i] = s[i];
+      s[i] = tmp;
+   }
+} /* end swap_rows */
+
+
 void column_swap(normalized_IS_t *V,
                  const POSITION_T col1,
                  const POSITION_T col2){
+   for(uint32_t i = 0; i<K;i++ ){
+      POSITION_T tmp;
+      tmp = V->values[i][col2];
+      V->values[i][col2] = V->values[i][col1];
+      V->values[i][col1] = tmp;
+   }
+}
+
+///
+/// @param V
+/// @param col1
+/// @param col2
+/// @param mask
+void column_cswap(normalized_IS_t *V,
+                  const POSITION_T col1,
+                  const POSITION_T col2,
+                  const uintptr_t mask){
     for(uint32_t i = 0; i<K;i++ ){
-        POSITION_T tmp;
-        tmp = V->values[i][col2];
-        V->values[i][col2] = V->values[i][col1];
-        V->values[i][col1] = tmp;
+       MASKED_SWAP(V->values[i][col1], V->values[i][col2], mask);
     }
 }
 
+///
+/// @param V
+/// @param row1
+/// @param row2
+void row_swap(normalized_IS_t *V,
+              const POSITION_T row1,
+              const POSITION_T row2) {
+    ASSERT(row1 < K);
+    ASSERT(row2 < K);
+    for(uint32_t i = 0; i < N-K; i++){
+        POSITION_T tmp;
+        tmp = V->values[row1][i];
+        V->values[row1][i] = V->values[row2][i];
+        V->values[row2][i] = tmp;
+    }
+}
+
+/// TODO avx/neon for all of this stuff
+void row_cswap(normalized_IS_t *V,
+              const POSITION_T row1,
+              const POSITION_T row2,
+              const uintptr_t mask) {
+    ASSERT(row1 < K);
+    ASSERT(row2 < K);
+
+    for(uint32_t i = 0; i < N-K;i++ ){
+        MASKED_SWAP(V->values[row1][i], V->values[row2][i], mask);
+    }
+}
+
+/// @param V
+/// @param row1
+/// @param row2
+void generator_row_swap(generator_mat_t *V,
+                        const POSITION_T row1,
+                        const POSITION_T row2) {
+   for(uint32_t i = 0; i<N;i++ ){
+      POSITION_T tmp;
+      tmp = V->values[row1][i];
+      V->values[row1][i] = V->values[row2][i];
+      V->values[row2][i] = tmp;
+   }
+}
 
 int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
     int i, j, k, pivc;
@@ -241,7 +361,45 @@ void lex_minimize(normalized_IS_t *V,
 } /* end lex_minimize */
 
 
+/// lexicographic comparison
+/// \return G1[col1] <=> G2[col2]:
+///         -1: G1[col1] > G2[col2]
+///          0: G1[col1] == G2[col2]
+///          1: G1[col1] < G2[col2]
+int lex_compare_column(const generator_mat_t *G1, 
+					   const generator_mat_t *G2,
+                       const POSITION_T col1,
+                       const POSITION_T col2) {
+   uint32_t i=0;
+   while((i < K) && 
+         (G1->values[i][col1]-G2->values[i][col2] == 0)) {
+       i++;
+   }
 
+   if (i >= K) return 0;
+
+   if (G1->values[i][col1]-G2->values[i][col2] > 0){
+      return -1;
+   } 
+
+   return 1;
+}
+
+/// lexicographic comparison
+/// \return G1[col1] <=> G1[col2]:
+///           1: G1[col1] >  G1[col2]
+///           0: G1[col1] == G1[col2]
+///          -1: G1[col1] <  G1[col2]
+int lex_compare_col(const normalized_IS_t *G1,
+                    const POSITION_T col1,
+                    const POSITION_T col2) {
+   uint32_t i=0;
+   while((i < (K-1)) &&
+         (G1->values[i][col1]-G1->values[i][col2] == 0)) {
+       i++;
+   }
+   return G1->values[i][col1]-G1->values[i][col2];
+}
 
 /* lexicographic comparison of a column with the pivot
  * returns 1 if the pivot is greater, -1 if it is smaller, 
@@ -370,6 +528,45 @@ void apply_action_to_G(generator_mat_t* res,
     
 }
 
+/// TODO remove, currently only needed for debugging cf
+// V1 =V2
+void normalized_copy(normalized_IS_t *V1,
+                     const normalized_IS_t *V2) {
+    memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
+}
+
+/// TODO remove, currently only needed for debugging cf
+void normalized_ind(normalized_IS_t *V) {
+    for (uint32_t i = 0; i < K; ++i) {
+        for (uint32_t j = 0; j < N-K; ++j) {
+            V->values[i][j] = i == j;
+        }
+    }
+}
+
+/// TODO remove, currently only needed for debugging cf
+void normalized_sf(normalized_IS_t *V) {
+    normalized_ind(V);
+
+    unsigned char x;
+    for (uint32_t b = 0; b < 32; b++) {
+        for (uint32_t i = 0; i < K; ++i) {
+            for (uint32_t j = 0; j < K; ++j) {
+                if (j == i) { continue; }
+
+                randombytes(&x, 1);
+                if (x & 1) {
+                    for (uint32_t k = 0; k < N - K; ++k) {
+                        if ((b&1) == 0) V->values[j][k] = fq_add(V->values[j][k], V->values[i][k]);
+                        else V->values[K-1-j][k] = fq_add(V->values[K-1-j][k], V->values[K-1-i][k]);
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 /* Compresses a generator matrix in RREF storing only non-pivot columns and
  * their position */
 void generator_rref_compact(rref_generator_mat_t *compact,
@@ -475,7 +672,8 @@ void compress_rref(uint8_t *compressed,
 
 /* Expands a compressed RREF generator matrix into a full one */
 void expand_to_rref(generator_mat_t *full,
-                        const uint8_t *compressed)
+                    const uint8_t *compressed, 
+                    const uint8_t *TODO)
 {
     // Decompress pivot flags
     uint8_t is_pivot_column[N_pad] = {0};
