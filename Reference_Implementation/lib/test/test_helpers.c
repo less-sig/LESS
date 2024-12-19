@@ -94,6 +94,47 @@ void normalized_rng(normalized_IS_t *V) {
     }
 }
 
+void generator_to_normalized(normalized_IS_t *V,
+                             const generator_mat_t *const G){
+    for (uint32_t i = 0; i < K; ++i) {
+        for (uint32_t j = 0; j < N - K; ++j) {
+            V->values[i][j] = G->values[i][K+j];
+        }
+    }
+}
+
+
+
+
+////////////////////////////////////////////////////////////////////////
+///                        Permutation                               ///
+////////////////////////////////////////////////////////////////////////
+/* samples a random perm matrix */
+void monomial_mat_rnd(monomial_t *res) {
+   fq_star_rnd_elements(res->coefficients, N);
+   for(uint32_t i = 0; i < N; i++) {
+      res->permutation[i] = i;
+   }
+   /* FY shuffle on the permutation */
+   yt_shuffle(res->permutation);
+} /* end monomial_mat_rnd */
+
+// samples a random monomial matrix, in which each row has
+// its unique multiset spanning. ( <=> pairwise rows do not have the same values)
+void monomial_mat_rnd_unique(monomial_t *res) {
+    monomial_mat_rnd(res);
+
+    res->coefficients[0] = 1;
+    for(uint32_t row = 1; row < K; row++) {
+        res->coefficients[row] = row;
+    }
+
+    res->coefficients[K] = 2;
+    for(uint32_t row = 1; row < K; row++) {
+        res->coefficients[K + row] = row;
+    }
+}
+
 
 ////////////////////////////////////////////////////////////////////////
 ///                        Permutation                               ///
