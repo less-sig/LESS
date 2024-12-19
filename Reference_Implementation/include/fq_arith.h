@@ -121,13 +121,19 @@ FQ_ELEM fq_red(FQ_DOUBLEPREC x)
 }
 #endif
 
-///
-/// \param x
-/// \return
+
 static inline
-FQ_ELEM fq_red(FQ_DOUBLEPREC x) {
-    // return ((FQ_DOUBLEPREC) x) % Q;
-    // (517 * x) / (2 ^ 16)
+FQ_ELEM fq_cond_sub(const FQ_DOUBLEPREC x) {
+    // this is not constant-time!
+    return (x >= Q) ? (x - Q) : x;
+}
+
+static inline
+FQ_ELEM fq_red_barrett(const FQ_DOUBLEPREC x) {
+    // Barrett reduction for Q = 127 (full reduction as long as: x < 129 * 127)
+    //    mu = ceil((1<<16) / 127) = 517
+    //    t1 = (mu * x) / (2 ^ 16)
+    // This function is likely to be ~ constant-time
     uint16_t t1 = (((uint32_t) x << 9) + ((uint32_t) x << 2) + x) >> 16;
     uint16_t t2 = x - t1;
     t1 += (t2 >> 1);
@@ -137,59 +143,20 @@ FQ_ELEM fq_red(FQ_DOUBLEPREC x) {
 }
 
 static inline
-FQ_ELEM fq_cond_sub(FQ_DOUBLEPREC x) {
-    // return ((FQ_DOUBLEPREC) x) % Q;
-    return (x >= Q) ? (x - Q) : x;
+FQ_ELEM fq_red(const FQ_DOUBLEPREC x) {
+    return fq_cond_sub((x >> NUM_BITS_Q) + (x & 0x7f));
 }
+
 
 static inline
-FQ_ELEM fq_sub(FQ_ELEM x, FQ_ELEM y) {
-    // int16_t sub = (int16_t) x - (int16_t) y;
-    // return (sub < 0) ? (sub + Q) : sub;
-    return fq_cond_sub((FQ_DOUBLEPREC) x + Q - (FQ_DOUBLEPREC) y);
+FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
+    return fq_cond_sub(x + Q - y);
 }
-
-/// super generic a \in [0, 2**16)
-//static inline
-//uint8_t fq_red(const uint16_t a) {
-//   const uint64_t lowbits = MMM * a;
-//   const uint32_t highbits = ((__uint128_t)lowbits * Q) >> 64;
-//   return highbits - (Qm1 & (a >> 31));
-//}
 
 static inline
 FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
-   // return ((FQ_DOUBLEPREC)x * (FQ_DOUBLEPREC)y) % Q;
-    return fq_red((FQ_DOUBLEPREC)x * (FQ_DOUBLEPREC) y);
+    return fq_red((FQ_DOUBLEPREC) x * (FQ_DOUBLEPREC) y);
 }
-
-//static inline
-//FQ_ELEM fq_mul(const FQ_ELEM x,
-//               const FQ_ELEM y) {
-//   FQ_DOUBLEPREC z = x*y;
-//   return fq_red(z);
-//}
-
-//static inline
-//FQ_ELEM fq_mul(FQ_ELEM a, FQ_ELEM b){
-//   FQ_DOUBLEPREC lo, hi;
-//   lo = a * b;
-//   hi = lo >> 7;
-//   lo += hi;
-//   hi <<= 7;
-//   return (lo - hi) & Q;
-//}
-
-// // Barrett reduction for uint8_t with prime Q = 127
-// static inline
-// FQ_ELEM fq_red(FQ_ELEM a) {
-//    FQ_ELEM t;
-//    t = a >> 7;
-//    t &= Q;
-//    a += t;
-//    a &= Q;
-//    return a;
-// }
 
 static inline
 FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
@@ -206,8 +173,8 @@ static const uint8_t fq_inv_table[128] __attribute__((aligned(64))) = {
  * unrolled for actual parameters */
 static inline
 FQ_ELEM fq_inv(const FQ_ELEM x) {
-    const FQ_ELEM t = fq_red(x); // TODO, the problem is, that the pseudo reduction, does not fully reduce
-   return fq_inv_table[t];
+    // const FQ_ELEM t = fq_red(x);
+   return fq_inv_table[x];
 } /* end fq_inv */
 
 
