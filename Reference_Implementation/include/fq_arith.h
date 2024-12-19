@@ -124,8 +124,12 @@ FQ_ELEM fq_red(FQ_DOUBLEPREC x)
 
 static inline
 FQ_ELEM fq_cond_sub(const FQ_DOUBLEPREC x) {
-    // this is not constant-time!
-    return (x >= Q) ? (x - Q) : x;
+    // // this is not constant-time!
+    // return (x >= Q) ? (x - Q) : x;
+    // likely to be ~ constant-time (a "smart" compiler might turn this into conditionals though)
+    FQ_DOUBLEPREC sub_q = x - Q;
+    FQ_DOUBLEPREC mask = -((sub_q >> NUM_BITS_Q) & 1);
+    return (mask & Q) + sub_q;
 }
 
 static inline
