@@ -62,7 +62,7 @@ void generator_monomial_mul(generator_mat_t *res,
    for(uint32_t src_col_idx = 0; src_col_idx < N; src_col_idx++) {
       for(uint32_t row_idx = 0; row_idx < K; row_idx++) {
          res->values[row_idx][monom->permutation[src_col_idx]] =
-            fq_red( (FQ_DOUBLEPREC) G->values[row_idx][src_col_idx] *
+            fq_mul( (FQ_DOUBLEPREC) G->values[row_idx][src_col_idx],
                     (FQ_DOUBLEPREC) monom->coefficients[src_col_idx] );
       }
    }
@@ -77,7 +77,7 @@ void rref_generator_monomial_mul(generator_mat_t *res,
    for(uint32_t src_col_idx = 0; src_col_idx < N; src_col_idx++) {
       for(uint32_t row_idx = 0; row_idx < K; row_idx++) {
          res->values[row_idx][monom->permutation[src_col_idx]] =
-            fq_red( (FQ_DOUBLEPREC) G->values[row_idx][src_col_idx] *
+            fq_mul( (FQ_DOUBLEPREC) G->values[row_idx][src_col_idx],
                     (FQ_DOUBLEPREC) monom->coefficients[src_col_idx] );
       }
    }
@@ -138,7 +138,7 @@ int generator_RREF(generator_mat_t *G,
       /* rescale pivot row to have pivot = 1. Values at the left of the pivot
        * are already set to zero by previous iterations */
       for(uint32_t i = pivot_column; i < N; i++) {
-         G->values[pivot_row][i] = fq_red( (FQ_DOUBLEPREC) scaling_factor *
+         G->values[pivot_row][i] = fq_mul( (FQ_DOUBLEPREC) scaling_factor,
                                            (FQ_DOUBLEPREC) (G->values[pivot_row][i]) );
       }
 
@@ -151,11 +151,10 @@ int generator_RREF(generator_mat_t *G,
              * subtract them from other rows. */
             for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
                FQ_DOUBLEPREC tmp;
-               tmp = fq_red( (FQ_DOUBLEPREC) multiplier *
+               tmp = fq_mul( (FQ_DOUBLEPREC) multiplier,
                              (FQ_DOUBLEPREC) G->values[pivot_row][col_idx] );
 
-               tmp = (FQ_DOUBLEPREC) Q + (FQ_DOUBLEPREC) G->values[row_idx][col_idx] - tmp;
-               tmp = fq_red(tmp);
+               tmp = fq_sub(G->values[row_idx][col_idx], tmp);
 
                G->values[row_idx][col_idx] = tmp;
             }
@@ -227,7 +226,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
       /* rescale pivot row to have pivot = 1. Values at the left of the pivot
        * are already set to zero by previous iterations */
       for(int i = pivot_column; i < N; i++) {
-         G->values[pivot_row][i] = fq_red( (FQ_DOUBLEPREC) scaling_factor *
+         G->values[pivot_row][i] = fq_mul( (FQ_DOUBLEPREC) scaling_factor,
                                            (FQ_DOUBLEPREC) (G->values[pivot_row][i]) );
       }
 
@@ -243,11 +242,10 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                 for(int col_idx = 0; col_idx < N; col_idx++) {
                     if (!(col_idx < K && was_pivot_column[col_idx]) || (row_red_pvt_skip_cnt >= pvt_reuse_limit)) { // skip row reduce of pivots we will reuse
                        FQ_DOUBLEPREC tmp;
-                       tmp = fq_red( (FQ_DOUBLEPREC) multiplier *
+                       tmp = fq_mul( (FQ_DOUBLEPREC) multiplier,
                                      (FQ_DOUBLEPREC) G->values[pivot_row][col_idx] );
 
-                       tmp = (FQ_DOUBLEPREC) Q + (FQ_DOUBLEPREC) G->values[row_idx][col_idx] - tmp;
-                       tmp = fq_red(tmp);
+                       tmp = fq_sub(G->values[row_idx][col_idx], tmp);
 
                        G->values[row_idx][col_idx] = tmp;
                    } else {
@@ -288,7 +286,7 @@ void lex_minimize(normalized_IS_t *V,
    }
    FQ_ELEM inv_first = fq_inv(first_nonzero_val);
    for (uint32_t i = 0; i < K; i++) {
-      V->values[i][dst_col_idx] = fq_red(G->values[i][col_idx] *
+      V->values[i][dst_col_idx] = fq_mul(G->values[i][col_idx],
                                          (FQ_DOUBLEPREC) inv_first);
    }
 } /* end lex_minimize */
@@ -604,7 +602,7 @@ void apply_action_to_G(generator_mat_t* res,
         POSITION_T src_col_idx;
         src_col_idx = Q_IS->permutation[dst_col_idx];
         for(uint32_t i = 0; i < K; i++){
-            res->values[i][dst_col_idx] = fq_red((FQ_DOUBLEPREC) G->values[i][src_col_idx] * Q_IS->coefficients[dst_col_idx]);
+            res->values[i][dst_col_idx] = fq_mul((FQ_DOUBLEPREC) G->values[i][src_col_idx], Q_IS->coefficients[dst_col_idx]);
         }
         permutated_G_col_pivot[dst_col_idx] = initial_G_col_pivot[src_col_idx];
         is_G_col_pivot[src_col_idx] = 1;

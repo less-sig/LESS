@@ -175,8 +175,8 @@ void monomial_mat_mul(monomial_t *res,
                       const monomial_t *const B) {
    for(uint32_t i = 0; i < N; i++) {
       res->permutation[i] = B->permutation[A->permutation[i]];
-      res->coefficients[i] = fq_red(
-                                (FQ_DOUBLEPREC) A->coefficients[i] *
+      res->coefficients[i] = fq_mul(
+                                (FQ_DOUBLEPREC) A->coefficients[i],
                                 (FQ_DOUBLEPREC) B->coefficients[A->permutation[i]] );
    }
 } /* end monomial_mat_mul */

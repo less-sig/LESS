@@ -126,7 +126,27 @@ FQ_ELEM fq_red(FQ_DOUBLEPREC x)
 /// \return
 static inline
 FQ_ELEM fq_red(FQ_DOUBLEPREC x) {
-   return ((FQ_DOUBLEPREC) Q+x) % (FQ_DOUBLEPREC) Q;
+    // return ((FQ_DOUBLEPREC) x) % Q;
+    // (517 * x) / (2 ^ 16)
+    uint16_t t1 = (((uint32_t) x << 9) + ((uint32_t) x << 2) + x) >> 16;
+    uint16_t t2 = x - t1;
+    t1 += (t2 >> 1);
+    t1 >>= 6;
+    t1 -= (t1 << 7);
+    return x + t1;
+}
+
+static inline
+FQ_ELEM fq_cond_sub(FQ_DOUBLEPREC x) {
+    // return ((FQ_DOUBLEPREC) x) % Q;
+    return (x >= Q) ? (x - Q) : x;
+}
+
+static inline
+FQ_ELEM fq_sub(FQ_ELEM x, FQ_ELEM y) {
+    // int16_t sub = (int16_t) x - (int16_t) y;
+    // return (sub < 0) ? (sub + Q) : sub;
+    return fq_cond_sub((FQ_DOUBLEPREC) x + Q - (FQ_DOUBLEPREC) y);
 }
 
 /// super generic a \in [0, 2**16)
@@ -139,7 +159,8 @@ FQ_ELEM fq_red(FQ_DOUBLEPREC x) {
 
 static inline
 FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
-   return ((FQ_DOUBLEPREC)x * (FQ_DOUBLEPREC)y) % Q;
+   // return ((FQ_DOUBLEPREC)x * (FQ_DOUBLEPREC)y) % Q;
+    return fq_red((FQ_DOUBLEPREC)x * (FQ_DOUBLEPREC) y);
 }
 
 //static inline
@@ -185,7 +206,7 @@ static const uint8_t fq_inv_table[128] __attribute__((aligned(64))) = {
  * unrolled for actual parameters */
 static inline
 FQ_ELEM fq_inv(const FQ_ELEM x) {
-    const FQ_ELEM t = x%Q; // TODO, the problem is, that the pseudo reduction, does not fully reduce
+    const FQ_ELEM t = fq_red(x); // TODO, the problem is, that the pseudo reduction, does not fully reduce
    return fq_inv_table[t];
 } /* end fq_inv */
 
