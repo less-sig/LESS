@@ -261,6 +261,115 @@ int row_quick_sort(normalized_IS_t *G,
     return 1;
 }
 
+/// lexicographic comparison
+/// \return G1[col1] <=> G2[col2]:
+///         -1: G1[col1] > G2[col2]
+///          0: G1[col1] == G2[col2]
+///          1: G1[col1] < G2[col2]
+int lex_compare_column(const generator_mat_t *G1,
+					   const generator_mat_t *G2,
+                       const POSITION_T col1,
+                       const POSITION_T col2) {
+   uint32_t i=0;
+   while((i < K) &&
+         (G1->values[i][col1]-G2->values[i][col2] == 0)) {
+       i++;
+   }
+
+   if (i >= K) return 0;
+
+   if (G1->values[i][col1]-G2->values[i][col2] > 0){
+      return -1;
+   }
+
+   return 1;
+}
+
+/// lexicographic comparison
+/// \return G1[col1] <=> G1[col2]:
+///           1: G1[col1] >  G1[col2]
+///           0: G1[col1] == G1[col2]
+///          -1: G1[col1] <  G1[col2]
+int lex_compare_col(const normalized_IS_t *G1,
+                    const POSITION_T col1,
+                    const POSITION_T col2) {
+   uint32_t i=0;
+   while((i < (K-1)) &&
+         (G1->values[i][col1]-G1->values[i][col2] == 0)) {
+       i++;
+   }
+   return G1->values[i][col1]-G1->values[i][col2];
+}
+
+/* lexicographic comparison of a column with the pivot
+ * returns 1 if the pivot is greater, -1 if it is smaller,
+ * 0 if it matches */
+int lex_compare_with_pivot(normalized_IS_t *V,
+                           const POSITION_T col_idx,
+                           FQ_ELEM pivot[K]){
+   uint32_t i=0;
+   while(i<K && V->values[i][col_idx]-pivot[i] == 0){
+       i++;
+   }
+   if (i==K) return 0;
+   if (V->values[i][col_idx]-pivot[i] > 0){
+      return -1;
+   }
+   return 1;
+}
+
+///
+int Hoare_partition(normalized_IS_t *V,
+                    const POSITION_T col_l,
+                    const POSITION_T col_h){
+    FQ_ELEM pivot_col[K];
+    for(uint32_t i = 0; i < K; i++){
+       pivot_col[i] = V->values[i][col_l];
+    }
+    // TODO double comparison
+
+    POSITION_T i = col_l, j = col_h+1;
+    do {
+        j--;
+    } while(lex_compare_with_pivot(V,j,pivot_col) == -1);
+    if(i >= j){
+        return j;
+    }
+
+    column_swap(V,i,j);
+
+    while(1){
+        do {
+            i++;
+        } while(lex_compare_with_pivot(V,i,pivot_col) == 1);
+        do {
+            j--;
+        } while(lex_compare_with_pivot(V,j,pivot_col) == -1);
+        if(i >= j){
+            return j;
+        }
+
+        column_swap(V,i,j);
+    }
+}
+
+/* In-place quicksort */
+void col_lex_quicksort(normalized_IS_t *V,
+                       int start,
+                       int end){
+    if(start < end){
+        int p = Hoare_partition(V,start,end);
+        col_lex_quicksort(V,start,p);
+        col_lex_quicksort(V,p+1,end);
+    }
+}
+
+/* Sorts the columns of V in lexicographic order */
+void lex_sort_cols(normalized_IS_t *V){
+   col_lex_quicksort(V,0,(N-K)-1);
+}
+
+
 /// NOTE: non-constant time
 /// Sorts the columns of the input matrix, via first transposing
 /// the matrix, subsequent sorting rows, and finally transposing

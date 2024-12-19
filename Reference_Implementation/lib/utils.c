@@ -26,7 +26,7 @@
 #include "utils.h"
 #include <stdlib.h>
 
-/// swaps a and b if
+/// swaps a and b if mask == -1ull
 void cswap(uintptr_t *a,
            uintptr_t *b,
            const uintptr_t mask) {
@@ -43,7 +43,7 @@ void cswap_bit(uintptr_t *a,
 	cswap(a, b, mask);
 }
 
-/// swaps a and b
+/// swaps a and b of length n if mask == -1ull
 void cswap_array(uintptr_t *a,
                  uintptr_t *b,
                  const uintptr_t mask,
