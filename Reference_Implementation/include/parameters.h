@@ -84,7 +84,7 @@
 #define   Q (127)
 #define   NUM_KEYPAIRS (8)
 #define   T (45)
-#define   W (32)
+#define   W (34)
 
 #else
 #error define optimization corner in parameters.h
