@@ -49,10 +49,6 @@ typedef struct {
 /* Calculate pivot flag array */
 void generator_get_pivot_flags (const rref_generator_mat_t *const G,
                                 uint8_t pivot_flag [N]);
-//
-void scale_row(generator_mat_t *G,
-               const uint32_t row,
-               const FQ_ELEM a);
 
 void column_swap(normalized_IS_t *V,
                  const POSITION_T col1,
@@ -176,12 +172,6 @@ void generator_rref_expand(generator_mat_t *full,
  * returns 1 on success, 0 on failure */
 int generator_gausselim(generator_mat_t *G);
 
-void apply_action_to_G(generator_mat_t* res,
-                       const generator_mat_t* G,
-                       const monomial_action_IS_t* Q_IS,
-                       uint8_t initial_G_col_pivot[N],
-                       uint8_t permutated_G_col_pivot[N]);
-
 //
 void apply_cf_action_to_G(generator_mat_t* res,
                           const generator_mat_t *G,
@@ -207,13 +197,9 @@ void normalized_copy(normalized_IS_t *V1, const normalized_IS_t *V2);
 void generator_SF_seed_expand(rref_generator_mat_t *res,
                               const unsigned char seed[SEED_LENGTH_BYTES]);
 
-void normalized_pretty_print_v(const FQ_ELEM values[K][N-K]);
 void generator_pretty_print(const generator_mat_t *const G);
 void generator_pretty_print_name(char *name, const generator_mat_t *const G);
 void generator_rref_pretty_print_name(char *name,
                                       const rref_generator_mat_t *const G);
 
 void normalized_pretty_print(const normalized_IS_t *const G);
-int normalized_is_zero_in_column(const normalized_IS_t *const V,
-                                 const uint32_t col);
-void normalized_mat_scale_row(normalized_IS_t *G, const uint32_t row, const FQ_ELEM a);

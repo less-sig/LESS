@@ -6,6 +6,7 @@
 #include "canonical.h"
 #include "cycles.h"
 #include "sort.h"
+#include "test_helpers.h"
 
 #define ITERS (1u << 10u)
 

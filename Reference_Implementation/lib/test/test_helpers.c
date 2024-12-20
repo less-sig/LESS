@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 #include "fq_arith.h"
 #include "LESS.h"
 #include "codes.h"
