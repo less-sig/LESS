@@ -32,10 +32,12 @@
 #define POS_BITS BITS_TO_REPRESENT(N-1)
 #define POS_MASK (((POSITION_T) 1 << POS_BITS) - 1)
 
-///
-/// \param shake_monomial_state
-/// \param permutation
-/// \param n <= N
+/// applies a random permutation between [0, n-1] on the
+/// input permutation
+/// \param shake_monomial_state[in/out]:
+/// \param permutation[in/out]: random permutation. Must be initialized with
+///         [0,....,n-1]
+/// \param n <= N: number of elements in the permutation
 void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
                             POSITION_T *permutation,
                             const uint32_t n) {
@@ -53,6 +55,10 @@ void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
         permutation[rand_u32[i]] = tmp;
     }
 }
+
+/// \param shake_monomial_state[in/out]:
+/// \param permutation[in/out]: random permutation. Must be initialized with
+///         [0,....,n-1]
 void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state, POSITION_T permutation[N]) {
     uint32_t rand_u32[N] = {0};
     POSITION_T tmp;
@@ -139,49 +145,17 @@ void monomial_mat_seed_expand_rnd(monomial_t *res,
     yt_shuffle_state(&shake_monomial_state, res->permutation);
 
 }
+//
+// /* samples a random perm matrix */
+// void monomial_mat_rnd(monomial_t *res) {
+//    fq_star_rnd_elements(res->coefficients, N);
+//    for(uint32_t i = 0; i < N; i++) {
+//       res->permutation[i] = i;
+//    }
+//    /* FY shuffle on the permutation */
+//    yt_shuffle(res->permutation);
+// } /* end monomial_mat_rnd */
 
-/* samples a random perm matrix */
-void monomial_mat_rnd(monomial_t *res) {
-   fq_star_rnd_elements(res->coefficients, N);
-   for(uint32_t i = 0; i < N; i++) {
-      res->permutation[i] = i;
-   }
-   /* FY shuffle on the permutation */
-   yt_shuffle(res->permutation);
-} /* end monomial_mat_rnd */
-
-// samples a random monomial matrix, in which each row has
-// its unique multiset spanning. ( <=> pairwise rows do not have the same values)
-void monomial_mat_rnd_unique(monomial_t *res) {
-    monomial_mat_rnd(res);
-
-    res->coefficients[0] = 1;
-    for(uint32_t row = 1; row < K; row++) {
-        res->coefficients[row] = row;
-    }
-
-    res->coefficients[K] = 2;
-    for(uint32_t row = 1; row < K; row++) {
-        res->coefficients[K + row] = row;
-    }
-}
-
-/// res = A*B
-/// \param res[out] output monomial matrix
-/// \param A[in] input monomial matrix
-/// \param B[in] input monomial matrix
-void monomial_mat_mul(monomial_t *res,
-                      const monomial_t *const A,
-                      const monomial_t *const B) {
-   for(uint32_t i = 0; i < N; i++) {
-      res->permutation[i] = B->permutation[A->permutation[i]];
-      res->coefficients[i] = fq_red(
-                                (FQ_DOUBLEPREC) A->coefficients[i] *
-                                (FQ_DOUBLEPREC) B->coefficients[A->permutation[i]] );
-   }
-} /* end monomial_mat_mul */
-
-///
 /// \param res[out] = to_invert**-1
 /// \param to_invert[in]
 void monomial_mat_inv(monomial_t *res,
@@ -192,14 +166,6 @@ void monomial_mat_inv(monomial_t *res,
                to_invert->coefficients[i]);
    }
 } /* end monomial_mat_inv */
-
-/* yields the identity matrix */
-void monomial_mat_id(monomial_t *res) {
-   for(uint32_t i = 0; i < N; i++) {
-      res->permutation[i] = i;
-      res->coefficients[i] = 1;
-   }
-} /* end monomial_mat_id */
 
 /* pretty_print for monomial matrices */
 void monomial_mat_pretty_print(const monomial_t *const to_print) {
@@ -258,12 +224,12 @@ void monomial_mat_print_exp_name(char *name,const monomial_t *to_print)
  * NOTE: Only the permutation is computed, as this is the only thing we need
  * since the adaption of canonical forms.
  */
-void monomial_compose_action(monomial_action_IS_t* out, 
-                             const monomial_t * Q_in, 
+void monomial_compose_action(monomial_action_IS_t* out,
+                             const monomial_t * Q_in,
                              const monomial_action_IS_t * in){
    /* to compose with monomial_action_IS_t, reverse the convention
     * for Q storage: store in permutation[i] the idx of the source column landing
-    * as the i-th after the GQ product, and in coefficients[i] the coefficient 
+    * as the i-th after the GQ product, and in coefficients[i] the coefficient
     * by which the column is multiplied upon landing */
    monomial_t reverse_Q;
    for(uint32_t i = 0; i < N; i++){
@@ -276,8 +242,8 @@ void monomial_compose_action(monomial_action_IS_t* out,
 }
 
 /// type5 compression
-/// \param compressed
-/// \param mono
+/// \param compressed[out]: N bits in which K bits will be sed
+/// \param mono[in]: monomial
 void cf_compress_monomial_IS_action(uint8_t *compressed,
                                     const monomial_action_IS_t *mono) {
     memset(compressed, 0, N8);
@@ -288,8 +254,8 @@ void cf_compress_monomial_IS_action(uint8_t *compressed,
     }
 }
 
-/// \param mono
-/// \param compressed
+/// \param mono[out]: monomial
+/// \param compressed[in]: N bits in which K bits will be sed
 void cf_expand_to_monom_action(monomial_action_IS_t *mono,
                                const uint8_t *compressed) {
     for (uint32_t i = 0; i < K; i++) {
@@ -307,8 +273,6 @@ void cf_expand_to_monom_action(monomial_action_IS_t *mono,
             mono->permutation[ctr++] = i*8 + pos;
         }
     }
-
-    assert(ctr == K);
 }
 
 /// checks if the given (N+7/8) bytes are a valid

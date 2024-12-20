@@ -121,72 +121,60 @@ FQ_ELEM fq_red(FQ_DOUBLEPREC x)
 }
 #endif
 
-///
-/// \param x
-/// \return
+
 static inline
-FQ_ELEM fq_red(FQ_DOUBLEPREC x) {
-   return ((FQ_DOUBLEPREC) Q+x) % (FQ_DOUBLEPREC) Q;
+FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
+    // // this is not constant-time!
+    // return (x >= Q) ? (x - Q) : x;
+    // likely to be ~ constant-time (a "smart" compiler might turn this into conditionals though)
+    FQ_ELEM sub_q = x - Q;
+    FQ_ELEM mask = -(sub_q >> NUM_BITS_Q);
+    return (mask & Q) + sub_q;
 }
 
-/// super generic a \in [0, 2**16)
-//static inline
-//uint8_t fq_red(const uint16_t a) {
-//   const uint64_t lowbits = MMM * a;
-//   const uint32_t highbits = ((__uint128_t)lowbits * Q) >> 64;
-//   return highbits - (Qm1 & (a >> 31));
-//}
+static inline
+FQ_ELEM fq_red_barrett(const FQ_DOUBLEPREC x) {
+    // Barrett reduction for Q = 127 (full reduction as long as: x < 129 * 127)
+    //    mu = ceil((1<<16) / 127) = 517
+    //    t1 = (mu * x) / (2 ^ 16)
+    // This function is likely to be ~ constant-time
+    uint16_t t1 = (((uint32_t) x << 9) + ((uint32_t) x << 2) + x) >> 16;
+    uint16_t t2 = x - t1;
+    t1 += (t2 >> 1);
+    t1 >>= 6;
+    t1 -= (t1 << 7);
+    return x + t1;
+}
+
+static inline
+FQ_ELEM fq_red(const FQ_DOUBLEPREC x) {
+    return fq_cond_sub((x >> NUM_BITS_Q) + ((FQ_ELEM) x & Q));
+}
+
+static inline
+FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
+    return fq_cond_sub(x + Q - y);
+}
 
 static inline
 FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
-   return ((FQ_DOUBLEPREC)x * (FQ_DOUBLEPREC)y) % Q;
+    return fq_red((FQ_DOUBLEPREC) x * (FQ_DOUBLEPREC) y);
 }
-
-//static inline
-//FQ_ELEM fq_mul(const FQ_ELEM x,
-//               const FQ_ELEM y) {
-//   FQ_DOUBLEPREC z = x*y;
-//   return fq_red(z);
-//}
-
-//static inline
-//FQ_ELEM fq_mul(FQ_ELEM a, FQ_ELEM b){
-//   FQ_DOUBLEPREC lo, hi;
-//   lo = a * b;
-//   hi = lo >> 7;
-//   lo += hi;
-//   hi <<= 7;
-//   return (lo - hi) & Q;
-//}
-
-// // Barrett reduction for uint8_t with prime Q = 127
-// static inline
-// FQ_ELEM fq_red(FQ_ELEM a) {
-//    FQ_ELEM t;
-//    t = a >> 7;
-//    t &= Q;
-//    a += t;
-//    a &= Q;
-//    return a;
-// }
 
 static inline
 FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
       return (x + y) % Q;
 }
 
-/// NOTE: maybe dont use it for sensetive data
+/// NOTE: maybe don't use it for sensetive data
 static const uint8_t fq_inv_table[128] __attribute__((aligned(64))) = {
    0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126, 0
 };
 
-
-/* Fermat's method for inversion employing r-t-l square and multiply,
- * unrolled for actual parameters */
 static inline
 FQ_ELEM fq_inv(const FQ_ELEM x) {
-    const FQ_ELEM t = x%Q; // TODO, the problem is, that the pseudo reduction, does not fully reduce
-   return fq_inv_table[t];
+    // const FQ_ELEM t = fq_red(x);
+   return fq_inv_table[x];
 } /* end fq_inv */
 
 

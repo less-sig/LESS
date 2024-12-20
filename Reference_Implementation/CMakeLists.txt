@@ -110,7 +110,8 @@ add_executable(bench_cf ${PROJECT_SOURCE_DIR}/lib/bench/bench_cf.c ${SOURCES})
 target_link_libraries(bench_cf PRIVATE OpenSSL::Crypto)
 set_property(TARGET bench_cf APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 
-add_executable(bench_rref ${PROJECT_SOURCE_DIR}/lib/bench/bench_rref.c ${SOURCES})
+add_executable(bench_rref ${CMAKE_CURRENT_SOURCE_DIR}/lib/test/test_helpers.c ${CMAKE_CURRENT_SOURCE_DIR}/lib/bench/bench_rref.c ${SOURCES})
+target_include_directories(bench_rref PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
 target_link_libraries(bench_rref PRIVATE OpenSSL::Crypto)
 set_property(TARGET bench_rref APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 

@@ -130,30 +130,6 @@ void info(void){
 
 }
 
-#define MONO_ITERS 250000000
-void monomial_distribution(void){
-    monomial_t mono;
-    int num_l_r_swaps;
-    int dist [K] = {0};
-
-    for (int i = 0; i < MONO_ITERS; i++) {
-        monomial_mat_rnd(&mono);
-
-        // Parse distribution
-        num_l_r_swaps = 0;
-        for (int j = 0; j < K; j++) {
-            if (mono.permutation[j] > K)
-                num_l_r_swaps++;
-        }
-
-        dist[num_l_r_swaps] += 1;
-    }
-
-    printf("Results: ");
-    for (int i = 0; i < K; i++)
-        printf("[%d] %d\n", i, dist[i]);
-    printf("\n");
-}
 
 void LESS_sign_verify_speed(void){
     fprintf(stderr,"Computing number of clock cycles as the average of %d runs\n", NUM_TESTS);

@@ -45,60 +45,7 @@ void cswap_bit(uintptr_t *a,
 	cswap(a, b, mask);
 }
 
-/// swaps a and b
-void cswap_array(uintptr_t *a,
-                 uintptr_t *b,
-                 const uintptr_t mask,
-                 const uint32_t n) {
-    for (uint32_t i = 0; i < n; i++) {
-        MASKED_SWAP(a[i], b[i], mask);
-    }
-}
 
-/// Description: Compare two arrays for equality in constant time.
-///
-/// Arguments:   const uint8_t *a: pointer to first byte array
-///              const uint8_t *b: pointer to second byte array
-///              size_t len:       length of the byte arrays
-///
-/// Returns 0 if the byte arrays are equal, 1 otherwise
-int verify(const uint8_t *a,
-           const uint8_t *b,
-           const size_t len) {
-    uint8_t r = 0;
-
-    for(size_t i=0;i<len;i++) {
-        r |= a[i] ^ b[i];
-    }
-
-    return (-(uint64_t)r) >> 63;
-}
-
-/// Description: Copy len bytes from x to r if b is 1;
-///              don't modify x if b is 0. Requires b to be in {0,1};
-///              assumes two's complement representation of negative integers.
-///              Runs in constant time.
-///
-/// Arguments:   uint8_t *r:       pointer to output byte array
-///              const uint8_t *x: pointer to input byte array
-///              size_t len:       Amount of bytes to be copied
-///              uint8_t b:        Condition bit; has to be in {0,1}
-void cmov(uint8_t *r, const uint8_t *x, size_t len, uint8_t b) {
-#if defined(__GNUC__) || defined(__clang__)
-    // Prevent the compiler from
-    //    1) inferring that b is 0/1-valued, and
-    //    2) handling the two cases with a branch.
-    __asm__("" : "+r"(b) : /* no inputs */);
-#endif
-
-    b = -b;
-    for(size_t i=0;i<len;i++) {
-        r[i] ^= b & (r[i] ^ x[i]);
-    }
-}
-
-// TODO move to optimized
-#ifdef USE_AVX
 #include <immintrin.h>
 
 void cswap_array(uintptr_t *a,
@@ -109,7 +56,7 @@ void cswap_array(uintptr_t *a,
     __m256i *aa = (__m256i *)a;
     __m256i *bb = (__m256i *)b;
     for (uint32_t i = 0; i < (n/4); i++) {
-        MASKED_SWAP(ab[i], bb[i], m);
+        MASKED_SWAP(aa[i], bb[i], m);
     }
 }
 
@@ -120,7 +67,9 @@ void cswap_array(uintptr_t *a,
 ///              size_t len: length of the byte arrays
 ///
 /// Returns 0 if the byte arrays are equal, 1 otherwise
-int verify(const uint8_t *a, const uint8_t *b, size_t len) {
+int verify(const uint8_t *a,
+           const uint8_t *b,
+           size_t len) {
     size_t i;
     uint64_t r;
     __m256i f, g, h;
@@ -156,7 +105,10 @@ int verify(const uint8_t *a, const uint8_t *b, size_t len) {
 ///              const uint8_t *x: pointer to input byte array
 ///              size_t len: Amount of bytes to be copied
 ///              uint8_t b: Condition bit; has to be in {0,1}
-void cmov(uint8_t * restrict r, const uint8_t *x, size_t len, uint8_t b){
+void cmov(uint8_t * restrict r,
+          const uint8_t *x,
+          size_t len,
+          uint8_t b) {
       size_t i;
       __m256i xvec, rvec, bvec;
 
@@ -185,7 +137,6 @@ void cmov(uint8_t * restrict r, const uint8_t *x, size_t len, uint8_t b){
         r[i] ^= -b & (x[i] ^ r[i]);
     }
 }
-#endif
 
 #define MAX_KEYPAIR_INDEX (NUM_KEYPAIRS-1)
 #define KEYPAIR_INDEX_MASK ( ((uint16_t)1 << BITS_TO_REPRESENT(MAX_KEYPAIR_INDEX)) -1 )
@@ -194,7 +145,6 @@ void cmov(uint8_t * restrict r, const uint8_t *x, size_t len, uint8_t b){
 
 /* Expands a digest expanding it into a fixed weight string with elements in
  * Z_{NUM_KEYPAIRS}. */
-#include <stdio.h>
 void expand_digest_to_fixed_weight( uint8_t fixed_weight_string[T],
                                     const uint8_t digest[HASH_DIGEST_LENGTH]){
    SHAKE_STATE_STRUCT shake_state;

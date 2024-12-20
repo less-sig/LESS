@@ -140,7 +140,6 @@ size_t LESS_sign(const prikey_t *SK,
     generator_rref_expand(&full_G0, &G0_rref);
 
     monomial_t Q_tilde;
-    // TODO: remove the values, as we only are interested in the permutation
     monomial_action_IS_t Q_bar[T];
     normalized_IS_t V_array;
 
@@ -153,10 +152,8 @@ size_t LESS_sign(const prikey_t *SK,
                                           sig->tree_salt,
                                           i);
 
-        // TODO hide behind a compiler flag/preprocessor flag
-        // prepare_digest_input_pivot_reuse(&V_array, &Q_bar[i], &full_G0, &Q_tilde, g0_initial_pivot_flags, SIGN_PIVOT_REUSE_LIMIT);
 #if defined(LESS_REUSE_PIVOTS_SG)
-            // TODO half of these operations can be optimized away
+            // TODO half of these operations within this function can be removed
             prepare_digest_input_pivot_reuse(&V_array,
                                              &Q_bar[i],
                                              &full_G0,
@@ -216,10 +213,10 @@ size_t LESS_sign(const prikey_t *SK,
             emitted_monoms++;
         }
     }
-    // TODO?
-    assert(emitted_monoms == W);
 
-    sig->seed_storage[num_seeds_published*SEED_LENGTH_BYTES] = num_seeds_published; // TODO this needs to be changed
+    // TODO this needs to be changed. As described in the TODO in overleaf, currently
+    // we need to keep track of the opened commitments.
+    sig->seed_storage[num_seeds_published*SEED_LENGTH_BYTES] = num_seeds_published;
     return num_seeds_published;
 } /* end LESS_sign */
 
@@ -287,8 +284,10 @@ int LESS_verify(const pubkey_t *const PK,
 
             const int r = cf5_nonct(&V_array);
             if (r == 0) {
-                printf("cf5 failed\n");
-                return 0;// TODO
+                // NOTE: we just silently reject the signature, if we do not
+                // have a valid CF input. This should only happen with an
+                // negl. probability.
+                return 0;
             }
             LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array, sizeof(normalized_IS_t));
         } else {
@@ -332,8 +331,10 @@ int LESS_verify(const pubkey_t *const PK,
 
             const int r = cf5_nonct(&V_array);
             if (r == 0) {
-                printf("cf5 wt=1 failed\n");
-                return 0;// TODO
+                // NOTE: we just silently reject the signature, if we do not
+                // have a valid CF input. This should only happen with an
+                // negl. probability.
+                return 0;
             }
             LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array.values, sizeof(normalized_IS_t));
             employed_monoms++;

@@ -88,10 +88,6 @@ void monomial_mat_mul(monomial_t *res,
 void monomial_mat_inv(monomial_t *res,
                       const monomial_t *const to_invert);
 
-/* samples a random monomial matrix from the systemwide csprng*/
-void monomial_mat_rnd(monomial_t *res);
-void monomial_mat_rnd_unique(monomial_t *res);
-
 /* expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
  * monomial matrices */
 void monomial_mat_seed_expand_salt_rnd(monomial_t *res,
