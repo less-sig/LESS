@@ -131,47 +131,6 @@ int test_compute_canonical_form_type4_v2(void) {
     return 0;
 }
 
-#if defined(CATEGORY_0)
-// tests dummy data
-int test_compute_canonical_form_type4_v3(void) {
-    if (K != 8) {
-        return 0; 
-    }
-    normalized_IS_t G1;
-
-    for (uint32_t i = 0; i < K; i++) {
-        for (uint32_t j = 0; j < N-K; j++) {
-            G1.values[i][j] = 120 - i - j;
-        }
-    }
-
-    if (compute_canonical_form_type4(&G1) == 0) return 1;
-
-    // data comes from cf.py
-    const uint8_t data[K][N-K] = {
-        {  3,  4, 28, 29, 54, 79, 80,105},
-        {113, 86, 73, 46,  6, 93, 66, 26},
-        { 36, 54,105,123, 65,  7, 25, 94},
-        {  9,117, 42, 23, 56, 89, 70,103},
-        { 45, 33,126,114, 68, 22, 10, 91},
-        { 11, 70, 89, 21, 99, 50,109, 60},
-        { 80, 36,123, 79,122, 38,121, 37},
-        { 50,106, 53,109,112,115, 44, 47},
-    };
-
-    for (uint32_t i = 0; i < K; i++) {
-        for (uint32_t j = 0; j < N-K; j++) {
-            if (data[i][j] != G1.values[i][j]) {
-                printf("error: test_compute_canonical_form_type4_v3\n");
-                return 1;
-            }
-        }
-    }
-
-    return 0;
-}
-#endif
-
 int test_compute_canonical_form_type5(void) {
     normalized_IS_t G;
     normalized_sf(&G);
@@ -262,45 +221,6 @@ int test_compute_canonical_form_type5_v2(void) {
     return 0;
 }
 
-#if defined(CATEGORY_0)
-int test_compute_canonical_form_type5_v3(void) {
-    normalized_IS_t G1;
-
-    /// just generate some deterministic numbers
-    for (uint32_t i = 0; i < K; i++) {
-        for (uint32_t j = 0; j < N-K; j++) {
-            G1.values[i][j] = 120 - i - j;
-        }
-    }
-
-    // normalized_pretty_print(&G1);
-    if (compute_canonical_form_type5(&G1) == 0) return 1;
-    // normalized_pretty_print(&G1);
-    // data comes from cf.py
-    const uint8_t data[K][N-K] = {
-        { 1,  1,  1,  1,  1,  1,  1,  1},
-        { 1,  2, 17, 51, 53, 80, 85, 93},
-        {84, 71,  3, 69, 43, 73,  8, 31},
-        {46, 44, 14, 73, 69, 15,  5,116},
-        {83, 87, 20, 29, 37, 18, 38, 70},
-        {18,111,109, 96, 28,126, 83, 65},
-        {28, 78, 66,115, 88, 41, 37, 56},
-        {47, 28,124,113, 75, 70,102, 77},
-    };
-
-    for (uint32_t i = 0; i < K; i++) {
-        for (uint32_t j = 0; j < N-K; j++) {
-            if (data[i][j] != G1.values[i][j]) {
-                printf("error: test_compute_canonical_form_type5_v3\n");
-                return 1;
-            }
-        }
-    }
-
-    return 0;
-}
-#endif
-
 // tests: if CF(G) and CF(RREF(G)) are the same
 uint32_t  test_compute_canonical_form_type5_gaus(void) {
     generator_mat_t G1, G2;
@@ -366,12 +286,6 @@ int main(void) {
     if (test_compute_canonical_form_type5_v2()) return 1;
 
     if (test_compute_canonical_form_type5_gaus()) return 1;
-
-#if defined(CATEGORY_0)
-    // value tests, (values taken from cf.py)
-    // if (test_compute_canonical_form_type4_v3()) return 1;
-    // if (test_compute_canonical_form_type5_v3()) return 1;
-#endif
 
     printf("Done, all worked\n");
     return 0;

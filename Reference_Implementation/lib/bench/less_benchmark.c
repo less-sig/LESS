@@ -86,12 +86,12 @@ long double welford_mean(const welford_t state) {
 }
 
 #if defined(CATEGORY_5)
-#define NUM_TESTS 6
+#define NUM_RUNS 6
 #elif defined(CATEGORY_3)
-#define NUM_TESTS 12
+#define NUM_RUNS 12
 #else
-#define NUM_TESTS 32
-// #define NUM_TESTS 256
+#define NUM_RUNS 32
+// #define NUM_RUNS 256
 #endif
 
 #ifdef N_pad
@@ -109,7 +109,7 @@ void microbench(void){
     uint8_t is_pivot_column[NN];
 
     uint64_t cycles;
-    for(int i = 0; i <NUM_TESTS; i++) {
+    for(int i = 0; i <NUM_RUNS; i++) {
         cycles = x86_64_rtdsc();
         generator_RREF(&G,is_pivot_column);
         welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
@@ -132,7 +132,7 @@ void info(void){
 
 
 void LESS_sign_verify_speed(void){
-    fprintf(stderr,"Computing number of clock cycles as the average of %d runs\n", NUM_TESTS);
+    fprintf(stderr,"Computing number of clock cycles as the average of %d runs\n", NUM_RUNS);
     welford_t timer;
     uint64_t cycles;
     pubkey_t pk;
@@ -143,7 +143,7 @@ void LESS_sign_verify_speed(void){
 
     printf("Timings (kcycles):\n");
     welford_init(&timer);
-    for(int i = 0; i <NUM_TESTS; i++) {
+    for(int i = 0; i <NUM_RUNS; i++) {
         cycles = x86_64_rtdsc();
         LESS_keygen(&sk,&pk);
         welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
@@ -154,7 +154,7 @@ void LESS_sign_verify_speed(void){
 
     
     welford_init(&timer);
-    for(int i = 0; i <NUM_TESTS; i++) {
+    for(int i = 0; i <NUM_RUNS; i++) {
         cycles = x86_64_rtdsc();
         LESS_sign(&sk,message,8,&signature);
         welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
@@ -165,7 +165,7 @@ void LESS_sign_verify_speed(void){
     
     int is_signature_ok;
     welford_init(&timer);
-    for(int i = 0; i <NUM_TESTS; i++) {
+    for(int i = 0; i <NUM_RUNS; i++) {
         cycles = x86_64_rtdsc();
         is_signature_ok = LESS_verify(&pk,message,8,&signature); // Message never changes
         welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
