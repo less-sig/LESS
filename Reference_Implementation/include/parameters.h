@@ -30,150 +30,86 @@
 #define MMM 0x204081020408103ull
 /* Seed tree max size is computed according to Parameter Generation Script in Utilities folder */
 
+/***************************** Common Parameters ******************************/
+#define   Q (127)
+#define FQ_ELEM uint8_t
+#define FQ_DOUBLEPREC uint16_t
+#define FQ_TRIPLEPREC uint32_t
+#define POSITION_T uint8_t
+#define SEED_TREE_LABEL_T uint8_t
+
 /********************************* Category 1 *********************************/
 
-#if defined(CATEGORY_0)
-// NOTE: this is the dev mode. only use it if you know what you are doing
-#warning "DEV MODE"
-
-#define SEED_LENGTH_BYTES (16)
-#define FQ_ELEM uint8_t
-#define FQ_DOUBLEPREC uint16_t
-#define FQ_TRIPLEPREC uint32_t
-#define POSITION_T uint8_t
-#define SEED_TREE_LABEL_T uint8_t
-
-#define   N (32)
-#define   K (16)
-#define   Q (127)
-#define NUM_KEYPAIRS (  2)
-#define   T (247)
-#define   W ( 30)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
-
-#elif defined(CATEGORY_1)
+#if defined(CATEGORY_1)
+#define N (252)
+#define K (126)
 #define SEED_LENGTH_BYTES (16)
 #define SIGN_PIVOT_REUSE_LIMIT (25) // Ensures probability of non-CT operaiton is < 2^-64
-#define FQ_ELEM uint8_t
-#define FQ_DOUBLEPREC uint16_t
-#define FQ_TRIPLEPREC uint32_t
-#define POSITION_T uint8_t
-#define SEED_TREE_LABEL_T uint8_t
 
 #if defined(BALANCED)
-#define   N (252)
-#define   K (126)
-#define   Q (127)
-#define   NUM_KEYPAIRS (2)
-#define   T (256)
-#define   W (30)
-#define   SEED_TREE_MAX_PUBLISHED_BYTES (1472)
-#define   SEED_TREE
+#define NUM_KEYPAIRS (2)
+#define T (256)
+#define W (30)
+#define SEED_TREE
+#define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
 
 #elif defined(INTERMEDIATE)
-#define   N (252)
-#define   K (126)
-#define   Q (127)
 #define   NUM_KEYPAIRS (4)
 #define   T (68)
 #define   W (42)
 
 #elif defined(SHORT_SIG)
-#define   N (252)
-#define   K (126)
-#define   Q (127)
 #define   NUM_KEYPAIRS (8)
 #define   T (45)
-#define   W (32)
+#define   W (34)
 
 #else
-#error define optimization corner in parameters.h
+#error define parameters in parameters.h
 #endif
 
 /********************************* Category 3 *********************************/
 #elif defined(CATEGORY_3)
+#define N (400)
+#define K (200)
 #define SEED_LENGTH_BYTES (24)
 #define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operaiton is < 2^-64
 
 #if defined(BALANCED)
-#define   N (400)
-#define   K (200)
-#define   Q (127)
-#define NUM_KEYPAIRS (  2)
-#define   T (68)
-#define   W (42)
+#define NUM_KEYPAIRS (2)
+#define T (204)
+#define W (79)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (3912)
-#define FQ_ELEM uint8_t
-#define FQ_DOUBLEPREC uint16_t
-#define FQ_TRIPLEPREC uint16_t
-#define POSITION_T uint16_t
 
 #elif defined(SHORT_SIG)
-#define   N (400)
-#define   K (200)
-#define   Q (127)
-#define NUM_KEYPAIRS (  3)
-#define   T (895)
-#define   W ( 26)
+#define NUM_KEYPAIRS (3)
+#define T (106)
+#define W (57)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (3264)
-#define FQ_ELEM uint8_t
-#define FQ_DOUBLEPREC uint16_t
-#define FQ_TRIPLEPREC uint32_t
-#define POSITION_T uint16_t
 #else
 #error define optimization corner in parameters.h
 #endif
 
 /********************************* Category 5 *********************************/
 #elif defined(CATEGORY_5)
+#define N (548)
+#define K (274)
 #define SEED_LENGTH_BYTES (32)
 #define SIGN_PIVOT_REUSE_LIMIT (79) // Ensures probability of non-CT operaiton is < 2^-64
 
 #if defined(BALANCED)
-#define   N (548)
-#define   K (274)
-#define   Q (127)
-#define NUM_KEYPAIRS (  2)
-#define   T (1352)
-#define   W ( 40)
+#define NUM_KEYPAIRS (2)
+#define T (266)
+#define W (111)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (7168)
-#define FQ_ELEM uint8_t
-#define FQ_DOUBLEPREC uint16_t
-#define FQ_TRIPLEPREC uint32_t
-#define POSITION_T uint16_t
 
 #elif defined(SHORT_SIG)
-#define   N (548)
-#define   K (274)
-#define   Q (127)
-#define NUM_KEYPAIRS (  3)
-#define   T (907)
-#define   W ( 37)
+#define NUM_KEYPAIRS (3)
+#define T (133)
+#define W (85)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (5600)
-#define FQ_ELEM uint8_t
-#define FQ_DOUBLEPREC uint16_t
-#define FQ_TRIPLEPREC uint32_t
-#define POSITION_T uint16_t
 #else
 #error define optimization corner in parameters.h
 #endif
-
-#elif defined(CATEGORY_6)
-// TODO remove
-#define SEED_LENGTH_BYTES (16)
-#define FQ_ELEM uint8_t
-#define FQ_DOUBLEPREC uint16_t
-#define FQ_TRIPLEPREC uint32_t
-#define POSITION_T uint8_t
-#define SEED_TREE_LABEL_T uint8_t
-
-#define   N (252)
-#define   K (126)
-#define   Q (127)
-#define   NUM_KEYPAIRS (4)
-#define   T (68)
-#define   W (42)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
 
 #else
 #error define category for parameters
