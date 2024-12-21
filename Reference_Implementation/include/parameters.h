@@ -31,7 +31,7 @@
 /* Seed tree max size is computed according to Parameter Generation Script in Utilities folder */
 
 /***************************** Common Parameters ******************************/
-#define   Q (127)
+#define Q (127)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
 #define FQ_TRIPLEPREC uint32_t
@@ -54,14 +54,14 @@
 #define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
 
 #elif defined(INTERMEDIATE)
-#define   NUM_KEYPAIRS (4)
-#define   T (68)
-#define   W (42)
+#define NUM_KEYPAIRS (4)
+#define T (68)
+#define W (42)
 
 #elif defined(SHORT_SIG)
-#define   NUM_KEYPAIRS (8)
-#define   T (45)
-#define   W (34)
+#define NUM_KEYPAIRS (8)
+#define T (45)
+#define W (34)
 
 #else
 #error define parameters in parameters.h
