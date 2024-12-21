@@ -34,12 +34,10 @@
 #define Q (127)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
-#define FQ_TRIPLEPREC uint32_t
 #define POSITION_T uint8_t
 #define SEED_TREE_LABEL_T uint8_t
 
 /********************************* Category 1 *********************************/
-
 #if defined(CATEGORY_1)
 #define N (252)
 #define K (126)
@@ -73,6 +71,7 @@
 #define K (200)
 #define SEED_LENGTH_BYTES (24)
 #define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operaiton is < 2^-64
+#define POSITION_T uint16_t
 
 #if defined(BALANCED)
 #define NUM_KEYPAIRS (2)
@@ -95,6 +94,7 @@
 #define K (274)
 #define SEED_LENGTH_BYTES (32)
 #define SIGN_PIVOT_REUSE_LIMIT (79) // Ensures probability of non-CT operaiton is < 2^-64
+#define POSITION_T uint16_t
 
 #if defined(BALANCED)
 #define NUM_KEYPAIRS (2)
