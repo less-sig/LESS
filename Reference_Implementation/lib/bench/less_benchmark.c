@@ -181,7 +181,7 @@ int iteration = 0;
 int main(int argc, char* argv[]){
     (void)argc;
     (void)argv;
-#if defined(__APPLE__) && defined(_MAC_OS_)&&defined(_M1CYCLES_)
+#if defined(MACOS_KPERF)
     __m1_setup_rdtsc();
 #endif
 
