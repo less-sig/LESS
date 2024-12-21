@@ -96,10 +96,6 @@ add_executable(inv_table ${PROJECT_SOURCE_DIR}/lib/test/inv_table.c)
 target_link_libraries(inv_table PRIVATE OpenSSL::Crypto)
 set_property(TARGET inv_table APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
 
-add_executable(arith ${PROJECT_SOURCE_DIR}/lib/test/arith.c)
-target_link_libraries(arith PRIVATE OpenSSL::Crypto)
-set_property(TARGET arith APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
-
 add_executable(test_sort ${PROJECT_SOURCE_DIR}/lib/test/sort.c ${SOURCES})
 target_link_libraries(test_sort PRIVATE OpenSSL::Crypto)
 set_property(TARGET test_sort APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_1 -DBALANCED=1")
