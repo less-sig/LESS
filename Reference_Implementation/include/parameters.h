@@ -26,16 +26,12 @@
 #pragma once
 #include <stdint.h>
 
-#define Qm1 (126)
-#define MMM 0x204081020408103ull
 /* Seed tree max size is computed according to Parameter Generation Script in Utilities folder */
 
 /***************************** Common Parameters ******************************/
 #define Q (127)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
-#define POSITION_T uint8_t
-#define SEED_TREE_LABEL_T uint8_t
 
 /********************************* Category 1 *********************************/
 #if defined(CATEGORY_1)
@@ -43,6 +39,7 @@
 #define K (126)
 #define SEED_LENGTH_BYTES (16)
 #define SIGN_PIVOT_REUSE_LIMIT (25) // Ensures probability of non-CT operaiton is < 2^-64
+#define POSITION_T uint8_t
 
 #if defined(BALANCED)
 #define NUM_KEYPAIRS (2)
@@ -125,8 +122,12 @@
 #define K8 ((K+7u)/8u)
 #define N8 ((N+7u)/8u)
 
+#define NEXT_MULTIPLE(x,n) ((((x)+((n)-1u))/(n))*(n))
+
 /// TODO
-#define N_K_pad (N-K)
+#define N_K_pad NEXT_MULTIPLE(N-K,8)
+#define N_pad   NEXT_MULTIPLE(N,8)
+#define K_pad   NEXT_MULTIPLE(K,8)
 
 /***************** Derived parameters *****************************************/
 
