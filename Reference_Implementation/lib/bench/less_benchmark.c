@@ -110,9 +110,9 @@ void microbench(void){
 
     uint64_t cycles;
     for(int i = 0; i <NUM_RUNS; i++) {
-        cycles = x86_64_rtdsc();
+        cycles = read_cycle_counter();
         generator_RREF(&G,is_pivot_column);
-        welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
+        welford_update(&timer,(read_cycle_counter()-cycles)/1000.0);
     }
     fprintf(stderr,"Gaussian elimination kCycles (avg,stddev):");
     welford_print(timer);
@@ -144,9 +144,9 @@ void LESS_sign_verify_speed(void){
     printf("Timings (kcycles):\n");
     welford_init(&timer);
     for(int i = 0; i <NUM_RUNS; i++) {
-        cycles = x86_64_rtdsc();
+        cycles = read_cycle_counter();
         LESS_keygen(&sk,&pk);
-        welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
+        welford_update(&timer,(read_cycle_counter()-cycles)/1000.0);
     }
     printf("Key generation kCycles (avg,stddev): ");
     welford_print(timer);
@@ -155,9 +155,9 @@ void LESS_sign_verify_speed(void){
     
     welford_init(&timer);
     for(int i = 0; i <NUM_RUNS; i++) {
-        cycles = x86_64_rtdsc();
+        cycles = read_cycle_counter();
         LESS_sign(&sk,message,8,&signature);
-        welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
+        welford_update(&timer,(read_cycle_counter()-cycles)/1000.0);
     }
     printf("Signature kCycles (avg,stddev): ");
     welford_print(timer);
@@ -166,9 +166,9 @@ void LESS_sign_verify_speed(void){
     int is_signature_ok;
     welford_init(&timer);
     for(int i = 0; i <NUM_RUNS; i++) {
-        cycles = x86_64_rtdsc();
+        cycles = read_cycle_counter();
         is_signature_ok = LESS_verify(&pk,message,8,&signature); // Message never changes
-        welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
+        welford_update(&timer,(read_cycle_counter()-cycles)/1000.0);
     }
     printf("Verification kCycles (avg,stddev):");
     welford_print(timer);

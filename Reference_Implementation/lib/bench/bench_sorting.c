@@ -20,9 +20,9 @@ int bench_sorting(void) {
     for (uint64_t i = 0; i < ITERS; i++) {
         for (size_t j = 0; j < s; j++) { d1[j] = s-1-i; }
 
-        c -= x86_64_rtdsc();
+        c -= read_cycle_counter();
         counting_sort_u8(d1, s);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
     c1 = c/ITERS;
     printf("int8_sort: %ld cyc\n", c1);
@@ -32,9 +32,9 @@ int bench_sorting(void) {
     for (uint64_t i = 0; i < ITERS; i++) {
         for (size_t j = 0; j < s; j++) { d1[j] = s-j; }
 
-        c -= x86_64_rtdsc();
+        c -= read_cycle_counter();
         sortingnetwork(d1, s);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
     c = c/ITERS;
     printf("network:     %ld cyc\n", c);
@@ -52,9 +52,9 @@ int bench_row_sorting(void) {
     uint64_t c = 0, c1;
     for (uint64_t i = 0; i < ITERS; i++) {
         normalized_rng(&G1);
-        c -= x86_64_rtdsc();
+        c -= read_cycle_counter();
         row_bitonic_sort(&G1);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
     c1 = c/ITERS;
     printf("bitonic: %ld cyc\n", c1);
@@ -62,9 +62,9 @@ int bench_row_sorting(void) {
     c=0;
     for (uint64_t i = 0; i < ITERS; i++) {
         normalized_rng(&G1);
-        c -= x86_64_rtdsc();
+        c -= read_cycle_counter();
         row_quick_sort(&G1, K);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
     c = c/ITERS;
     printf("quick: %ld cyc\n", c);
@@ -80,9 +80,9 @@ int bench_col_sorting(void) {
     for (uint64_t i = 0; i < ITERS; i++) {
         normalized_rng(&G1);
 
-        c -= x86_64_rtdsc();
+        c -= read_cycle_counter();
         col_bitonic_sort_transpose(&G1);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
     c1 = c/ITERS;
     printf("bitonicT: %ld cyc\n", c1);
@@ -91,9 +91,9 @@ int bench_col_sorting(void) {
     for (uint64_t i = 0; i < ITERS; i++) {
         normalized_rng(&G1);
 
-        c -= x86_64_rtdsc();
+        c -= read_cycle_counter();
         col_quicksort_transpose(&G1, K);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
     c = c/ITERS;
     printf("quickT:  %ld cyc\n", c);

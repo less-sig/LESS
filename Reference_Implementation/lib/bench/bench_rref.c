@@ -39,9 +39,9 @@ int bench_rref(void) {
         monomial_mat_rnd(&q);
         generator_monomial_mul(&G1, &G2, &q);
 
-    	c -= x86_64_rtdsc();
+    	c -= read_cycle_counter();
         ctr += generator_RREF(&G1, is_pivot_column);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
     c1 = c/ITERS;
     printf("normal: %ld cyc, ctr: %ld\n", c1, ctr);
@@ -56,9 +56,9 @@ int bench_rref(void) {
             g_permuted_pivot_flags[q.permutation[j]] = g_initial_pivot_flags[j];
         }
 
-        c -= x86_64_rtdsc();
+        c -= read_cycle_counter();
         ctr += generator_RREF_pivot_reuse(&G1, is_pivot_column, g_permuted_pivot_flags, VERIFY_PIVOT_REUSE_LIMIT);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
 
     c = c/ITERS;

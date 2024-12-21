@@ -30,9 +30,9 @@ int bench_cf3(void) {
     for (uint64_t i = 0; i < ITERS; i++) {
 		normalized_copy(&G1, &G2);
 
-    	c -= x86_64_rtdsc();
+    	c -= read_cycle_counter();
         ctr += compute_canonical_form_type3(&G1);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
     c1 = c/ITERS;
     printf("non-ct: %ld cyc, ctr: %ld\n", c1, ctr);
@@ -41,9 +41,9 @@ int bench_cf3(void) {
     for (uint64_t i = 0; i < ITERS; i++) {
         normalized_copy(&G1, &G2);
 
-        c -= x86_64_rtdsc();
+        c -= read_cycle_counter();
         ctr += compute_canonical_form_type3_ct(&G1);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
 
     c = c/ITERS;
@@ -61,9 +61,9 @@ int bench_cf4(void) {
     for (uint64_t i = 0; i < ITERS; i++) {
 		normalized_copy(&G1, &G2);
 
-        c -= x86_64_rtdsc();
+        c -= read_cycle_counter();
         ctr += compute_canonical_form_type4(&G1);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
     c1 = c/ITERS;
     printf("non ct: %ld cyc, ctr: %ld\n", c1, ctr);
@@ -72,9 +72,9 @@ int bench_cf4(void) {
     for (uint64_t i = 0; i < ITERS; i++) {
 		normalized_copy(&G1, &G2);
 
-        c -= x86_64_rtdsc();
+        c -= read_cycle_counter();
         ctr += compute_canonical_form_type4_ct(&G1);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
 
     c = c/ITERS;
@@ -93,9 +93,9 @@ int bench_cf5(void) {
 		// normalized_copy(&G1, &G2);
         normalized_rng(&G1);
 
-        c -= x86_64_rtdsc();
+        c -= read_cycle_counter();
         ctr += compute_canonical_form_type5(&G1);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
     c1 = c/ITERS;
     printf("non ct: %ld cyc, ctr: %ld\n\n", c1, ctr);
@@ -106,9 +106,9 @@ int bench_cf5(void) {
         // normalized_copy(&G1, &G2);
         normalized_rng(&G1);
 
-        c -= x86_64_rtdsc();
+        c -= read_cycle_counter();
         ctr += compute_canonical_form_type5_popcnt(&G1);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
 
     c = c/ITERS;
@@ -121,9 +121,9 @@ int bench_cf5(void) {
         // normalized_copy(&G1, &G2);
         normalized_rng(&G1);
 
-        c -= x86_64_rtdsc();
+        c -= read_cycle_counter();
         ctr += compute_canonical_form_type5_fastest(&G1);
-        c += x86_64_rtdsc();
+        c += read_cycle_counter();
     }
 
     c = c/ITERS;
