@@ -6,7 +6,15 @@
 #include "m1cycles.h"
 #endif
 
-// TODO rename
+
+void setup_cycle_counter(void)
+{
+#ifdef MACOS_KPERF
+  pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
+  kperf_init_once();
+#endif
+}
+
 static inline
 uint64_t read_cycle_counter(void)
 {

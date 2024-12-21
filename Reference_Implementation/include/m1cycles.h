@@ -64,32 +64,6 @@ KPERF_LIST
 uint64_t g_counters[COUNTERS_COUNT];
 uint64_t g_config[COUNTERS_COUNT];
 
-static void configure_rdtsc(void)
-{
-    if (kpc_set_config(KPC_MASK, g_config))
-    {
-        printf("kpc_set_config failed (root?)\n");
-        return;
-    }
-
-    if (kpc_force_all_ctrs_set(1))
-    {
-        printf("kpc_force_all_ctrs_set failed (root?)\n");
-        return;
-    }
-
-    if (kpc_set_counting(KPC_MASK))
-    {
-        printf("kpc_set_counting failed (root?)\n");
-        return;
-    }
-
-    if (kpc_set_thread_counting(KPC_MASK))
-    {
-        printf("kpc_set_thread_counting failed (root?)\n");
-        return;
-    }
-}
 
 static void kperf_init(void)
 {
@@ -146,7 +120,29 @@ static void kperf_init(void)
     // configs[4] = CPMU_SYNC_DTLB_MISS | CFGWORD_EL0A64EN_MASK;
     // configs[5] = CPMU_INST_A64 | CFGWORD_EL0A64EN_MASK;
 
-    configure_rdtsc();
+    if (kpc_set_config(KPC_MASK, g_config))
+    {
+        printf("kpc_set_config failed (root?)\n");
+        return;
+    }
+
+    if (kpc_force_all_ctrs_set(1))
+    {
+        printf("kpc_force_all_ctrs_set failed (root?)\n");
+        return;
+    }
+
+    if (kpc_set_counting(KPC_MASK))
+    {
+        printf("kpc_set_counting failed (root?)\n");
+        return;
+    }
+
+    if (kpc_set_thread_counting(KPC_MASK))
+    {
+        printf("kpc_set_thread_counting failed (root?)\n");
+        return;
+    }
 }
 
 static void kperf_init_once(void)
@@ -155,21 +151,6 @@ static void kperf_init_once(void)
     pthread_once(&init_static_once, kperf_init);
 }
 
-void __m1_setup_rdtsc(void)
-{
-    int test_high_perf_cores = 1;
-
-    if (test_high_perf_cores)
-    {
-        pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
-    }
-    else
-    {
-        pthread_set_qos_class_self_np(QOS_CLASS_BACKGROUND, 0);
-    }
-    kperf_init_once();
-    configure_rdtsc();
-}
 
 //extern 
 unsigned long long int __m1_rdtsc(void)

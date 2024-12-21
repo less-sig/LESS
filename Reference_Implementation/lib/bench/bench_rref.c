@@ -33,6 +33,7 @@ int bench_rref(void) {
     monomial_t q;
     generator_rnd_fullrank(&G2, is_pivot_column);
 
+    setup_cycle_counter();
 	printf("rref:\n");
     uint64_t c = 0, c1, ctr = 0;
     for (uint64_t i = 0; i < ITERS; i++) {

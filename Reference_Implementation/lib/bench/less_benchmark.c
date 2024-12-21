@@ -182,7 +182,7 @@ int main(int argc, char* argv[]){
     (void)argc;
     (void)argv;
 #if defined(MACOS_KPERF)
-    __m1_setup_rdtsc();
+    setup_cycle_counter();
 #endif
 
     initialize_csprng(&platform_csprng_state,
