@@ -63,7 +63,7 @@ int bench_row_sorting(void) {
     for (uint64_t i = 0; i < ITERS; i++) {
         normalized_rng(&G1);
         c -= x86_64_rtdsc();
-        row_quick_sort(&G1, N);
+        row_quick_sort(&G1, K);
         c += x86_64_rtdsc();
     }
     c = c/ITERS;
