@@ -91,7 +91,7 @@ static void configure_rdtsc(void)
     }
 }
 
-static void init_rdtsc(void)
+static void kperf_init(void)
 {
     void *kperf = dlopen(
         "/System/Library/PrivateFrameworks/kperf.framework/Versions/A/kperf",
@@ -149,6 +149,12 @@ static void init_rdtsc(void)
     configure_rdtsc();
 }
 
+static void kperf_init_once(void)
+{
+    static pthread_once_t init_static_once = PTHREAD_ONCE_INIT;
+    pthread_once(&init_static_once, kperf_init);
+}
+
 void __m1_setup_rdtsc(void)
 {
     int test_high_perf_cores = 1;
@@ -161,7 +167,7 @@ void __m1_setup_rdtsc(void)
     {
         pthread_set_qos_class_self_np(QOS_CLASS_BACKGROUND, 0);
     }
-    init_rdtsc();
+    kperf_init_once();
     configure_rdtsc();
 }
 
