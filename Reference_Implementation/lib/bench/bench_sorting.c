@@ -14,18 +14,18 @@
 int bench_sorting(void) {
     printf("int : \n");
     const size_t s = K;
-    FQ_ELEM *d1 = (FQ_ELEM *)malloc(sizeof(FQ_ELEM) * s);
+    FQ_ELEM *d1 = (FQ_ELEM *) malloc(sizeof(FQ_ELEM) * s);
 
-    uint64_t c = 0, c1;
-    for (uint64_t i = 0; i < ITERS; i++) {
-        for (size_t j = 0; j < s; j++) { d1[j] = s-1-i; }
+    unsigned c = 0, c1;
+    for (unsigned i = 0; i < ITERS; i++) {
+        for (unsigned j = 0; j < s; j++) { d1[j] = s-1-i; }
 
         c -= read_cycle_counter();
         counting_sort_u8(d1, s);
         c += read_cycle_counter();
     }
-    c1 = c/ITERS;
-    printf("int8_sort: %ld cyc\n", c1);
+    c1 = c / ITERS;
+    printf("int8_sort: %u cyc\n", c1);
 
 #ifdef USE_AVX2 // TODO remove
     c = 0;
@@ -49,26 +49,26 @@ int bench_row_sorting(void) {
     printf("row: \n");
     normalized_IS_t G1;
 
-    uint64_t c = 0, c1;
-    for (uint64_t i = 0; i < ITERS; i++) {
+    unsigned c = 0, c1;
+    for (unsigned i = 0; i < ITERS; i++) {
         normalized_rng(&G1);
         c -= read_cycle_counter();
         row_bitonic_sort(&G1);
         c += read_cycle_counter();
     }
-    c1 = c/ITERS;
-    printf("bitonic: %ld cyc\n", c1);
+    c1 = c / ITERS;
+    printf("bitonic: %u cyc\n", c1);
 
     c=0;
-    for (uint64_t i = 0; i < ITERS; i++) {
+    for (unsigned i = 0; i < ITERS; i++) {
         normalized_rng(&G1);
         c -= read_cycle_counter();
         row_quick_sort(&G1, K);
         c += read_cycle_counter();
     }
-    c = c/ITERS;
-    printf("quick: %ld cyc\n", c);
-    printf("factor %lf\n", (double)c/(double)c1);
+    c = c / ITERS;
+    printf("quick: %u cyc\n", c);
+    printf("factor %lf\n", ((double) c) / (double) c1);
     return 0;
 }
 
@@ -76,28 +76,28 @@ int bench_col_sorting(void) {
     printf("col: \n");
     normalized_IS_t G1;
 
-    uint64_t c = 0, c1;
-    for (uint64_t i = 0; i < ITERS; i++) {
+    unsigned c = 0, c1;
+    for (unsigned i = 0; i < ITERS; i++) {
         normalized_rng(&G1);
 
         c -= read_cycle_counter();
         col_bitonic_sort_transpose(&G1);
         c += read_cycle_counter();
     }
-    c1 = c/ITERS;
-    printf("bitonicT: %ld cyc\n", c1);
+    c1 = c / ITERS;
+    printf("bitonicT: %u cyc\n", c1);
 
     c = 0;
-    for (uint64_t i = 0; i < ITERS; i++) {
+    for (unsigned i = 0; i < ITERS; i++) {
         normalized_rng(&G1);
 
         c -= read_cycle_counter();
         col_quicksort_transpose(&G1, K);
         c += read_cycle_counter();
     }
-    c = c/ITERS;
-    printf("quickT:  %ld cyc\n", c);
-    printf("factor %lf\n", (double)c/(double)c1);
+    c = c / ITERS;
+    printf("quickT:  %u cyc\n", c);
+    printf("factor %lf\n", ((double) c) / (double) c1);
 
 
     return 0;
