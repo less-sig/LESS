@@ -1,12 +1,15 @@
 #ifndef CYCLES_H
 #define CYCLES_H
 
+#include <stdint.h>
+
 #if defined(__APPLE__) && (defined(__aarch64__) || defined(__arm64__))
 #define MACOS_KPERF
 #include "m1cycles.h"
 #endif
 
 
+static
 void setup_cycle_counter(void)
 {
 #ifdef MACOS_KPERF
@@ -31,6 +34,8 @@ uint64_t read_cycle_counter(void)
           :
           : "%rcx", "%rdx");
    return result;
+#else
+  return 0;
 #endif
 }
 

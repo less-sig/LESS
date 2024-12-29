@@ -2,7 +2,6 @@
 #define M1CYCLES_H
 
 // For Apple M1: https://gist.github.com/dougallj/5bafb113492047c865c0c8cfbc930155#file-m1_robsize-c-L390
-#include <assert.h>
 #include <dlfcn.h>
 #include <pthread.h>
 #include <stdio.h>
