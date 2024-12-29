@@ -72,14 +72,14 @@ static void kperf_init(void)
         RTLD_LAZY);
     if (!kperf)
     {
-        printf("kperf = %p\n", kperf);
+        printf("[ERROR] kperf_init: dlopen() failed!\n");
         return;
     }
 #define F(ret, name, ...)                         \
     name = (name##proc *)(dlsym(kperf, #name));   \
     if (!name)                                    \
     {                                             \
-        printf("%s = %p\n", #name, (void *)name); \
+        printf("[ERROR] kperf_init: failed to load symbol: %s\n", #name); \
         return;                                   \
     }
     KPERF_LIST
@@ -89,58 +89,43 @@ static void kperf_init(void)
     const unsigned c1 = kpc_get_counter_count(KPC_MASK);
     if (c1 != CONFIG_COUNT)
     {
-        printf("wrong fixed counters count: %d\n", c1);
+        printf("[ERROR] kperf_init: wrong fixed counters count: %u\n", c1);
         return;
     }
 
     const unsigned c2 = kpc_get_config_count(KPC_MASK);
     if (c2 != 6)
     {
-        printf("wrong fixed config count: %d\n", c2);
+        printf("[ERROR] kperf_init: wrong fixed config count: %u\n", c2);
         return;
     }
 
-    // Not all counters can count all things:
-
     // CPMU_CORE_CYCLE           {0-7}
-    // CPMU_FED_IC_MISS_DEM      {0-7}
-    // CPMU_FED_ITLB_MISS        {0-7}
-
-    // CPMU_INST_BRANCH          {3, 4, 5}
-    // CPMU_SYNC_DC_LOAD_MISS    {3, 4, 5}
-    // CPMU_SYNC_DC_STORE_MISS   {3, 4, 5}
-    // CPMU_SYNC_DTLB_MISS       {3, 4, 5}
-    // CPMU_SYNC_BR_ANY_MISP     {3, 4, 5}
-    // CPMU_SYNC_ST_HIT_YNGR_LD  {3, 4, 5}
-    // CPMU_INST_A64             {5}
 
     // using "CFGWORD_ALLMODES_MASK" is much noisier
     g_config[0] = CPMU_CORE_CYCLE | CFGWORD_EL0A64EN_MASK;
-    // configs[3] = CPMU_SYNC_DC_LOAD_MISS | CFGWORD_EL0A64EN_MASK;
-    // configs[4] = CPMU_SYNC_DTLB_MISS | CFGWORD_EL0A64EN_MASK;
-    // configs[5] = CPMU_INST_A64 | CFGWORD_EL0A64EN_MASK;
 
     if (kpc_set_config(KPC_MASK, g_config))
     {
-        printf("kpc_set_config failed (root?)\n");
+        printf("[ERROR] kperf_init: kpc_set_config failed (root?)\n");
         return;
     }
 
     if (kpc_force_all_ctrs_set(1))
     {
-        printf("kpc_force_all_ctrs_set failed (root?)\n");
+        printf("[ERROR] kperf_init: kpc_force_all_ctrs_set failed (root?)\n");
         return;
     }
 
     if (kpc_set_counting(KPC_MASK))
     {
-        printf("kpc_set_counting failed (root?)\n");
+        printf("[ERROR] kperf_init: kpc_set_counting failed (root?)\n");
         return;
     }
 
     if (kpc_set_thread_counting(KPC_MASK))
     {
-        printf("kpc_set_thread_counting failed (root?)\n");
+        printf("[ERROR] kperf_init: kpc_set_thread_counting failed (root?)\n");
         return;
     }
 }
@@ -152,13 +137,12 @@ static void kperf_init_once(void)
 }
 
 
-//extern 
-unsigned long long int __m1_rdtsc(void)
+static unsigned long long int __m1_rdtsc(void)
 {
     if (kpc_get_thread_counters(0, COUNTERS_COUNT, g_counters))
     {
         printf("kpc_get_thread_counters failed\n");
-        return 1;
+        return 0;
     }
     return g_counters[2];
 }

@@ -47,29 +47,13 @@ void column_swap(normalized_IS_t *V,
    }
 }
 
-/// \param V[in/out]: K \times N-K matrix in which column `col1` and
-///                 column `col2` are swapped, depending on the value of
-///                 mask. If `mask` is 0 nothing is swapped. If `mask` is
-///                 -1ull the two rows will be swapped.
-/// \param col1[in]:
-/// \param col2[in]:
-/// \param mask
-void column_cswap(normalized_IS_t *V,
-                  const POSITION_T col1,
-                  const POSITION_T col2,
-                  const uintptr_t mask){
-    for(uint32_t i = 0; i<K;i++ ){
-       MASKED_SWAP(V->values[i][col1], V->values[i][col2], mask);
-    }
-}
-
 ///
 /// \param r
 /// \param s
 void swap_rows(FQ_ELEM r[N],
                FQ_ELEM s[N]) {
     FQ_ELEM tmp;
-    for(uint32_t i=0; i<N; i++) {
+    for(unsigned i=0; i<N; i++) {
         tmp = r[i];
         r[i] = s[i];
         s[i] = tmp;
@@ -322,7 +306,7 @@ void prepare_digest_input(normalized_IS_t *V,
 
     POSITION_T piv_idx = 0;
     for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
-        POSITION_T row_idx;
+        POSITION_T row_idx = 0;
         for(uint32_t i = 0; i < N; i++) {
            if (Q_tilde->permutation[i] == col_idx) {
               row_idx = i;
@@ -384,7 +368,7 @@ void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
 
     POSITION_T piv_idx = 0;
     for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
-        POSITION_T row_idx;
+        POSITION_T row_idx = 0;
         for(uint32_t i = 0; i < N; i++) {
             if (Q_tilde->permutation[i] == col_idx) {
                 row_idx = i;
@@ -428,8 +412,8 @@ void apply_cf_action_to_G(generator_mat_t* res,
         }
     }
 finish:
-    assert(l == K);
-    assert(r == (N-K));
+    ASSERT(l == K);
+    ASSERT(r == (N-K));
     return;
 }
 
@@ -466,8 +450,8 @@ void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
         }
     }
     finish:
-    assert(l == K);
-    assert(r == (N-K));
+    ASSERT(l == K);
+    ASSERT(r == (N-K));
     return;
 }
 

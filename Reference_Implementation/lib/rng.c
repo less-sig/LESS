@@ -42,11 +42,11 @@ SHAKE_STATE_STRUCT platform_csprng_state;
 /// \param seed_len_bytes[in]
 void initialize_csprng(SHAKE_STATE_STRUCT *shake_state,
                        const unsigned char *seed,
-                       const uint32_t seed_len_bytes)
+                       const size_t seed_len_bytes)
 {
    // the second parameter is the security level of the SHAKE instance
    xof_shake_init(shake_state, SEED_LENGTH_BYTES*8);
-   xof_shake_update(shake_state,seed,seed_len_bytes);
+   xof_shake_update(shake_state, seed,seed_len_bytes);
    xof_shake_final(shake_state);
 } /* end initialize_csprng */
 

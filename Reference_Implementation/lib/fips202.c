@@ -5,7 +5,6 @@
  * from https://twitter.com/tweetfips202
  * by Gilles Van Assche, Daniel J. Bernstein, and Peter Schwabe */
 
-#include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 

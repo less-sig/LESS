@@ -30,7 +30,7 @@
 /* initializes a CSPRNG, given the seed and a state pointer */
 void initialize_csprng(SHAKE_STATE_STRUCT *shake_state,
                        const unsigned char *seed,
-                       const uint32_t seed_len_bytes);
+                       const size_t seed_len_bytes);
 
 /* extracts xlen bytes from the CSPRNG, given the state */
 static inline
@@ -38,15 +38,23 @@ void csprng_randombytes(unsigned char *x,
                         unsigned long long xlen,
                         SHAKE_STATE_STRUCT *shake_state)
 {
-   xof_shake_extract(shake_state,x,xlen);
+   xof_shake_extract(shake_state, x, xlen);
 }
 
 /* global csprng state employed to have a deterministic randombytes for testing */
 extern SHAKE_STATE_STRUCT platform_csprng_state;
+
 /* extracts xlen bytes from the global CSPRNG */
 static inline
 void randombytes(unsigned char *x,
                  unsigned long long xlen)
 {
-   xof_shake_extract(&platform_csprng_state,x,xlen);
+   xof_shake_extract(&platform_csprng_state, x, xlen);
+}
+
+static
+void init_randombytes(const unsigned char *seed,
+                       const size_t seed_len_bytes)
+{
+   initialize_csprng(&platform_csprng_state, seed, seed_len_bytes);
 }

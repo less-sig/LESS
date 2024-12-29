@@ -492,7 +492,7 @@ int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
     // memset(min_CF.values, Q-1,  sizeof(normalized_IS_t));
 
     /// TODO not looping over the last correct rows. Assumes its always 1
-    assert(all_sub_CF_z == 1);
+    ASSERT(all_sub_CF_z == 1);
     for (uint32_t i = 0; i < all_sub_CF_z; i++) {
         if (compute_canonical_form_type5_single_row(G, all_sub_CF[i])) {
             return 1;
