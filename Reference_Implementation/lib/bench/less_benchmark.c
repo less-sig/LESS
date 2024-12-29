@@ -181,10 +181,7 @@ int iteration = 0;
 int main(int argc, char* argv[]){
     (void)argc;
     (void)argv;
-#if defined(MACOS_KPERF)
     setup_cycle_counter();
-#endif
-
     initialize_csprng(&platform_csprng_state,
                       (const unsigned char *)"0123456789012345",16);
     fprintf(stderr,"LESS reference implementation benchmarking tool\n");

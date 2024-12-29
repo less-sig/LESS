@@ -18,7 +18,7 @@ void setup_cycle_counter(void)
 #endif
 }
 
-static inline
+inline
 uint64_t read_cycle_counter(void)
 {
 #ifdef MACOS_KPERF
