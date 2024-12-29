@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "cycles.h"
 #include "sort.h"
@@ -35,7 +36,7 @@ int bench_rref(void) {
 
     setup_cycle_counter();
 	printf("rref:\n");
-    unsigned c1 = 0, c2 = 0, ctr = 0, start_cycle;
+    uint64_t c1 = 0, c2 = 0, ctr = 0, start_cycle;
 
     for (unsigned i = 0; i < ITERS; i++) {
         monomial_mat_rnd(&q);
@@ -45,7 +46,7 @@ int bench_rref(void) {
         ctr += generator_RREF(&G1, is_pivot_column);
         c1 += (read_cycle_counter() - start_cycle);
     }
-    printf("normal: %0.2f cycles, ctr: %u\n", (double) c1 / (double) ITERS, ctr);
+    printf("normal: %0.2f cycles, ctr: %" PRIu64 "\n", (double) c1 / (double) ITERS, ctr);
 
     init_randombytes((const unsigned char *) "rref_123", 8);
     generator_rnd_fullrank(&G2, g_initial_pivot_flags);
@@ -63,7 +64,7 @@ int bench_rref(void) {
         c2 += (read_cycle_counter() - start_cycle);
     }
 
-    printf("reuse: %0.2f cycles, ctr: %u\n", (double) c2 / (double) ITERS, ctr);
+    printf("reuse: %0.2f cycles, ctr: %" PRIu64 "\n", (double) c2 / (double) ITERS, ctr);
     printf("factor %0.3f\n\n", (double) c2 / (double) c1);
     return 0;
 }
