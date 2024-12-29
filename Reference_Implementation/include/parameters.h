@@ -39,7 +39,7 @@
 #define N (252)
 #define K (126)
 #define SEED_LENGTH_BYTES (16)
-#define SIGN_PIVOT_REUSE_LIMIT (25) // Ensures probability of non-CT operaiton is < 2^-64
+#define SIGN_PIVOT_REUSE_LIMIT (25) // Ensures probability of non-CT operation is < 2^-64
 
 #if defined(BALANCED)
 #define NUM_KEYPAIRS (2)
