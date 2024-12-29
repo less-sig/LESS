@@ -17,7 +17,7 @@ void counting_sort_u8(uint8_t *arr, const size_t size);
 void sortingnetwork(uint8_t *arr, const size_t size);
 #endif
 
-void row_sort(uint8_t *ptr, const uint32_t len);
+void row_sort(uint8_t *out, const uint8_t *in, const uint32_t len);
 
 int compare_rows(const FQ_ELEM *row1, const FQ_ELEM *row2);
 

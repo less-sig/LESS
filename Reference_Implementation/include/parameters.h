@@ -35,7 +35,18 @@
 #define POSITION_T uint16_t
 
 /********************************* Category 1 *********************************/
-#if defined(CATEGORY_1)
+#if defined(CATEGORY_0)
+#define N (16)
+#define K (8)
+#define SEED_LENGTH_BYTES (24)
+#define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operaiton is < 2^-64
+
+#define NUM_KEYPAIRS (3)
+#define T (106)
+#define W (57)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (3264)
+
+#elif defined(CATEGORY_1)
 #define N (252)
 #define K (126)
 #define SEED_LENGTH_BYTES (16)
@@ -183,3 +194,6 @@
 // TODO doc
 #define LESS_REUSE_PIVOTS_VY
 #define LESS_REUSE_PIVOTS_SG
+
+// TODO doc
+#define LESS_USE_HISTOGRAM

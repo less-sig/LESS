@@ -6,6 +6,7 @@
 #include "codes.h"
 #include "canonical.h"
 #include "test_helpers.c"
+#include "cf_test.h"
 
 #define ITERS 100
 
@@ -16,10 +17,7 @@ int test_compute_canonical_form_type3(void) {
     normalized_IS_t G;
     normalized_sf(&G);
 
-    // normalized_pretty_print(&G);
     if (compute_canonical_form_type3(&G) == 0) return 1;
-    // normalized_pretty_print(&G);
-
     return 0;
 }
 
@@ -132,12 +130,45 @@ int test_compute_canonical_form_type4_v2(void) {
 }
 
 int test_compute_canonical_form_type5(void) {
-    normalized_IS_t G;
-    normalized_sf(&G);
+    normalized_IS_t G0, G1, G2, G3, G4;
+    for (uint32_t i = 0; i < K; i++) {
+        for (uint32_t j = 0; j < K; j++) {
+            G0.values[i][j] = cf_out[i][j];
+            G1.values[i][j] = cf_in[i][j];
+            G2.values[i][j] = cf_in[i][j];
+            G3.values[i][j] = cf_in[i][j];
+            G4.values[i][j] = cf_in[i][j];
+        }
+    }
 
-    // normalized_pretty_print(&G);
-    if (compute_canonical_form_type5(&G) == 0) return 1;
-    // normalized_pretty_print(&G);
+    if (compute_canonical_form_type5(&G1) == 0)        { return 1; }
+    // if (compute_canonical_form_type5_ct(&G2) == 0)     { return 1; }
+    if (compute_canonical_form_type5_popcnt(&G3) == 0) { return 1; }
+    // if (compute_canonical_form_type5_fastest(&G4) == 0) { return 1; }
+
+    for (uint32_t i = 0; i < K; i++) {
+        for (uint32_t j = 0; j < K; j++) {
+            if (G1.values[i][j] != cf_out[i][j]) {
+                normalized_pretty_print(&G0);
+                normalized_pretty_print(&G1);
+                printf("5 1\n");
+                return 1;
+            }
+            // if (G2.values[i][j] != cf_out[i][j]) {
+            //     printf("5 2\n");
+            //     return 1;
+            // }
+            if (G3.values[i][j] != cf_out[i][j]) {
+                printf("5 3\n");
+                return 1;
+            }
+            // if (G4.values[i][j] != cf_out[i][j]) {
+            //     printf("5 4\n");
+            //     return 1;
+            // }
+        }
+    }
+
     return 0;
 }
 
@@ -278,14 +309,13 @@ int main(void) {
     // generic matrices test, not really testing anything, just printing the result
     // if (test_compute_canonical_form_type3()) return 1;
     // if (test_compute_canonical_form_type4()) return 1;
-    // if (test_compute_canonical_form_type5()) return 1;
 
     // actual tests
+    if (test_compute_canonical_form_type5()) return 1;
     // if (test_compute_canonical_form_type3_v2()) return 1;
     // if (test_compute_canonical_form_type4_v2()) return 1;
-    if (test_compute_canonical_form_type5_v2()) return 1;
-
-    if (test_compute_canonical_form_type5_gaus()) return 1;
+    // if (test_compute_canonical_form_type5_v2()) return 1;
+    // if (test_compute_canonical_form_type5_gaus()) return 1;
 
     printf("Done, all worked\n");
     return 0;

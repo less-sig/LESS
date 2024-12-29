@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def compute_single_multiset(x,k,q):
     '''
     Computes multiset of single vector
@@ -10,6 +11,7 @@ def compute_single_multiset(x,k,q):
         multiset[a_ij] += 1
 
     return multiset
+
 
 def compute_multisets(A,k,q):
     '''
@@ -23,6 +25,7 @@ def compute_multisets(A,k,q):
             this_multiset[a_ij] += 1
         multisets.append(this_multiset)
     return multisets
+
 
 def lex_min_multisets(multiset_1, multiset_2, q):
     '''
@@ -38,6 +41,7 @@ def lex_min_multisets(multiset_1, multiset_2, q):
         i+= 1
     return -1
 
+
 def lex_min_vectors(vector_1, vector_2, k):
     '''
     Returns 0 if vector_1 < vector_2, 1 if vector_1 > vector_2, 2 if they're equal
@@ -51,6 +55,7 @@ def lex_min_vectors(vector_1, vector_2, k):
                 return 1
         i+= 1
     return 2
+
 
 def lex_min_matrices(A_1, A_2, k):
     '''
@@ -97,6 +102,7 @@ def bubble_sort_multisets(multisets, k, q):
                     sorting_indices[i+1] = tmp
     return sorting_indices
 
+
 def bubble_sort_columns(X, k):
     '''
     Sorts columns so that they're in ascendind lex order
@@ -119,6 +125,7 @@ def bubble_sort_columns(X, k):
         sorted_X[:,i] = X[:, sorting_indices[i]]
     return sorted_X
 
+
 def CF3(A,k,q):
     '''
     Computes CF (case 3) for input matrix A
@@ -140,6 +147,7 @@ def CF3(A,k,q):
     B = bubble_sort_columns(sorted_A, k)
 
     return B
+
 
 def CF4(A, k, q, Fq):
     '''
@@ -184,6 +192,7 @@ def CF4(A, k, q, Fq):
                         scaled_A[i,j] = s_prime*A[i,j]
 
     return CF3(scaled_A, k, q)
+
 
 def sub_CF4(sub_A, z, k, q, Fq, min_multiset):
     '''
@@ -306,20 +315,42 @@ def CF5_faster(A, k, q, Fq):
         return B_max
 
 
-if __name__ == "__main__":
-    from code_utils import sample_monomial, KeyGen, build_full_generator_matrix, apply_monomial, inverse_perm, combine_perms, verify_rsp, compress
-    import random
-    import numpy as np
-    import galois
+def test_full_implementation():
     k = 30
     n = 60
     q = 29
     Fq = galois.GF(q); 
 
-    A, A_prime, perm, coeffs = KeyGen(Fq, n, k)
+    A, _, _, _ = KeyGen(Fq, n, k)
     ephemeral_perm, ephemeral_coeffs = sample_monomial(Fq, n)
     full_G = build_full_generator_matrix(Fq, n, k, A)
     ephemeral_A = apply_monomial(Fq, n, k, full_G, ephemeral_perm, ephemeral_coeffs)
 
     print("A\n", ephemeral_A, "\n")
     cmt = CF5_faster(ephemeral_A, k, q, Fq)
+    print(cmt)
+
+
+if __name__ == "__main__":
+    from code_utils import sample_monomial, KeyGen, build_full_generator_matrix, apply_monomial, inverse_perm, combine_perms, verify_rsp, compress
+    import random
+    import numpy as np
+    import galois
+    # test_full_implementation()
+    k = 8
+    n = 2*8
+    q = 127
+    Fq = galois.GF(q); 
+
+    A = Fq([
+        [113, 99, 60, 37, 44, 36,  7,105], 
+        [116, 90, 66, 37,  7, 43,111,111], 
+        [  2, 12, 92, 96, 38, 41, 79, 49], 
+        [109,119, 24, 36, 69,  0, 84, 99], 
+        [ 36, 68, 64, 46, 27,124,107, 36], 
+        [ 20,107, 63, 96,119, 83, 81, 27], 
+        [ 59, 63, 91, 75, 37,  2, 33, 21], 
+        [  0, 78, 89, 71,  4, 67, 12,  9]
+    ])
+    T = CF5_faster(A, k, q, Fq)
+    print(T)

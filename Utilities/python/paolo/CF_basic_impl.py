@@ -1,4 +1,8 @@
 import numpy as np
+from code_utils import sample_monomial, KeyGen, build_full_generator_matrix, apply_monomial, inverse_perm, combine_perms, verify_rsp, compress
+import random
+import numpy as np
+import galois
 
 def compute_multisets(A,k,q):
     '''
@@ -215,3 +219,24 @@ def CF5(A,k,q,Fq):
         return -1
     else:
         return B_max
+
+if __name__ == "__main__":
+    k = 8
+    n = 2*8
+    q = 127
+    Fq = galois.GF(q); 
+
+    A = Fq([
+        [113, 99, 60, 37, 44, 36,  7,105], 
+        [116, 90, 66, 37,  7, 43,111,111], 
+        [  2, 12, 92, 96, 38, 41, 79, 49], 
+        [109,119, 24, 36, 69,  0, 84, 99], 
+        [ 36, 68, 64, 46, 27,124,107, 36], 
+        [ 20,107, 63, 96,119, 83, 81, 27], 
+        [ 59, 63, 91, 75, 37,  2, 33, 21], 
+        [  0, 78, 89, 71,  4, 67, 12,  9]
+    ])
+    T = CF5(A, k, q, Fq)
+    print(T)
+
+

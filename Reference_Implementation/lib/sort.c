@@ -72,7 +72,7 @@ void counting_sort_u8(FQ_ELEM *arr,
 	/// on a Ryzen7600X. On your machine thats maybe different.
 	/// NOTE: `uint8_t` is not possible as there could be 256 times
 	/// the same field element. Unlikely but possible.
-	uint32_t cnt[128] __attribute__((aligned(512))) = { 0 };
+	uint32_t cnt[128] __attribute__((aligned(64))) = { 0 };
 	size_t i;
 
     /// compute the histogram
@@ -89,6 +89,7 @@ void counting_sort_u8(FQ_ELEM *arr,
 	}
 }
 
+/// NOTE: only needed for `compute_canonical_form_type4_sub`
 /// \input row1[in]:
 /// \input row2[in]:
 /// \return: 0 if multiset(row1) == multiset(row2)
@@ -96,7 +97,14 @@ void counting_sort_u8(FQ_ELEM *arr,
 ///         -x if row1 < row2
 int compare_rows(const FQ_ELEM *row1,
                  const FQ_ELEM *row2) {
-    uint32_t i = 0; 
+#ifdef LESS_USE_HISTOGRAM
+    uint32_t i=0;
+    while((i < (N-K-1)) && (row1[i] == row2[i])) {
+        i += 1;
+    }
+    return -((int)row1[i]-(int)row2[i]);
+#else
+    uint32_t i = 0;
     while((i < (N-K)) && (row1[i] == row2[i])) {
         i += 1;
     }
@@ -107,6 +115,7 @@ int compare_rows(const FQ_ELEM *row1,
     }
 
     return (int)row1[i] - (int)row2[i];
+#endif
 }
 
 
@@ -125,6 +134,14 @@ int compare_rows_bitonic_sort(FQ_ELEM **rows,
     ASSERT(row1 < K);
     ASSERT(row2 < K);
 
+#ifdef LESS_USE_HISTOGRAM
+    uint32_t i = 0;
+    while((i < (N-K-1)) && (rows[row1][i] == rows[row2][i])) {
+        i += 1;
+    }
+    return ((int)rows[row1][i] - (int)rows[row2][i]);
+
+#else
     uint32_t i = 0;
     while((i < (N-K)) && (rows[row1][i] == rows[row2][i])) {
         i += 1;
@@ -136,6 +153,7 @@ int compare_rows_bitonic_sort(FQ_ELEM **rows,
     }
 
     return (int)rows[row1][i] - (int)rows[row2][i];
+#endif
 }
 
 /// lexicographic comparison between a row with the pivot row
@@ -148,6 +166,13 @@ int compare_rows_bitonic_sort(FQ_ELEM **rows,
 int row_quick_sort_internal_compare_with_pivot(uint8_t *ptr[K],
                                                const POSITION_T row_idx,
                                                const uint8_t pivot[K]){
+#ifdef LESS_USE_HISTOGRAM
+    uint32_t i=0;
+    while((i<(Q-1)) && (ptr[row_idx][i]-pivot[i] == 0)){
+        i++;
+    }
+    return ((int)ptr[row_idx][i]-(int)pivot[i]);
+#else
     uint32_t i=0;
     while((i<(N-K)) && (ptr[row_idx][i]-pivot[i] == 0)){
         i++;
@@ -161,6 +186,7 @@ int row_quick_sort_internal_compare_with_pivot(uint8_t *ptr[K],
     }
 
     return 1;
+#endif
 }
 
 /// TODO doc
@@ -173,10 +199,17 @@ int row_quick_sort_internal_hoare_partition(FQ_ELEM* ptr[K],
                                             uint32_t P[K],
                                             const POSITION_T row_l,
                                             const POSITION_T row_h) {
+#ifdef LESS_USE_HISTOGRAM
+    FQ_ELEM pivot_row[Q];
+    for(uint32_t i = 0; i < Q; i++){
+       pivot_row[i] = ptr[row_l][i];
+    }
+#else
     FQ_ELEM pivot_row[N-K];
     for(uint32_t i = 0; i < N-K; i++){
        pivot_row[i] = ptr[row_l][i];
     }
+#endif
 
     POSITION_T i = row_l-1, j = row_h+1;
 	int ret;
@@ -184,12 +217,12 @@ int row_quick_sort_internal_hoare_partition(FQ_ELEM* ptr[K],
         do {
             i++;
         	ret = row_quick_sort_internal_compare_with_pivot(ptr, i, pivot_row);
-        } while(ret == 1);
+        } while(ret > 0);
 
         do {
             j--;
         	ret = row_quick_sort_internal_compare_with_pivot(ptr, j, pivot_row);
-        } while(ret == -1);
+        } while(ret < 0);
 
     	// if (ret == 0) { return -1; }
         if(i >= j){ return j; }
@@ -219,12 +252,23 @@ int row_quick_sort_internal(FQ_ELEM* ptr[K],
 	return 1;
 }
 
-///  TODO maybe just histogram, instead of the full?
-/// \param ptr[in/out]: pointer to the row to sort
+/// \param out[in/out]: pointer to the row to sort
+/// \param in[in/out]: pointer to the row to sort
 /// \param len[in]: length of the row
-void row_sort(uint8_t *ptr, 
+void row_sort(uint8_t *out,
+              const uint8_t *in,
               const uint32_t len) {
-    counting_sort_u8(ptr, len);
+#ifdef LESS_USE_HISTOGRAM
+    memset(out, 0, Q);
+	for (uint32_t i = 0 ; i < len ; ++i) {
+	    const uint8_t t = in[i];
+	    ASSERT(t < Q);
+		out[t]++;
+	}
+#else
+    memcpy(out, in, sizeof(FQ_ELEM) * N-K);
+    counting_sort_u8(out, len);
+#endif
 }
 
 /// NOTE: only operates on ptrs
@@ -236,12 +280,15 @@ void row_sort(uint8_t *ptr,
 int row_quick_sort(normalized_IS_t *G,
                    const uint32_t n) {
 	// first sort each row into a tmp buffer
-	FQ_ELEM  tmp[K][N-K];
+#ifdef LESS_USE_HISTOGRAM
+	FQ_ELEM  tmp[K][Q];
+#else
+	FQ_ELEM  tmp[K][N-K+1];
+#endif
     FQ_ELEM* ptr[K];
     uint32_t P[K];
 	for (uint32_t i = 0; i < n; ++i) {
-		memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
-        row_sort(tmp[i], N-K);
+        row_sort(tmp[i], G->values[i], N-K);
 
         ptr[i] = tmp[i];
         P[i] = i;
@@ -480,12 +527,11 @@ void col_bitonic_sort_transpose(normalized_IS_t *V) {
 /// 		1 on success
 int row_bitonic_sort(normalized_IS_t *G) {
     // first sort each row into a tmp buffer
-    FQ_ELEM  tmp[K][N-K];
+    FQ_ELEM  tmp[K][N-K+1];
     FQ_ELEM* ptr[K];
     uint32_t P[K];
     for (uint32_t i = 0; i < K; ++i) {
-        memcpy(tmp[i], G->values[i], sizeof(FQ_ELEM) * N-K);
-        row_sort(tmp[i], N-K);
+        row_sort(tmp[i], G->values[i], N-K);
 
         ptr[i] = tmp[i];
         P[i] = i;
