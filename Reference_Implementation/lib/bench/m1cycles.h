@@ -109,7 +109,7 @@ static void kperf_init_once(void) {
     pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
 }
 
-inline uint64_t __m1_rdtsc(void) {
+static inline uint64_t __m1_rdtsc(void) {
     if (kpc_get_thread_counters(0, COUNTERS_COUNT, g_counters)) {
         printf("kpc_get_thread_counters failed\n");
         return 0;
