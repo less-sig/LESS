@@ -12,7 +12,7 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
 endif()
 
 set(ALLOWED_WARNINGS "-Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal")
-set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0 -Wall -Wpedantic -Wextra -mavx2 -mavx ${ALLOWED_WARNINGS}")
+set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0 -Wall -Wpedantic -Wextra -march=native -mavx2 -mavx ${ALLOWED_WARNINGS}")
 set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -flto -ftree-vectorize -funroll-loops -fomit-frame-pointer ${ALLOWED_WARNINGS}")
 
 
@@ -21,6 +21,7 @@ set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/fips202.c
         ${PROJECT_SOURCE_DIR}/lib/keccakf1600.c
         ${PROJECT_SOURCE_DIR}/lib/LESS.c
+        ${PROJECT_SOURCE_DIR}/lib/LESS_without_tree.c
         ${PROJECT_SOURCE_DIR}/lib/monomial.c
         ${PROJECT_SOURCE_DIR}/lib/rng.c
         ${PROJECT_SOURCE_DIR}/lib/seedtree.c
@@ -88,10 +89,5 @@ foreach(category RANGE 1 5 2)
     target_link_libraries(${TARGET_BINARY_NAME} m crypto)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
 
-    # TODO remove once everything is done
-    set(TARGET_BINARY_NAME LESS_test_sort_${category}_${optimiz_target})
-    add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/test/sort.c ${SOURCES})
-    target_link_libraries(${TARGET_BINARY_NAME} m crypto)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
   endforeach(optimiz_target)
 endforeach(category)

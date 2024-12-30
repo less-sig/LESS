@@ -17,9 +17,12 @@
 /// 		1 on success
 int compute_canonical_form_type3(normalized_IS_t *G) {
     const int ret = row_quick_sort(G, K);
-    // col_quicksort_transpose(G, K);
+#ifdef LESS_USE_HISTOGRAM
     // TODO the problem is that the transopsed version also uses row sorting
     col_lex_quicksort(G, 0, N-K-1);
+#else
+    col_quicksort_transpose(G, K);
+#endif
     return ret;
 }
 
@@ -30,7 +33,12 @@ int compute_canonical_form_type3(normalized_IS_t *G) {
 /// 		1 on success
 int compute_canonical_form_type3_ct(normalized_IS_t *G) {
     if (row_bitonic_sort(G) == 0) { return 0; }
+#ifdef LESS_USE_HISTOGRAM
+    // TODO the problem is that the transopsed version also uses row sorting
+    col_lex_quicksort(G, 0, N-K-1);
+#else
     col_bitonic_sort_transpose(G);
+#endif
     return 1;
 }
 

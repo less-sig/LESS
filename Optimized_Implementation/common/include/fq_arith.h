@@ -90,11 +90,36 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
  * Backup implementation for less aggressive compilers follows */
 
 
+/// TODO remove 
+#define FQ_TRIPLEPREC FQ_DOUBLEPREC
+
+
+static inline
+FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
+    // equivalent to: (x >= Q) ? (x - Q) : x
+    // likely to be ~ constant-time (a "smart" compiler might turn this into conditionals though)
+    FQ_ELEM sub_q = x - Q;
+    FQ_ELEM mask = -(sub_q >> NUM_BITS_Q);
+    return (mask & Q) + sub_q;
+}
+
+static inline
+FQ_ELEM fq_red(const FQ_DOUBLEPREC x) {
+    return fq_cond_sub((x >> NUM_BITS_Q) + ((FQ_ELEM) x & Q));
+}
+
+static inline
+FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
+    return fq_cond_sub(x + Q - y);
+}
+
 /// todo remove both functions
+///
 static inline
 FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
       return (x + y) % Q;
 }
+
 static inline
 FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
    return ((FQ_DOUBLEPREC)x * (FQ_DOUBLEPREC)y) % Q;
@@ -144,11 +169,6 @@ FQ_DOUBLEPREC br_red16(FQ_DOUBLEPREC x)
    return x - y;
 }
 
-static inline
-FQ_ELEM fq_red(FQ_DOUBLEPREC x)
-{
-   return ((FQ_DOUBLEPREC) Q+x) % (FQ_DOUBLEPREC) Q;
-}
 
 /// NOTE: maybe dont use it for sensetive data
 static const uint8_t fq_inv_table[127] __attribute__((aligned(64))) = {

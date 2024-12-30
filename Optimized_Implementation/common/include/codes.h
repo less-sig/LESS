@@ -25,12 +25,13 @@
 
 #pragma once
 
-#include "parameters.h"
-#include "monomial_mat.h"
 #include <stdint.h>
 
+#include "parameters.h"
+#include "monomial_mat.h"
+
 typedef struct {  /* Generator matrix, stored explicitly */
-   __attribute__(( aligned(32))) FQ_ELEM values[K][N_pad];
+   FQ_ELEM values[K][N];
 } generator_mat_t;
 
 /* RREF Generator mat., only values and positions of non-pivot columns stored */
@@ -42,7 +43,6 @@ typedef struct {
 /* Set of columns not constituting the IS for an RREF matrix
  * See algorithm PrepareDigestInput in specification (V matrix)*/
 typedef struct {
-   // TODO is this stupid?
    FQ_ELEM values[K][N_K_pad];   /* values of the non-pivot columns */
 } normalized_IS_t;
 
@@ -50,29 +50,13 @@ typedef struct {
 void generator_get_pivot_flags (const rref_generator_mat_t *const G,
                                 uint8_t pivot_flag [N]);
 
-//
-void scale_row(generator_mat_t *G,
-               const uint32_t row,
-               const uint8_t a);
-
 void column_swap(normalized_IS_t *V,
                  const POSITION_T col1,
                  const POSITION_T col2);
 
-void column_cswap(normalized_IS_t *V,
-                 const POSITION_T col1,
-                 const POSITION_T col2,
-                 const uintptr_t mask);
-
 void row_swap(normalized_IS_t *V,
                  const POSITION_T row1,
                  const POSITION_T row2);
-
-void row_cswap(normalized_IS_t *V,
-              const POSITION_T row1,
-              const POSITION_T row2,
-              const uintptr_t mask);
-
 
 /* multiplies a monomial matrix by a generator matrix */
 void generator_monomial_mul(generator_mat_t *res,
@@ -86,7 +70,12 @@ void generator_monomial_mul(generator_mat_t *res,
  *  is_pivot_column
  **/
 int generator_RREF(generator_mat_t *G,
-                   uint8_t is_pivot_column[N_pad]);
+                   uint8_t is_pivot_column[N]);
+
+int generator_RREF_pivot_reuse(generator_mat_t *G,
+                                 uint8_t is_pivot_column[N],
+                                 uint8_t was_pivot_column[N],
+                                 const int pvt_reuse_limit);
 
 
 void lex_minimize(normalized_IS_t *V,
@@ -96,15 +85,15 @@ void lex_minimize(normalized_IS_t *V,
 
 //
 int lex_compare_column(const generator_mat_t *G1, 
-					   const generator_mat_t *G2,
+                       const generator_mat_t *G2,
                        const POSITION_T col1,
                        const POSITION_T col2);
 
 int lex_compare_col(const normalized_IS_t *G1,
                     const POSITION_T col1,
                     const POSITION_T col2);
-
-int lex_compare_with_pivot(normalized_IS_t *V, 
+//
+int lex_compare_with_pivot(normalized_IS_t *V,
                            const POSITION_T col_idx,
                            FQ_ELEM pivot[K]);
 
@@ -121,25 +110,35 @@ void prepare_digest_input(normalized_IS_t *V,
                           const generator_mat_t *const G,
                           const monomial_t *const Q_in);
 
+void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
+                          monomial_action_IS_t *Q_bar_IS,
+                          const generator_mat_t *const G,
+                          const monomial_t *const Q_in,
+                          const uint8_t initial_pivot_flags [N],
+                          const int pvt_reuse_limit);
+
 /* extracts the last N-K columns from a generator matrix, filling
  * in the compact RREF representation*/
 void generator_rref_compact(rref_generator_mat_t *compact,
                             const generator_mat_t *const full,
                             const uint8_t is_pivot_column[N] );
 
+void generator_to_normalized(normalized_IS_t *v,
+                             const generator_mat_t *const G);
+
 /* Compresses a columns of an IS matrix */
 void compress_columns(uint8_t *compressed,
-                    const normalized_IS_t *const full);
+                      const normalized_IS_t *const full);
 
 /* Compresses a generator matrix in RREF into a array of bytes */
 void compress_rref(uint8_t *compressed,
-                    const generator_mat_t *const full,
-                    const uint8_t is_pivot_column[N]);
+                   const generator_mat_t *const full,
+                   const uint8_t is_pivot_column[N]);
 
 /* Expands a compressed RREF generator matrix into a full one */
 void expand_to_rref(generator_mat_t *full,
                     const uint8_t *compressed,
-                    const uint8_t *TODO);
+                    uint8_t is_pivot_column[N]);
 
 /* Takes as input a compact RREF generator matrix, i.e. a set of N-K
  * columns and their position in the RREF and normalizes the columns themselves
@@ -159,38 +158,34 @@ void generator_rref_expand(generator_mat_t *full,
  * returns 1 on success, 0 on failure */
 int generator_gausselim(generator_mat_t *G);
 
-void apply_action_to_G(generator_mat_t* res,
-                       const generator_mat_t* G,
-                       const monomial_action_IS_t* Q_IS);
 //
 void apply_cf_action_to_G(generator_mat_t* res,
                           const generator_mat_t *G,
                           const uint8_t *const c);
 
+void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
+                                      const generator_mat_t *G,
+                                      const uint8_t *const c,
+                                      uint8_t initial_G_col_pivot[N],
+                                      uint8_t permuted_G_col_pivot[N]);
+
 /* samples a random monomial matrix */
 void generator_rnd(generator_mat_t *res);
-
-
+void generator_sf(generator_mat_t *res);
 
 void normalized_ind(normalized_IS_t *V);
 void normalized_sf(normalized_IS_t *V);
+void normalized_rng(normalized_IS_t *V);
 void normalized_copy(normalized_IS_t *V1, const normalized_IS_t *V2);
-
 
 /* expands a systematic form generator from a seed randomly drawing only
  * non-identity portion */
 void generator_SF_seed_expand(rref_generator_mat_t *res,
                               const unsigned char seed[SEED_LENGTH_BYTES]);
 
+void generator_pretty_print(const generator_mat_t *const G);
 void generator_pretty_print_name(char *name, const generator_mat_t *const G);
 void generator_rref_pretty_print_name(char *name,
                                       const rref_generator_mat_t *const G);
 
-void permutation_apply_col(normalized_IS_t *G, permutation_t *P);
-void permutation_apply_row(permutation_t *P, normalized_IS_t *G);
-
-void diagonal_apply_col(normalized_IS_t *G,
-                        diagonal_t *P);
-
-void diagonal_apply_row(diagonal_t *P,
-                        normalized_IS_t *G);
+void normalized_pretty_print(const normalized_IS_t *const G);
