@@ -115,7 +115,7 @@ void sha3_512(unsigned char *output,
 
 #else
 #include "fips202.h"
-#include <assert.h>
+
 /* standalone SHA-3 implementation has no visible state for single-call SHA-3 */
 // #define SHA3_STATE_STRUCT shake256ctx
 /* and has different states for SHAKE depending on security level*/
@@ -140,7 +140,7 @@ void xof_shake_init(SHAKE_STATE_STRUCT *state, int val) {
 static inline
 void xof_shake_update(SHAKE_STATE_STRUCT *state,
                       const unsigned char *input,
-                      unsigned int inputByteLen) {
+                      size_t inputByteLen) {
 #if defined(CATEGORY_1)
    shake128_inc_absorb(state,
                        (const uint8_t *)input,

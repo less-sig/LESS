@@ -47,33 +47,21 @@ void column_swap(normalized_IS_t *V,
    }
 }
 
-/// \param V[in/out]: K \times N-K matrix in which column `col1` and
-///                 column `col2` are swapped, depending on the value of
-///                 mask. If `mask` is 0 nothing is swapped. If `mask` is
-///                 -1ull the two rows will be swapped.
-/// \param col1[in]:
-/// \param col2[in]:
-/// \param mask
-void column_cswap(normalized_IS_t *V,
-                  const POSITION_T col1,
-                  const POSITION_T col2,
-                  const uintptr_t mask){
-    for(uint32_t i = 0; i<K;i++ ){
-       MASKED_SWAP(V->values[i][col1], V->values[i][col2], mask);
-    }
-}
-
 ///
 /// \param r
 /// \param s
 void swap_rows(FQ_ELEM r[N],
                FQ_ELEM s[N]) {
-    FQ_ELEM tmp;
-    for(uint32_t i=0; i<N; i++) {
-        tmp = r[i];
-        r[i] = s[i];
-        s[i] = tmp;
-    }
+    // FQ_ELEM tmp;
+    // for(unsigned i=0; i<N; i++) {
+    //     tmp = r[i];
+    //     r[i] = s[i];
+    //     s[i] = tmp;
+    // }
+    FQ_ELEM tmp[N];
+    memcpy(tmp, r, sizeof(FQ_ELEM) * N);
+    memcpy(r, s, sizeof(FQ_ELEM) * N);
+    memcpy(s, tmp, sizeof(FQ_ELEM) * N);
 } /* end swap_rows */
 
 /// \param V[in/out]: K \times N-K matrix in which row `row1` and
@@ -111,8 +99,7 @@ void generator_monomial_mul(generator_mat_t *res,
    for(uint32_t src_col_idx = 0; src_col_idx < N; src_col_idx++) {
       for(uint32_t row_idx = 0; row_idx < K; row_idx++) {
          res->values[row_idx][monom->permutation[src_col_idx]] =
-            fq_mul( (FQ_DOUBLEPREC) G->values[row_idx][src_col_idx],
-                    (FQ_DOUBLEPREC) monom->coefficients[src_col_idx] );
+            fq_mul(G->values[row_idx][src_col_idx], monom->coefficients[src_col_idx]);
       }
    }
 } /* end generator_monomial_mul */
@@ -122,10 +109,10 @@ void generator_monomial_mul(generator_mat_t *res,
 /// @return 
 int generator_RREF(generator_mat_t *G,
                    uint8_t is_pivot_column[N]) {
-   for(uint32_t row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
-      uint32_t pivot_row = row_to_reduce;
+   for(unsigned row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
+      unsigned pivot_row = row_to_reduce;
       /*start by searching the pivot in the col = row*/
-      uint32_t pivot_column = row_to_reduce;
+      unsigned pivot_column = row_to_reduce;
       while( (pivot_column < N) &&
              (G->values[pivot_row][pivot_column] == 0) ) {
 
@@ -155,30 +142,24 @@ int generator_RREF(generator_mat_t *G,
 
 
       /* Compute rescaling factor */
-      FQ_DOUBLEPREC scaling_factor = fq_inv(G->values[pivot_row][pivot_column]);
+      FQ_ELEM scaling_factor = fq_inv(G->values[pivot_row][pivot_column]);
 
       /* rescale pivot row to have pivot = 1. Values at the left of the pivot
        * are already set to zero by previous iterations */
-      for(uint32_t i = pivot_column; i < N; i++) {
-         G->values[pivot_row][i] = fq_mul( (FQ_DOUBLEPREC) scaling_factor,
-                                           (FQ_DOUBLEPREC) (G->values[pivot_row][i]) );
+      for(unsigned i = pivot_column; i < N; i++) {
+         G->values[pivot_row][i] = fq_mul(scaling_factor, G->values[pivot_row][i]);
       }
 
       /* Subtract the now placed and reduced pivot rows, from the others,
        * after rescaling it */
-      for(uint32_t row_idx = 0; row_idx < K; row_idx++) {
+      for(unsigned row_idx = 0; row_idx < K; row_idx++) {
          if (row_idx != pivot_row) {
-            FQ_DOUBLEPREC multiplier = G->values[row_idx][pivot_column];
+            FQ_ELEM multiplier = G->values[row_idx][pivot_column];
             /* all elements before the pivot in the pivot row are null, no need to
              * subtract them from other rows. */
-            for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
-               FQ_DOUBLEPREC tmp;
-               tmp = fq_mul( (FQ_DOUBLEPREC) multiplier,
-                             (FQ_DOUBLEPREC) G->values[pivot_row][col_idx] );
-
-               tmp = fq_sub(G->values[row_idx][col_idx], tmp);
-
-               G->values[row_idx][col_idx] = tmp;
+            for(unsigned col_idx = 0; col_idx < N; col_idx++) {
+               FQ_ELEM tmp = fq_mul(multiplier, G->values[pivot_row][col_idx]);
+               G->values[row_idx][col_idx] = fq_sub(G->values[row_idx][col_idx], tmp);
             }
          }
       }
@@ -192,9 +173,8 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                    uint8_t was_pivot_column[N],
                    const int pvt_reuse_limit)
 {
-   int pvt_reuse_cnt;
+   int pvt_reuse_cnt = 0;
    int row_red_pvt_skip_cnt;
-   pvt_reuse_cnt = 0;
 
     // row swap pre-process - swap previous pivot elements to corresponding row to reduce likelihood of corruption
    int pivot_el_row;
@@ -243,13 +223,12 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
       pivot_row = row_to_reduce; /* row with pivot now in place */
 
       /* Compute rescaling factor */
-      FQ_DOUBLEPREC scaling_factor = fq_inv(G->values[pivot_row][pivot_column]);
+      FQ_ELEM scaling_factor = fq_inv(G->values[pivot_row][pivot_column]);
 
       /* rescale pivot row to have pivot = 1. Values at the left of the pivot
        * are already set to zero by previous iterations */
       for(int i = pivot_column; i < N; i++) {
-         G->values[pivot_row][i] = fq_mul( (FQ_DOUBLEPREC) scaling_factor,
-                                           (FQ_DOUBLEPREC) (G->values[pivot_row][i]) );
+         G->values[pivot_row][i] = fq_mul( scaling_factor, G->values[pivot_row][i]);
       }
 
       if (was_pivot_column[pivot_column] == 0 || (pvt_reuse_cnt >= pvt_reuse_limit) || (pivot_column >= K)) { // Skip row-reduce on previous pivots
@@ -257,19 +236,14 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
        * after rescaling it */
           for(int row_idx = 0; row_idx < K; row_idx++) {
              if (row_idx != pivot_row) { 
-                FQ_DOUBLEPREC multiplier = G->values[row_idx][pivot_column];
+                FQ_ELEM multiplier = G->values[row_idx][pivot_column];
                 /* all elements before the pivot in the pivot row are null, no need to
                  * subtract them from other rows. */
                 row_red_pvt_skip_cnt = 0;
                 for(int col_idx = 0; col_idx < N; col_idx++) {
                     if (!(col_idx < K && was_pivot_column[col_idx]) || (row_red_pvt_skip_cnt >= pvt_reuse_limit)) { // skip row reduce of pivots we will reuse
-                       FQ_DOUBLEPREC tmp;
-                       tmp = fq_mul( (FQ_DOUBLEPREC) multiplier,
-                                     (FQ_DOUBLEPREC) G->values[pivot_row][col_idx] );
-
-                       tmp = fq_sub(G->values[row_idx][col_idx], tmp);
-
-                       G->values[row_idx][col_idx] = tmp;
+                       FQ_ELEM tmp = fq_mul(multiplier, G->values[pivot_row][col_idx]);
+                       G->values[row_idx][col_idx] = fq_sub(G->values[row_idx][col_idx], tmp);
                    } else {
                      row_red_pvt_skip_cnt++;
                    }
@@ -321,7 +295,7 @@ void prepare_digest_input(normalized_IS_t *V,
 
     POSITION_T piv_idx = 0;
     for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
-        POSITION_T row_idx;
+        POSITION_T row_idx = 0;
         for(uint32_t i = 0; i < N; i++) {
            if (Q_tilde->permutation[i] == col_idx) {
               row_idx = i;
@@ -382,7 +356,7 @@ void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
     /// TODO this is unneeded in case of verify
     POSITION_T piv_idx = 0;
     for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
-        POSITION_T row_idx;
+        POSITION_T row_idx = 0;
         for(uint32_t i = 0; i < N; i++) {
             if (Q_tilde->permutation[i] == col_idx) {
                 row_idx = i;
@@ -426,8 +400,8 @@ void apply_cf_action_to_G(generator_mat_t* res,
         }
     }
 finish:
-    assert(l == K);
-    assert(r == (N-K));
+    ASSERT(l == K);
+    ASSERT(r == (N-K));
     return;
 }
 
@@ -464,8 +438,8 @@ void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
         }
     }
     finish:
-    assert(l == K);
-    assert(r == (N-K));
+    ASSERT(l == K);
+    ASSERT(r == (N-K));
     return;
 }
 

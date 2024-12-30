@@ -144,7 +144,6 @@ int LESS_verify(const pubkey_t *const PK,
                 const uint64_t mlen,
                 const sign_t *const sig) {
     uint8_t g_initial_pivot_flags [N];
-    uint8_t g_permuted_pivot_flags [N];
 
     uint8_t fixed_weight_string[T] = {0};
     expand_digest_to_fixed_weight(fixed_weight_string, sig->digest);
@@ -223,7 +222,7 @@ int LESS_verify(const pubkey_t *const PK,
 
                 offset = K;
             }
-            assert(ctr <= 1);
+            ASSERT(ctr <= 1);
 
             ctr2+=1;
         }

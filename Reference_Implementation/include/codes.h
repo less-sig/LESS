@@ -54,23 +54,9 @@ void column_swap(normalized_IS_t *V,
                  const POSITION_T col1,
                  const POSITION_T col2);
 
-void column_cswap(normalized_IS_t *V,
-                 const POSITION_T col1,
-                 const POSITION_T col2,
-                 const uintptr_t mask);
-
 void row_swap(normalized_IS_t *V,
                  const POSITION_T row1,
                  const POSITION_T row2);
-
-void row_cswap(normalized_IS_t *V,
-              const POSITION_T row1,
-              const POSITION_T row2,
-              const uintptr_t mask);
-
-void generator_row_swap(generator_mat_t *V,
-                        const POSITION_T row1,
-                        const POSITION_T row2);
 
 /* multiplies a monomial matrix by a generator matrix */
 void generator_monomial_mul(generator_mat_t *res,
