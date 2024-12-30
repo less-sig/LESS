@@ -39,19 +39,33 @@
  * FY shuffle on the permutation, sampling from the provided PRNG state shake_monomial_state */
 static inline
 void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state, POSITION_T permutation[N]) {
-    uint32_t rand_u32[N] = {0};
-    POSITION_T tmp;
+   uint64_t rand_u64;
+   POSITION_T tmp;
+   POSITION_T x;
+   int c;
 
-    csprng_randombytes((unsigned char *) &rand_u32, sizeof(uint32_t)*N, shake_monomial_state);
-    for (size_t i = 0; i < N - 1; ++i) {
-        rand_u32[i] = i + rand_u32[i] % (N - i);
-    }
+   csprng_randombytes((unsigned char *) &rand_u64,
+                             sizeof(rand_u64),
+                             shake_monomial_state);
+   c = 0;
 
-    for (size_t i = 0; i < N - 1; ++i) {
-        tmp = permutation[i];
-        permutation[i] = permutation[rand_u32[i]];
-        permutation[rand_u32[i]] = tmp;
-    }
+   for (int i = 0; i < N; i++) {
+      do {
+         if (c == (64/POS_BITS)-1) {
+            csprng_randombytes((unsigned char *) &rand_u64,
+                                sizeof(rand_u64),
+                                shake_monomial_state);
+            c = 0;
+         }
+         x = rand_u64 & (POS_MASK);
+         rand_u64 = rand_u64 >> POS_BITS;
+         c = c + 1;
+      } while (x >= N);
+
+      tmp = permutation[i];
+      permutation[i] = permutation[x];
+      permutation[x] = tmp;
+   } 
 }
 
 /* FY shuffle on the permutation, sampling from the global TRNG state */

@@ -153,22 +153,39 @@ void expand_digest_to_fixed_weight( uint8_t fixed_weight_string[T],
                      HASH_DIGEST_LENGTH);
 
    uint16_t rnd_buf;
-   int placed_elements = 0;
-   while (placed_elements < W) {
-      uint8_t value;
+   for (int i = 0; i < T-W; i++) 
+      fixed_weight_string[i] = 0;
+
+    if (NUM_KEYPAIRS != 2) {
+        for (int i = T-W; i < T; i++) {
+            uint8_t value;
+            do {
+                csprng_randombytes((unsigned char *) &rnd_buf,
+                                 sizeof(uint8_t),
+                                 &shake_state);
+
+                value = rnd_buf & (KEYPAIR_INDEX_MASK);
+          } while (value >= NUM_KEYPAIRS-1);
+          fixed_weight_string[i] = value + 1;
+       }
+    } else {
+        for (int i = T-W; i < T; i++) {
+            fixed_weight_string[i] = 1;
+        }
+   }
+
+   for (int p = T-W; p < T; p++) {
       POSITION_T pos;
+      uint8_t tmp;
       do {
          csprng_randombytes((unsigned char *) &rnd_buf,
-                             sizeof(uint16_t),
+                             sizeof(POSITION_T),
                              &shake_state);
 
-         value = rnd_buf & (KEYPAIR_INDEX_MASK);
-         pos   = rnd_buf >> BITS_TO_REPRESENT(MAX_KEYPAIR_INDEX) ;
-         pos   = pos & POSITION_MASK;
-      } while ( (value >= NUM_KEYPAIRS) || /* for non-power-of-two keypair numbers */
-                (  pos >= T) ||             /* rejection sampling */
-                (fixed_weight_string[pos] != 0) ); /* skip elements already placed */
-      fixed_weight_string[pos] = value;
-      placed_elements += (value != 0);
-   }
+         pos = rnd_buf & (POSITION_MASK);
+      } while (pos > p);
+      tmp = fixed_weight_string[p];
+      fixed_weight_string[p] = fixed_weight_string[pos];
+      fixed_weight_string[pos] = tmp;
+   }      
 } /* end parse_digest */
