@@ -1,7 +1,10 @@
 #ifndef M1CYCLES_H
 #define M1CYCLES_H
 
-// For Apple M1: https://gist.github.com/dougallj/5bafb113492047c865c0c8cfbc930155#file-m1_robsize-c-L390
+// For macOS/arm64 (Apple Silicon)
+//  based on: https://gist.github.com/dougallj/5bafb113492047c865c0c8cfbc930155
+//  see also: https://gist.github.com/ibireme/173517c208c7dc333ba962c1f0d67d12
+
 #include <dlfcn.h>
 #include <libkern/OSCacheControl.h>
 #include <pthread.h>
@@ -36,33 +39,18 @@ KPERF_LIST
 #define CFGWORD_EL3EN_MASK (0x80000)
 #define CFGWORD_ALLMODES_MASK (0xf0000)
 
-#define CPMU_NONE 0
 #define CPMU_CORE_CYCLE 0x02
-#define CPMU_INST_A64 0x8c
-#define CPMU_INST_BRANCH 0x8d
-#define CPMU_SYNC_DC_LOAD_MISS 0xbf
-#define CPMU_SYNC_DC_STORE_MISS 0xc0
-#define CPMU_SYNC_DTLB_MISS 0xc1
-#define CPMU_SYNC_ST_HIT_YNGR_LD 0xc4
-#define CPMU_SYNC_BR_ANY_MISP 0xcb
-#define CPMU_FED_IC_MISS_DEM 0xd3
-#define CPMU_FED_ITLB_MISS 0xd4
 
 #define KPC_CLASS_FIXED (0)
 #define KPC_CLASS_CONFIGURABLE (1)
-#define KPC_CLASS_POWER (2)
-#define KPC_CLASS_RAWPMU (3)
 #define KPC_CLASS_FIXED_MASK (1u << KPC_CLASS_FIXED)
 #define KPC_CLASS_CONFIGURABLE_MASK (1u << KPC_CLASS_CONFIGURABLE)
-#define KPC_CLASS_POWER_MASK (1u << KPC_CLASS_POWER)
-#define KPC_CLASS_RAWPMU_MASK (1u << KPC_CLASS_RAWPMU)
 
 #define COUNTERS_COUNT 10
 #define CONFIG_COUNT 8
 #define KPC_MASK (KPC_CLASS_CONFIGURABLE_MASK | KPC_CLASS_FIXED_MASK)
 uint64_t g_counters[COUNTERS_COUNT];
 uint64_t g_config[COUNTERS_COUNT];
-
 
 static void kperf_init(void) {
     void *kperf = dlopen("/System/Library/PrivateFrameworks/kperf.framework/Versions/A/kperf", RTLD_LAZY);
@@ -79,7 +67,6 @@ static void kperf_init(void) {
     KPERF_LIST
 #undef F
 
-    // TODO: KPC_CLASS_RAWPMU_MASK
     const unsigned c1 = kpc_get_counter_count(KPC_MASK);
     if (c1 != CONFIG_COUNT) {
         printf("[ERROR] kperf_init: wrong fixed counters count: %u\n", c1);
@@ -116,19 +103,18 @@ static void kperf_init(void) {
 }
 
 static void kperf_init_once(void) {
+    pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
     static pthread_once_t init_static_once = PTHREAD_ONCE_INIT;
     pthread_once(&init_static_once, kperf_init);
+    pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
 }
 
-
-static unsigned long long int __m1_rdtsc(void) {
+inline uint64_t __m1_rdtsc(void) {
     if (kpc_get_thread_counters(0, COUNTERS_COUNT, g_counters)) {
         printf("kpc_get_thread_counters failed\n");
         return 0;
     }
     return g_counters[2];
 }
-
-//  End
 
 #endif
