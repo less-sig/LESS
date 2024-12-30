@@ -16,14 +16,18 @@
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
 int compute_canonical_form_type3(normalized_IS_t *G) {
-    const int ret = row_quick_sort(G, K);
+    if (row_quick_sort(G, K) == 0) {
+	    return 0;
+    }
 #ifdef LESS_USE_HISTOGRAM
-    // TODO the problem is that the transopsed version also uses row sorting
-    col_lex_quicksort(G, 0, N-K-1);
-#else
+    // TODO the problem is that the transposed version also uses row sorting
+    // col_lex_quicksort(G, 0, N-K-1);
     col_quicksort_transpose(G, K);
+#else
+    // col_quicksort_transpose(G, K);
+    col_lex_quicksort(G, 0, N-K-1);
 #endif
-    return ret;
+    return 1;
 }
 
 /// NOTE: constant time impl
@@ -32,14 +36,15 @@ int compute_canonical_form_type3(normalized_IS_t *G) {
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
 int compute_canonical_form_type3_ct(normalized_IS_t *G) {
-    if (row_bitonic_sort(G) == 0) { return 0; }
+    const int ret = row_bitonic_sort(G);
 #ifdef LESS_USE_HISTOGRAM
-    // TODO the problem is that the transopsed version also uses row sorting
+    // TODO the problem is that the transposed version also uses row sorting
     col_lex_quicksort(G, 0, N-K-1);
 #else
-    col_bitonic_sort_transpose(G);
+    col_lex_quicksort(G, 0, N-K-1);
+    // col_bitonic_sort_transpose(G);
 #endif
-    return 1;
+    return ret;
 }
 
 /// NOTE: only operates on the first z rows
@@ -125,7 +130,8 @@ int compute_canonical_form_type4(normalized_IS_t *G) {
 int compute_canonical_form_type4_sub(normalized_IS_t *G,
                                      const uint32_t z,
                                      const FQ_ELEM *min_multiset) {
-    FQ_ELEM tmp[N-K+1];
+	/// todo is the init to 0 correct?
+    FQ_ELEM tmp[N_K_pad] = {0};
     for (uint32_t i = 0; i < z; i++) {
 		FQ_ELEM s = row_acc(G->values[i]);
 
@@ -351,8 +357,9 @@ int compute_canonical_form_type5_ct(normalized_IS_t *G) {
 
     // init the output matrix to some `invalid` data
 	memset(&smallest.values, Q-1, sizeof(normalized_IS_t));
+	memset(&Aj.values, 0, sizeof(normalized_IS_t));
 
-    FQ_ELEM row_inv_data[N_K_pad];
+    FQ_ELEM row_inv_data[N_K_pad] = {0};
     for (uint32_t row = 0; row < K; row++) {
         if (row_contains_zero(G->values[row])) { continue; }
 
@@ -527,6 +534,5 @@ int cf5(normalized_IS_t *G) {
 /// \param G
 /// \return
 int cf5_nonct(normalized_IS_t *G) {
-    // return compute_canonical_form_type5(G);
     return compute_canonical_form_type5_popcnt(G);
 }

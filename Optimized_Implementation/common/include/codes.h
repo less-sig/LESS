@@ -31,7 +31,7 @@
 #include "monomial_mat.h"
 
 typedef struct {  /* Generator matrix, stored explicitly */
-   FQ_ELEM values[K][N];
+   FQ_ELEM values[K][N_pad];
 } generator_mat_t;
 
 /* RREF Generator mat., only values and positions of non-pivot columns stored */

@@ -95,6 +95,9 @@ static inline uint8_t vhadd8(const __m256i in) {
 // c = a ^ b
 #define vxor(c, a, b) c = _mm256_xor_si256(a, b);
 
+// c = a | b
+#define vor(c, a, b) c = _mm256_or_si256(a, b);
+
 // c[0..16] = n
 #define vset8(c, n) c = _mm256_set1_epi8(n);
 #define vset17(c, n) c = _mm256_set1_epi16(n);
@@ -164,7 +167,7 @@ static inline uint8_t vhadd8(const __m256i in) {
  * Fix width 16-bit Barrett multiplication Q = 127
  * c = (a * b) % q
  */
-#define barrett_mul_u16(c, a, b, t)        \
+#define barrett_mul_u16(c, a, b, t)          \
     vmul_lo16(a, a, b); /* lo = (a * b)  */  \
     vsr16(t, a, 7);     /* hi = (lo >> 7) */ \
     vadd16(a, a, t);    /* lo = (lo + hi) */ \

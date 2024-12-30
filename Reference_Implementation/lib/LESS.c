@@ -292,7 +292,7 @@ int LESS_verify(const pubkey_t *const PK,
             const int r = cf5_nonct(&V_array);
             if (r == 0) {
                 // NOTE: we just silently reject the signature, if we do not
-                // have a valid CF input. This should only happen with an
+                // have a valid CF input. This should only happen with a
                 // negl. probability.
                 return 0;
             }
@@ -339,7 +339,7 @@ int LESS_verify(const pubkey_t *const PK,
             const int r = cf5_nonct(&V_array);
             if (r == 0) {
                 // NOTE: we just silently reject the signature, if we do not
-                // have a valid CF input. This should only happen with an
+                // have a valid CF input. This should only happen with a
                 // negl. probability.
                 return 0;
             }

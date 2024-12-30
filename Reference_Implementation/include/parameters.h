@@ -124,16 +124,16 @@
 
 #define VERIFY_PIVOT_REUSE_LIMIT K
 
-/* */
+/* number of bytes needed to store K or N bits */
 #define K8 ((K+7u)/8u)
 #define N8 ((N+7u)/8u)
 
 #define NEXT_MULTIPLE(x,n) ((((x)+((n)-1u))/(n))*(n))
 
 /// TODO
-#define N_K_pad NEXT_MULTIPLE(N-K,8)
-#define N_pad   NEXT_MULTIPLE(N,8)
-#define K_pad   NEXT_MULTIPLE(K,8)
+#define N_K_pad NEXT_MULTIPLE(N-K,32)
+#define N_pad   NEXT_MULTIPLE(N,32)
+#define K_pad   NEXT_MULTIPLE(K,32)
 
 /***************** Derived parameters *****************************************/
 

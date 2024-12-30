@@ -11,9 +11,9 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS "-Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal")
-set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0 -Wall -Wpedantic -Wextra -march=native -mavx2 -mavx ${ALLOWED_WARNINGS}")
-set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -flto -ftree-vectorize -funroll-loops -fomit-frame-pointer ${ALLOWED_WARNINGS}")
+set(ALLOWED_WARNINGS      " -Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal -fno-inline")
+set(CMAKE_C_FLAGS_DEBUG   " -g -DDEBUG -O0 -Wall -Wpedantic -Wextra -march=native -mavx2 -mavx ${ALLOWED_WARNINGS}")
+set(CMAKE_C_FLAGS_RELEASE " -g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -flto -ftree-vectorize -funroll-loops -fomit-frame-pointer ${ALLOWED_WARNINGS}")
 
 
 set(SOURCES
@@ -90,4 +90,11 @@ foreach(category RANGE 1 5 2)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
 
   endforeach(optimiz_target)
+
+  # TODO remove once everything is done
+  set(TARGET_BINARY_NAME LESS_test_arith_${category})
+  add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/test/test_arith.c ${SOURCES})
+  target_link_libraries(${TARGET_BINARY_NAME} m crypto)
+  set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -DSHORT_SIG=1 ${KECCAK_EXTERNAL_ENABLE} ")
 endforeach(category)
+
