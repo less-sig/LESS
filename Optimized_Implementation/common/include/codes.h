@@ -43,7 +43,7 @@ typedef struct {
 /* Set of columns not constituting the IS for an RREF matrix
  * See algorithm PrepareDigestInput in specification (V matrix)*/
 typedef struct {
-   FQ_ELEM values[K][N_K_pad];   /* values of the non-pivot columns */
+   FQ_ELEM values[K_pad][N_K_pad];   /* values of the non-pivot columns */
 } normalized_IS_t;
 
 /* Calculate pivot flag array */

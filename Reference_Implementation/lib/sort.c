@@ -164,7 +164,7 @@ int compare_rows_bitonic_sort(FQ_ELEM **rows,
 /// 	      -1 if it is smaller,
 /// 		   0 if it matches
 int row_quick_sort_internal_compare_with_pivot(uint8_t *ptr[K],
-                                               const POSITION_T row_idx,
+                                               const uint32_t row_idx,
                                                const uint8_t pivot[K]){
 #ifdef LESS_USE_HISTOGRAM
     uint32_t i=0;
@@ -232,6 +232,45 @@ int row_quick_sort_internal_hoare_partition(FQ_ELEM* ptr[K],
     }
 }
 
+int row_quick_sort_internal_hoare_partition2(FQ_ELEM* ptr[K],
+                                            uint32_t P[K],
+                                            const uint32_t start,
+                                            const uint32_t stop) {
+    int32_t up = start, down = stop-1;
+    if (stop <= start) { return start; }
+
+
+#ifdef LESS_USE_HISTOGRAM
+    FQ_ELEM pivot_row[Q];
+    for(uint32_t i = 0; i < Q; i++){
+        pivot_row[i] = ptr[down][i];
+    }
+#else
+    FQ_ELEM pivot_row[N-K];
+    for(uint32_t i = 0; i < N-K; i++){
+       pivot_row[i] = ptr[row_l][i];
+    }
+#endif
+
+    while (1u) {
+        while (row_quick_sort_internal_compare_with_pivot(ptr, up, pivot_row) > 0) {
+            up++;
+        }
+        while ((row_quick_sort_internal_compare_with_pivot(ptr, down, pivot_row) > 0) && (up < down)) {
+            down--;
+        }
+        if (up >= down) { break; }
+
+        SWAP(P[up], P[down]);
+        cswap((uintptr_t *)(&ptr[up]), (uintptr_t *)(&ptr[down]), -1ull);
+        up++; down--;
+    }
+
+    SWAP(P[up], P[stop]);
+    cswap((uintptr_t *)(&ptr[up]), (uintptr_t *)(&ptr[stop]), -1ull);
+    return up;
+}
+
 /// \param ptr[in/out]:
 /// \param P[in/out]: a permutation to keep track of the sorting
 /// \param start[in]: inclusive
@@ -277,6 +316,43 @@ void row_sort(uint8_t *out,
 /// \param n[in] number of elements to sort
 /// \return 1 on success
 ///			0 if two rows generate the same multiset
+int row_quick_sort_recursive(normalized_IS_t *G,
+                             const uint32_t n) {
+    // first sort each row into a tmp buffer
+#ifdef LESS_USE_HISTOGRAM
+    FQ_ELEM tmp[K][Q];
+#else
+    FQ_ELEM tmp[K][N-K];
+#endif
+    FQ_ELEM* ptr[K];
+    uint32_t P[K];
+    for (uint32_t i = 0; i < n; ++i) {
+        row_sort(tmp[i], G->values[i], N-K);
+
+        ptr[i] = tmp[i];
+        P[i] = i;
+    }
+
+    const int ret = row_quick_sort_internal(ptr, P, 0,  n - 1u);
+    if (ret == 0) { return 0; }
+
+    // apply the permutation
+    for (uint32_t t = 0; t < n; t++) {
+        uint32_t ind = P[t];
+        while(ind<t) { ind = P[ind]; }
+
+        row_swap(G, t, ind);
+    }
+
+    return 1;
+}
+
+/// NOTE: only operates on ptrs
+/// NOTE: not constant time
+/// \param G[in/out]: generator matrix to sort
+/// \param n[in] number of elements to sort
+/// \return 1 on success
+///			0 if two rows generate the same multiset
 int row_quick_sort(normalized_IS_t *G,
                    const uint32_t n) {
 	// first sort each row into a tmp buffer
@@ -294,8 +370,25 @@ int row_quick_sort(normalized_IS_t *G,
         P[i] = i;
 	}
 
-	const int ret = row_quick_sort_internal(ptr, P, 0,  n - 1u);
-    if (ret == 0) { return 0; }
+    uint32_t start = 0, stop = n-1;
+    uint32_t s = 0, stack[64];
+    stack[s++] = start;
+    stack[s++] = stop;
+    while (s > 0) {
+        stop = stack[--s];
+        start = stack[--s];
+        if (start >= stop) {continue; }
+        // i = partition(a, start, stop);
+        const uint32_t i = row_quick_sort_internal_hoare_partition2(ptr, P, start, stop);
+        // if (i == ) { return 0; }
+        if ((i - start) > (stop - i)) {
+            stack[s++] = start; stack[s++] = i - 1;
+            stack[s++] = i + 1; stack[s++] = stop;
+        } else {
+            stack[s++] = i + 1; stack[s++] = stop;
+            stack[s++] = start; stack[s++] = i - 1;
+        }
+    }
 
     // apply the permutation
     for (uint32_t t = 0; t < n; t++) {
