@@ -411,11 +411,10 @@ def CF5_super_faster(A, k, q, Fq, num_full_CF):
     return B_i, num_full_CF
 
 
-if __name__ == "__main__":
-    from code_utils import sample_monomial, KeyGen, build_full_generator_matrix, apply_monomial, inverse_perm, combine_perms, verify_rsp, compress
-    import random
-    import galois
-    # test_full_implementation()
+
+
+
+def test_small():
     k = 8
     n = 2*8
     q = 127
@@ -431,5 +430,16 @@ if __name__ == "__main__":
         [ 59, 63, 91, 75, 37,  2, 33, 21],
         [  0, 78, 89, 71,  4, 67, 12,  9]
     ])
-    T = CF5_super_faster(A, k, q, Fq)
+    T = CF5_super_faster(A, k, q, Fq, 0)
+    print(T)
+
+if __name__ == "__main__":
+    from code_utils import sample_monomial, KeyGen, build_full_generator_matrix, apply_monomial, inverse_perm, combine_perms, verify_rsp, compress
+    import random
+    import galois
+    k = 126
+    n = 2*8
+    q = 127
+    Fq = galois.GF(q);
+    T = CF5_super_faster(B, k, q, Fq, 0)
     print(T)

@@ -163,15 +163,22 @@ size_t LESS_sign(const prikey_t *SK,
 #else
         prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde);
 #endif
-        blind(&V_array, &cf_shake_state);
-        const int t = cf5_nonct(&V_array);
+        // blind(&V_array, &cf_shake_state);
+        normalized_IS_t V_array2;
+        normalized_copy(&V_array2, &V_array);
+        const int t = cf5_nonct(&V_array2);
         if (t == 0) {
             *(ephem_monomial_seeds + i*SEED_LENGTH_BYTES) += 1;
             i -= 1;
             // TODO, what happens in this case?
+            normalized_pretty_print(&V_array);
+            printf("\n");
+            printf("\n");
+            normalized_pretty_print(&V_array2);
+            printf("\n");
             printf("cf5 failed\n");
         } else {
-            LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
+            LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array2, sizeof(normalized_IS_t));
         }
     }
 
