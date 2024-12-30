@@ -10,7 +10,6 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
 
 #define KPERF_LIST                                                                                                     \
     /*  ret, name, params */                                                                                           \
@@ -112,7 +111,7 @@ static void kperf_init_once(void) {
 static inline uint64_t __m1_rdtsc(void) {
     if (kpc_get_thread_counters(0, COUNTERS_COUNT, g_counters)) {
         printf("kpc_get_thread_counters failed\n");
-        return 0;
+        // return 0;
     }
     return g_counters[2];
 }
