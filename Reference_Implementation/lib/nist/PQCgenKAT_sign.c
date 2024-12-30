@@ -53,7 +53,7 @@ int main(void) {
 
     KAT_NIST_randombytes_init(entropy_input, NULL, 256);
     // TODO change back
-    for (unsigned i=0; i<30; i++) {
+    for (unsigned i=0; i<100; i++) {
         fprintf(fp_req, "count = %d\n", i);
         KAT_NIST_randombytes(seed, 48);
         fprintBstr(fp_req, "seed = ", seed, 48);

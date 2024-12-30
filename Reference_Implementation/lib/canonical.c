@@ -17,7 +17,9 @@
 /// 		1 on success
 int compute_canonical_form_type3(normalized_IS_t *G) {
     const int ret = row_quick_sort(G, K);
-    col_quicksort_transpose(G, K);
+    // col_quicksort_transpose(G, K);
+    // TODO the problem is that the transopsed version also uses row sorting
+    col_lex_quicksort(G, 0, N-K-1);
     return ret;
 }
 
@@ -36,7 +38,7 @@ int compute_canonical_form_type3_ct(normalized_IS_t *G) {
 /// NOTE: non-constant time
 /// NOTE: computes the result inplace
 /// first sort the rows, then the columns
-/// \param G[in/out] scaled submatrix which is going to sorted
+/// \param G[in/out] scaled submatrix which is going to sort
 /// \param z[in] number of rows in G
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
@@ -45,7 +47,7 @@ int compute_canonical_form_type3_sub(normalized_IS_t *G,
     if (z == 1) {
         // if only 1 row needs to be sorted: that
         // equivalent to just sort the row normally
-        row_sort(G->values[0], N-K);
+        row_sort(G->values[0], G->values[0], N-K);
         return 1;
     }
     if (row_quick_sort(G, z) == 0) { return 0; }
@@ -115,6 +117,7 @@ int compute_canonical_form_type4(normalized_IS_t *G) {
 int compute_canonical_form_type4_sub(normalized_IS_t *G,
                                      const uint32_t z,
                                      const FQ_ELEM *min_multiset) {
+    FQ_ELEM tmp[N-K+1];
     for (uint32_t i = 0; i < z; i++) {
 		FQ_ELEM s = row_acc(G->values[i]);
 
@@ -126,8 +129,8 @@ int compute_canonical_form_type4_sub(normalized_IS_t *G,
 		}
 
 		row_mul(G->values[i], s);
-        row_sort(G->values[i], N-K);
-        if (compare_rows(G->values[i], min_multiset) <= 0) {
+        row_sort(tmp, G->values[i], N-K);
+        if (compare_rows(tmp, min_multiset) < 0) {
             return 1;
         }
     }
@@ -296,7 +299,11 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 	FQ_ELEM row_inv_data[N_K_pad];
 
 	/// NOTE: this is already "sorted"
+#ifdef LESS_USE_HISTOGRAM
+	memset(min_multiset, 0, N_K_pad);
+#else
 	memset(min_multiset, Q-1, N_K_pad);
+#endif
 	for (uint32_t row = 0; row < K; row++) {
         if (row_has_zero[row]) { continue; }
 

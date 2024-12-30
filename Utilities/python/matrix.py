@@ -4,7 +4,7 @@
 from typing import Union, List
 import random
 
-from fq import Fq
+from fq import Fq, rand_elements
 
 
 class Matrix:
@@ -144,6 +144,21 @@ class Matrix:
             self.data[row][i + pos] = tmp
         return self
 
+    def random_from_rng(self, rng):
+        """ 
+        generate a random matrix mod q, generated from a given 
+        random number generator.
+        :param rng: should be shake state already init
+        """
+        for i in range(self.nrows):
+            rand_elements(rng, self.q, self.data[i], self.ncols)
+        return self
+
+    def random_from_seed(self, seed):
+        from Crypto.Hash import SHAKE256
+        s = SHAKE256.new(seed)
+        return self.random_from_rng(s)
+
     def gauß(self, max_rank: Union[int, None] = None) -> int:
         """ simple Gaussian elimination. Is an inplace operation
         :return the rank of the matrix
@@ -274,6 +289,18 @@ class Matrix:
 
     def __mul__(self, B: 'Matrix'):
         return self.mul(B)
+
+    def export(self) -> str:
+        """ export to C """
+        ret = "{"
+        for i in range(self.nrows):
+            ret += "{"
+            for j in range(self.ncols):
+                ret += str(self.data[i][j].get()) + ","
+            ret += "},\n"
+        ret += "}"
+        return ret
+
    
     def __repr__(self) -> str:
         return self.__str__()
