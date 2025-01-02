@@ -380,7 +380,7 @@ int row_quick_sort(normalized_IS_t *G,
         P[i] = i;
 	}
 
-   row_quick_sort_internal(ptr, P, N);
+   row_quick_sort_internal(ptr, P, K);
 
     // apply the permutation
     for (uint32_t t = 0; t < n; t++) {
