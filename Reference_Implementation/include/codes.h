@@ -54,7 +54,7 @@ void column_swap(normalized_IS_t *V,
                  const POSITION_T col1,
                  const POSITION_T col2);
 
-void row_swap(normalized_IS_t *V,
+void normalized_row_swap(normalized_IS_t *V,
                  const POSITION_T row1,
                  const POSITION_T row2);
 
@@ -105,17 +105,17 @@ void col_lex_quicksort(normalized_IS_t *V,
 /* performs lexicographic sorting of the IS complement */
 void lex_sort_cols(normalized_IS_t *V);
 
-void prepare_digest_input(normalized_IS_t *V,
-                          monomial_action_IS_t *Q_bar_IS,
-                          const generator_mat_t *const G,
-                          const monomial_t *const Q_in);
+int prepare_digest_input(normalized_IS_t *V,
+                         monomial_action_IS_t *Q_bar_IS,
+                         const generator_mat_t *const G,
+                         const monomial_t *const Q_in);
 
-void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
-                          monomial_action_IS_t *Q_bar_IS,
-                          const generator_mat_t *const G,
-                          const monomial_t *const Q_in,
-                          const uint8_t initial_pivot_flags [N],
-                          const int pvt_reuse_limit);
+int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
+                                     monomial_action_IS_t *Q_bar_IS,
+                                     const generator_mat_t *const G,
+                                     const monomial_t *const Q_in,
+                                     const uint8_t initial_pivot_flags [N],
+                                     const int pvt_reuse_limit);
 
 /* extracts the last N-K columns from a generator matrix, filling
  * in the compact RREF representation*/

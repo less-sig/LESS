@@ -5,7 +5,7 @@
 #include "transpose.h"
 #include "parameters.h"
 
-/// \param dst[out]
+/// \param dst[out]: out  data
 /// \param src[in] input bytes 8x8 matrix
 /// \param src_stride[in] in bytes
 /// \param dst_stride[in] in bytes
@@ -105,9 +105,8 @@ inline const uint8_t* next_block(const uint8_t *src,
     return src + (rb1*n + cb1) * 64;
 }
 
-/// TODO doc
-/// \param dst
-/// \param src
+/// \param dst[out]: output non-IS matrix: K \times N-K
+/// \param src[in]: input non-IS matrix: K \times N-K
 /// \param n nr cols
 /// \param z nr rows
 void matrix_transpose_opt(uint8_t *dst,

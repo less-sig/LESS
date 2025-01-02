@@ -227,7 +227,11 @@ size_t LESS_sign(const prikey_t *SK,
     return num_seeds_published;
 } /* end LESS_sign */
 
-
+/// \param PK
+/// \param m
+/// \param mlen
+/// \param sig
+/// \return
 int LESS_verify(const pubkey_t *const PK,
                 const char *const m,
                 const uint64_t mlen,
