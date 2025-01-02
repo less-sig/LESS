@@ -28,22 +28,6 @@ int compute_canonical_form_type3(normalized_IS_t *G) {
     return 1;
 }
 
-/// NOTE: constant time impl
-/// computes the result inplace
-/// first sort the rows, then the columns
-/// \return 0 on failure (identical rows, which create the same multiset)
-/// 		1 on success
-int compute_canonical_form_type3_ct(normalized_IS_t *G) {
-    // todo not working const int ret = row_bitonic_sort(G);
-    const int ret = row_quick_sort(G, K);
-#ifdef LESS_USE_HISTOGRAM
-    col_quicksort_transpose(G, K);
-#else
-    col_lex_quicksort(G, 0, N-K-1);
-#endif
-    return ret;
-}
-
 /// NOTE: only operates on the first z rows
 /// NOTE: non-constant time
 /// NOTE: computes the result inplace
@@ -63,35 +47,6 @@ int compute_canonical_form_type3_sub(normalized_IS_t *G,
     if (row_quick_sort(G, z) == 0) { return 0; }
     col_quicksort_transpose(G, z);
     return 1;
-}
-
-/// NOTE: constant time
-/// NOTE: computes the result inplace
-/// \return 0 on failure:
-/// 			- compute_power_column fails.
-/// 			- identical rows, which create the same multiset
-/// 		1 on success
-int compute_canonical_form_type4_ct(normalized_IS_t *G) {
-	for (uint32_t row = 0; row < K; row++) {
-		if (row_all_same(G->values[row])) { continue; }
-
-        // if we cant find a power
-		FQ_ELEM s = row_acc(G->values[row]);
-		FQ_ELEM sp = row_acc_inv(G->values[row]);
-
-		if (s != 0) {
-			s = fq_inv(s);
-		} else {
-			s = sp;
-			if (s == 0) {
-				return 0;
-			}
-		}
-
-		row_mul(G->values[row], s);
-	}
-
-	return compute_canonical_form_type3_ct(G);
 }
 
 /// NOTE: non-constant time
@@ -199,34 +154,6 @@ int compare_matrices(const normalized_IS_t *V1,
         if (i >= K) { continue; }
 
         return (int)(V1->values[row][i]) - (int)(V2->values[row][i]);
-	}
-	
-	// if we are here the two matrices are equal
-	return 0;
-}
-
-/// NOTE: non-constant time
-/// implements a total order on matrices
-/// we simply compare the columns lexicographically
-/// \param V1[in]
-/// \param V2[in]
-/// \param z[in]: number of rows within bot matrices
-/// \return -x if V2 > V1
-///			 0 if V2 == V1
-///			+x
-int compare_matrices_raw(const normalized_IS_t *V1,
-                         const FQ_ELEM *V2,
-                         const uint32_t z) {
-	for (uint32_t row = 0; row < z; row++) {
-        uint32_t i=0;
-        while((i < N-K) &&
-             ((V1->values[row][i] - V2[row*N_K_pad + i]) == 0)) {
-            i++;
-        }
-
-        if (i >= K) { continue; }
-
-        return (int)(V1->values[row][i]) - (int)(V2[row*N_K_pad + i]);
 	}
 	
 	// if we are here the two matrices are equal
@@ -357,40 +284,6 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 	return 1;
 }
 
-/// NOTE: constant time
-/// NOTE: computes the result inplace
-/// \param G[in/out] non IS part of a generator matrix
-/// \return 0 on failure
-/// 		1 on success
-int compute_canonical_form_type5_ct(normalized_IS_t *G) {
-    normalized_IS_t Aj, smallest;
-    int touched = 0;
-
-    // init the output matrix to some `invalid` data
-	memset(&smallest.values, Q-1, sizeof(normalized_IS_t));
-	memset(&Aj.values, 0, sizeof(normalized_IS_t));
-
-    FQ_ELEM row_inv_data[N_K_pad] = {0};
-    for (uint32_t row = 0; row < K; row++) {
-        if (row_contains_zero(G->values[row])) { continue; }
-
-        row_inv2(row_inv_data, G->values[row]);
-        for (uint32_t row2 = 0; row2 < K; row2++) {
-            row_mul3(Aj.values[row2], G->values[row2], row_inv_data);
-        }
-
-        const int ret = compute_canonical_form_type4_ct(&Aj);
-        if ((ret == 1) && (compare_matrices(&Aj, &smallest, K) < 0)) {
-            touched = 1;
-            normalized_copy(&smallest, &Aj);
-        }
-    }
-
-    if (!touched) { return 0; }
-
-    normalized_copy(G, &smallest);
-    return 1;
-}
 
 /// NOTE: non-constant time
 /// NOTE: computes the result inplace
@@ -534,14 +427,6 @@ int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
         }
     }
     return 0;
-}
-
-/// NOTE: constant time implementation
-/// \param G[in/out] non IS part of a generator matrix
-/// \return 0 on failure
-/// 		1 on success
-int cf5(normalized_IS_t *G) {
-    return compute_canonical_form_type5_ct(G);
 }
 
 /// NOTE: non-constant time implementation

@@ -34,7 +34,10 @@
 #include "macro.h"
 #include "utils.h"
 
+/// TODO describe
 #define LESS_WSZ 32
+
+// TODO replace with round up macro from 'paramters'
 #define NW ((N + LESS_WSZ - 1) / LESS_WSZ)
 
 // Select low 8-bit, skip the high 8-bit in 16 bit type
@@ -51,6 +54,7 @@ void scale_row(generator_mat_t *G, const uint32_t row, const FQ_ELEM a) {
 		G->values[row][col] = fq_mul(G->values[row][col], a);
 	}
 }
+
 /* Calculate pivot flag array */
 void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t pivot_flag [N]) {
     for (int i = 0; i < N; i = i + 1) {
@@ -220,22 +224,6 @@ void column_cswap(normalized_IS_t *V,
                   const uintptr_t mask){
     for(uint32_t i = 0; i<K;i++ ){
        MASKED_SWAP(V->values[i][col1], V->values[i][col2], mask);
-    }
-}
-
-/// \param V
-/// \param row1
-/// \param row2
-void row_swap(normalized_IS_t *V,
-              const POSITION_T row1,
-              const POSITION_T row2) {
-    ASSERT(row1 < K);
-    ASSERT(row2 < K);
-    for(uint32_t i = 0; i < N-K; i++){
-        POSITION_T tmp;
-        tmp = V->values[row1][i];
-        V->values[row1][i] = V->values[row2][i];
-        V->values[row2][i] = tmp;
     }
 }
 
@@ -460,20 +448,28 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
    return 1;
 } /* end generator_RREF_pivot_reuse */
 
-void prepare_digest_input(normalized_IS_t *V,
+/// TODO: change the type of "Q_bar_IS" to something which only tracks the permutation and not monomial
+/// \param V[out]: non IS-part of a generator matrix: K \times N-K
+///         = NO_IS(RREF(G * Q_tilde))
+/// \param Q_bar_IS[out]: the permutation applied to get "V"
+/// \param G[in]: generator matrix: K \times N
+/// \param Q_tilde[in]: ephemeral monomial matrix to be applied to
+///         G.
+/// \return 0 on failure, can only fail if RREF fails
+///         1 on success
+int prepare_digest_input(normalized_IS_t *V,
                           monomial_action_IS_t *Q_bar_IS,
                           const generator_mat_t *const G,
-                          const monomial_t *const Q_tilde) { 
+                          const monomial_t *const Q_tilde) {
     generator_mat_t G_dagger;
     memset(&G_dagger,0,sizeof(generator_mat_t));
     generator_monomial_mul(&G_dagger, G, Q_tilde);
 
     uint8_t is_pivot_column[N] = {0};
-    int rref_ok = generator_RREF(&G_dagger, is_pivot_column);
-    /// TODO, this is kind of bad, should be removed, and proper error handling should be applied
-    ASSERT(rref_ok != 0);
+    if (generator_RREF(&G_dagger, is_pivot_column) == 0) {
+        return 0;
+    }
 
-    // just copy the non IS
     // just copy the non IS
     uint32_t ctr = 0;
     for(uint32_t j = 0; j < N-K; j++) {
@@ -493,27 +489,32 @@ void prepare_digest_input(normalized_IS_t *V,
     for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
         POSITION_T row_idx = 0;
         for(uint32_t i = 0; i < N; i++) {
-           if (Q_tilde->permutation[i] == col_idx) {
-              row_idx = i;
-           }
+            if (Q_tilde->permutation[i] == col_idx) {
+                row_idx = i;
+            }
         }
 
         if(is_pivot_column[col_idx] == 1) {
-           Q_bar_IS->permutation[piv_idx] = row_idx;
-           piv_idx++;
+            Q_bar_IS->permutation[piv_idx] = row_idx;
+            piv_idx++;
         }
     }
+
+    return 1;
 } /* end prepare_digest_input */
 
-
-/// TODO doc
-/// \param V
-/// \param Q_bar_IS
-/// \param G
-/// \param Q_tilde
+/// TODO: change the type of "Q_bar_IS" to something which only tracks the permutation and not monomial
+/// \param V[out]: non IS-part of a generator matrix: K \times N-K
+///         = NO_IS(RREF(G * Q_tilde))
+/// \param Q_bar_IS[out]: the permutation applied to get "V"
+/// \param G[in]: generator matrix: K \times N
+/// \param Q_tilde[in]: ephemeral monomial matrix to be applied to
+///         G.
 /// \param initial_pivot_flags
 /// \param pvt_reuse_limit
-void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
+/// \return 0 on failure, can only fail if RREF fails
+///         1 on success
+int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
                                       monomial_action_IS_t *Q_bar_IS,
                                       const generator_mat_t *const G,
                                       const monomial_t *const Q_tilde,
@@ -567,57 +568,6 @@ void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
     }
 
 } /* end prepare_digest_input_pivot_reuse */
-
-
-/// TODO remove, currently only needed for debugging cf
-// V1 =V2
-void normalized_copy(normalized_IS_t *V1,
-                     const normalized_IS_t *V2) {
-    memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
-}
-
-/// TODO remove, currently only needed for debugging cf
-void normalized_ind(normalized_IS_t *V) {
-    for (uint32_t i = 0; i < K; ++i) {
-        for (uint32_t j = 0; j < N-K; ++j) {
-            V->values[i][j] = i == j;
-        }
-    }
-}
-
-/// TODO remove, currently only needed for debugging cf
-void normalized_sf(normalized_IS_t *V) {
-    normalized_ind(V);
-
-    unsigned char x;
-    for (uint32_t b = 0; b < 32; b++) {
-        for (uint32_t i = 0; i < K; ++i) {
-            for (uint32_t j = 0; j < K; ++j) {
-                if (j == i) { continue; }
-
-                randombytes(&x, 1);
-                if (x & 1) {
-                    for (uint32_t k = 0; k < N - K; ++k) {
-                        if ((b&1) == 0) V->values[j][k] = fq_add(V->values[j][k], V->values[i][k]);
-                        else V->values[K-1-j][k] = fq_add(V->values[K-1-j][k], V->values[K-1-i][k]);
-                    }
-                }
-            }
-        }
-    }
-}
-
-// generate a random matrix with full rank, where the first k columns are systemized
-void generator_sf(generator_mat_t *res) {
-    for (uint32_t i = 0; i < K; ++i) {
-        for (uint32_t j = 0; j < K; ++j) {
-            res->values[i][j] = i == j;
-        }
-
-        rand_range_q_elements(res->values[i] + K, N-K);
-    }
-}
-
 
 /* Compresses a generator matrix in RREF storing only non-pivot columns and
  * their position */
@@ -834,6 +784,29 @@ void expand_to_rref(generator_mat_t *full,
 
 } /* end expand_to_rref */
 
+
+// V1 =V2
+void normalized_copy(normalized_IS_t *V1,
+                     const normalized_IS_t *V2) {
+    memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
+}
+
+/// \param V
+/// \param row1
+/// \param row2
+void normalized_row_swap(normalized_IS_t *V,
+              const POSITION_T row1,
+              const POSITION_T row2) {
+    ASSERT(row1 < K);
+    ASSERT(row2 < K);
+    for(uint32_t i = 0; i < N-K; i++){
+        POSITION_T tmp;
+        tmp = V->values[row1][i];
+        V->values[row1][i] = V->values[row2][i];
+        V->values[row2][i] = tmp;
+    }
+}
+
 /* Expands a compressed RREF generator matrix into a full one */
 void generator_rref_expand(generator_mat_t *full,
                            const rref_generator_mat_t *const compact) {
@@ -855,13 +828,6 @@ void generator_rref_expand(generator_mat_t *full,
    }
 } /* end generator_rref_expand */
 
-/* samples a random generator matrix */
-void generator_rnd(generator_mat_t *res) {
-   for(uint32_t i = 0; i < K; i++) {
-      rand_range_q_elements(res->values[i], N);
-   }
-} /* end generator_rnd */
-
 void generator_SF_seed_expand(rref_generator_mat_t *res,
                               const unsigned char seed[SEED_LENGTH_BYTES]) {
    SHAKE_STATE_STRUCT csprng_state;
@@ -875,59 +841,3 @@ void generator_SF_seed_expand(rref_generator_mat_t *res,
 
 
 } /* end generator_seed_expand */
-
-/* pretty_print for full generator matrices */
-void generator_pretty_print_name(char *name, const generator_mat_t *const G)
-{
-   fprintf(stderr,"%s = M([",name);
-   for(int i = 0; i < K-1 ; i++ ) {
-      fprintf(stderr,"[");
-      for(int j = 0; j < N-1; j++) {
-         fprintf(stderr,"%u, ",G->values[i][j]);
-      }
-      fprintf(stderr,"%u ],\n",G->values[i][N-1]);
-   }
-   fprintf(stderr,"[");
-   for(int j = 0; j < N-1; j++) {
-      fprintf(stderr,"%u, ",G->values[K-1][j]);
-   }
-   fprintf(stderr,"%u ] ])\n",G->values[K-1][N-1]);
-} /* end generator_pretty_print_name */
-
-/* pretty_print for generator matrices in row-reduced echelon form*/
-void generator_rref_pretty_print_name(char *name,
-                                      const rref_generator_mat_t *const G)
-{
-   fprintf(stderr,"%s =\n[",name);
-   for(int i = 0; i < K-1 ; i++ ) {
-      fprintf(stderr,"[");
-      for(int j = 0; j < (N-K)-1; j++) {
-         fprintf(stderr,"%u, ",G->values[i][j]);
-      }
-      fprintf(stderr,"%u ],\n",G->values[i][(N-K)-1]);
-   }
-   fprintf(stderr,"[");
-   for(int j = 0; j < (N-K)-1; j++) {
-      fprintf(stderr,"%u, ",G->values[K-1][j]);
-   }
-   fprintf(stderr,"%u ] ]\n",G->values[K-1][(N-K)-1]);
-   fprintf(stderr,"column_pos = \n [ ");
-   for(int x=0; x < K ; x++) {
-      fprintf(stderr," %d ",G->column_pos[x]);
-   }
-   fprintf(stderr,"]\n");
-
-} /* end generator_rref_pretty_print_name */
-
-/// \param G
-void normalized_pretty_print(const normalized_IS_t *const G) {
-    for (uint32_t i = 0; i < K; ++i) {
-        for (uint32_t j = 0; j < (N-K-1); ++j) {
-            printf("%3d,", G->values[i][j]);
-        }
-        printf("%3d\n", G->values[i][N-K-1]);
-    }
-
-    printf("\n");
-}
-
