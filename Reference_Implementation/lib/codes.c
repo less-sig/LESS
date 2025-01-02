@@ -709,8 +709,8 @@ void normalized_ind(normalized_IS_t *V) {
     }
 }
 
-/// generates a
-/// @param V [in/out]
+/// generates a full rank matrix
+/// \param V [in/out]
 void normalized_sf(normalized_IS_t *V) {
     normalized_ind(V);
 

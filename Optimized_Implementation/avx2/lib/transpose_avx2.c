@@ -22,11 +22,11 @@ static const uint8_t SHUFFLE_MASK[4][32] __attribute__((aligned(32))) = {
 /// TODO probably just make two functions, one for aligned access and one for unaligned
 typedef __m256i_u LOAD_TYPE;
 typedef __m256i_u STORE_TYPE;
-void gf127_matrix_transpose_64x64_avx2(uint8_t* dst_origin,
-                                       const uint8_t* src_origin,
-                                       const uint8_t* prf_origin,
-                                       const size_t src_stride,
-                                       const size_t dst_stride) {
+void matrix_transpose_64x64_avx2(uint8_t* dst_origin,
+                                 const uint8_t* src_origin,
+                                 const uint8_t* prf_origin,
+                                 const size_t src_stride,
+                                 const size_t dst_stride) {
   const __m256i shm_1 = _mm256_load_si256((const __m256i *)SHUFFLE_MASK[0]);
   const __m256i blm_1 = _mm256_load_si256((const __m256i *)BLENDV_MASK[0]);
   __m256i rnd_0_0 = *(const LOAD_TYPE*)(src_origin + 0*src_stride);

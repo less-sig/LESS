@@ -11,9 +11,9 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS      " -Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal")
-set(CMAKE_C_FLAGS_DEBUG   " -g -DDEBUG -O0 -Wall -Wpedantic -Wextra -march=native -mavx2 -mavx ${ALLOWED_WARNINGS}")
-set(CMAKE_C_FLAGS_RELEASE " -g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -flto -ftree-vectorize -funroll-loops -fomit-frame-pointer ${ALLOWED_WARNINGS}")
+set(ALLOWED_WARNINGS      " -Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal -fno-inline")
+set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -g -O0 -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native ${ALLOWED_WARNINGS}")
+set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -flto -ftree-vectorize -funroll-loops -fomit-frame-pointer ${ALLOWED_WARNINGS}")
 
 
 set(SOURCES
@@ -31,6 +31,7 @@ set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/sort.c
         ${PROJECT_SOURCE_DIR}/lib/transpose.c
         ${PROJECT_SOURCE_DIR}/lib/KeccakP-1600-AVX2.s
+        ${PROJECT_SOURCE_DIR}/lib/transpose_avx2.c
 )
 
 set(HEADERS
@@ -94,6 +95,18 @@ foreach(category RANGE 1 5 2)
   # TODO remove once everything is done
   set(TARGET_BINARY_NAME LESS_test_arith_${category})
   add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/test/test_arith.c ${SOURCES})
+  target_link_libraries(${TARGET_BINARY_NAME} m crypto)
+  set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -DSHORT_SIG=1 ${KECCAK_EXTERNAL_ENABLE} ")
+
+  # TODO remove once everything is done
+  set(TARGET_BINARY_NAME LESS_test_sort_${category})
+  add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/test/sort.c ${SOURCES})
+  target_link_libraries(${TARGET_BINARY_NAME} m crypto)
+  set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -DSHORT_SIG=1 ${KECCAK_EXTERNAL_ENABLE} ")
+
+  # TODO remove once everything is done
+  set(TARGET_BINARY_NAME LESS_bench_sort_${category})
+  add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/bench/bench_sorting.c ${SOURCES})
   target_link_libraries(${TARGET_BINARY_NAME} m crypto)
   set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -DSHORT_SIG=1 ${KECCAK_EXTERNAL_ENABLE} ")
 endforeach(category)
