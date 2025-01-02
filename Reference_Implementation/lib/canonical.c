@@ -20,9 +20,7 @@ int compute_canonical_form_type3(normalized_IS_t *G) {
 	    return 0;
     }
 #ifdef LESS_USE_HISTOGRAM
-    // TODO the problem is that the transposed version also uses row sorting
-    col_lex_quicksort(G, 0, N-K-1);
-    // col_quicksort_transpose(G, K);
+    col_quicksort_transpose(G, K);
 #else
     // col_quicksort_transpose(G, K);
     col_lex_quicksort(G, 0, N-K-1);
@@ -38,11 +36,9 @@ int compute_canonical_form_type3(normalized_IS_t *G) {
 int compute_canonical_form_type3_ct(normalized_IS_t *G) {
     const int ret = row_bitonic_sort(G);
 #ifdef LESS_USE_HISTOGRAM
-    // TODO the problem is that the transposed version also uses row sorting
-    col_lex_quicksort(G, 0, N-K-1);
+    col_quicksort_transpose(G, K);
 #else
     col_lex_quicksort(G, 0, N-K-1);
-    // col_bitonic_sort_transpose(G);
 #endif
     return ret;
 }
