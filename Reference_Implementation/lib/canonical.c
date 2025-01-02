@@ -34,7 +34,8 @@ int compute_canonical_form_type3(normalized_IS_t *G) {
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
 int compute_canonical_form_type3_ct(normalized_IS_t *G) {
-    const int ret = row_bitonic_sort(G);
+    // todo not working const int ret = row_bitonic_sort(G);
+    const int ret = row_quick_sort(G, K);
 #ifdef LESS_USE_HISTOGRAM
     col_quicksort_transpose(G, K);
 #else
@@ -126,8 +127,12 @@ int compute_canonical_form_type4(normalized_IS_t *G) {
 int compute_canonical_form_type4_sub(normalized_IS_t *G,
                                      const uint32_t z,
                                      const FQ_ELEM *min_multiset) {
-	/// todo is the init to 0 correct?
+#ifdef LESS_USE_HISTOGRAM
+    FQ_ELEM tmp[Q];
+#else
     FQ_ELEM tmp[N_K_pad] = {0};
+#endif
+
     for (uint32_t i = 0; i < z; i++) {
 		FQ_ELEM s = row_acc(G->values[i]);
 
@@ -144,6 +149,7 @@ int compute_canonical_form_type4_sub(normalized_IS_t *G,
             return 1;
         }
     }
+
     return 0;
 }
 
@@ -307,13 +313,14 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
     }
 
     normalized_IS_t scaled_sub_G;
-	FQ_ELEM min_multiset[N_K_pad];
 	FQ_ELEM row_inv_data[N_K_pad];
 
 	/// NOTE: this is already "sorted"
 #ifdef LESS_USE_HISTOGRAM
-	memset(min_multiset, 0, N_K_pad);
+	FQ_ELEM min_multiset[Q];
+	memset(min_multiset, 0, Q );
 #else
+	FQ_ELEM min_multiset[N_K_pad];
 	memset(min_multiset, Q-1, N_K_pad);
 #endif
 	for (uint32_t row = 0; row < K; row++) {
@@ -325,6 +332,13 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 		}
 
         if (compute_canonical_form_type4_sub(&scaled_sub_G, z, min_multiset)) {
+            // TODO need to talk with paolo about this
+#ifdef LESS_USE_HISTOGRAM
+            row_sort(min_multiset, scaled_sub_G.values[0], N-K);
+#else
+            memcpy(min_multiset, scaled_Sub_G.values[0], N_K_pad);
+#endif
+
             for (uint32_t row2 = 0; row2 < K; row2++) {
                 row_mul3(Aj.values[row2], G->values[row2], row_inv_data);
             }
@@ -333,8 +347,6 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 		    if ((ret == 1) && (compare_matrices(&Aj, &smallest, K) < 0)) {
 		    	touched = 1;
 		    	normalized_copy(&smallest, &Aj);
-
-				memcpy(min_multiset, smallest.values[0], N_K_pad);
 		    }
         }
 	}

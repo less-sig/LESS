@@ -82,14 +82,13 @@ int test_sorting_network_matrix(void) {
 int test_col_sorting_network_matrix(void) {
     normalized_IS_t G1, G2, G3;
 
-
     for (uint32_t k = 0; k < TESTS; k++) {
         normalized_sf(&G1);
         memcpy((void *)G2.values, (void*)G1.values, sizeof(normalized_IS_t));
         memcpy((void *)G3.values, (void*)G1.values, sizeof(normalized_IS_t));
 
         lex_sort_cols(&G1);
-        col_quicksort_transpose(&G2, K);//, 0, N - K - 1);
+        col_quicksort_transpose(&G2, K_pad);//, 0, N - K - 1);
         // col_bitonic_sort_transpose(&G3);
 
         for (uint32_t i = 0; i < K; i++) {

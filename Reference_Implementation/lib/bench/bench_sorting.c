@@ -27,19 +27,6 @@ int bench_sorting(void) {
     c1 = c / ITERS;
     printf("int8_sort: %u cyc\n", c1);
 
-#ifdef USE_AVX2 // TODO remove
-    c = 0;
-    for (uint64_t i = 0; i < ITERS; i++) {
-        for (size_t j = 0; j < s; j++) { d1[j] = s-j; }
-
-        c -= read_cycle_counter();
-        sortingnetwork(d1, s);
-        c += read_cycle_counter();
-    }
-    c = c/ITERS;
-    printf("network:     %ld cyc\n", c);
-    printf("factor %lf\n", (double)c/(double)c1);
-#endif
     free(d1);
     return 0;
 }
@@ -111,17 +98,17 @@ int bench_col_sorting(void) {
     printf("quickT:  %u cyc\n", c);
     printf("factor %lf\n", ((double) c) / (double) c1);
 
-    c = 0;
-    for (unsigned i = 0; i < ITERS; i++) {
-        normalized_rng(&G1);
+    // c = 0;
+    // for (unsigned i = 0; i < ITERS; i++) {
+    //     normalized_rng(&G1);
 
-        c -= read_cycle_counter();
-        lex_sort_cols(&G1);
-        c += read_cycle_counter();
-    }
-    c = c / ITERS;
-    printf("normal:  %u cyc\n", c);
-    printf("factor %lf\n", ((double) c) / (double) c1);
+    //     c -= read_cycle_counter();
+    //     lex_sort_cols(&G1);
+    //     c += read_cycle_counter();
+    // }
+    // c = c / ITERS;
+    // printf("normal:  %u cyc\n", c);
+    // printf("factor %lf\n", ((double) c) / (double) c1);
 
 
     return 0;

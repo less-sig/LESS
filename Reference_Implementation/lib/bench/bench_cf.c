@@ -9,7 +9,6 @@
 
 #define ITERS (1u << 10u)
 
-
 int bench_cf3(void) {
     normalized_IS_t G1, G2;
 

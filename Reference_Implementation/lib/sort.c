@@ -356,6 +356,7 @@ int row_quick_sort_internal(FQ_ELEM *ptr[K],
             stack[++s] = h;
         }
     }
+
     return 1;
 }
 
@@ -369,11 +370,11 @@ int row_quick_sort(normalized_IS_t *G,
                    const uint32_t n) {
 	// first sort each row into a tmp buffer
 #ifdef LESS_USE_HISTOGRAM
-	FQ_ELEM tmp[K][Q];
+	FQ_ELEM tmp[K][Q] __attribute__((aligned(32)));
 #else
 	FQ_ELEM tmp[K][N-K];
 #endif
-    FQ_ELEM* ptr[K];
+    FQ_ELEM* ptr[K] __attribute__((aligned(32)));
     uint32_t P[K];
 	for (uint32_t i = 0; i < n; ++i) {
         row_sort(tmp[i], G->values[i], N-K);
@@ -721,7 +722,7 @@ int row_quick_sort_internal_without_histogram(FQ_ELEM* ptr[K],
 void col_quicksort_transpose(normalized_IS_t *V,
                              const uint32_t z) {
     normalized_IS_t VT;
-    matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, K, z);
+    matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, z, K_pad);
 
     FQ_ELEM* ptr[K];
     uint32_t P[K];
@@ -741,7 +742,7 @@ void col_quicksort_transpose(normalized_IS_t *V,
         normalized_row_swap(&VT, t, ind);
     }
 
-    matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, z, K);
+    matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, K_pad, z);
 }
 
 /// NOTE: internal function, do not call it directly.
