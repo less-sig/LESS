@@ -130,10 +130,16 @@
 
 #define NEXT_MULTIPLE(x,n) ((((x)+((n)-1u))/(n))*(n))
 
-/// TODO
+/// TODO document what these macros do
+#ifdef USE_AVX2
 #define N_K_pad NEXT_MULTIPLE(N-K,32)
 #define N_pad   NEXT_MULTIPLE(N,32)
 #define K_pad   NEXT_MULTIPLE(K,32)
+#else
+#define N_K_pad (N-K)
+#define N_pad   N
+#define K_pad   K
+#endif
 
 /***************** Derived parameters *****************************************/
 

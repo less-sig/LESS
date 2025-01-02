@@ -11,10 +11,9 @@
 /// NOTE: only for testing
 void normalized_rng(normalized_IS_t *V) {
     randombytes((uint8_t *)V->values, K*(N-K));
-    const uint8_t mask = 0x7F;
     for (unsigned i = 0; i < K; ++i) {
         for (unsigned j = 0; j < K; ++j) {
-            V->values[i][j] &= mask;
+            V->values[i][j] %= Q;
         }
     }
 }

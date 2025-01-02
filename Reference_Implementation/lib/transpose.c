@@ -89,12 +89,38 @@ static inline void matrix_transpose8xN(uint8_t *dst,
     }
 }
 
+/// assumes max 8 cols in the input matrix
+/// assumes that the output matrix has n columns
+/// \param dst
+/// \param src
+/// \param n   number of columns
+static inline void matrix_transposeNx8(uint8_t *dst,
+                                       const uint8_t *src,
+                                       const uint32_t n) {
+    const uint32_t bsize = 8;
+    uint64_t cb = 0;
+    for (; cb < n / bsize; cb++) {
+            const uint8_t *srcb_origin = src + (cb * n +  0) * bsize;
+                  uint8_t *dstb_origin = dst + ( 0 * n + cb) * bsize;
+        matrix_transpose8x8(dstb_origin, srcb_origin, n, n);
+    }
+
+    cb *= bsize;
+    for (; cb < n; cb++) {
+        for (uint32_t j = 0; j < 8; j++) {
+            const uint8_t t = src[cb*n + j];
+            dst[j*n + cb] = t;
+        }
+    }
+}
+
+
 /// Compute origin of the 64-block next to (rb, cb) in row-major order
 /// NOTE: internal function. Do no call directly.
-inline const uint8_t* next_block(const uint8_t *src,
-                                 uint64_t rb,
-                                 uint64_t cb,
-                                 const size_t n) {
+const uint8_t* next_block(const uint8_t *src,
+                          uint64_t rb,
+                          uint64_t cb,
+                          const size_t n) {
     uint64_t cb1 = cb + 1;
     uint64_t rb1 = rb;
     if (cb1 == n/64) {
@@ -108,22 +134,39 @@ inline const uint8_t* next_block(const uint8_t *src,
 /// TODO doc
 /// \param dst
 /// \param src
-/// \param n nr cols
-/// \param z nr rows
+/// \param r nr rows
+/// \param c nr cols
 void matrix_transpose_opt(uint8_t *dst,
                           const uint8_t *src,
-                          const uint32_t n,
-                          const uint32_t z) {
+                          const uint32_t r,
+                          const uint32_t c) {
+    // big block size
     const size_t bsize = 64;
-    // TODO:
-    //  - stride parameter is missing
-    //  - optimize in the
+    // small block size
+    const size_t small = 8;
 
-    if ((n < bsize) || (z < bsize)) {
-        for (uint32_t i = 0; i < z; i++) {
-            for (uint32_t j = 0; j < n; j++) {
+#ifdef USE_AVX2
+    const size_t src_stride = K_pad;
+    const size_t dst_stride = N_K_pad;
+#else
+    const size_t src_stride = K;
+    const size_t dst_stride = K;
+#endif
+
+    if ((c < bsize) || (r < bsize)) {
+        if (c <= small) {
+            matrix_transposeNx8(dst, src, r);
+            return;
+        }
+
+        if (r <= small) {
+            matrix_transpose8xN(dst, src, c);
+            return;
+        }
+        for (uint32_t i = 0; i < r; i++) {
+            for (uint32_t j = 0; j < c; j++) {
                 /// NOTE: hardcoded stride here
-                dst[j*K + i] = src[i*K + j];
+                dst[j*dst_stride + i] = src[i*src_stride + j];
             }
         }
 
@@ -131,35 +174,46 @@ void matrix_transpose_opt(uint8_t *dst,
     }
 
     uint64_t rb = 0;
-    for (; rb < n / bsize; rb++) {
-        for (uint64_t cb = 0; cb < n / bsize; cb++) {
-            const uint8_t *srcb_origin = src + (rb * n + cb) * bsize;
-                  uint8_t *dstb_origin = dst + (cb * n + rb) * bsize;
-
+    for (; rb < c / bsize; rb++) {
+        for (uint64_t cb = 0; cb < c / bsize; cb++) {
+// #ifdef USE_AVX2
+//             const uint8_t* prf_origin = next_block(src, rb, cb, src_stride);
+//             const uint8_t* src_origin = src + (rb*src_stride+cb)*64;
+//                   uint8_t* dst_origin = dst + (cb*dst_stride+rb)*64;
+//             const uint32_t n = src_stride;
+//
+//             matrix_transpose_64x64_avx2(dst_origin,                  src_origin,                  prf_origin,               n, n);
+//             matrix_transpose_64x64_avx2(dst_origin+32,               src_origin+32*src_stride,    prf_origin+src_stride*16, n, n);
+//             matrix_transpose_64x64_avx2(dst_origin+32*dst_stride,    src_origin+32,               prf_origin+src_stride*32, n, n);
+//             matrix_transpose_64x64_avx2(dst_origin+32*dst_stride+32, src_origin+32*src_stride+32, prf_origin+src_stride*48, n, n);
+// #else
+            const uint8_t *srcb_origin = src + (rb*src_stride + cb) * bsize;
+                  uint8_t *dstb_origin = dst + (cb*dst_stride + rb) * bsize;
             for (size_t rw = 0; rw < 64 / 8; rw++) {
                 for (size_t cw = 0; cw < 64 / 8; cw++) {
-                    const uint8_t *srcw_origin = srcb_origin + (cw * n + rw) * 8;
-                          uint8_t *dstw_origin = dstb_origin + (rw * n + cw) * 8;
-                    matrix_transpose8x8(dstw_origin, srcw_origin, n, n);
+                    const uint8_t *srcw_origin = srcb_origin + (cw*src_stride + rw) * 8;
+                          uint8_t *dstw_origin = dstb_origin + (rw*dst_stride + cw) * 8;
+                    matrix_transpose8x8(dstw_origin, srcw_origin, src_stride, dst_stride);
                 }
             }
+//#endif
         }
     }
 
-    const uint32_t rem = n % bsize;
+    const uint32_t rem = c % bsize;
     if (rem) {
         rb *= (64 / bsize);
 
         // solve the last columns
-        for (uint32_t i = rb*bsize; i < n; i++) {
-            for(uint32_t j = 0; j < n; j++) {
-                dst[j*n + i] = src[i*n + j];
+        for (uint32_t i = rb*bsize; i < c; i++) {
+            for(uint32_t j = 0; j < c; j++) {
+                dst[j*dst_stride + i] = src[i*src_stride + j];
             }
         }
         // solve the last rows
-        for (uint32_t i = 0; i < n; i++) {
-            for(uint32_t j = rb*bsize; j < n; j++) {
-                dst[j*n + i] = src[i*n + j];
+        for (uint32_t i = 0; i < c; i++) {
+            for(uint32_t j = rb*bsize; j < c; j++) {
+                dst[j*dst_stride + i] = src[i*src_stride + j];
             }
         }
     }
