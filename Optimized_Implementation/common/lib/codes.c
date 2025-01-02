@@ -258,7 +258,7 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
     int i, j, k, pivc;
     uint8_t tmp, sc;
 
-    vec256_t *gm[K];
+    vec256_t *gm[K] __attribute__((aligned(32)));
     vec256_t em[0x80][NW];
     vec256_t *ep[0x80];
     vec256_t c01, c7f;
@@ -520,20 +520,20 @@ int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
                                       const monomial_t *const Q_tilde,
                                       const uint8_t initial_pivot_flags [N],
                                       const int pvt_reuse_limit) {
-   uint8_t g_permuated_pivot_flags[N];
-   generator_mat_t G_dagger;
-    // TODO unneeded
-   memset(&G_dagger,0,sizeof(generator_mat_t));
-   generator_monomial_mul(&G_dagger, G, Q_tilde);
+    uint8_t g_permuated_pivot_flags[N];
+    generator_mat_t G_dagger;
+     // TODO unneeded
+    memset(&G_dagger,0,sizeof(generator_mat_t));
+    generator_monomial_mul(&G_dagger, G, Q_tilde);
 
-   for (uint32_t i = 0; i < N; i++) {
-       g_permuated_pivot_flags[Q_tilde->permutation[i]] = initial_pivot_flags[i];
-   }
+    for (uint32_t i = 0; i < N; i++) {
+        g_permuated_pivot_flags[Q_tilde->permutation[i]] = initial_pivot_flags[i];
+    }
 
-   uint8_t is_pivot_column[N] = {0};
-   int rref_ok = generator_RREF_pivot_reuse(&G_dagger,is_pivot_column, g_permuated_pivot_flags, pvt_reuse_limit);
-    /// TODO, this is kind of bad, should be removed, and proper error handling should be applied
-   ASSERT(rref_ok != 0);
+    uint8_t is_pivot_column[N] = {0};
+    if (generator_RREF_pivot_reuse(&G_dagger,is_pivot_column, g_permuated_pivot_flags, pvt_reuse_limit) == 0) {
+        return 0;
+    }
 
     // just copy the non IS
     uint32_t ctr = 0;
@@ -567,6 +567,7 @@ int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
         }
     }
 
+    return 1;
 } /* end prepare_digest_input_pivot_reuse */
 
 /* Compresses a generator matrix in RREF storing only non-pivot columns and

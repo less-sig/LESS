@@ -172,7 +172,7 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
 	// init the output matrix to some `invalid` data
 	memset(&smallest.values, Q-1, sizeof(normalized_IS_t));
 
-	FQ_ELEM row_inv_data[N_K_pad];
+	FQ_ELEM row_inv_data[N_K_pad] = {0};
 	for (uint32_t row = 0; row < K; row++) {
         if (row_contains_zero(G->values[row])) { continue; }
 
@@ -240,7 +240,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
     }
 
     normalized_IS_t scaled_sub_G;
-	FQ_ELEM row_inv_data[N_K_pad];
+	FQ_ELEM row_inv_data[N_K_pad] = {0};
 
 	/// NOTE: this is already "sorted"
 #ifdef LESS_USE_HISTOGRAM
@@ -263,7 +263,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 #ifdef LESS_USE_HISTOGRAM
             row_sort(min_multiset, scaled_sub_G.values[0], N-K);
 #else
-            memcpy(min_multiset, scaled_Sub_G.values[0], N_K_pad);
+            memcpy(min_multiset, scaled_sub_G.values[0], N_K_pad);
 #endif
 
             for (uint32_t row2 = 0; row2 < K; row2++) {
@@ -294,7 +294,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 /// 		1 on success
 int compute_canonical_form_type5_single_row(normalized_IS_t *G,
                                            const uint32_t row) {
-    FQ_ELEM coeffs[N_K_pad];
+    FQ_ELEM coeffs[N_K_pad] = {0};
     row_inv2(coeffs, G->values[row]);
     for (uint32_t row2 = 0; row2 < K; row2++) {
         row_mul3(G->values[row2], G->values[row2], coeffs);
@@ -384,7 +384,7 @@ int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
 
     /// Storage fo the scaled matrix
     normalized_IS_t scaled_sub_G;
-	FQ_ELEM coeffs[N_K_pad];
+	FQ_ELEM coeffs[N_K_pad] = {0};
 
     // Storage for the shortest matrices
     normalized_IS_t min_CF;
@@ -434,5 +434,6 @@ int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
 /// \return 0 on failure
 /// 		1 on success
 int cf5_nonct(normalized_IS_t *G) {
-    return compute_canonical_form_type5_popcnt(G);
+    // return compute_canonical_form_type5_popcnt(G);
+	return compute_canonical_form_type5(G);
 }
