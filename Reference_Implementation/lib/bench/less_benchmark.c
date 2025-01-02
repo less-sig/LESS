@@ -30,6 +30,8 @@
 #include "rng.h"
 #include "cycles.h"
 
+#include "../test/test_helpers.c"
+
 
 typedef struct {
     long double mean;

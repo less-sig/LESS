@@ -9,6 +9,7 @@
 #include "codes.h"
 #include "transpose.h"
 
+
 /// taken from djbsort
 /// \param a[in/out] first input
 /// \param b[in/out] second input
@@ -355,6 +356,7 @@ int row_quick_sort_internal(FQ_ELEM *ptr[K],
             stack[++s] = h;
         }
     }
+    return 1;
 }
 
 /// NOTE: only operates on ptrs

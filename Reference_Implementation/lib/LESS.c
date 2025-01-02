@@ -87,15 +87,16 @@ void LESS_keygen(prikey_t *SK,
     }
 } /* end LESS_keygen */
 
-// TODO, quick and dirty hack
+// TODO, quick and dirty hack: instead of this just set the correct file in the cmake
 #ifdef SEED_TREE
 
 /// returns the number of opened seeds in the tree.
-/// \param SK
-/// \param m
-/// \param mlen
-/// \param sig
-/// \return
+/// \param SK[in]: secret key
+/// \param m[in]: message to sign
+/// \param mlen[in]: length of the message to sign in bytes
+/// \param sig[out]: signature
+/// \return: 0: on failure
+///          x: number of leaves opened by the algorithm
 size_t LESS_sign(const prikey_t *SK,
                  const char *const m,
                  const uint64_t mlen,
@@ -154,31 +155,26 @@ size_t LESS_sign(const prikey_t *SK,
 
 #if defined(LESS_REUSE_PIVOTS_SG)
             // TODO half of these operations within this function can be removed
-            prepare_digest_input_pivot_reuse(&V_array,
-                                             &Q_bar[i],
-                                             &full_G0,
-                                             &Q_tilde,
-                                             g0_initial_pivot_flags,
-                                             SIGN_PIVOT_REUSE_LIMIT);
+            if (prepare_digest_input_pivot_reuse(&V_array,
+                                                 &Q_bar[i],
+                                                 &full_G0,
+                                                 &Q_tilde,
+                                                 g0_initial_pivot_flags,
+                                                 SIGN_PIVOT_REUSE_LIMIT) == 0) {
+                return 0;
+            }
 #else
-        prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde);
+        if (prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde) == 0) {
+            return 0;
+        }
 #endif
-        // blind(&V_array, &cf_shake_state);
-        normalized_IS_t V_array2;
-        normalized_copy(&V_array2, &V_array);
-        const int t = cf5_nonct(&V_array2);
+        blind(&V_array, &cf_shake_state);
+        const int t = cf5_nonct(&V_array);
         if (t == 0) {
             *(ephem_monomial_seeds + i*SEED_LENGTH_BYTES) += 1;
             i -= 1;
-            // TODO, what happens in this case?
-            normalized_pretty_print(&V_array);
-            printf("\n");
-            printf("\n");
-            normalized_pretty_print(&V_array2);
-            printf("\n");
-            printf("cf5 failed\n");
         } else {
-            LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array2, sizeof(normalized_IS_t));
+            LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
         }
     }
 
@@ -227,11 +223,13 @@ size_t LESS_sign(const prikey_t *SK,
     return num_seeds_published;
 } /* end LESS_sign */
 
-/// \param PK
-/// \param m
-/// \param mlen
-/// \param sig
-/// \return
+/// NOTE: non-constant time
+/// \param PK[in]: public key
+/// \param m[in]: message for which a signature was computed
+/// \param mlen[in]: length of the message in bytes
+/// \param sig[in]: signature
+/// \return 0: on failure
+///         1: on success
 int LESS_verify(const pubkey_t *const PK,
                 const char *const m,
                 const uint64_t mlen,
@@ -280,17 +278,21 @@ int LESS_verify(const pubkey_t *const PK,
                                               i);
 #if defined(LESS_REUSE_PIVOTS_VY)
             // TODO half of these operations can be optimized away
-            prepare_digest_input_pivot_reuse(&V_array,
-                                             &Q_to_discard,
-                                             &tmp_full_G,
-                                             &Q_to_multiply,
-                                             g_initial_pivot_flags,
-                                             VERIFY_PIVOT_REUSE_LIMIT);
+            if (prepare_digest_input_pivot_reuse(&V_array,
+                                                 &Q_to_discard,
+                                                 &tmp_full_G,
+                                                 &Q_to_multiply,
+                                                 g_initial_pivot_flags,
+                                                 VERIFY_PIVOT_REUSE_LIMIT) == 0) {
+                return 0;
+            }
 #else
-            prepare_digest_input(&V_array,
-                                 &Q_to_discard,
-                                 &tmp_full_G,
-                                 &Q_to_multiply);
+            if (prepare_digest_input(&V_array,
+                                     &Q_to_discard,
+                                     &tmp_full_G,
+                                     &Q_to_multiply) == 0) {
+                return 0;
+            }
 #endif
 
             const int r = cf5_nonct(&V_array);
