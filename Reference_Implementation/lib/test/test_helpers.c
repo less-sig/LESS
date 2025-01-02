@@ -87,10 +87,9 @@ void yt_shuffle_v2(POSITION_T permutation[N], const uint32_t max) {
 /// NOTE: only for testing
 void normalized_rng(normalized_IS_t *V) {
     randombytes((uint8_t *)V->values, K*(N-K));
-    const uint8_t mask = 0x7F;
     for (uint32_t i = 0; i < K; ++i) {
         for (uint32_t j = 0; j < K; ++j) {
-            V->values[i][j] &= mask;
+            V->values[i][j] %= Q;
         }
     }
 }

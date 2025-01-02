@@ -50,24 +50,36 @@ int bench_row_sorting(void) {
     normalized_IS_t G1;
 
     unsigned c = 0, c1;
+    uint32_t ctr = 0;
     for (unsigned i = 0; i < ITERS; i++) {
         normalized_rng(&G1);
         c -= read_cycle_counter();
-        row_bitonic_sort(&G1);
+        ctr += row_bitonic_sort(&G1);
         c += read_cycle_counter();
     }
     c1 = c / ITERS;
-    printf("bitonic: %u cyc\n", c1);
+    printf("bitonic: %u cyc, %d\n", c1, ctr);
 
-    c=0;
+    c=0; ctr=0;
     for (unsigned i = 0; i < ITERS; i++) {
         normalized_rng(&G1);
         c -= read_cycle_counter();
-        row_quick_sort(&G1, K);
+        ctr += row_quick_sort(&G1, K);
         c += read_cycle_counter();
     }
     c = c / ITERS;
-    printf("quick: %u cyc\n", c);
+    printf("quick  : %u cyc, %d\n", c, ctr);
+    printf("factor %lf\n", ((double) c) / (double) c1);
+
+    c=0; ctr=0;
+    for (unsigned i = 0; i < ITERS; i++) {
+        normalized_rng(&G1);
+        c -= read_cycle_counter();
+        ctr += row_quick_sort_recursive(&G1, K);
+        c += read_cycle_counter();
+    }
+    c = c / ITERS;
+    printf("quickr : %u cyc, %d\n", c, ctr);
     printf("factor %lf\n", ((double) c) / (double) c1);
     return 0;
 }
@@ -99,13 +111,25 @@ int bench_col_sorting(void) {
     printf("quickT:  %u cyc\n", c);
     printf("factor %lf\n", ((double) c) / (double) c1);
 
+    c = 0;
+    for (unsigned i = 0; i < ITERS; i++) {
+        normalized_rng(&G1);
+
+        c -= read_cycle_counter();
+        lex_sort_cols(&G1);
+        c += read_cycle_counter();
+    }
+    c = c / ITERS;
+    printf("normal:  %u cyc\n", c);
+    printf("factor %lf\n", ((double) c) / (double) c1);
+
 
     return 0;
 }
 
 int main(void) {
-    if (bench_sorting()) return 1;
-    if (bench_row_sorting()) return 1;
+    // if (bench_sorting()) return 1;
+    // if (bench_row_sorting()) return 1;
     if (bench_col_sorting()) return 1;
     return 0;
 }

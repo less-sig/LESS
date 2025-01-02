@@ -95,7 +95,7 @@ int lex_compare_col(const normalized_IS_t *G1,
 //
 int lex_compare_with_pivot(normalized_IS_t *V,
                            const POSITION_T col_idx,
-                           FQ_ELEM pivot[K]);
+                           const FQ_ELEM pivot[K]);
 
 // in place quick sort
 void col_lex_quicksort(normalized_IS_t *V, 

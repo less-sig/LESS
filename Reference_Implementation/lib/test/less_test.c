@@ -9,6 +9,8 @@
 #include "rng.h"
 #include "api.h"
 
+#include "test_helpers.c"
+
 #define GRN "\e[0;32m"
 #define WHT "\e[0;37m"
 

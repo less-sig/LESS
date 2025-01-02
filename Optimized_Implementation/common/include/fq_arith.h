@@ -90,11 +90,36 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
  * Backup implementation for less aggressive compilers follows */
 
 
+/// TODO remove 
+#define FQ_TRIPLEPREC FQ_DOUBLEPREC
+
+
+static inline
+FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
+    // equivalent to: (x >= Q) ? (x - Q) : x
+    // likely to be ~ constant-time (a "smart" compiler might turn this into conditionals though)
+    FQ_ELEM sub_q = x - Q;
+    FQ_ELEM mask = -(sub_q >> NUM_BITS_Q);
+    return (mask & Q) + sub_q;
+}
+
+static inline
+FQ_ELEM fq_red(const FQ_DOUBLEPREC x) {
+    return fq_cond_sub((x >> NUM_BITS_Q) + ((FQ_ELEM) x & Q));
+}
+
+static inline
+FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
+    return fq_cond_sub(x + Q - y);
+}
+
 /// todo remove both functions
+///
 static inline
 FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
       return (x + y) % Q;
 }
+
 static inline
 FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
    return ((FQ_DOUBLEPREC)x * (FQ_DOUBLEPREC)y) % Q;
@@ -144,11 +169,6 @@ FQ_DOUBLEPREC br_red16(FQ_DOUBLEPREC x)
    return x - y;
 }
 
-static inline
-FQ_ELEM fq_red(FQ_DOUBLEPREC x)
-{
-   return ((FQ_DOUBLEPREC) Q+x) % (FQ_DOUBLEPREC) Q;
-}
 
 /// NOTE: maybe dont use it for sensetive data
 static const uint8_t fq_inv_table[127] __attribute__((aligned(64))) = {
@@ -196,18 +216,20 @@ DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
 /// \return sum(d) for _ in range(N-K)
 static inline
 FQ_ELEM row_acc(const FQ_ELEM *d) {
-    vec256_t s, t, c1, c127;
+    vec256_t s, t, c01, c7f;
     vset8(s, 0);
-    vset8(c1, 0x01);
-    vset8(c127, 0x7F);
+    vset8(c01, 0x01);
+    vset8(c7f, 0x7F);
 
     for (uint32_t col = 0; col < N_K_pad; col+=32) {
         vload256(t, (const vec256_t *)(d + col));
         vadd8(s, s, t);
-        barrett_red8(s, t, c127, c1);
+        //barrett_red8(s, t, c7f, c01);
+        W_RED127_(s);
 	 }
 
-    return vhadd8(s);
+    uint32_t k = vhadd8(s);
+    return fq_red(k);
 }
 
 /// accumulates the inverse of a row
@@ -393,12 +415,20 @@ uint32_t row_contains_zero(const FQ_ELEM *in) {
     vec256_t t1, t2, acc;
     vset8(t2, 0);
     vset8(acc, 0);
-    for (uint32_t col = 0; col < N_K_pad; col += 32) {
+    uint32_t col = 0;
+    for (; col < (N_K_pad-32); col += 32) {
         vload256(t1, (vec256_t *)(in + col));
         vcmp8(t1, t1, t2);
-        vxor(acc, acc, t1);
+        vor(acc, acc, t1);
     }
     
-        const uint32_t t3 = vmovemask8(acc);
-    return t3 == 0;
+    const uint32_t t3 = vmovemask8(acc);
+    if (t3 != 0ul) { return 1; }
+
+    for (;col < N-K; col++) {
+        if (in[col] == 0) {
+            return 1;
+        }
+    }
+    return 0;
 }

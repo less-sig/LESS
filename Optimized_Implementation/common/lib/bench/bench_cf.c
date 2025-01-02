@@ -101,18 +101,18 @@ int bench_cf5(void) {
     printf("factor %lf\n\n", (double)c/(double)c1);
 
 
-    c = 0; ctr = 0;
-    for (uint64_t i = 0; i < ITERS; i++) {
-        normalized_copy(&G1, &G2);
+   // c = 0; ctr = 0;
+   // for (uint64_t i = 0; i < ITERS; i++) {
+   //     normalized_copy(&G1, &G2);
 
-        c -= x86_64_rtdsc();
-        ctr += compute_canonical_form_type5_ct(&G1);
-        c += x86_64_rtdsc();
-    }
+   //     c -= x86_64_rtdsc();
+   //     ctr += compute_canonical_form_type5_ct(&G1);
+   //     c += x86_64_rtdsc();
+   // }
 
-    c = c/ITERS;
-    printf("ct: %ld cyc, ctr: %ld\n", c, ctr);
-    printf("factor %lf\n\n", (double)c/(double)c1);
+   // c = c/ITERS;
+   // printf("ct: %ld cyc, ctr: %ld\n", c, ctr);
+   // printf("factor %lf\n\n", (double)c/(double)c1);
     return 0;
 }
 

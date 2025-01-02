@@ -52,7 +52,7 @@ void cswap_array(uintptr_t *a,
                  uintptr_t *b,
                  const uintptr_t mask,
                  const uint32_t n) {
-    __m256i m = __m256_set1_epi64x(mask);
+    __m256i m   = _mm256_set1_epi64x(mask);
     __m256i *aa = (__m256i *)a;
     __m256i *bb = (__m256i *)b;
     for (uint32_t i = 0; i < (n/4); i++) {

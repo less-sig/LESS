@@ -64,6 +64,31 @@ void matrix_transpose8x8(uint8_t* dst,
     *(uint64_t*)(dst + 7*dst_stride) = d7;
 }
 
+/// assumes max 8 rows in the input matrix
+/// assumes that the output matrix has n columns
+/// \param dst
+/// \param src
+/// \param n   number of columns
+static inline void matrix_transpose8xN(uint8_t *dst, 
+                                       const uint8_t *src,
+                                       const uint32_t n) {
+    const uint32_t bsize = 8;
+    uint64_t rb = 0;
+    for (; rb < n / bsize; rb++) {
+            const uint8_t *srcb_origin = src + ( 0 * n + rb) * bsize;
+                  uint8_t *dstb_origin = dst + (rb * n +  0) * bsize;
+        matrix_transpose8x8(dstb_origin, srcb_origin, n, n);
+    }
+
+    rb *= bsize;
+    for (; rb < n; rb++) {
+        for (uint32_t j = 0; j < 8; j++) {
+            const uint8_t t = src[j*n + rb];
+            dst[rb*n + j] = t;
+        }
+    }
+}
+
 /// Compute origin of the 64-block next to (rb, cb) in row-major order
 /// NOTE: internal function. Do no call directly.
 inline const uint8_t* next_block(const uint8_t *src,
