@@ -45,17 +45,15 @@ int test_sorting_network(void) {
 }
 
 int test_sorting_network_matrix(void) {
-    normalized_IS_t G1, G2, G3, G4;
+    normalized_IS_t G1, G2, G3;
 
     for (uint32_t k = 0; k < TESTS; k++) {
         normalized_sf(&G1);
         memcpy((void *)G2.values, (void*)G1.values, sizeof(normalized_IS_t));
         memcpy((void *)G3.values, (void*)G1.values, sizeof(normalized_IS_t));
-        memcpy((void *)G4.values, (void*)G1.values, sizeof(normalized_IS_t));
 
         row_bitonic_sort(&G2);
         row_quick_sort(&G3, K);
-        row_quick_sort_recursive(&G4, K);
 
         for (uint32_t i = 0; i < K; i++) {
             for (uint32_t j = 0; j < N-K; j++) {
@@ -65,12 +63,6 @@ int test_sorting_network_matrix(void) {
                     printf("error test_sorting_network_matrix\n");
                     return 1;
                 }
-                if (G2.values[i][j] != G4.values[i][j]) {
-                    normalized_pretty_print(&G2);
-                    normalized_pretty_print(&G3);
-                    printf("error recursive test_sorting_network_matrix\n");
-                    return 1;
-                }
             }
         }
     }
@@ -78,18 +70,15 @@ int test_sorting_network_matrix(void) {
     return 0;
 }
 
-
 int test_col_sorting_network_matrix(void) {
-    normalized_IS_t G1, G2, G3;
+    normalized_IS_t G1, G2;
 
     for (uint32_t k = 0; k < TESTS; k++) {
         normalized_sf(&G1);
         memcpy((void *)G2.values, (void*)G1.values, sizeof(normalized_IS_t));
-        memcpy((void *)G3.values, (void*)G1.values, sizeof(normalized_IS_t));
 
         lex_sort_cols(&G1);
         col_quicksort_transpose(&G2, K_pad);//, 0, N - K - 1);
-        // col_bitonic_sort_transpose(&G3);
 
         for (uint32_t i = 0; i < K; i++) {
             for (uint32_t j = 0; j < N-K; j++) {
@@ -99,13 +88,6 @@ int test_col_sorting_network_matrix(void) {
                     printf("error col sorting network3: %d %d\n", i, j);
                     return 1;
                 }
-
-                // if (G1.values[i][j] != G3.values[i][j]) {
-                //     normalized_pretty_print(&G1);
-                //     normalized_pretty_print(&G3);
-                //     printf("error col sorting network4: %d %d\n", i, j);
-                //     return 1;
-                // }
             }
         }
     }

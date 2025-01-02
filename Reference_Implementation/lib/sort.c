@@ -425,4 +425,3 @@ void col_quicksort_transpose(normalized_IS_t *V,
 
     matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, K_pad, z);
 }
-

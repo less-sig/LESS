@@ -332,9 +332,9 @@ int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
    }
 
    uint8_t is_pivot_column[N] = {0};
-   int rref_ok = generator_RREF_pivot_reuse(&G_dagger,is_pivot_column, g_permuated_pivot_flags, pvt_reuse_limit);
-    /// TODO, this is kind of bad, should be removed, and proper error handling should be applied
-   ASSERT(rref_ok != 0);
+   if (generator_RREF_pivot_reuse(&G_dagger,is_pivot_column, g_permuated_pivot_flags, pvt_reuse_limit)) {
+       return 1;
+   }
 
     // just copy the non IS
     uint32_t ctr = 0;
@@ -367,7 +367,7 @@ int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
             piv_idx++;
         }
     }
-
+    return 1;
 } /* end prepare_digest_input_pivot_reuse */
 
 /// NOTE: not constant time

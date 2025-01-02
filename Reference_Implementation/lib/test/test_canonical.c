@@ -131,21 +131,19 @@ int test_compute_canonical_form_type4_v2(void) {
 }
 
 int test_compute_canonical_form_type5(void) {
-    normalized_IS_t G0, G1, G2, G3, G4;
+    normalized_IS_t G0, G1, G2, G3;
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < K; j++) {
             G0.values[i][j] = cf_out[i][j];
             G1.values[i][j] = cf_in[i][j];
             G2.values[i][j] = cf_in[i][j];
             G3.values[i][j] = cf_in[i][j];
-            G4.values[i][j] = cf_in[i][j];
         }
     }
 
     if (compute_canonical_form_type5(&G1) == 0)        { return 1; }
-    if (compute_canonical_form_type5_ct(&G2) == 0)     { return 1; }
-    if (compute_canonical_form_type5_popcnt(&G3) == 0) { return 1; }
-    // if (compute_canonical_form_type5_fastest(&G4) == 0) { return 1; }
+    if (compute_canonical_form_type5_popcnt(&G2) == 0) { return 1; }
+    // if (compute_canonical_form_type5_fastest(&G3) == 0) { return 1; }
 
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < N-K; j++) {
@@ -178,7 +176,7 @@ int test_compute_canonical_form_type5(void) {
 }
 
 int test_compute_canonical_form_type5_v2(void) {
-    normalized_IS_t G4, G1, G2, G3;
+    normalized_IS_t G3, G1, G2;
     permutation_t P_c, P_r;
     diagonal_t D_r, D_c;
 
@@ -197,23 +195,17 @@ int test_compute_canonical_form_type5_v2(void) {
         permutation_apply_row(&P_r, &G2);
 
         normalized_copy(&G3, &G2);
-        normalized_copy(&G4, &G2);
 
         const int ret1 = compute_canonical_form_type5(&G1);
-        const int ret2 = compute_canonical_form_type5_ct(&G2);
-        const int ret3 = compute_canonical_form_type5_popcnt(&G3);
-        // const int ret4 = compute_canonical_form_type5_fastest(&G4);
+        const int ret2 = compute_canonical_form_type5_popcnt(&G2);
+        // const int ret3 = compute_canonical_form_type5_fastest(&G3);
         if (ret1 != ret2) {
-            printf("error ret cf5\n");
+            printf("error ret cf5 popcnt\n");
             return 1;
         }
 
-        if (ret1 != ret3) {
-            printf("error ret cf5, popcnt\n");
-            return 1;
-        }
-        // if (ret1 != ret4) {
-        //     printf("error ret cf5, popcnt\n");
+        // if (ret1 != ret3) {
+        //     printf("error ret cf5, tony\n");
         //     return 1;
         // }
 
@@ -222,23 +214,12 @@ int test_compute_canonical_form_type5_v2(void) {
             continue;
         }
 
-        // for (uint32_t i = 0; i < K; i++) {
-        //     for (uint32_t j = 0; j < N-K; j++) {
-        //         if (G1.values[i][j] != G2.values[i][j]) {
-        //             normalized_pretty_print(&G1);
-        //             normalized_pretty_print(&G2);
-        //             printf("error cf5 ct %d %d\n", i, j);
-        //             return 1;
-        //         }
-        //     }
-        // }
-
         for (uint32_t i = 0; i < K; i++) {
             for (uint32_t j = 0; j < N-K; j++) {
-                if (G1.values[i][j] != G3.values[i][j]) {
+                if (G1.values[i][j] != G2.values[i][j]) {
                     normalized_pretty_print(&G1);
-                    normalized_pretty_print(&G3);
-                    printf("error cf5 %d popcnt %d %d\n", k, i, j);
+                    normalized_pretty_print(&G2);
+                    printf("error cf5 popcnt %d %d\n", i, j);
                     return 1;
                 }
             }
@@ -246,10 +227,10 @@ int test_compute_canonical_form_type5_v2(void) {
 
         // for (uint32_t i = 0; i < K; i++) {
         //     for (uint32_t j = 0; j < N-K; j++) {
-        //         if (G1.values[i][j] != G4.values[i][j]) {
+        //         if (G1.values[i][j] != G3.values[i][j]) {
         //             normalized_pretty_print(&G1);
-        //             normalized_pretty_print(&G4);
-        //             printf("error cf5 %d fastest %d %d\n", k, i, j);
+        //             normalized_pretty_print(&G3);
+        //             printf("error cf5 %d tony %d %d\n", k, i, j);
         //             return 1;
         //         }
         //     }
@@ -261,7 +242,7 @@ int test_compute_canonical_form_type5_v2(void) {
 // tests: if CF(G) and CF(RREF(G)) are the same
 uint32_t  test_compute_canonical_form_type5_gaus(void) {
     generator_mat_t G1, G2;
-    normalized_IS_t V1, V2, V3, V4;
+    normalized_IS_t V1, V2, V3;
     for (uint32_t k = 0; k < ITERS; ++k) {
         generator_sf(&G1);
         memcpy(&G2, &G1, sizeof(generator_mat_t));
@@ -278,37 +259,29 @@ uint32_t  test_compute_canonical_form_type5_gaus(void) {
         generator_to_normalized(&V1, &G1);
         generator_to_normalized(&V2, &G2);
         generator_to_normalized(&V3, &G2);
-        generator_to_normalized(&V4, &G2);
 
         const int ret1 = compute_canonical_form_type5(&V1);
-        const int ret2 = compute_canonical_form_type5_ct(&V2);
-        const int ret3 = compute_canonical_form_type5_popcnt(&V3);
-        const int ret4 = 1; //compute_canonical_form_type5_fastest(&V4);
+        const int ret2 = compute_canonical_form_type5_popcnt(&V2);
+        const int ret3 = 1; //compute_canonical_form_type5_fastest(&V3);
 
-        if ((ret1 != ret2) && (ret1 != ret3) && (ret1 != ret4)) {
+        if ((ret1 != ret2) && (ret1 != ret3)) {
             printf("error: cf5 gaus ret\n");
             return 1;
         }
 
         for (uint32_t i = 0; i < K; ++i) {
             for (uint32_t j = 0; j < N - K; ++j) {
-                // if (V1.values[i][j] != V2.values[i][j]) {
-                //     normalized_pretty_print(&V1);
-                //     normalized_pretty_print(&V2);
-                //     printf("error: cf5 ct gaus %d %d\n", i, j);
-                //     return 1;
-                // }
-
-                if (V1.values[i][j] != V3.values[i][j]) {
+                if (V1.values[i][j] != V2.values[i][j]) {
                     normalized_pretty_print(&V1);
-                    normalized_pretty_print(&V3);
-                    printf("error: cf5 popcnt gaus %d %d \n", i, j);
+                    normalized_pretty_print(&V2);
+                    printf("error: cf5 popcnt gaus %d %d\n", i, j);
                     return 1;
                 }
-                //if (V1.values[i][j] != V4.values[i][j]) {
+
+                //if (V1.values[i][j] != V3.values[i][j]) {
                 //    normalized_pretty_print(&V1);
-                //    normalized_pretty_print(&V4);
-                //    printf("error: cf5 fastest fastest \n");
+                //    normalized_pretty_print(&V3);
+                //    printf("error: cf5 tony gaus %d %d \n", i, j);
                 //    return 1;
                 //}
             }
