@@ -9,6 +9,7 @@
 #include "codes.h"
 #include "transpose.h"
 
+
 /// taken from djbsort
 /// \param a[in/out] first input
 /// \param b[in/out] second input
@@ -324,7 +325,7 @@ int row_quick_sort_recursive(normalized_IS_t *G,
         uint32_t ind = P[t];
         while(ind<t) { ind = P[ind]; }
 
-        row_swap(G, t, ind);
+        normalized_row_swap(G, t, ind);
     }
 
     return 1;
@@ -389,7 +390,7 @@ int row_quick_sort(normalized_IS_t *G,
         uint32_t ind = P[t];
         while(ind<t) { ind = P[ind]; }
 
-        row_swap(G, t, ind);
+        normalized_row_swap(G, t, ind);
     }
 
     return 1;
@@ -456,7 +457,7 @@ int row_bitonic_sort(normalized_IS_t *G) {
         uint32_t ind = P[t];
         while(ind<t) { ind = P[ind]; }
 
-        row_swap(G, t, ind);
+        normalized_row_swap(G, t, ind);
     }
 
     return 1;
@@ -738,7 +739,7 @@ void col_quicksort_transpose(normalized_IS_t *V,
         uint32_t ind = P[t];
         while(ind<t) { ind = P[ind]; }
 
-        row_swap(&VT, t, ind);
+        normalized_row_swap(&VT, t, ind);
     }
 
     matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, K_pad, z);
@@ -796,7 +797,7 @@ int col_bitonic_sort_transposed(normalized_IS_t *G) {
 		uint32_t ind = P[t];
 		while(ind<t) { ind = P[ind]; }
 
-		row_swap(G, t, ind);
+		normalized_row_swap(G, t, ind);
 	}
 
     return 1;

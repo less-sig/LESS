@@ -7,6 +7,7 @@
 #include "monomial_mat.h"
 #include "codes.h"
 
+#include "test_helpers.c"
 #define TESTS 100
 
 int test_counting_sort(void) {

@@ -235,6 +235,7 @@ int compare_matrices_raw(const normalized_IS_t *V1,
 
 /// NOTE: non-constant time
 /// NOTE: computes the result inplace
+/// \param G[in/out] non IS part of a generator matrix
 /// \return 0 on failure
 /// 		1 on success
 int compute_canonical_form_type5(normalized_IS_t *G) {
@@ -268,6 +269,7 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
 
 /// NOTE: non-constant time
 /// NOTE: computes the result inplace
+/// \param G[in/out] non IS part of a generator matrix
 /// \return 0 on failure
 /// 		1 on success
 int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
@@ -355,8 +357,9 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 	return 1;
 }
 
-/// note: constant time
-/// note: computes the result inplace
+/// NOTE: constant time
+/// NOTE: computes the result inplace
+/// \param G[in/out] non IS part of a generator matrix
 /// \return 0 on failure
 /// 		1 on success
 int compute_canonical_form_type5_ct(normalized_IS_t *G) {
@@ -389,10 +392,11 @@ int compute_canonical_form_type5_ct(normalized_IS_t *G) {
     return 1;
 }
 
-/// note: non-constant time
-/// note: computes the result inplace
-/// \param G 
-/// \param row: 
+/// NOTE: non-constant time
+/// NOTE: computes the result inplace
+/// scales a single row `row` and computes cf5 for it
+/// \param G[in/out] non IS part of a generator matrix
+/// \param row[in]:
 /// \return 0 on failure
 /// 		1 on success
 int compute_canonical_form_type5_single_row(normalized_IS_t *G,
@@ -406,9 +410,9 @@ int compute_canonical_form_type5_single_row(normalized_IS_t *G,
     return compute_canonical_form_type4(G);
 }
 
-/// TODO doc
-/// \param G
-/// \param prng
+/// samples to random monomial matrices (A, B) and comptes A*G*B
+/// \param G[in/out] non IS part of a generator matrix
+/// \param prng[in/out]:
 void blind(normalized_IS_t *G,
            SHAKE_STATE_STRUCT *prng) {
     monomial_action_IS_t left, right;
@@ -447,9 +451,10 @@ void blind(normalized_IS_t *G,
     }
 }
 
-/// not constant time
-/// \param G
-/// \return
+/// NOTE: not constant time
+/// \param G[in/out] non IS part of a generator matrix
+/// \return 0 on failure
+/// 		1 on success
 int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
 	uint32_t J[N-K];
     uint32_t z = 0;
@@ -531,16 +536,18 @@ int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
     return 0;
 }
 
-/// constant time implementation
-/// \param G
-/// \return
+/// NOTE: constant time implementation
+/// \param G[in/out] non IS part of a generator matrix
+/// \return 0 on failure
+/// 		1 on success
 int cf5(normalized_IS_t *G) {
     return compute_canonical_form_type5_ct(G);
 }
 
-/// non-constant time implementation
-/// \param G
-/// \return
+/// NOTE: non-constant time implementation
+/// \param G[in/out] non IS part of a generator matrix
+/// \return 0 on failure
+/// 		1 on success
 int cf5_nonct(normalized_IS_t *G) {
     return compute_canonical_form_type5_popcnt(G);
 }

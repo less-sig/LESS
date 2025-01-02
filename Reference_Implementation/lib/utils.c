@@ -95,7 +95,9 @@ void cmov(uint8_t *r, const uint8_t *x, size_t len, uint8_t b) {
     }
 }
 
+///
 #define MAX_KEYPAIR_INDEX (NUM_KEYPAIRS-1)
+///
 #define KEYPAIR_INDEX_MASK ( ((uint16_t)1 << BITS_TO_REPRESENT(MAX_KEYPAIR_INDEX)) -1 )
 /* bitmask for rejection sampling of the position */
 #define  POSITION_MASK (( (uint16_t)1 << BITS_TO_REPRESENT(T-1))-1)

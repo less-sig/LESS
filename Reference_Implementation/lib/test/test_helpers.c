@@ -50,8 +50,8 @@ void diagonal_pretty_print(const diagonal_t *const D);
 void permutation_apply_row(const permutation_t *P, normalized_IS_t *G);
 void permutation_apply_col(normalized_IS_t *G, const permutation_t *P);
 
-void diagonal_apply_row(diagonal_t *P, normalized_IS_t *G);
-void diagonal_apply_col(normalized_IS_t *G, diagonal_t *P);
+void diagonal_apply_row(const diagonal_t *P, normalized_IS_t *G);
+void diagonal_apply_col(normalized_IS_t *G, const diagonal_t *P);
 
 
 /* FY shuffle on the permutation, sampling from the provided PRNG state shake_monomial_state */
@@ -81,6 +81,83 @@ void yt_shuffle_v2(POSITION_T permutation[N], const uint32_t max) {
 }
 
 ////////////////////////////////////////////////////////////////////////
+///                          Generator                               ///
+////////////////////////////////////////////////////////////////////////
+
+/* samples a random generator matrix */
+void generator_rnd(generator_mat_t *res) {
+   for(uint32_t i = 0; i < K; i++) {
+      rand_range_q_elements(res->values[i], N);
+   }
+} /* end generator_rnd */
+
+// generate a random matrix with full rank, where the first k columns are systemized
+void generator_sf(generator_mat_t *res) {
+    for (uint32_t i = 0; i < K; ++i) {
+        for (uint32_t j = 0; j < K; ++j) {
+            res->values[i][j] = i == j;
+        }
+
+        rand_range_q_elements(res->values[i] + K, N-K);
+    }
+}
+
+/// \param G[in]:
+void generator_pretty_print(const generator_mat_t *const G) {
+    for (uint32_t i = 0; i < K; ++i) {
+        for (uint32_t j = 0; j < N-1; ++j) {
+            printf("%3d,", G->values[i][j]);
+        }
+        printf("%3d\n", G->values[i][N-1]);
+    }
+
+    printf("\n");
+}
+
+/* pretty_print for full generator matrices */
+void generator_pretty_print_name(char *name,
+                                 const generator_mat_t *const G) {
+    fprintf(stderr,"%s = M([",name);
+    for(uint32_t i = 0; i < K-1 ; i++ ) {
+        fprintf(stderr,"[");
+        for(uint32_t j = 0; j < N-1; j++) {
+            fprintf(stderr,"%u, ",G->values[i][j]);
+        }
+        fprintf(stderr,"%u ],\n",G->values[i][N-1]);
+    }
+    fprintf(stderr,"[");
+    for(uint32_t j = 0; j < N-1; j++) {
+        fprintf(stderr,"%u, ",G->values[K-1][j]);
+    }
+    fprintf(stderr,"%u ] ])\n",G->values[K-1][N-1]);
+} /* end generator_pretty_print_name */
+
+/* pretty_print for generator matrices in row-reduced echelon form*/
+void generator_rref_pretty_print_name(char *name,
+                                      const rref_generator_mat_t *const G)
+{
+   fprintf(stderr,"%s =\n[",name);
+   for(uint32_t i = 0; i < K-1 ; i++ ) {
+      fprintf(stderr,"[");
+      for(uint32_t j = 0; j < (N-K)-1; j++) {
+         fprintf(stderr,"%u, ",G->values[i][j]);
+      }
+      fprintf(stderr,"%u ],\n",G->values[i][(N-K)-1]);
+   }
+   fprintf(stderr,"[");
+   for(uint32_t j = 0; j < (N-K)-1; j++) {
+      fprintf(stderr,"%u, ",G->values[K-1][j]);
+   }
+   fprintf(stderr,"%u ] ]\n",G->values[K-1][(N-K)-1]);
+   fprintf(stderr,"column_pos = \n [ ");
+   for(uint32_t x=0; x < K ; x++) {
+      fprintf(stderr," %d ",G->column_pos[x]);
+   }
+   fprintf(stderr,"]\n");
+
+} /* end generator_rref_pretty_print_name */
+
+////////////////////////////////////////////////////////////////////////
 ///                         Normalized                               ///
 ////////////////////////////////////////////////////////////////////////
 
@@ -94,6 +171,41 @@ void normalized_rng(normalized_IS_t *V) {
     }
 }
 
+/// generates a K \times (N-K) identity matrix.
+/// \param V[in/out]
+void normalized_ind(normalized_IS_t *V) {
+    for (uint32_t i = 0; i < K; ++i) {
+        for (uint32_t j = 0; j < N-K; ++j) {
+            V->values[i][j] = i == j;
+        }
+    }
+}
+
+/// generates a
+/// \param V [in/out]
+void normalized_sf(normalized_IS_t *V) {
+    normalized_ind(V);
+
+    unsigned char x;
+    for (uint32_t b = 0; b < 32; b++) {
+        for (uint32_t i = 0; i < K; ++i) {
+            for (uint32_t j = 0; j < K; ++j) {
+                if (j == i) { continue; }
+
+                randombytes(&x, 1);
+                if (x & 1) {
+                    for (uint32_t k = 0; k < N - K; ++k) {
+                        if ((b&1) == 0) V->values[j][k] = fq_add(V->values[j][k], V->values[i][k]);
+                        else V->values[K-1-j][k] = fq_add(V->values[K-1-j][k], V->values[K-1-i][k]);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// \param V
+/// \param G
 void generator_to_normalized(normalized_IS_t *V,
                              const generator_mat_t *const G){
     for (uint32_t i = 0; i < K; ++i) {
@@ -103,7 +215,29 @@ void generator_to_normalized(normalized_IS_t *V,
     }
 }
 
+/// \param G
+void normalized_pretty_print(const normalized_IS_t *const G) {
+    for (uint32_t i = 0; i < K; ++i) {
+        for (uint32_t j = 0; j < (N-K-1); ++j) {
+            printf("%3d,", G->values[i][j]);
+        }
+        printf("%3d\n", G->values[i][N-K-1]);
+    }
 
+    printf("\n");
+}
+
+/// \param values
+void normalized_pretty_print_v(const FQ_ELEM values[K][N-K]) {
+    for (uint32_t i = 0; i < K; ++i) {
+        for (uint32_t j = 0; j < (N-K-1); ++j) {
+            printf("%3d,", values[i][j]);
+        }
+        printf("%3d\n", values[i][N-K-1]);
+    }
+
+    printf("\n");
+}
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -136,11 +270,64 @@ void monomial_mat_rnd_unique(monomial_t *res) {
 }
 
 
+void monomial_mat_pretty_print_name(char *name, const monomial_t *to_print)
+{
+   fprintf(stderr,"%s = [",name);
+   for(uint32_t i = 0; i < N-1; i++) {
+      fprintf(stderr,"%03u, ",to_print->permutation[i]);
+   }
+   fprintf(stderr,"%03u ]\n",to_print->permutation[N-1]);
+   fprintf(stderr,"coeffs = [");
+   for(uint32_t i = 0; i < N-1; i++) {
+      fprintf(stderr,"%03u, ",to_print->coefficients[i]);
+   }
+   fprintf(stderr,"%03u ]\n",to_print->coefficients[N-1]);
+} /* end monomial_mat_pretty_print_name */
+
+void monomial_mat_print_exp_name(char *name,const monomial_t *to_print)
+{
+   FQ_ELEM mu[N][N]= {{0}};
+
+   for(uint32_t i = 0; i < N; i++) {
+      mu[to_print->permutation[i]][i] = to_print->coefficients[i];
+   }
+
+   fprintf(stderr,"%s = Mon([",name);
+   for(uint32_t i = 0; i < N-1 ; i++ ) {
+      fprintf(stderr,"[");
+      for(uint32_t j = 0; j < N-1; j++) {
+         fprintf(stderr,"%u, ",mu[i][j]);
+      }
+      fprintf(stderr,"%u ],\n",mu[i][N-1]);
+   }
+   fprintf(stderr,"[");
+   for(uint32_t j = 0; j < N-1; j++) {
+      fprintf(stderr,"%u, ",mu[N-1][j]);
+   }
+   fprintf(stderr,"%u ] ])\n",mu[N-1][N-1]);
+} /* end monomial_mat_print_exp_name */
+
+
+/* pretty_print for monomial matrices */
+void monomial_mat_pretty_print(const monomial_t *const to_print) {
+   fprintf(stderr,"perm = [");
+   for(uint32_t i = 0; i < N-1; i++) {
+      fprintf(stderr,"%03u, ",to_print->permutation[i]);
+   }
+   fprintf(stderr,"%03u ]\n",to_print->permutation[N-1]);
+   fprintf(stderr,"coeffs = [");
+   for(uint32_t i = 0; i < N-1; i++) {
+      fprintf(stderr,"%03u, ",to_print->coefficients[i]);
+   }
+   fprintf(stderr,"%03u ]\n",to_print->coefficients[N-1]);
+} /* end monomial_mat_pretty_print */
+
 ////////////////////////////////////////////////////////////////////////
 ///                        Permutation                               ///
 ////////////////////////////////////////////////////////////////////////
 
-///
+/// \param G[in/out];
+/// \param P[in]:
 void permutation_apply_col(normalized_IS_t *G,
                           const permutation_t *P) {
     for (uint32_t i = 0; i < (N-K); i++) {
@@ -148,15 +335,18 @@ void permutation_apply_col(normalized_IS_t *G,
     }
 }
 
-///
+/// \param P[in]:
+/// \param G[in/out];
 void permutation_apply_row(const permutation_t *P,
                            normalized_IS_t *G) {
     for (uint32_t i = 0; i < K; i++) {
-        row_swap(G, i, P->permutation[i]);
+        normalized_row_swap(G, i, P->permutation[i]);
     }
 }
 
-///
+/// \param P
+/// \param i
+/// \param j
 void permutation_swap(permutation_t *P,
                       const uint32_t i,
                       const uint32_t j) {
@@ -167,11 +357,10 @@ void permutation_swap(permutation_t *P,
     P->permutation[j] = tmp;
 }
 
-///
-/// @param P
-/// @param i
-/// @param j
-/// @param mask
+/// \param P
+/// \param i
+/// \param j
+/// \param mask
 void permutation_cswap(permutation_t *P,
                        const uint32_t i,
                        const uint32_t j,
@@ -181,22 +370,21 @@ void permutation_cswap(permutation_t *P,
     MASKED_SWAP(P->permutation[i], P->permutation[j], mask);
 }
 
-///
-/// @param P
+/// \param P
 void permutation_mat_id(permutation_t *P) {
     for (uint32_t i = 0; i < N; ++i) {
         P->permutation[i] = i;
     }
 }
 
-///
-/// @param P
+/// \param P
 void permutation_mat_rng(permutation_t *P) {
     permutation_mat_id(P);
     yt_shuffle(P->permutation);
 }
 
-///
+/// \param P
+/// \param max
 void permutation_mat_id_v2(permutation_t *P,
                            const uint32_t max) {
     for (uint32_t i = 0; i < max; ++i) {
@@ -207,7 +395,8 @@ void permutation_mat_id_v2(permutation_t *P,
     }
 }
 
-///
+/// \param P
+/// \param max
 void permutation_mat_rng_v2(permutation_t *P,
                             const uint32_t max) {
     permutation_mat_id_v2(P, max);
@@ -218,7 +407,7 @@ void permutation_mat_rng_v2(permutation_t *P,
     }
 }
 
-///
+/// \param P
 void permutation_pretty_print(const permutation_t *const P) {
     fprintf(stderr,"perm = [");
     for(uint32_t i = 0; i < N-1; i++) {
@@ -232,8 +421,10 @@ void permutation_pretty_print(const permutation_t *const P) {
 ///                             Diagonal                             ///
 ////////////////////////////////////////////////////////////////////////
 
+/// \param G[in/out]:
+/// \param P[in]:
 void diagonal_apply_col(normalized_IS_t *G,
-                        diagonal_t *P) {
+                        const diagonal_t *P) {
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < (N-K); j++) {
             G->values[i][j] = fq_mul(G->values[i][j], P->coefficients[j]);
@@ -241,8 +432,9 @@ void diagonal_apply_col(normalized_IS_t *G,
     }
 }
 
-///
-void diagonal_apply_row(diagonal_t *P,
+/// \param P[in]:
+/// \param G[in/out]:
+void diagonal_apply_row(const diagonal_t *P,
                         normalized_IS_t *G) {
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < (N-K); j++) {
@@ -251,21 +443,21 @@ void diagonal_apply_row(diagonal_t *P,
     }
 }
 
-///
+/// \param D[in]:
 void diagonal_mat_zero(diagonal_t *D) {
     for (uint32_t i = 0; i < N; ++i) {
         D->coefficients[i] = 0;
     }
 }
 
-///
+/// \param D[in]:
 void diagonal_mat_id(diagonal_t *D) {
     for (uint32_t i = 0; i < N; ++i) {
         D->coefficients[i] = 1;
     }
 }
 
-///
+/// \param D[in]:
 void diagonal_mat_rnd(diagonal_t *D) {
     csprng_randombytes((unsigned char *) &D->coefficients, sizeof(FQ_ELEM)*N, &platform_csprng_state);
     for (uint32_t i = 0; i < N; ++i) {
@@ -276,7 +468,8 @@ void diagonal_mat_rnd(diagonal_t *D) {
     }
 }
 
-///
+/// \param D[in]:
+/// \param max[in]:
 void diagonal_mat_id_v2(diagonal_t *D,
                         const uint32_t max) {
     for (uint32_t i = 0; i < max; ++i) {
@@ -287,7 +480,8 @@ void diagonal_mat_id_v2(diagonal_t *D,
     }
 }
 
-///
+/// \param D[in]:
+/// \param max[in]:
 void diagonal_mat_rnd_v2(diagonal_t *D,
                          const uint32_t max) {
     csprng_randombytes((unsigned char *) &D->coefficients, sizeof(FQ_ELEM)*max, &platform_csprng_state);
@@ -303,12 +497,12 @@ void diagonal_mat_rnd_v2(diagonal_t *D,
     }
 }
 
-///
-void diagonal_pretty_print(const diagonal_t *const P) {
+/// \param D[in]:
+void diagonal_pretty_print(const diagonal_t *const D) {
     fprintf(stderr,"diag = [");
     for(uint32_t i = 0; i < N-1; i++) {
-        fprintf(stderr,"%03u, ", P->coefficients[i]);
+        fprintf(stderr,"%03u, ", D->coefficients[i]);
     }
 
-    fprintf(stderr,"%03u ]\n", P->coefficients[N-1]);
+    fprintf(stderr,"%03u ]\n", D->coefficients[N-1]);
 }

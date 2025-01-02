@@ -5,18 +5,9 @@
 #include "cycles.h"
 #include "sort.h"
 
+#include "../test/test_helpers.c"
+
 #define ITERS (1u << 10u)
-
-
-/// NOTE: only for testing
-void normalized_rng(normalized_IS_t *V) {
-    randombytes((uint8_t *)V->values, K*(N-K));
-    for (unsigned i = 0; i < K; ++i) {
-        for (unsigned j = 0; j < K; ++j) {
-            V->values[i][j] %= Q;
-        }
-    }
-}
 
 int bench_cf3(void) {
     normalized_IS_t G1, G2;

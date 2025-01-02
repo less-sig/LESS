@@ -36,15 +36,16 @@
 #include "sha3.h"
 
 #if !defined(SEED_TREE)
-/// \param SK
-/// \param m
-/// \param mlen
-/// \param sig
-/// \return TODO
+/// \param SK[in]: secret key
+/// \param m[in]: message to sign
+/// \param mlen[in]: length of the message to sign in bytes
+/// \param sig[out]: signature
+/// \return: 0: on failure
+///          1: on success
 size_t LESS_sign(const prikey_t *SK,
-                   const char *const m,
-                   const uint64_t mlen,
-                   sign_t *sig) {
+                 const char *const m,
+                 const uint64_t mlen,
+                 sign_t *sig) {
     uint8_t g0_initial_pivot_flags [N];
 
     /*         Private key expansion        */
@@ -64,6 +65,12 @@ size_t LESS_sign(const prikey_t *SK,
     /*         Ephemeral monomial generation        */
     uint8_t ephem_monomials_seed[SEED_LENGTH_BYTES];
     randombytes(ephem_monomials_seed, SEED_LENGTH_BYTES);
+
+    /* create the prng for the "blinding" monomials for the canonical form computation */
+    uint8_t cf_seed[SEED_LENGTH_BYTES];
+    randombytes(cf_seed, SEED_LENGTH_BYTES);
+    SHAKE_STATE_STRUCT cf_shake_state;
+    initialize_csprng(&cf_shake_state, cf_seed, SEED_LENGTH_BYTES);
 
     // TODO salt is missing?
     SHAKE_STATE_STRUCT shake_monomial_state = {0};
@@ -88,14 +95,15 @@ size_t LESS_sign(const prikey_t *SK,
 
     for (uint32_t i = 0; i < T; i++) {
         monomial_mat_seed_expand_rnd(&Q_tilde, seeds + i*SEED_LENGTH_BYTES, i);
-        prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde);
+        if (prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde)) {
+            return 0;
+        }
 
-        // TODO blind
+        blind(&V_array, &cf_shake_state);
         const int t = cf5_nonct(&V_array);
         if (t == 0) {
             *(seeds + i*SEED_LENGTH_BYTES) += 1;
             i -= 1;
-            printf("cf5 failed\n"); // TODO remove
         } else {
             LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
         }
@@ -130,15 +138,16 @@ size_t LESS_sign(const prikey_t *SK,
         }
     }
 
-    // always return ok
-    return 0;
+    return 1;
 } /* end LESS_sign */
 
-/// \param PK
-/// \param m
-/// \param mlen
-/// \param sig
-/// \return
+/// NOTE: non-constant time
+/// \param PK[in]: public key
+/// \param m[in]: message for which a signature was computed
+/// \param mlen[in]: length of the message in bytes
+/// \param sig[in]: signature
+/// \return 0: on failure
+///         1: on success
 int LESS_verify(const pubkey_t *const PK,
                 const char *const m,
                 const uint64_t mlen,
@@ -171,17 +180,21 @@ int LESS_verify(const pubkey_t *const PK,
             monomial_mat_seed_expand_rnd(&Q_to_multiply, sig->seed_storage + ctr1*SEED_LENGTH_BYTES, i);
 #if defined(LESS_REUSE_PIVOTS)
             // TODO half of these operations can be optimized away
-            prepare_digest_input_pivot_reuse(&V_array,
+            if (prepare_digest_input_pivot_reuse(&V_array,
                                              &Q_to_discard,
                                              &tmp_full_G,
                                              &Q_to_multiply,
                                              g_initial_pivot_flags,
-                                             VERIFY_PIVOT_REUSE_LIMIT);
+                                             VERIFY_PIVOT_REUSE_LIMIT)) {
+                return 0;
+            }
 #else
-            prepare_digest_input(&V_array,
+            if (prepare_digest_input(&V_array,
                                  &Q_to_discard,
                                  &tmp_full_G,
-                                 &Q_to_multiply);
+                                 &Q_to_multiply)) {
+                return 0;
+            }
 #endif
             ctr1+=1;
         } else {

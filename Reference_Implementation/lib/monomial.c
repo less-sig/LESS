@@ -6,6 +6,7 @@
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
+ * @author Floyd Zweydinger <zweydfg+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -29,7 +30,10 @@
 #include <assert.h>
 #include <string.h>
 
+///
 #define POS_BITS BITS_TO_REPRESENT(N-1)
+
+///
 #define POS_MASK (((POSITION_T) 1 << POS_BITS) - 1)
 
 /// applies a random permutation between [0, n-1] on the
@@ -158,79 +162,17 @@ void monomial_mat_seed_expand_rnd(monomial_t *res,
     yt_shuffle_state(&shake_monomial_state, res->permutation);
 
 }
-//
-// /* samples a random perm matrix */
-// void monomial_mat_rnd(monomial_t *res) {
-//    fq_star_rnd_elements(res->coefficients, N);
-//    for(uint32_t i = 0; i < N; i++) {
-//       res->permutation[i] = i;
-//    }
-//    /* FY shuffle on the permutation */
-//    yt_shuffle(res->permutation);
-// } /* end monomial_mat_rnd */
 
-/// \param res[out] = to_invert**-1
-/// \param to_invert[in]
+/// \param res[out]: = to_invert**-1
+/// \param to_invert[in]:
 void monomial_mat_inv(monomial_t *res,
                       const monomial_t *const to_invert) {
-   for(uint32_t i = 0; i < N; i++) {
-      res->permutation[to_invert->permutation[i]] = i;
-      res->coefficients[to_invert->permutation[i]] = fq_inv(
-               to_invert->coefficients[i]);
-   }
+    for(uint32_t i = 0; i < N; i++) {
+        res->permutation[to_invert->permutation[i]] = i;
+        res->coefficients[to_invert->permutation[i]] =
+            fq_inv(to_invert->coefficients[i]);
+    }
 } /* end monomial_mat_inv */
-
-/* pretty_print for monomial matrices */
-void monomial_mat_pretty_print(const monomial_t *const to_print) {
-   fprintf(stderr,"perm = [");
-   for(uint32_t i = 0; i < N-1; i++) {
-      fprintf(stderr,"%03u, ",to_print->permutation[i]);
-   }
-   fprintf(stderr,"%03u ]\n",to_print->permutation[N-1]);
-   fprintf(stderr,"coeffs = [");
-   for(uint32_t i = 0; i < N-1; i++) {
-      fprintf(stderr,"%03u, ",to_print->coefficients[i]);
-   }
-   fprintf(stderr,"%03u ]\n",to_print->coefficients[N-1]);
-} /* end monomial_mat_pretty_print */
-
-void monomial_mat_pretty_print_name(char *name, const monomial_t *to_print)
-{
-   fprintf(stderr,"%s = [",name);
-   for(uint32_t i = 0; i < N-1; i++) {
-      fprintf(stderr,"%03u, ",to_print->permutation[i]);
-   }
-   fprintf(stderr,"%03u ]\n",to_print->permutation[N-1]);
-   fprintf(stderr,"coeffs = [");
-   for(uint32_t i = 0; i < N-1; i++) {
-      fprintf(stderr,"%03u, ",to_print->coefficients[i]);
-   }
-   fprintf(stderr,"%03u ]\n",to_print->coefficients[N-1]);
-} /* end monomial_mat_pretty_print_name */
-
-void monomial_mat_print_exp_name(char *name,const monomial_t *to_print)
-{
-   FQ_ELEM mu[N][N]= {{0}};
-
-   for(uint32_t i = 0; i < N; i++) {
-      mu[to_print->permutation[i]][i] = to_print->coefficients[i];
-   }
-
-   fprintf(stderr,"%s = Mon([",name);
-   for(uint32_t i = 0; i < N-1 ; i++ ) {
-      fprintf(stderr,"[");
-      for(uint32_t j = 0; j < N-1; j++) {
-         fprintf(stderr,"%u, ",mu[i][j]);
-      }
-      fprintf(stderr,"%u ],\n",mu[i][N-1]);
-   }
-   fprintf(stderr,"[");
-   for(uint32_t j = 0; j < N-1; j++) {
-      fprintf(stderr,"%u, ",mu[N-1][j]);
-   }
-   fprintf(stderr,"%u ] ])\n",mu[N-1][N-1]);
-} /* end monomial_mat_print_exp_name */
-
 
 /* composes a compactly stored action of a monomial on an IS with a regular
  * monomial.
@@ -254,9 +196,9 @@ void monomial_compose_action(monomial_action_IS_t* out,
    }
 }
 
-/// type5 compression
+/// cf type5 compression
 /// \param compressed[out]: N bits in which K bits will be sed
-/// \param mono[in]: monomial
+/// \param mono[in]: monomial matrix
 void cf_compress_monomial_IS_action(uint8_t *compressed,
                                     const monomial_action_IS_t *mono) {
     memset(compressed, 0, N8);
@@ -267,30 +209,10 @@ void cf_compress_monomial_IS_action(uint8_t *compressed,
     }
 }
 
-/// \param mono[out]: monomial
-/// \param compressed[in]: N bits in which K bits will be sed
-void cf_expand_to_monom_action(monomial_action_IS_t *mono,
-                               const uint8_t *compressed) {
-    for (uint32_t i = 0; i < K; i++) {
-        mono->coefficients[i] = 1;
-    }
-    memset(mono->permutation, 0, K*sizeof(POSITION_T));
-
-    uint32_t ctr = 0;
-    for (uint32_t i = 0; i < N8; i++) {
-        uint8_t tmp = compressed[i];
-        while (tmp) {
-            const uint32_t pos = __builtin_ctz(tmp);
-            tmp ^= 1u << pos;
-
-            mono->permutation[ctr++] = i*8 + pos;
-        }
-    }
-}
-
 /// checks if the given (N+7/8) bytes are a valid
 /// canonical form action.
-/// \param mono
+/// \param mono: compressed canonical form output from
+///         `cf_compress_monomial_IS_action`
 /// \return true: if the weight is K
 ///         false: if the weight is not K
 int is_cf_monom_action_valid(const uint8_t* const mono) {

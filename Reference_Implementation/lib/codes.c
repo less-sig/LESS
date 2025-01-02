@@ -6,6 +6,7 @@
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -34,8 +35,8 @@
 
 /// \param V[in/out]: K \times N-K matrix in which column `col1` and
 ///                 column `col2` are swapped
-/// \param col1[in]:
-/// \param col2[in]:
+/// \param col1[in]: first column to swap
+/// \param col2[in]: second column to swap
 void column_swap(normalized_IS_t *V,
                  const POSITION_T col1,
                  const POSITION_T col2){
@@ -47,38 +48,16 @@ void column_swap(normalized_IS_t *V,
    }
 }
 
-///
-/// \param r
-/// \param s
+/// swap N uint8 in r and s.
+/// \param r[in/out]
+/// \param s[in/out]
 void swap_rows(FQ_ELEM r[N],
                FQ_ELEM s[N]) {
-    // FQ_ELEM tmp;
-    // for(unsigned i=0; i<N; i++) {
-    //     tmp = r[i];
-    //     r[i] = s[i];
-    //     s[i] = tmp;
-    // }
     FQ_ELEM tmp[N];
     memcpy(tmp, r, sizeof(FQ_ELEM) * N);
     memcpy(r, s, sizeof(FQ_ELEM) * N);
     memcpy(s, tmp, sizeof(FQ_ELEM) * N);
 } /* end swap_rows */
-
-/// \param V[in/out]: K \times N-K matrix in which row `row1` and
-///                 row `row2` are swapped
-/// \param row1[in]:
-/// \param row2[in]:
-void row_swap(normalized_IS_t *V,
-              const POSITION_T row1,
-              const POSITION_T row2) {
-    if (row1 == row2) { return; }
-    for(uint32_t i = 0; i < N-K; i++){
-        POSITION_T tmp = V->values[row1][i];
-        V->values[row1][i] = V->values[row2][i];
-        V->values[row2][i] = tmp;
-    }
-}
-
 
 /* Calculate pivot flag array */
 void generator_get_pivot_flags(const rref_generator_mat_t *const G,
@@ -104,9 +83,11 @@ void generator_monomial_mul(generator_mat_t *res,
    }
 } /* end generator_monomial_mul */
 
-/// @param G 
-/// @param is_pivot_column 
-/// @return 
+/// \param G[in/out]: generator matrix
+/// \param is_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \return 0 on failure
+///         1 on success
 int generator_RREF(generator_mat_t *G,
                    uint8_t is_pivot_column[N]) {
    for(unsigned row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
@@ -168,11 +149,18 @@ int generator_RREF(generator_mat_t *G,
    return 1;
 } /* end generator_RREF */
 
+/// \param G[in/out]: generator matrix K \times N
+/// \param is_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \param was_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \param pvt_reuse_limit:[in]:
+/// \return 0 on failure
+///         1 on success
 int generator_RREF_pivot_reuse(generator_mat_t *G,
                    uint8_t is_pivot_column[N],
                    uint8_t was_pivot_column[N],
-                   const int pvt_reuse_limit)
-{
+                   const int pvt_reuse_limit) {
    int pvt_reuse_cnt = 0;
    int row_red_pvt_skip_cnt;
 
@@ -231,7 +219,9 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
          G->values[pivot_row][i] = fq_mul( scaling_factor, G->values[pivot_row][i]);
       }
 
-      if (was_pivot_column[pivot_column] == 0 || (pvt_reuse_cnt >= pvt_reuse_limit) || (pivot_column >= K)) { // Skip row-reduce on previous pivots
+      if (was_pivot_column[pivot_column] == 0 ||
+         (pvt_reuse_cnt >= pvt_reuse_limit) ||
+         (pivot_column >= K)) { // Skip row-reduce on previous pivots
       /* Subtract the now placed and reduced pivot rows, from the others,
        * after rescaling it */
           for(int row_idx = 0; row_idx < K; row_idx++) {
@@ -259,12 +249,16 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
    return 1;
 } /* end generator_RREF_pivot_reuse */
 
-/// TODO doc
-/// \param V
-/// \param Q_bar_IS
-/// \param G
-/// \param Q_tilde
-void prepare_digest_input(normalized_IS_t *V,
+/// TODO: change the type of "Q_bar_IS" to something which only tracks the permutation and not monomial
+/// \param V[out]: non IS-part of a generator matrix: K \times N-K
+///         = NO_IS(RREF(G * Q_tilde))
+/// \param Q_bar_IS[out]: the permutation applied to get "V"
+/// \param G[in]: generator matrix: K \times N
+/// \param Q_tilde[in]: ephemeral monomial matrix to be applied to
+///         G.
+/// \return 0 on failure, can only fail if RREF fails
+///         1 on success
+int prepare_digest_input(normalized_IS_t *V,
                           monomial_action_IS_t *Q_bar_IS,
                           const generator_mat_t *const G,
                           const monomial_t *const Q_tilde) {
@@ -273,11 +267,10 @@ void prepare_digest_input(normalized_IS_t *V,
     generator_monomial_mul(&G_dagger, G, Q_tilde);
 
     uint8_t is_pivot_column[N] = {0};
-    int rref_ok = generator_RREF(&G_dagger, is_pivot_column);
-    /// TODO, this is kind of bad, should be removed, and proper error handling should be applied
-    ASSERT(rref_ok != 0);
+    if (generator_RREF(&G_dagger, is_pivot_column) == 0) {
+        return 0;
+    }
 
-    // just copy the non IS
     // just copy the non IS
     uint32_t ctr = 0;
     for(uint32_t j = 0; j < N-K; j++) {
@@ -307,16 +300,22 @@ void prepare_digest_input(normalized_IS_t *V,
            piv_idx++;
         }
     }
+
+    return 1;
 } /* end prepare_digest_input */
 
-/// TODO doc
-/// \param V
-/// \param Q_bar_IS
-/// \param G
-/// \param Q_tilde
+/// TODO: change the type of "Q_bar_IS" to something which only tracks the permutation and not monomial
+/// \param V[out]: non IS-part of a generator matrix: K \times N-K
+///         = NO_IS(RREF(G * Q_tilde))
+/// \param Q_bar_IS[out]: the permutation applied to get "V"
+/// \param G[in]: generator matrix: K \times N
+/// \param Q_tilde[in]: ephemeral monomial matrix to be applied to
+///         G.
 /// \param initial_pivot_flags
 /// \param pvt_reuse_limit
-void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
+/// \return 0 on failure, can only fail if RREF fails
+///         1 on success
+int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
                                       monomial_action_IS_t *Q_bar_IS,
                                       const generator_mat_t *const G,
                                       const monomial_t *const Q_tilde,
@@ -372,9 +371,9 @@ void prepare_digest_input_pivot_reuse(normalized_IS_t *V,
 } /* end prepare_digest_input_pivot_reuse */
 
 /// NOTE: not constant time
-/// \param res
-/// /param G
-/// param c
+/// \param res[out]: G*c a generator matrix: K \times N-K
+/// \param G[in]: current generator matrix: K \times N-K
+/// \param c[in]: compressed cf action
 void apply_cf_action_to_G(generator_mat_t* res,
                           const generator_mat_t *G,
                           const uint8_t *const c) {
@@ -400,15 +399,13 @@ void apply_cf_action_to_G(generator_mat_t* res,
         }
     }
 finish:
-    ASSERT(l == K);
-    ASSERT(r == (N-K));
     return;
 }
 
 /// NOTE: not constant time
-/// @param res
-/// @param G
-/// @param c
+/// \param res[out]: G*c a generator matrix: K \times N-K
+/// \param G[in]: current generator matrix: K \times N-K
+/// \param c[in]: compressed cf action
 void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
                                       const generator_mat_t *G,
                                       const uint8_t *const c,
@@ -437,9 +434,7 @@ void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
             }
         }
     }
-    finish:
-    ASSERT(l == K);
-    ASSERT(r == (N-K));
+finish:
     return;
 }
 
@@ -681,83 +676,31 @@ void generator_rref_expand(generator_mat_t *full,
    }
 } /* end generator_rref_expand */
 
-/* samples a random generator matrix */
-void generator_rnd(generator_mat_t *res) {
-   for(uint32_t i = 0; i < K; i++) {
-      rand_range_q_elements(res->values[i], N);
-   }
-} /* end generator_rnd */
-
-// generate a random matrix with full rank, where the first k columns are systemized
-void generator_sf(generator_mat_t *res) {
-    for (uint32_t i = 0; i < K; ++i) {
-        for (uint32_t j = 0; j < K; ++j) {
-            res->values[i][j] = i == j;
-        }
-
-        rand_range_q_elements(res->values[i] + K, N-K);
-    }
-}
-
-/// generates a K \times (N-K) identity matrix.
-/// \param V[in/out]
-void normalized_ind(normalized_IS_t *V) {
-    for (uint32_t i = 0; i < K; ++i) {
-        for (uint32_t j = 0; j < N-K; ++j) {
-            V->values[i][j] = i == j;
-        }
-    }
-}
-
-/// generates a full rank matrix
-/// \param V [in/out]
-void normalized_sf(normalized_IS_t *V) {
-    normalized_ind(V);
-
-    unsigned char x;
-    for (uint32_t b = 0; b < 32; b++) {
-        for (uint32_t i = 0; i < K; ++i) {
-            for (uint32_t j = 0; j < K; ++j) {
-                if (j == i) { continue; }
-
-                randombytes(&x, 1);
-                if (x & 1) {
-                    for (uint32_t k = 0; k < N - K; ++k) {
-                        if ((b&1) == 0) V->values[j][k] = fq_add(V->values[j][k], V->values[i][k]);
-                        else V->values[K-1-j][k] = fq_add(V->values[K-1-j][k], V->values[K-1-i][k]);
-                    }
-                }
-            }
-        }
-    }
-}
-
 // V1 =V2
 void normalized_copy(normalized_IS_t *V1,
                      const normalized_IS_t *V2) {
     memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
 }
 
-///
-/// \param V
-/// \param col
-/// \return 0 if every value in columns is non zerp
-///         1 otherwise
-int normalized_is_zero_in_column(const normalized_IS_t *const V,
-                              const uint32_t col) {
-    for (uint32_t i = 0; i < K; i++) {
-        if (V->values[i][col] == 0) {
-            return 1;
-        }
+/// \param V[in/out]: K \times N-K matrix in which row `row1` and
+///                 row `row2` are swapped
+/// \param row1[in]: first row
+/// \param row2[in]: second row
+void normalized_row_swap(normalized_IS_t *V,
+                         const POSITION_T row1,
+                         const POSITION_T row2) {
+    if (row1 == row2) { return; }
+    for(uint32_t i = 0; i < N-K; i++){
+        POSITION_T tmp = V->values[row1][i];
+        V->values[row1][i] = V->values[row2][i];
+        V->values[row2][i] = tmp;
     }
-
-    return 0;
 }
 
-
+/// \param res[out]: full rank generator matrix K \times N-K
+/// \param seed[int] seed for the prngt
 void generator_SF_seed_expand(rref_generator_mat_t *res,
-                              const unsigned char seed[SEED_LENGTH_BYTES])
-{
+                              const unsigned char seed[SEED_LENGTH_BYTES]) {
    SHAKE_STATE_STRUCT csprng_state;
    initialize_csprng(&csprng_state,seed,SEED_LENGTH_BYTES);
    for(uint32_t i = 0; i < K; i++) {
@@ -766,84 +709,4 @@ void generator_SF_seed_expand(rref_generator_mat_t *res,
    for(uint32_t i = 0; i < N-K ; i++) {
       res->column_pos[i]=i+K;
    }
-
-
 } /* end generator_seed_expand */
-
-void generator_pretty_print(const generator_mat_t *const G) {
-    for (uint32_t i = 0; i < K; ++i) {
-        for (uint32_t j = 0; j < N-1; ++j) {
-            printf("%3d,", G->values[i][j]);
-        }
-        printf("%3d\n", G->values[i][N-1]);
-    }
-
-    printf("\n");
-}
-
-/* pretty_print for full generator matrices */
-void generator_pretty_print_name(char *name, const generator_mat_t *const G)
-{
-   fprintf(stderr,"%s = M([",name);
-   for(uint32_t i = 0; i < K-1 ; i++ ) {
-      fprintf(stderr,"[");
-      for(uint32_t j = 0; j < N-1; j++) {
-         fprintf(stderr,"%u, ",G->values[i][j]);
-      }
-      fprintf(stderr,"%u ],\n",G->values[i][N-1]);
-   }
-   fprintf(stderr,"[");
-   for(uint32_t j = 0; j < N-1; j++) {
-      fprintf(stderr,"%u, ",G->values[K-1][j]);
-   }
-   fprintf(stderr,"%u ] ])\n",G->values[K-1][N-1]);
-} /* end generator_pretty_print_name */
-
-/* pretty_print for generator matrices in row-reduced echelon form*/
-void generator_rref_pretty_print_name(char *name,
-                                      const rref_generator_mat_t *const G)
-{
-   fprintf(stderr,"%s =\n[",name);
-   for(uint32_t i = 0; i < K-1 ; i++ ) {
-      fprintf(stderr,"[");
-      for(uint32_t j = 0; j < (N-K)-1; j++) {
-         fprintf(stderr,"%u, ",G->values[i][j]);
-      }
-      fprintf(stderr,"%u ],\n",G->values[i][(N-K)-1]);
-   }
-   fprintf(stderr,"[");
-   for(uint32_t j = 0; j < (N-K)-1; j++) {
-      fprintf(stderr,"%u, ",G->values[K-1][j]);
-   }
-   fprintf(stderr,"%u ] ]\n",G->values[K-1][(N-K)-1]);
-   fprintf(stderr,"column_pos = \n [ ");
-   for(uint32_t x=0; x < K ; x++) {
-      fprintf(stderr," %d ",G->column_pos[x]);
-   }
-   fprintf(stderr,"]\n");
-
-} /* end generator_rref_pretty_print_name */
-
-/// \param G
-void normalized_pretty_print(const normalized_IS_t *const G) {
-    for (uint32_t i = 0; i < K; ++i) {
-        for (uint32_t j = 0; j < (N-K-1); ++j) {
-            printf("%3d,", G->values[i][j]);
-        }
-        printf("%3d\n", G->values[i][N-K-1]);
-    }
-
-    printf("\n");
-}
-
-/// \param values
-void normalized_pretty_print_v(const FQ_ELEM values[K][N-K]) {
-    for (uint32_t i = 0; i < K; ++i) {
-        for (uint32_t j = 0; j < (N-K-1); ++j) {
-            printf("%3d,", values[i][j]);
-        }
-        printf("%3d\n", values[i][N-K-1]);
-    }
-
-    printf("\n");
-}
