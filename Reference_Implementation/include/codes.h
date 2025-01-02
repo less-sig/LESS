@@ -31,19 +31,19 @@
 #include "monomial_mat.h"
 
 typedef struct {  /* Generator matrix, stored explicitly */
-   FQ_ELEM values[K][N];
+   FQ_ELEM values[K][N_pad] __attribute__((aligned(32)));
 } generator_mat_t;
 
 /* RREF Generator mat., only values and positions of non-pivot columns stored */
 typedef struct {
-   FQ_ELEM values[K][N-K];     /* values of the non-pivot columns    */
-   POSITION_T column_pos[N-K]; /* positions of the non-pivot columns */
+   FQ_ELEM values[K][N_K_pad];     /* values of the non-pivot columns    */
+   POSITION_T column_pos[N_K_pad]; /* positions of the non-pivot columns */
 } rref_generator_mat_t;
 
 /* Set of columns not constituting the IS for an RREF matrix
  * See algorithm PrepareDigestInput in specification (V matrix)*/
 typedef struct {
-   FQ_ELEM values[K][N-K];   /* values of the non-pivot columns */
+   FQ_ELEM values[K_pad][N_K_pad];   /* values of the non-pivot columns */
 } normalized_IS_t;
 
 /* Calculate pivot flag array */

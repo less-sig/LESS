@@ -302,7 +302,10 @@ int LESS_verify(const pubkey_t *const PK,
                 // negl. probability.
                 return 0;
             }
-            LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array, sizeof(normalized_IS_t));
+            for (uint32_t sl = 0; sl < K; sl++) {
+                LESS_SHA3_INC_ABSORB(&state, V_array.values[sl], K);
+            }
+            // LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array, sizeof(normalized_IS_t));
         } else {
             expand_to_rref(&tmp_full_G, PK->SF_G[fixed_weight_string[i] - 1], g_initial_pivot_flags);
             if (!is_cf_monom_action_valid(sig->cf_monom_actions[employed_monoms])) {
@@ -348,6 +351,9 @@ int LESS_verify(const pubkey_t *const PK,
                 // have a valid CF input. This should only happen with a
                 // negl. probability.
                 return 0;
+            }
+            for (uint32_t sl = 0; sl < K; sl++) {
+                LESS_SHA3_INC_ABSORB(&state, V_array.values[sl], K);
             }
             LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array.values, sizeof(normalized_IS_t));
             employed_monoms++;
