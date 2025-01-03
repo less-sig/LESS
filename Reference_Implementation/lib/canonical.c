@@ -20,7 +20,7 @@ int compute_canonical_form_type3(normalized_IS_t *G) {
 	    return 0;
     }
 #ifdef LESS_USE_HISTOGRAM
-    col_quicksort_transpose(G, K);
+    col_quicksort_transpose(G, K_pad);
 #else
     // col_quicksort_transpose(G, K);
     col_lex_quicksort(G, 0, N-K-1);

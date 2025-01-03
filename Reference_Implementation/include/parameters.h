@@ -197,9 +197,11 @@
 #define LESS_CRYPTO_BYTES     (HASH_DIGEST_LENGTH + (N8*W) + ((W-T)*SEED_LENGTH_BYTES))
 #endif
 
+#ifndef USE_AVX2
 // TODO doc
-//#define LESS_REUSE_PIVOTS_VY
-//#define LESS_REUSE_PIVOTS_SG
+#define LESS_REUSE_PIVOTS_VY
+#define LESS_REUSE_PIVOTS_SG
+#endif
 
 // TODO doc
 #define LESS_USE_HISTOGRAM

@@ -11,7 +11,7 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS      " -Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal -fno-inline")
+set(ALLOWED_WARNINGS      " -Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal")
 set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -g -O0 -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -fsanitize=address ${ALLOWED_WARNINGS}")
 set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -flto -ftree-vectorize -funroll-loops -fomit-frame-pointer ${ALLOWED_WARNINGS}")
 

@@ -45,22 +45,6 @@ static void print256_num(vec256_t var, const char *string) {
            val[24], val[25], val[26], val[27], val[28], val[29], val[30], val[31]);
 }
 
-/// \return in[0] + in[1] + ... + in[31] % q
-static inline uint8_t vhadd8(const __m256i in) {
-    uint8_t data[32] __attribute__((aligned(64)));
-    _mm256_store_si256((__m256i *)data, in);
-
-    uint8_t s1 = 0, s2 = 0, s3 = 0, s4 = 0;
-    for (uint32_t i = 0; i < 8; i++) {
-        s1 = br_red(s1 + data[i +  0]);
-        s2 = br_red(s2 + data[i +  8]);
-        s3 = br_red(s3 + data[i + 16]);
-        s4 = br_red(s4 + data[i + 24]);
-    }
-
-    return br_red(br_red(s1 + s2) + br_red(s3 + s4));
-}
-
 // c <- src
 #define vload256(c, src) c = _mm256_loadu_si256(src);
 #define vload128(c, src) c = _mm_loadu_si128(src);
@@ -202,3 +186,44 @@ static inline uint8_t vhadd8(const __m256i in) {
 extern const uint8_t shuff_low_half[32];
 
 void print256_num(vec256_t var, const char *string);
+
+/// \return in[0] + in[1] + ... + in[31] % q
+static inline uint8_t vhadd8(const __m256i in) {
+    vec256_t c01, c7f;
+    vset8(c01, 0x01);
+    vset8(c7f, 0x7F);
+
+    __m256i a = _mm256_srli_epi16(in, 8);
+    __m256i t = _mm256_add_epi8(a, in);
+    W_RED127_(t)
+
+    a = _mm256_srli_epi32(t, 16);
+    t = _mm256_add_epi8(a, t);
+    W_RED127_(t)
+
+    a = _mm256_srli_epi64(t, 32);
+    t = _mm256_add_epi8(a, t);
+    W_RED127_(t)
+
+    a = _mm256_srli_si256(t, 8);
+    t = _mm256_add_epi8(a, t);
+    W_RED127_(t)
+
+    a = _mm256_permute2x128_si256(t, t, 1);
+    t = _mm256_add_epi8(a, t);
+    W_RED127_(t)
+
+    return _mm256_extract_epi8(t, 0);
+
+    // uint8_t data[32] __attribute__((aligned(64)));
+    //_mm256_store_si256((__m256i *)data, in);
+    //uint8_t s1 = 0, s2 = 0, s3 = 0, s4 = 0;
+    //for (uint32_t i = 0; i < 8; i++) {
+    //    s1 = br_red(s1 + data[i +  0]);
+    //    s2 = br_red(s2 + data[i +  8]);
+    //    s3 = br_red(s3 + data[i + 16]);
+    //    s4 = br_red(s4 + data[i + 24]);
+    //}
+
+    //return br_red(br_red(s1 + s2) + br_red(s3 + s4));
+}

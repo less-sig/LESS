@@ -95,17 +95,20 @@ size_t LESS_sign(const prikey_t *SK,
 
     for (uint32_t i = 0; i < T; i++) {
         monomial_mat_seed_expand_rnd(&Q_tilde, seeds + i*SEED_LENGTH_BYTES, i);
-        if (prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde)) {
+        if (prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde) == 0) {
             return 0;
         }
 
-        blind(&V_array, &cf_shake_state);
+        // blind(&V_array, &cf_shake_state);
         const int t = cf5_nonct(&V_array);
         if (t == 0) {
             *(seeds + i*SEED_LENGTH_BYTES) += 1;
             i -= 1;
         } else {
-            LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
+            for (uint32_t sl = 0; sl < K; sl++) {
+                LESS_SHA3_INC_ABSORB(&state, V_array.values[sl], K);
+            }
+            // LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
         }
     }
 
@@ -185,14 +188,14 @@ int LESS_verify(const pubkey_t *const PK,
                                              &tmp_full_G,
                                              &Q_to_multiply,
                                              g_initial_pivot_flags,
-                                             VERIFY_PIVOT_REUSE_LIMIT)) {
+                                             VERIFY_PIVOT_REUSE_LIMIT) == 0) {
                 return 0;
             }
 #else
             if (prepare_digest_input(&V_array,
                                  &Q_to_discard,
                                  &tmp_full_G,
-                                 &Q_to_multiply)) {
+                                 &Q_to_multiply) == 0) {
                 return 0;
             }
 #endif
@@ -220,28 +223,30 @@ int LESS_verify(const pubkey_t *const PK,
                 return 0;
             }
 
-            // TODO not correct if more than 1 col is not a pivot column. Somehow merge with the loop just below
             // just copy the non IS
-            uint32_t ctr = 0, offset = K;
-            for (uint32_t j = 0; j < N - K; j++) {
-                if (is_pivot_column[j + K]) {
+            uint32_t ctr = 0;
+            for(uint32_t j = 0; j < N-K; j++) {
+                // find the next non pivot column
+                while (is_pivot_column[ctr]) {
                     ctr += 1;
-                    offset = K - ctr;
                 }
 
+                /// copy column
                 for (uint32_t t = 0; t < K; t++) {
-                    V_array.values[t][j] = G_hat.values[t][j + offset];
+                    V_array.values[t][j] = G_hat.values[t][ctr];
                 }
 
-                offset = K;
+                ctr += 1;
             }
-            ASSERT(ctr <= 1);
 
             ctr2+=1;
         }
         const int r = cf5_nonct(&V_array);
         if (r == 0) { return 0; }
-        LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array.values, sizeof(normalized_IS_t));
+        for (uint32_t sl = 0; sl < K; sl++) {
+            LESS_SHA3_INC_ABSORB(&state, V_array.values[sl], K);
+        }
+        //LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array.values, sizeof(normalized_IS_t));
     }
 
     uint8_t recomputed_digest[HASH_DIGEST_LENGTH] = {0};
