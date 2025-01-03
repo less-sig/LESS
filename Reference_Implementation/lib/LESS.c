@@ -142,7 +142,7 @@ size_t LESS_sign(const prikey_t *SK,
 
     monomial_t Q_tilde;
     monomial_action_IS_t Q_bar[T];
-    normalized_IS_t V_array;
+    normalized_IS_t V_array = {0};
 
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
@@ -154,27 +154,30 @@ size_t LESS_sign(const prikey_t *SK,
                                           i);
 
 #if defined(LESS_REUSE_PIVOTS_SG)
-            // TODO half of these operations within this function can be removed
-            if (prepare_digest_input_pivot_reuse(&V_array,
-                                                 &Q_bar[i],
-                                                 &full_G0,
-                                                 &Q_tilde,
-                                                 g0_initial_pivot_flags,
-                                                 SIGN_PIVOT_REUSE_LIMIT) == 0) {
-                return 0;
-            }
+        // TODO half of these operations within this function can be removed
+        if (prepare_digest_input_pivot_reuse(&V_array,
+                                             &Q_bar[i],
+                                             &full_G0,
+                                             &Q_tilde,
+                                             g0_initial_pivot_flags,
+                                             SIGN_PIVOT_REUSE_LIMIT) == 0) {
+            return 0;
+        }
 #else
         if (prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde) == 0) {
             return 0;
         }
 #endif
-        blind(&V_array, &cf_shake_state);
+        // blind(&V_array, &cf_shake_state);
         const int t = cf5_nonct(&V_array);
         if (t == 0) {
             *(ephem_monomial_seeds + i*SEED_LENGTH_BYTES) += 1;
             i -= 1;
         } else {
-            LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
+            // LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
+            for (uint32_t sl = 0; sl < K; sl++) {
+                LESS_SHA3_INC_ABSORB(&state, V_array.values[sl], K);
+            }
         }
     }
 

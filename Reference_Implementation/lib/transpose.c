@@ -133,8 +133,8 @@ const uint8_t* next_block(const uint8_t *src,
 
 /// \param dst[out]: output non-IS matrix: K \times N-K
 /// \param src[in]: input non-IS matrix: K \times N-K
-/// \param n nr cols
-/// \param z nr rows
+/// \param r nr cols
+/// \param c nr rows
 void matrix_transpose_opt(uint8_t *dst,
                           const uint8_t *src,
                           const uint32_t r,
@@ -164,7 +164,6 @@ void matrix_transpose_opt(uint8_t *dst,
         }
         for (uint32_t i = 0; i < r; i++) {
             for (uint32_t j = 0; j < c; j++) {
-                /// NOTE: hardcoded stride here
                 dst[j*dst_stride + i] = src[i*src_stride + j];
             }
         }

@@ -166,7 +166,7 @@ int compare_matrices(const normalized_IS_t *V1,
 /// \return 0 on failure
 /// 		1 on success
 int compute_canonical_form_type5(normalized_IS_t *G) {
-	normalized_IS_t Aj, smallest;
+	normalized_IS_t Aj = {0}, smallest;
     int touched = 0;
 
 	// init the output matrix to some `invalid` data
@@ -189,6 +189,11 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
 	}
 
     if (!touched) { return 0; }
+
+	// TODO remove
+	for (uint32_t t = K; t < K_pad; t++) {
+		ASSERT(row_inv_data[t] == 0);
+	}
 	
 	normalized_copy(G, &smallest);
 	return 1;
@@ -200,7 +205,7 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
 /// \return 0 on failure
 /// 		1 on success
 int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
-	normalized_IS_t Aj, smallest;
+	normalized_IS_t Aj = {0}, smallest;
     int touched = 0;
 
 	// init the output matrix to some `invalid` data
@@ -239,7 +244,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 	    return compute_canonical_form_type5(G);
     }
 
-    normalized_IS_t scaled_sub_G;
+    normalized_IS_t scaled_sub_G = {0};
 	FQ_ELEM row_inv_data[N_K_pad] = {0};
 
 	/// NOTE: this is already "sorted"
