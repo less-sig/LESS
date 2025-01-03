@@ -278,7 +278,7 @@ int prepare_digest_input(normalized_IS_t *V,
             ctr += 1;
         }
 
-        /// copy colum
+        /// copy column
         for (uint32_t i = 0; i < K; i++) {
             V->values[i][j] = G_dagger.values[i][ctr];
         }
@@ -333,7 +333,7 @@ int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
 
    uint8_t is_pivot_column[N] = {0};
    if (generator_RREF_pivot_reuse(&G_dagger,is_pivot_column, g_permuated_pivot_flags, pvt_reuse_limit) == 0) {
-       return 1;
+       return 0;
    }
 
     // just copy the non IS
@@ -343,7 +343,7 @@ int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
             ctr += 1;
         }
 
-        /// copy colum
+        /// copy column
         for (uint32_t i = 0; i < K; i++) {
             V->values[i][j] = G_dagger.values[i][ctr];
         }
@@ -367,6 +367,7 @@ int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
             piv_idx++;
         }
     }
+
     return 1;
 } /* end prepare_digest_input_pivot_reuse */
 

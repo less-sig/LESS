@@ -328,24 +328,24 @@ int LESS_verify(const pubkey_t *const PK,
             apply_cf_action_to_G(&G_hat, &tmp_full_G, sig->cf_monom_actions[employed_monoms]);
             const int ret = generator_RREF(&G_hat, is_pivot_column);
 #endif
-            if(ret != 1) {
+            if(ret == 0) {
                 return 0;
             }
 
-            // TODO not CT, not correct if more than 1 col is not a pivot column. Somehow merge with the loop just below
             // just copy the non IS
-            uint32_t ctr = 0, offset = K;
+            uint32_t ctr = 0;
             for(uint32_t j = 0; j < N-K; j++) {
-                if (is_pivot_column[j+K]) {
+                // find the next non pivot column
+                while (is_pivot_column[ctr]) {
                     ctr += 1;
-                    offset = K - ctr;
                 }
 
+                /// copy column
                 for (uint32_t t = 0; t < K; t++) {
-                    V_array.values[t][j] = G_hat.values[t][j + offset];
+                    V_array.values[t][j] = G_hat.values[t][ctr];
                 }
 
-                offset = K;
+                ctr += 1;
             }
 
             const int r = cf5_nonct(&V_array);

@@ -264,19 +264,17 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 		}
 
         if (compute_canonical_form_type4_sub(&scaled_sub_G, z, min_multiset)) {
-            // TODO need to talk with paolo about this
-#ifdef LESS_USE_HISTOGRAM
-            row_sort(min_multiset, scaled_sub_G.values[0], N-K);
-#else
-            memcpy(min_multiset, scaled_sub_G.values[0], N_K_pad);
-#endif
-
             for (uint32_t row2 = 0; row2 < K; row2++) {
                 row_mul3(Aj.values[row2], G->values[row2], row_inv_data);
             }
 
 		    const int ret = compute_canonical_form_type4(&Aj);
 		    if ((ret == 1) && (compare_matrices(&Aj, &smallest, K) < 0)) {
+#ifdef LESS_USE_HISTOGRAM
+            row_sort(min_multiset, Aj.values[0], N-K);
+#else
+            memcpy(min_multiset, Aj.values[0], N_K_pad);
+#endif
 		    	touched = 1;
 		    	normalized_copy(&smallest, &Aj);
 		    }
@@ -439,6 +437,6 @@ int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
 /// \return 0 on failure
 /// 		1 on success
 int cf5_nonct(normalized_IS_t *G) {
-    // return compute_canonical_form_type5_popcnt(G);
-	return compute_canonical_form_type5(G);
+    return compute_canonical_form_type5_popcnt(G);
+	//return compute_canonical_form_type5(G);
 }

@@ -198,8 +198,8 @@
 #endif
 
 // TODO doc
-#define LESS_REUSE_PIVOTS_VY
-#define LESS_REUSE_PIVOTS_SG
+//#define LESS_REUSE_PIVOTS_VY
+//#define LESS_REUSE_PIVOTS_SG
 
 // TODO doc
 #define LESS_USE_HISTOGRAM
