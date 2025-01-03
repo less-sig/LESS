@@ -24,8 +24,11 @@
 
 #include <stdio.h>
 #include <math.h>
+
 #include "LESS.h"
 #include "rng.h"
+
+#include "../test/test_helpers.c"
 
 
 #if defined(__aarch64__) || defined(_M_ARM64)
