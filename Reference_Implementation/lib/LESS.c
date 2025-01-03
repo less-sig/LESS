@@ -264,7 +264,7 @@ int LESS_verify(const pubkey_t *const PK,
     generator_mat_t tmp_full_G;
     generator_mat_t G_hat;
     monomial_action_IS_t Q_to_discard;
-    normalized_IS_t V_array;
+    normalized_IS_t V_array = {0};
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
 
@@ -358,7 +358,7 @@ int LESS_verify(const pubkey_t *const PK,
             for (uint32_t sl = 0; sl < K; sl++) {
                 LESS_SHA3_INC_ABSORB(&state, V_array.values[sl], K);
             }
-            LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array.values, sizeof(normalized_IS_t));
+            // LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array.values, sizeof(normalized_IS_t));
             employed_monoms++;
         }
     }
