@@ -252,7 +252,7 @@ FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
 /// \param s
 static inline
 void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
-    vec256_t shuffle, t, c7f, c01, r, b, a, a_lo, a_hi, b_lo, b_hi;
+    vec256_t shuffle, t, c7f, c01, b, a, a_lo, a_hi, b_lo, b_hi;
     vec128_t tmp;
 
     vload256(shuffle, (vec256_t *) shuff_low_half);
@@ -297,7 +297,7 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
 /// \param s
 static inline
 void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
-    vec256_t shuffle, t, c7f, c01, r, b, a, a_lo, a_hi, b_lo, b_hi;
+    vec256_t shuffle, t, c7f, c01, b, a, a_lo, a_hi, b_lo, b_hi;
     vec128_t tmp;
 
     vload256(shuffle, (vec256_t *) shuff_low_half);
@@ -342,7 +342,7 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
 /// \param in2
 static inline
 void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
-    vec256_t shuffle, t, r, c7f, c01, a, a_lo, a_hi, b, b_lo, b_hi;
+    vec256_t shuffle, t, c7f, c01, a, a_lo, a_hi, b, b_lo, b_hi;
     vec128_t tmp;
 
     vload256(shuffle, (vec256_t *) shuff_low_half);
@@ -395,8 +395,6 @@ void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
 ///         0 else
 static inline
 uint32_t row_all_same(const FQ_ELEM *in) {
-    const uint32_t limit = (N-K) % 32;
-
     vec256_t t1, t2, acc;
     vset8(acc, -1);
     vset8(t2, in[0]);
