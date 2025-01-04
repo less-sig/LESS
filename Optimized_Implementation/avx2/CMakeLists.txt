@@ -90,6 +90,12 @@ foreach(category RANGE 1 5 2)
     target_link_libraries(${TARGET_BINARY_NAME} m crypto)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
 
+    # TODO remove once everything is done
+    set(TARGET_BINARY_NAME LESS_bench_rref_${category}_${optimiz_target})
+    add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/bench/bench_rref.c ${SOURCES})
+    target_link_libraries(${TARGET_BINARY_NAME} m crypto)
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+
   endforeach(optimiz_target)
 
   # TODO remove once everything is done
