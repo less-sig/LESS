@@ -170,7 +170,7 @@ FQ_DOUBLEPREC br_red16(FQ_DOUBLEPREC x)
 }
 
 
-/// NOTE: maybe dont use it for sensetive data
+/// NOTE: maybe dont use it for sensitive data
 static const uint8_t fq_inv_table[127] __attribute__((aligned(64))) = {
    0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126
 };
@@ -252,12 +252,12 @@ FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
 /// \param s
 static inline
 void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
-    vec256_t shuffle, t, c8_127, c8_1, r, b, a, a_lo, a_hi, b_lo, b_hi;
+    vec256_t shuffle, t, c7f, c01, b, a, a_lo, a_hi, b_lo, b_hi;
     vec128_t tmp;
 
     vload256(shuffle, (vec256_t *) shuff_low_half);
-    vset8(c8_127, 127);
-    vset8(c8_1, 1);
+    vset8(c7f, 127);
+    vset8(c01, 1);
 
     // precompute b
     vset8(b, s);
@@ -285,7 +285,8 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
 
         vpermute2(t, a_lo, a_hi, 0x20);
 
-        barrett_red8(t, r, c8_127, c8_1);
+        // barrett_red8(t, r, c7f, c01);
+        W_RED127_(t);
         vstore256((vec256_t *)(row + col), t);
     }
 }
@@ -296,12 +297,12 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
 /// \param s
 static inline
 void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
-    vec256_t shuffle, t, c8_127, c8_1, r, b, a, a_lo, a_hi, b_lo, b_hi;
+    vec256_t shuffle, t, c7f, c01, b, a, a_lo, a_hi, b_lo, b_hi;
     vec128_t tmp;
 
     vload256(shuffle, (vec256_t *) shuff_low_half);
-    vset8(c8_127, 127);
-    vset8(c8_1, 1);
+    vset8(c7f, 127);
+    vset8(c01, 1);
 
     // precompute b
     vset8(b, s);
@@ -329,7 +330,8 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
 
         vpermute2(t, a_lo, a_hi, 0x20);
 
-        barrett_red8(t, r, c8_127, c8_1);
+        // barrett_red8(t, r, c7f, c01);
+        W_RED127_(t);
         vstore256((vec256_t *)(out + col), t);
     }
 }
@@ -340,13 +342,12 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
 /// \param in2
 static inline
 void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
-
-    vec256_t shuffle, t, r, c8_127, c8_1, a, a_lo, a_hi, b, b_lo, b_hi;
+    vec256_t shuffle, t, c7f, c01, a, a_lo, a_hi, b, b_lo, b_hi;
     vec128_t tmp;
 
     vload256(shuffle, (vec256_t *) shuff_low_half);
-    vset8(c8_127, 127);
-    vset8(c8_1, 1);
+    vset8(c7f, 127);
+    vset8(c01, 1);
 
     for (uint32_t col = 0; col < N_K_pad; col+=32) {
         vload256(a, (vec256_t *)(in1 + col));
@@ -372,7 +373,8 @@ void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
 
         vpermute2(t, a_lo, a_hi, 0x20);
 
-        barrett_red8(t, r, c8_127, c8_1);
+        // barrett_red8(t, r, c7f, c01);
+        W_RED127_(t);
         vstore256((vec256_t *)(out + col), t);
     }
 }
@@ -393,17 +395,24 @@ void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
 ///         0 else
 static inline
 uint32_t row_all_same(const FQ_ELEM *in) {
-    // TODO last load must be limited
     vec256_t t1, t2, acc;
     vset8(acc, -1);
     vset8(t2, in[0]);
-    for (uint32_t col = 0; col < N_K_pad; col += 32) {
+
+    uint32_t col = 0;
+    for (; col < N_K_pad-32; col += 32) {
         vload256(t1, (vec256_t *)(in + col));
         vcmp8(t1, t1, t2);
         vand(acc, acc, t1);
     }
 
     const uint32_t t3 = vmovemask8(acc);
+    for (;col < N-K; col++) {
+        if (in[col-1] != in[col]) {
+            return 0;
+        }
+    }
+
     return t3 == -1u;
 }
 

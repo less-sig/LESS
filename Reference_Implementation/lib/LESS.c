@@ -62,7 +62,7 @@ void LESS_keygen(prikey_t *SK,
 
     generator_mat_t tmp_full_G;
     generator_rref_expand(&tmp_full_G, &G0_rref);
-    uint8_t is_pivot_column[N];
+    uint8_t is_pivot_column[N_pad];
 
     /* note that the first "keypair" is just the public generator G_0, stored
      * as a seed and the identity matrix (not stored) */
@@ -142,7 +142,7 @@ size_t LESS_sign(const prikey_t *SK,
 
     monomial_t Q_tilde;
     monomial_action_IS_t Q_bar[T];
-    normalized_IS_t V_array;
+    normalized_IS_t V_array = {0};
 
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
@@ -154,27 +154,30 @@ size_t LESS_sign(const prikey_t *SK,
                                           i);
 
 #if defined(LESS_REUSE_PIVOTS_SG)
-            // TODO half of these operations within this function can be removed
-            if (prepare_digest_input_pivot_reuse(&V_array,
-                                                 &Q_bar[i],
-                                                 &full_G0,
-                                                 &Q_tilde,
-                                                 g0_initial_pivot_flags,
-                                                 SIGN_PIVOT_REUSE_LIMIT) == 0) {
-                return 0;
-            }
+        // TODO half of these operations within this function can be removed
+        if (prepare_digest_input_pivot_reuse(&V_array,
+                                             &Q_bar[i],
+                                             &full_G0,
+                                             &Q_tilde,
+                                             g0_initial_pivot_flags,
+                                             SIGN_PIVOT_REUSE_LIMIT) == 0) {
+            return 0;
+        }
 #else
         if (prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde) == 0) {
             return 0;
         }
 #endif
-        blind(&V_array, &cf_shake_state);
+        // blind(&V_array, &cf_shake_state);
         const int t = cf5_nonct(&V_array);
         if (t == 0) {
             *(ephem_monomial_seeds + i*SEED_LENGTH_BYTES) += 1;
             i -= 1;
         } else {
-            LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
+            // LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
+            for (uint32_t sl = 0; sl < K; sl++) {
+                LESS_SHA3_INC_ABSORB(&state, V_array.values[sl], K);
+            }
         }
     }
 
@@ -261,7 +264,7 @@ int LESS_verify(const pubkey_t *const PK,
     generator_mat_t tmp_full_G;
     generator_mat_t G_hat;
     monomial_action_IS_t Q_to_discard;
-    normalized_IS_t V_array;
+    normalized_IS_t V_array = {0};
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
 
@@ -325,24 +328,24 @@ int LESS_verify(const pubkey_t *const PK,
             apply_cf_action_to_G(&G_hat, &tmp_full_G, sig->cf_monom_actions[employed_monoms]);
             const int ret = generator_RREF(&G_hat, is_pivot_column);
 #endif
-            if(ret != 1) {
+            if(ret == 0) {
                 return 0;
             }
 
-            // TODO not CT, not correct if more than 1 col is not a pivot column. Somehow merge with the loop just below
             // just copy the non IS
-            uint32_t ctr = 0, offset = K;
+            uint32_t ctr = 0;
             for(uint32_t j = 0; j < N-K; j++) {
-                if (is_pivot_column[j+K]) {
+                // find the next non pivot column
+                while (is_pivot_column[ctr]) {
                     ctr += 1;
-                    offset = K - ctr;
                 }
 
+                /// copy column
                 for (uint32_t t = 0; t < K; t++) {
-                    V_array.values[t][j] = G_hat.values[t][j + offset];
+                    V_array.values[t][j] = G_hat.values[t][ctr];
                 }
 
-                offset = K;
+                ctr += 1;
             }
 
             const int r = cf5_nonct(&V_array);
@@ -355,7 +358,7 @@ int LESS_verify(const pubkey_t *const PK,
             for (uint32_t sl = 0; sl < K; sl++) {
                 LESS_SHA3_INC_ABSORB(&state, V_array.values[sl], K);
             }
-            LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array.values, sizeof(normalized_IS_t));
+            // LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array.values, sizeof(normalized_IS_t));
             employed_monoms++;
         }
     }

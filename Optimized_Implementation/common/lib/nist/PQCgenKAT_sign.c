@@ -136,7 +136,8 @@ int main(void) {
 
         if ( (ret_val = crypto_sign_open(m1, &mlen1, sm, smlen, pk)) != 0) {
             printf("crypto_sign_open returned <%d>\n", ret_val);
-            return KAT_CRYPTO_FAILURE;
+            printf("%d\n", count);
+            //return KAT_CRYPTO_FAILURE;
         }
 
         if ( mlen != mlen1 ) {

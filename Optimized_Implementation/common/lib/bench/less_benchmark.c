@@ -24,8 +24,11 @@
 
 #include <stdio.h>
 #include <math.h>
+
 #include "LESS.h"
 #include "rng.h"
+
+#include "../test/test_helpers.c"
 
 
 #if defined(__aarch64__) || defined(_M_ARM64)
@@ -115,7 +118,7 @@ long double welford_mean(const welford_t state) {
 #elif defined(CATEGORY_3)
 #define NUM_TESTS 12
 #else
-#define NUM_TESTS 32
+#define NUM_TESTS 100
 #endif
 
 #ifdef N_pad

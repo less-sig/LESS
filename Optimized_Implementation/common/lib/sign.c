@@ -65,6 +65,7 @@ int crypto_sign(unsigned char *sm,
 #if defined(SEED_TREE)
     const uint32_t sig_len = LESS_CRYPTO_BYTES(num_seeds_published);
 #else
+    (void)num_seeds_published;
     const uint32_t sig_len = sizeof(sign_t);//LESS_CRYPTO_BYTES;
 #endif
 

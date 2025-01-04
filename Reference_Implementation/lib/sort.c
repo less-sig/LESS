@@ -123,6 +123,57 @@ int row_quick_sort_internal_hoare_partition2(FQ_ELEM* ptr[K],
     return i+1;
 }
 
+void HISTEND4(uint8_t *cnt,
+              uint8_t c[4][128]) {
+#if 1
+     for(uint32_t i = 0; i < Q; i++) {
+         const uint8_t t = c[0][i]+c[1][i]+c[2][i]+c[3][i];
+         ASSERT(t < Q);
+         cnt[i] = t;
+     }
+#else
+    for(uint32_t i = 0; i < Q_pad; i+=32) {
+        __m256i sv =                  _mm256_load_si256((const __m256i *)&c[0][i]);
+                sv = _mm256_add_epi8(_mm256_load_si256((const __m256i *)&c[1][i]), sv);
+                sv = _mm256_add_epi8(_mm256_load_si256((const __m256i *)&c[2][i]), sv);
+                sv = _mm256_add_epi8(_mm256_load_si256((const __m256i *)&c[3][i]), sv);
+        _mm256_storeu_si256((__m256i *)&cnt[i], sv);
+    }
+#endif
+}
+
+void HISTEND8(uint8_t *cnt,
+              uint8_t c[8][128]) {
+#if 1
+    for(uint32_t i = 0; i < Q; i++) {
+        const uint8_t t = c[0][i]+c[1][i]+c[2][i]+c[3][i]+c[4][i]+c[5][i]+c[6][i]+c[7][i];
+        ASSERT(t < Q);
+        cnt[i] = t;
+    }
+#else
+    for(uint32_t i = 0; i < Q_pad; i+=32) {
+        __m256i v0 = _mm256_load_si256((const __m256i *)&c[0][i]);
+        __m256i v1 = _mm256_load_si256((const __m256i *)&c[1][i]);
+	    __m256i s0 = _mm256_add_epi8(v0, v1);
+                v0 = _mm256_load_si256((const __m256i *)&c[2][i]);
+                v1 = _mm256_load_si256((const __m256i *)&c[3][i]);
+	    __m256i s1 = _mm256_add_epi8(v0, v1);
+                s0 = _mm256_add_epi8(s0, s1);
+
+                v0 = _mm256_load_si256((const __m256i *)&c[4][i]);
+                v1 = _mm256_load_si256((const __m256i *)&c[5][i]);
+	    		s1 = _mm256_add_epi8(v0, v1);
+                v0 = _mm256_load_si256((const __m256i *)&c[6][i]);
+                v1 = _mm256_load_si256((const __m256i *)&c[7][i]);
+	            s0 = _mm256_add_epi8(s0, v0);
+	    		s1 = _mm256_add_epi8(s1, v1);
+
+        _mm256_storeu_si256((__m256i *)&cnt[i], _mm256_add_epi8(s0, s1));
+    }
+#endif
+}
+
+
 /// \param out[out]: pointer to the row to sort
 /// \param in[in]: pointer to the row to sort
 /// \param len[in]: length of the row
@@ -130,12 +181,25 @@ void row_sort(uint8_t *out,
               const uint8_t *in,
               const uint32_t len) {
 #ifdef LESS_USE_HISTOGRAM
-    memset(out, 0, Q);
+#if 1
+    memset(out, 0, Q_pad);
 	for (uint32_t i = 0 ; i < len ; ++i) {
 	    const uint8_t t = in[i];
-	    ASSERT(t < Q);
 		out[t]++;
 	}
+#else
+    uint8_t c[4][Q_pad] __attribute__((aligned(32))) = {0};
+    const uint8_t *ip = in;
+    while(ip != in+(len&~(4-1))) c[0][*ip++]++, c[1][*ip++]++, c[2][*ip++]++, c[3][*ip++]++;
+    while(ip != in+ len        ) c[0][*ip++]++;
+    HISTEND4(out, c);
+
+    // uint8_t c[8][Q_pad] __attribute__((aligned(32))) = {0};
+    // const uint8_t *ip = in;
+    // while(ip != in+(len&~(8-1))) c[0][*ip++]++, c[1][*ip++]++, c[2][*ip++]++, c[3][*ip++]++, c[4][*ip++]++, c[5][*ip++]++, c[6][*ip++]++, c[7][*ip++]++;
+    // while(ip != in+ len        ) c[0][*ip++]++;
+    // HISTEND8(out, c);
+#endif
 #else
     memcpy(out, in, sizeof(FQ_ELEM) * N-K);
     counting_sort_u8(out, len);
@@ -181,7 +245,7 @@ int row_quick_sort(normalized_IS_t *G,
                    const uint32_t n) {
 	// first sort each row into a tmp buffer
 #ifdef LESS_USE_HISTOGRAM
-	FQ_ELEM tmp[K][Q] __attribute__((aligned(32)));
+	FQ_ELEM tmp[K][Q_pad] __attribute__((aligned(32)));
 #else
 	FQ_ELEM tmp[K][N-K];
 #endif
@@ -402,7 +466,7 @@ int row_quick_sort_internal_without_histogram(FQ_ELEM* ptr[K],
 /// \param z[in]: number of rows within each col to sort
 void col_quicksort_transpose(normalized_IS_t *V,
                              const uint32_t z) {
-    normalized_IS_t VT;
+    normalized_IS_t VT = {0};
     matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, z, K_pad);
 
     FQ_ELEM* ptr[K];

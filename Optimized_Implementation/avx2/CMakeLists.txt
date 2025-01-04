@@ -11,9 +11,9 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS      " -Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal")
+set(ALLOWED_WARNINGS      " -Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal ")
 set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -g -O0 -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -fsanitize=address ${ALLOWED_WARNINGS}")
-set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -flto -ftree-vectorize -funroll-loops -fomit-frame-pointer ${ALLOWED_WARNINGS}")
+set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -flto -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
 
 
 set(SOURCES
@@ -87,6 +87,12 @@ foreach(category RANGE 1 5 2)
     # TODO remove once everything is done
     set(TARGET_BINARY_NAME LESS_bench_cf_${category}_${optimiz_target})
     add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/bench/bench_cf.c ${SOURCES})
+    target_link_libraries(${TARGET_BINARY_NAME} m crypto)
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+
+    # TODO remove once everything is done
+    set(TARGET_BINARY_NAME LESS_bench_rref_${category}_${optimiz_target})
+    add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/bench/bench_rref.c ${SOURCES})
     target_link_libraries(${TARGET_BINARY_NAME} m crypto)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
 
