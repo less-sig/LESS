@@ -83,7 +83,7 @@ int compute_canonical_form_type4_sub(normalized_IS_t *G,
                                      const uint32_t z,
                                      const FQ_ELEM *min_multiset) {
 #ifdef LESS_USE_HISTOGRAM
-    FQ_ELEM tmp[Q];
+    FQ_ELEM tmp[Q_pad];
 #else
     FQ_ELEM tmp[N_K_pad] = {0};
 #endif
@@ -249,8 +249,8 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 
 	/// NOTE: this is already "sorted"
 #ifdef LESS_USE_HISTOGRAM
-	FQ_ELEM min_multiset[Q];
-	memset(min_multiset, 0, Q );
+	FQ_ELEM min_multiset[Q_pad];
+	memset(min_multiset, 0, Q_pad);
 #else
 	FQ_ELEM min_multiset[N_K_pad];
 	memset(min_multiset, Q-1, N_K_pad);
