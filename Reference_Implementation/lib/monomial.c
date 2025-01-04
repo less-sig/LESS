@@ -218,7 +218,7 @@ void cf_compress_monomial_IS_action(uint8_t *compressed,
 int is_cf_monom_action_valid(const uint8_t* const mono) {
     uint32_t w = 0;
     for (uint32_t i = 0; i < N8; i++) {
-        w += __builtin_popcount(mono[i]);
+        w += (uint32_t)__builtin_popcount(mono[i]);
     }
 
     return w == K;

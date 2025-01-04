@@ -52,7 +52,7 @@ void cswap_array(uintptr_t *a,
                  uintptr_t *b,
                  const uintptr_t mask,
                  const uint32_t n) {
-    __m256i m   = _mm256_set1_epi64x(mask);
+    __m256i m   = _mm256_set1_epi64x((long long int)mask);
     __m256i *aa = (__m256i *)a;
     __m256i *bb = (__m256i *)b;
     for (uint32_t i = 0; i < (n/4); i++) {
@@ -81,7 +81,7 @@ int verify(const uint8_t *a,
         f = _mm256_xor_si256(f,g);
         h = _mm256_or_si256(h,f);
     }
-    r = 1 - _mm256_testz_si256(h,h);
+    r = 1u - (uint32_t)_mm256_testz_si256(h,h);
 
     a += 32*i;
     b += 32*i;
@@ -122,7 +122,7 @@ void cmov(uint8_t * restrict r,
     __asm__("" : "+r"(b) : /* no inputs */);
 #endif
 
-    bvec = _mm256_set1_epi64x(-(uint64_t)b);
+    bvec = _mm256_set1_epi64x((long long int)(-(uint64_t)b));
     for(i=0;i<len/32;i++) {
         rvec = _mm256_loadu_si256((__m256i *)&r[32*i]);
         xvec = _mm256_loadu_si256((__m256i *)&x[32*i]);

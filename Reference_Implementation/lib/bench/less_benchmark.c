@@ -30,7 +30,7 @@
 #include "rng.h"
 #include "cycles.h"
 
-#include "../test/test_helpers.c"
+#include "./test_helpers.c"
 
 
 typedef struct {
@@ -152,7 +152,7 @@ void LESS_sign_verify_speed(void){
     }
     printf("Key generation kCycles (avg,stddev): ");
     welford_print(timer);
-    printf("\n\n");
+    printf("\n");
 
     
     welford_init(&timer);
@@ -163,7 +163,7 @@ void LESS_sign_verify_speed(void){
     }
     printf("Signature kCycles (avg,stddev): ");
     welford_print(timer);
-    printf("\n\n");
+    printf("\n");
     
     int is_signature_ok;
     welford_init(&timer);
@@ -174,7 +174,7 @@ void LESS_sign_verify_speed(void){
     }
     printf("Verification kCycles (avg,stddev):");
     welford_print(timer);
-    printf("\n\n");
+    printf("\n");
     fprintf(stderr,"Keygen-Sign-Verify: %s", is_signature_ok == 1 ? "functional\n": "not functional\n" );
 }
 

@@ -406,7 +406,7 @@ uint32_t row_all_same(const FQ_ELEM *in) {
         vand(acc, acc, t1);
     }
 
-    const uint32_t t3 = vmovemask8(acc);
+    const uint32_t t3 = (uint32_t)vmovemask8(acc);
     for (;col < N-K; col++) {
         if (in[col-1] != in[col]) {
             return 0;
@@ -431,7 +431,7 @@ uint32_t row_contains_zero(const FQ_ELEM *in) {
         vor(acc, acc, t1);
     }
     
-    const uint32_t t3 = vmovemask8(acc);
+    const uint32_t t3 = (uint32_t)vmovemask8(acc);
     if (t3 != 0ul) { return 1; }
 
     for (;col < N-K; col++) {
