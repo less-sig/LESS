@@ -379,7 +379,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
         for (int preproc_col = K - 1; preproc_col >= 0; preproc_col--) {
             if (was_pivot_column[preproc_col] == 1) {
                 // find pivot row
-                uint32_t pivot_el_row = -1;
+                uint32_t pivot_el_row = -1u;
                 for (uint32_t row = 0; row < K; row = row + 1) {
                     if (G->values[row][preproc_col] != 0) {
                         pivot_el_row = row;

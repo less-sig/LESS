@@ -1,6 +1,15 @@
 cmake_minimum_required(VERSION 3.9.4)
+project(LESS)
+enable_language(C ASM)
 
-project(LESS C)
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
+# needed for nvim
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
+if(CMAKE_EXPORT_COMPILE_COMMANDS)
+  set(CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES
+          ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
+endif()
 
 # Set a default build type if none was specified
 set(default_build_type "Release")
@@ -58,14 +67,14 @@ check_c_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
 include(CheckIPOSupported)
 check_ipo_supported(RESULT lto_supported OUTPUT error)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wpedantic -pedantic -Wuninitialized -Wsign-conversion -Wno-strict-prototypes -Wno-unused-function")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -flto -ftree-vectorize -funroll-loops -Wall -Wpedantic -pedantic -Wuninitialized -Wsign-conversion -Wno-strict-prototypes -Wno-unused-function")
 
 if(USE_SANITZE)
   set(SANITIZE "-fsanitize=address -fsanitize=pointer-compare")
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES Release)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mtune=native -O3 -g0")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 ")
   if(COMPILER_SUPPORTS_MARCH_NATIVE)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native")
   endif()
@@ -90,7 +99,7 @@ endif()
 set(CMAKE_C_STANDARD 99)
 
 if(USE_AVX2)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -mavx2")
+    set(CMAKE_C_FLAGS "-DUSE_AVX2 -mavx -mavx2 ${CMAKE_C_FLAGS} ")
 endif()
 
 if(USE_NEON)
@@ -127,7 +136,6 @@ if(STANDALONE_KECCAK)
   message(STATUS "Employing standalone SHA-3")
   set(KECCAK_EXTERNAL_LIB "")
   set(KECCAK_EXTERNAL_ENABLE "")
-  list(APPEND COMMON_SOURCES ${BASE_DIR}/lib/keccakf1600.c)
   list(APPEND COMMON_SOURCES ${BASE_DIR}/lib/fips202.c)
 else()
   message(STATUS "Employing libkeccak")
@@ -140,15 +148,21 @@ set(SOURCES
   ${COMMON_SOURCES}
   ${BASE_DIR}/lib/codes.c
   ${BASE_DIR}/lib/LESS.c
+  ${BASE_DIR}/lib/LESS_without_tree.c
   ${BASE_DIR}/lib/monomial.c
   ${BASE_DIR}/lib/rng.c
   ${BASE_DIR}/lib/seedtree.c
   ${BASE_DIR}/lib/utils.c
   ${BASE_DIR}/lib/sign.c
+  ${BASE_DIR}/lib/sort.c
+  ${BASE_DIR}/lib/transpose.c
+  ${BASE_DIR}/lib/canonical.c
+  ${BASE_DIR}/lib/keccakf1600.c
 )
 
 if(USE_AVX2)
 	set(SOURCES ${SOURCES} ${BASE_DIR}/lib/KeccakP-1600-AVX2.s)
+	set(SOURCES ${SOURCES} ${BASE_DIR}/lib/transpose_avx2.c)
 	set(HEADERS ${HEADERS} ${BASE_DIR}/include/macro.h)
 endif()
 

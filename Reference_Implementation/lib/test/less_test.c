@@ -164,7 +164,7 @@ int LESS_sign_verify_test_multiple(void){
 
     int ret = 0;
     for (size_t i = 0; i < NUMBER_OF_TESTS; ++i) {
-        const uint32_t msg_len = rand() % MLEN;
+        const uint32_t msg_len = (uint32_t)rand() % MLEN;
         randombytes(m, msg_len);
 
         int ret_val;

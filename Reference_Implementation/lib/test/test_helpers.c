@@ -531,15 +531,15 @@ void diagonal_pretty_print(const diagonal_t *const D) {
 /// \param b[in/out] second input
 /// \returns nothing but: a = min(a, b),
 ///						  b = max(a, b)
-#define int8_MINMAX(a,b)\
-do {                    \
-    int8_t ab = b ^ a;  \
-    int8_t c = b - a;   \
-    c ^= ab & (c ^ b);  \
-    c >>= 7;            \
-    c &= ab;            \
-    a ^= c;             \
-    b ^= c;             \
+#define int8_MINMAX(a,b)                \
+do {                                    \
+    int8_t ab = (int8_t)b ^ (int8_t)a;  \
+    int8_t c  = (int8_t)b - (int8_t)a;  \
+    c ^= ab & (c ^ (int8_t)b);          \
+    c >>= 7;                            \
+    c &= ab;                            \
+    a ^= (FQ_ELEM)c;                    \
+    b ^= (FQ_ELEM)c;                    \
 } while(0)
 
 /// NOTE: taken from djbsort
@@ -644,7 +644,7 @@ int row_bitonic_sort(normalized_IS_t *G) {
                 // NOTE: here is a sign cast, this is needed, so the
                 // sign extension needed for the mask is an unsigned one.
                 const int32_t cmp1 = compare_rows_bitonic_sort(ptr, i, i + p);
-                const uint32_t cmp = cmp1;
+                const uint32_t cmp = (uint32_t)cmp1;
                 if (cmp == 0) { return 0; }
 
                 const uintptr_t mask = -(1ull - (cmp >> 31));
@@ -657,7 +657,7 @@ int row_bitonic_sort(normalized_IS_t *G) {
             for (uint64_t i = 0; i < n - q; ++i) {
                 if (!(i & p)) {
                     for (uint64_t r = q; r > p; r >>= 1) {
-                        const uint32_t cmp = compare_rows_bitonic_sort(ptr, i+p, i + r);
+                        const uint32_t cmp = (uint32_t)compare_rows_bitonic_sort(ptr, i+p, i + r);
                         if (cmp == 0) { return 0; }
 
                         const uintptr_t mask = -(1ull - (cmp >> 31));
@@ -691,8 +691,8 @@ int row_quick_sort_internal_hoare_partition(FQ_ELEM* ptr[K],
                                             const POSITION_T row_l,
                                             const POSITION_T row_h) {
 #ifdef LESS_USE_HISTOGRAM
-    FQ_ELEM pivot_row[Q];
-    for(uint32_t i = 0; i < Q; i++){
+    FQ_ELEM pivot_row[Q_pad];
+    for(uint32_t i = 0; i < Q_pad; i++){
        pivot_row[i] = ptr[row_l][i];
     }
 #else
@@ -734,10 +734,10 @@ int row_quick_sort_recursive_internal(FQ_ELEM* ptr[K],
                                      const uint32_t start,
                                      const uint32_t end) {
     if(start < end){
-        const int p = row_quick_sort_internal_hoare_partition(ptr, P, start, end);
-    	if (p == -1) { return 0; }
+        const uint32_t p = (uint32_t)row_quick_sort_internal_hoare_partition(ptr, P, start, end);
+    	if (p == -1u) { return 0; }
         row_quick_sort_recursive_internal(ptr, P, start, p);
-        row_quick_sort_recursive_internal(ptr, P, p + 1, end);
+        row_quick_sort_recursive_internal(ptr, P, p + 1u, end);
     }
 
 	return 1;
@@ -787,7 +787,7 @@ int row_quick_sort_recursive(normalized_IS_t *G,
 /// \param row_l
 /// \param row_h
 /// \return
-int row_quick_sort_internal_hoare_partition_without_histogram(FQ_ELEM* ptr[K],
+uint32_t row_quick_sort_internal_hoare_partition_without_histogram(FQ_ELEM* ptr[K],
                                                               uint32_t P[K],
                                                               const POSITION_T row_l,
                                                               const POSITION_T row_h) {
@@ -822,13 +822,13 @@ int row_quick_sort_internal_hoare_partition_without_histogram(FQ_ELEM* ptr[K],
 /// \param end[in]: inclusive
 /// \return 1 on success
 ///			0 if two rows generate the same multi set
-int row_quick_sort_recursive_internal_without_histogram(FQ_ELEM* ptr[K],
+uint32_t row_quick_sort_recursive_internal_without_histogram(FQ_ELEM* ptr[K],
                             uint32_t P[K],
                             const uint32_t start,
                             const uint32_t end) {
     if(start < end){
-        const int p = row_quick_sort_internal_hoare_partition_without_histogram(ptr, P, start, end);
-    	if (p == -1) { return 0; }
+        const uint32_t p = row_quick_sort_internal_hoare_partition_without_histogram(ptr, P, start, end);
+    	if (p == -1u) { return 0; }
         row_quick_sort_recursive_internal_without_histogram(ptr, P, start, p);
         row_quick_sort_recursive_internal_without_histogram(ptr, P, p + 1, end);
     }
@@ -863,7 +863,7 @@ int col_bitonic_sort_transposed(normalized_IS_t *G) {
             if (!(i & p)) {
                 // NOTE: here is a sign cast, this is needed, so the
             	// sign extension needed for the mask is an unsigned one.
-			    const uint32_t cmp = compare_rows_bitonic_sort(ptr, i, i + p);
+			    const uint32_t cmp = (uint32_t)compare_rows_bitonic_sort(ptr, i, i + p);
 
                 const uintptr_t mask = -(1ull - (cmp >> 31));
                 cswap((uintptr_t *)(&ptr[i]), (uintptr_t *)(&ptr[i+p]), mask);
@@ -875,7 +875,7 @@ int col_bitonic_sort_transposed(normalized_IS_t *G) {
             for (uint64_t i = 0; i < n - q; ++i) {
                 if (!(i & p)) {
                     for (uint64_t r = q; r > p; r >>= 1) {
-			            const uint32_t cmp = compare_rows_bitonic_sort(ptr, i+p, i + r);
+			            const uint32_t cmp = (uint32_t)compare_rows_bitonic_sort(ptr, i+p, i + r);
                         const uintptr_t mask = -(1ull - (cmp >> 31));
                         cswap((uintptr_t *)(&ptr[i+p]), (uintptr_t *)(&ptr[i+r]), mask);
 						MASKED_SWAP(P[i+p], P[i+r], mask);

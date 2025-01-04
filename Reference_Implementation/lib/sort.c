@@ -49,7 +49,7 @@ int compare_rows(const FQ_ELEM *row1,
                  const FQ_ELEM *row2) {
 #ifdef LESS_USE_HISTOGRAM
     uint32_t i=0;
-    while((i < (N-K-1)) && (row1[i] == row2[i])) {
+    while((i < (Q-1)) && (row1[i] == row2[i])) {
         i += 1;
     }
     return (((int)(row2[i]))-((int)(row1[i])));
@@ -75,9 +75,16 @@ int compare_rows(const FQ_ELEM *row1,
 /// \returns   1 if the pivot is greater,
 /// 	      -1 if it is smaller,
 /// 		   0 if it matches
+///
+#ifdef LESS_USE_HISTOGRAM
+int row_quick_sort_internal_compare_with_pivot(uint8_t *ptr[Q],
+                                               const uint32_t row_idx,
+                                               const uint8_t pivot[Q]){
+#else 
 int row_quick_sort_internal_compare_with_pivot(uint8_t *ptr[K],
                                                const uint32_t row_idx,
                                                const uint8_t pivot[K]){
+#endif
 #ifdef LESS_USE_HISTOGRAM
     uint32_t i=0;
     while((i<(Q-1)) && (ptr[row_idx][i]-pivot[i] == 0)){
@@ -210,7 +217,7 @@ void row_sort(uint8_t *out,
 int row_quick_sort_internal(FQ_ELEM *ptr[K],
                             uint32_t P[K],
                             const uint32_t n) {
-    int32_t l = 0, h = n-1;
+    int32_t l = 0, h = (int32_t)n-1;
     int32_t s = -1;
 
     // NOTE: worst case is 128

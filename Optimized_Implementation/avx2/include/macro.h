@@ -35,16 +35,6 @@
 typedef __m256i vec256_t;
 typedef __m128i vec128_t;
 
-static void print256_num(vec256_t var, const char *string) {
-    uint8_t val[32] = {0};
-    memcpy(val, &var, sizeof(val));
-    printf("%s:\t\t%02x %02x %02x %02x | %02x %02x %02x %02x | %02x %02x %02x %02x | %02x %02x %02x %02x \n\t\t%02x %02x %02x %02x | %02x %02x %02x %02x | %02x %02x %02x %02x | %02x %02x %02x %02x \n\n", string,
-           val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7],
-           val[8], val[9], val[10], val[11], val[12], val[13], val[14], val[15],
-           val[16], val[17], val[18], val[19], val[20], val[21], val[22], val[23],
-           val[24], val[25], val[26], val[27], val[28], val[29], val[30], val[31]);
-}
-
 // c <- src
 #define vload256(c, src) c = _mm256_loadu_si256(src);
 #define vload128(c, src) c = _mm_loadu_si128(src);
@@ -55,7 +45,7 @@ static void print256_num(vec256_t var, const char *string) {
 // #define vstore(src, c) _mm256_store_si256(src, c);
 
 // c = a + b
-#define vadd8(c, a, b) c = _mm256_add_epi8(a, b);
+#define vadd8(c, a, b)  c = _mm256_add_epi8(a, b);
 #define vadd16(c, a, b) c = _mm256_add_epi16(a, b);
 #define vadd64(c, a, b) c = _mm256_add_epi64(a, b);
 
@@ -83,8 +73,8 @@ static void print256_num(vec256_t var, const char *string) {
 #define vor(c, a, b) c = _mm256_or_si256(a, b);
 
 // c[0..16] = n
-#define vset8(c, n) c = _mm256_set1_epi8(n);
-#define vset17(c, n) c = _mm256_set1_epi16(n);
+#define vset8(c, n) c = _mm256_set1_epi8((char)n);
+#define vset17(c, n) c = _mm256_set1_epi16((short)n);
 
 // c = a == b
 #define vcmp8(c, a, b) c = _mm256_cmpeq_epi8(a, b);
