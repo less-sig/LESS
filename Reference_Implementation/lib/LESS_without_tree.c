@@ -156,6 +156,7 @@ int LESS_verify(const pubkey_t *const PK,
                 const uint64_t mlen,
                 const sign_t *const sig) {
     uint8_t g_initial_pivot_flags [N];
+    uint8_t g_permuted_pivot_flags [N];
 
     uint8_t fixed_weight_string[T] = {0};
     expand_digest_to_fixed_weight(fixed_weight_string, sig->digest);
@@ -181,7 +182,7 @@ int LESS_verify(const pubkey_t *const PK,
             monomial_t Q_to_multiply;
 
             monomial_mat_seed_expand_rnd(&Q_to_multiply, sig->seed_storage + ctr1*SEED_LENGTH_BYTES, i);
-#if defined(LESS_REUSE_PIVOTS)
+#if defined(LESS_REUSE_PIVOTS_VY)
             // TODO half of these operations can be optimized away
             if (prepare_digest_input_pivot_reuse(&V_array,
                                              &Q_to_discard,
@@ -206,7 +207,7 @@ int LESS_verify(const pubkey_t *const PK,
                 return 0;
             }
 
-#if defined(LESS_REUSE_PIVOTS)
+#if defined(LESS_REUSE_PIVOTS_VY)
             apply_cf_action_to_G_with_pivots(&G_hat,
                                              &tmp_full_G,
                                              sig->cf_monom_actions[ctr2],

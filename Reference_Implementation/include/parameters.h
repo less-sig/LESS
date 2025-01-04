@@ -201,6 +201,9 @@
 // TODO doc
 #define LESS_REUSE_PIVOTS_VY
 #define LESS_REUSE_PIVOTS_SG
+#else
+#define LESS_REUSE_PIVOTS_VY
+#define LESS_REUSE_PIVOTS_SG
 #endif
 
 // TODO doc

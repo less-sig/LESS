@@ -356,19 +356,32 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
     return 1;
 } /* end generator_RREF */
 
-/// TODO avx opt
+
 int generator_RREF_pivot_reuse(generator_mat_t *G,
                    uint8_t is_pivot_column[N],
                    uint8_t was_pivot_column[N],
-                   const int pvt_reuse_limit)
-{
+                   const int pvt_reuse_limit) {
+    // printf("AVX Pivot Reuse");
+    int i, j, k, pivc;
+    uint8_t tmp, sc;
+
+    vec256_t *gm[K] __attribute__((aligned(32)));
+    vec256_t em[0x80][NW];
+    vec256_t *ep[0x80];
+    vec256_t c01, c7f;
+    vec256_t x, t, *rp, *rg;
+
+    vset8(c01, 0x01);
+    vset8(c7f, 0x7f);
+
+
    int pvt_reuse_cnt = 0;
    int row_red_pvt_skip_cnt;
 
     // row swap pre-process - swap previous pivot elements to corresponding row to reduce likelihood of corruption
-   int pivot_el_row;
+    int pivot_el_row;
 
-   if (pvt_reuse_limit != 0) {
+    if (pvt_reuse_limit != 0) {
       for(int preproc_col = K-1; preproc_col >= 0; preproc_col--) {
            if (was_pivot_column[preproc_col] == 1) {
                // find pivot row
@@ -381,72 +394,99 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                swap_rows(G->values[preproc_col],G->values[pivot_el_row]);
            }
       }
-   }
+    }
 
-   for(int row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
-      int pivot_row = row_to_reduce;
-      /*start by searching the pivot in the col = row*/
-      int pivot_column = row_to_reduce;
-      while( (pivot_column < N) &&
-             (G->values[pivot_row][pivot_column] == 0) ) {
-         while ( (pivot_row < K) &&
-                 (G->values[pivot_row][pivot_column] == 0) ) {
-            pivot_row++;
-         }
-         if(pivot_row >= K) { /*entire column tail swept*/
-            pivot_column++; /* move to next col */
-            pivot_row = row_to_reduce; /*starting from row to red */
-         }
-      }
-      if ( pivot_column >=N ) {
-         return 0; /* no pivot candidates left, report failure */
-      }
-      is_pivot_column[pivot_column] = 1; /* pivot found, mark the column*/
+    for (i = 0; i < K; i++) {
+        gm[i] = (vec256_t *) G->values[i];
+    }
 
-      /* if we found the pivot on a row which has an index > pivot_column
-       * we need to swap the rows */
-      if (row_to_reduce != pivot_row) {
-         was_pivot_column[pivot_row] = 0; // pivot no longer reusable - will be corrupted during reduce row
-         swap_rows(G->values[row_to_reduce],G->values[pivot_row]);
-      }
-      pivot_row = row_to_reduce; /* row with pivot now in place */
+    for (i = 0; i < K; i++) {
+        j = i;
+        /*start by searching the pivot in the col = row*/
+        pivc = i;
 
-      /* Compute rescaling factor */
-      FQ_ELEM scaling_factor = fq_inv(G->values[pivot_row][pivot_column]);
-
-      /* rescale pivot row to have pivot = 1. Values at the left of the pivot
-       * are already set to zero by previous iterations */
-      for(int i = pivot_column; i < N; i++) {
-         G->values[pivot_row][i] = fq_mul( scaling_factor, G->values[pivot_row][i]);
-      }
-
-      if (was_pivot_column[pivot_column] == 0 || (pvt_reuse_cnt >= pvt_reuse_limit) || (pivot_column >= K)) { // Skip row-reduce on previous pivots
-      /* Subtract the now placed and reduced pivot rows, from the others,
-       * after rescaling it */
-          for(int row_idx = 0; row_idx < K; row_idx++) {
-             if (row_idx != pivot_row) { 
-                FQ_ELEM multiplier = G->values[row_idx][pivot_column];
-                /* all elements before the pivot in the pivot row are null, no need to
-                 * subtract them from other rows. */
-                row_red_pvt_skip_cnt = 0;
-                for(int col_idx = 0; col_idx < N; col_idx++) {
-                    if (!(col_idx < K && was_pivot_column[col_idx]) || (row_red_pvt_skip_cnt >= pvt_reuse_limit)) { // skip row reduce of pivots we will reuse
-                       FQ_ELEM tmp = fq_mul(multiplier, G->values[pivot_row][col_idx]);
-                       G->values[row_idx][col_idx] = fq_sub(G->values[row_idx][col_idx], tmp);
-                   } else {
-                     row_red_pvt_skip_cnt++;
-                   }
+        while (pivc < N) {
+            while (j < K) {
+                sc = G->values[j][pivc];
+                if (sc != 0) {
+                    goto found;
                 }
-             }
-          }
-      } else {
-         pvt_reuse_cnt++;
-      }
-   }
 
+                j++;
+            }
+            pivc++;     /* move to next col */
+            j = i;      /*starting from row to red */
+        }
 
-   return 1;
-} /* end generator_RREF_pivot_reuse */
+        if (pivc >= N) {
+            return 0; /* no pivot candidates left, report failure */
+        }
+
+        found:
+        is_pivot_column[pivc] = 1; /* pivot found, mark the column*/
+
+        /* if we found the pivot on a row which has an index > pivot_column
+         * we need to swap the rows */
+        if (i != j) {
+            was_pivot_column[j] = 0; // pivot no longer reusable - will be corrupted during reduce row
+            for (k = 0; k < NW; k++) {
+                t = gm[i][k];
+                gm[i][k] = gm[j][k];
+                gm[j][k] = t;
+            }
+        }
+
+        /* Compute rescaling factor */
+        /* rescale pivot row to have pivot = 1. Values at the left of the pivot
+         * are already set to zero by previous iterations */
+
+        //  generate the em matrix
+        rg = gm[i];
+        memcpy(em[1], rg, LESS_WSZ * NW);
+
+        for (j = 2; j < 127; j++) {
+            for (k = 0; k < NW; k++) {
+                vadd8(x, em[j - 1][k], rg[k])
+                W_RED127_(x);
+                em[j][k] = x;
+            }
+        }
+
+        //  shuffle the pointers into ep
+        sc = ((uint8_t *) rg)[pivc];
+        ep[0] = em[0];
+        tmp = sc;
+        for (j = 1; j < 127; j++) {
+            ep[tmp] = em[j];
+            tmp += sc;
+            tmp = (tmp + (tmp >> 7)) & 0x7F;
+        }
+        ep[0x7F] = em[0];
+
+        //  copy back the normalized one
+        memcpy(rg, ep[1], LESS_WSZ * NW);
+
+        /* Subtract the now placed and reduced pivot rows, from the others,
+         * after rescaling it */
+        if (was_pivot_column[pivc] == 0 || (pvt_reuse_cnt >= pvt_reuse_limit) || (pivc >= K)) { // Skip row-reduce when reusing a pivot
+            for (j = 0; j < K; j++) {
+                sc = ((uint8_t *) gm[j])[pivc];
+
+                if (sc != 0x00 && j != i) {
+
+                    rp = ep[127 - sc];
+                    for (k = 0; k < NW; k++) {
+                        vadd8(x, gm[j][k], rp[k])
+                        W_RED127_(x);
+                        gm[j][k] = x;
+                    }
+                }
+            }
+        }
+    }
+
+    return 1;
+} /* end generator_RREF */
 
 /// TODO: change the type of "Q_bar_IS" to something which only tracks the permutation and not monomial
 /// \param V[out]: non IS-part of a generator matrix: K \times N-K
