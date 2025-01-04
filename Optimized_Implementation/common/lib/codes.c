@@ -373,27 +373,22 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
 
     vset8(c01, 0x01);
     vset8(c7f, 0x7f);
-
-
-   int pvt_reuse_cnt = 0;
-   int row_red_pvt_skip_cnt;
-
-    // row swap pre-process - swap previous pivot elements to corresponding row to reduce likelihood of corruption
-    int pivot_el_row;
+    int pvt_reuse_cnt = 0;
 
     if (pvt_reuse_limit != 0) {
-      for(int preproc_col = K-1; preproc_col >= 0; preproc_col--) {
-           if (was_pivot_column[preproc_col] == 1) {
-               // find pivot row
-               pivot_el_row = -1;
-               for (int row = 0; row < K; row = row + 1) {
-                   if (G->values[row][preproc_col] != 0) {
-                       pivot_el_row = row;
-                   }
-               }
-               swap_rows(G->values[preproc_col],G->values[pivot_el_row]);
-           }
-      }
+        for (int preproc_col = K - 1; preproc_col >= 0; preproc_col--) {
+            if (was_pivot_column[preproc_col] == 1) {
+                // find pivot row
+                uint32_t pivot_el_row = -1;
+                for (uint32_t row = 0; row < K; row = row + 1) {
+                    if (G->values[row][preproc_col] != 0) {
+                        pivot_el_row = row;
+                    }
+                }
+
+                swap_rows(G->values[preproc_col], G->values[pivot_el_row]);
+            }
+        }
     }
 
     for (i = 0; i < K; i++) {
@@ -505,7 +500,7 @@ int prepare_digest_input(normalized_IS_t *V,
     memset(&G_dagger,0,sizeof(generator_mat_t));
     generator_monomial_mul(&G_dagger, G, Q_tilde);
 
-    uint8_t is_pivot_column[N] = {0};
+    uint8_t is_pivot_column[N_pad] = {0};
     if (generator_RREF(&G_dagger, is_pivot_column) == 0) {
         return 0;
     }

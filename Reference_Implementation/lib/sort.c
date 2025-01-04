@@ -125,7 +125,7 @@ int row_quick_sort_internal_hoare_partition2(FQ_ELEM* ptr[K],
 
 void HISTEND4(uint8_t *cnt,
               uint8_t c[4][128]) {
-#if 0
+#if 1
      for(uint32_t i = 0; i < Q; i++) {
          const uint8_t t = c[0][i]+c[1][i]+c[2][i]+c[3][i];
          ASSERT(t < Q);
@@ -144,7 +144,7 @@ void HISTEND4(uint8_t *cnt,
 
 void HISTEND8(uint8_t *cnt,
               uint8_t c[8][128]) {
-#if 0
+#if 1
     for(uint32_t i = 0; i < Q; i++) {
         const uint8_t t = c[0][i]+c[1][i]+c[2][i]+c[3][i]+c[4][i]+c[5][i]+c[6][i]+c[7][i];
         ASSERT(t < Q);

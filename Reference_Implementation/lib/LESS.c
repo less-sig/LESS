@@ -62,7 +62,7 @@ void LESS_keygen(prikey_t *SK,
 
     generator_mat_t tmp_full_G;
     generator_rref_expand(&tmp_full_G, &G0_rref);
-    uint8_t is_pivot_column[N];
+    uint8_t is_pivot_column[N_pad];
 
     /* note that the first "keypair" is just the public generator G_0, stored
      * as a seed and the identity matrix (not stored) */
