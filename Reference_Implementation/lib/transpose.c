@@ -139,15 +139,16 @@ void matrix_transpose_opt(uint8_t *dst,
                           const uint8_t *src,
                           const uint32_t r,
                           const uint32_t c) {
-    // big block size
-    const size_t bsize = 64;
     // small block size
     const size_t small = 8;
 
 #ifdef USE_AVX2
+    // big block size
+    const size_t bsize = 32;
     const size_t src_stride = K_pad;
     const size_t dst_stride = N_K_pad;
 #else
+    const size_t bsize = 64;
     const size_t src_stride = K;
     const size_t dst_stride = K;
 #endif
@@ -176,14 +177,14 @@ void matrix_transpose_opt(uint8_t *dst,
         for (uint64_t cb = 0; cb < c / bsize; cb++) {
 #ifdef USE_AVX2
             const uint8_t* prf_origin = next_block(src, rb, cb, src_stride);
-            const uint8_t* src_origin = src + (rb*src_stride+cb)*64;
-                  uint8_t* dst_origin = dst + (cb*dst_stride+rb)*64;
+            const uint8_t* src_origin = src + (rb*src_stride+cb)*bsize;
+                  uint8_t* dst_origin = dst + (cb*dst_stride+rb)*bsize;
             const uint32_t n = src_stride;
 
-            matrix_transpose_64x64_avx2(dst_origin,                  src_origin,                  prf_origin,               n, n);
-            matrix_transpose_64x64_avx2(dst_origin+32,               src_origin+32*src_stride,    prf_origin+src_stride*16, n, n);
-            matrix_transpose_64x64_avx2(dst_origin+32*dst_stride,    src_origin+32,               prf_origin+src_stride*32, n, n);
-            matrix_transpose_64x64_avx2(dst_origin+32*dst_stride+32, src_origin+32*src_stride+32, prf_origin+src_stride*48, n, n);
+            matrix_transpose_32x32_avx2(dst_origin,                  src_origin,                  prf_origin,               n, n);
+            // matrix_transpose_32x32_avx2(dst_origin+32,               src_origin+32*src_stride,    prf_origin+src_stride*16, n, n);
+            // matrix_transpose_32x32_avx2(dst_origin+32*dst_stride,    src_origin+32,               prf_origin+src_stride*32, n, n);
+            // matrix_transpose_32x32_avx2(dst_origin+32*dst_stride+32, src_origin+32*src_stride+32, prf_origin+src_stride*48, n, n);
 #else
             const uint8_t *srcb_origin = src + (rb*src_stride + cb) * bsize;
                   uint8_t *dstb_origin = dst + (cb*dst_stride + rb) * bsize;
