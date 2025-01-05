@@ -11,7 +11,7 @@ int fqcmp(const void *a,const void *b);
 
 
 void bitonic_sort_i8(FQ_ELEM *x, const long long n);
-void counting_sort_u8(uint8_t *arr, const size_t size);
+void counting_sort_u8(FQ_ELEM *arr, const uint32_t size);
 
 #ifdef USE_AVX2
 void sortingnetwork(uint8_t *arr, const size_t size);

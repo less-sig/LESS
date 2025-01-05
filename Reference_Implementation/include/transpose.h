@@ -12,5 +12,5 @@ void matrix_transpose_32x32_avx2(uint8_t* dst_origin,
 
 void matrix_transpose_opt(uint8_t *dst,
                           const uint8_t *src,
-                          const uint32_t c,
-                          const uint32_t r);
+                          const uint32_t r,
+                          const uint32_t c);
