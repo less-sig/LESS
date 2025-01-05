@@ -290,7 +290,8 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
         }
 
         if (pivc >= N) {
-            return 0; /* no pivot candidates left, report failure */
+            /* no pivot candidates left, report failure */
+            return 0;
         }
 
         found:
@@ -339,10 +340,8 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
         /* Subtract the now placed and reduced pivot rows, from the others,
          * after rescaling it */
         for (j = 0; j < K; j++) {
-            sc = ((uint8_t *) gm[j])[pivc];
-
-            if (sc != 0x00 && j != i) {
-
+            sc = ((uint8_t *) gm[j])[pivc] & 0x7F;
+            if (j != i && (sc != 0x00)) {
                 rp = ep[127 - sc];
                 for (k = 0; k < NW; k++) {
                     vadd8(x, gm[j][k], rp[k])
@@ -351,6 +350,7 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
                 }
             }
         }
+
     }
 
     return 1;
