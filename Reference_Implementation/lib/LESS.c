@@ -168,7 +168,7 @@ size_t LESS_sign(const prikey_t *SK,
             return 0;
         }
 #endif
-        // blind(&V_array, &cf_shake_state);
+        blind(&V_array, &cf_shake_state);
         const int t = cf5_nonct(&V_array);
         if (t == 0) {
             *(ephem_monomial_seeds + i*SEED_LENGTH_BYTES) += 1;
@@ -298,7 +298,6 @@ int LESS_verify(const pubkey_t *const PK,
                 return 0;
             }
 #endif
-
             const int r = cf5_nonct(&V_array);
             if (r == 0) {
                 // NOTE: we just silently reject the signature, if we do not

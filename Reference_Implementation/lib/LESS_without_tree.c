@@ -99,7 +99,7 @@ size_t LESS_sign(const prikey_t *SK,
             return 0;
         }
 
-        // blind(&V_array, &cf_shake_state);
+        blind(&V_array, &cf_shake_state);
         const int t = cf5_nonct(&V_array);
         if (t == 0) {
             *(seeds + i*SEED_LENGTH_BYTES) += 1;

@@ -21,7 +21,7 @@ int bench_cf5(void) {
         normalized_rng(&G1);
 
         c -= read_cycle_counter();
-        ctr += compute_canonical_form_type5(&G1);
+        ctr += compute_canonical_form_type5_popcnt(&G1);
         c += read_cycle_counter();
     }
     unsigned c1 = (unsigned) (c / ITERS);
@@ -34,7 +34,7 @@ int bench_cf5(void) {
         normalized_rng(&G1);
 
         c -= read_cycle_counter();
-        ctr += compute_canonical_form_type5_popcnt(&G1);
+        ctr += compute_canonical_form_type5_fastest(&G1);
         c += read_cycle_counter();
     }
 
