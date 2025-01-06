@@ -112,7 +112,6 @@ int row_quick_sort_internal_hoare_partition2(FQ_ELEM* ptr[K],
                                             uint32_t P[K],
                                             const int32_t l,
                                             const int32_t h) {
-
     int32_t i = l - 1;
     for (int32_t j = l; j <= h - 1; j++) {
         if (compare_rows(ptr[j], ptr[h]) < 0) {
@@ -179,7 +178,6 @@ void HISTEND8(uint8_t *cnt,
 #endif
 }
 
-
 /// \param out[out]: pointer to the row to sort
 /// \param in[in]: pointer to the row to sort
 /// \param len[in]: length of the row
@@ -220,7 +218,7 @@ int row_quick_sort_internal(FQ_ELEM *ptr[K],
     int32_t s = -1;
 
     // NOTE: worst case is 128
-    int32_t stack[64] __attribute__((aligned(32)));
+    int32_t stack[128] __attribute__((aligned(32)));
     stack[++s] = l;
     stack[++s] = h;
     while (s >= 0) {
@@ -395,8 +393,7 @@ void lex_sort_cols(normalized_IS_t *V){
 /// 		   0 if it matches
 int row_quick_sort_internal_compare_with_pivot_without_histogram(uint8_t *ptr[K],
                                                                  const POSITION_T row_idx,
-                                                                 const uint8_t pivot[K],
-                                                                 const uint32_t t){
+                                                                 const uint8_t pivot[K]){
     uint32_t i=0;
     while((i < (N-K-1)) && (ptr[row_idx][i]-pivot[i] == 0)){
         i++;
@@ -408,8 +405,7 @@ int row_quick_sort_internal_compare_with_pivot_without_histogram(uint8_t *ptr[K]
 int row_quick_sort_internal_hoare_partition_without_histogram2(FQ_ELEM* ptr[K],
                                             uint32_t P[K],
                                             const int32_t l,
-                                            const int32_t h,
-                                            const uint32_t t) {
+                                            const int32_t h) {
     FQ_ELEM pivot_row[N_K_pad];
     for(uint32_t i = 0; i < N-K; i++){
        pivot_row[i] = ptr[h][i];
@@ -417,7 +413,7 @@ int row_quick_sort_internal_hoare_partition_without_histogram2(FQ_ELEM* ptr[K],
 
     int32_t i = l - 1;
     for (int32_t j = l; j <= h - 1; j++) {
-        if (row_quick_sort_internal_compare_with_pivot_without_histogram(ptr, j, pivot_row, t) > 0) {
+        if (row_quick_sort_internal_compare_with_pivot_without_histogram(ptr, j, pivot_row) > 0) {
             i++;
             if (i == j) { continue; }
             SWAP(P[i], P[j]);
@@ -440,8 +436,7 @@ int row_quick_sort_internal_hoare_partition_without_histogram2(FQ_ELEM* ptr[K],
 int row_quick_sort_internal_without_histogram(FQ_ELEM* ptr[K],
                             uint32_t P[K],
                             int32_t l,
-                            int32_t h,
-                            const uint32_t t) {
+                            int32_t h) {
     int32_t s = -1;
 
     // NOTE: worst case is 128
@@ -452,7 +447,7 @@ int row_quick_sort_internal_without_histogram(FQ_ELEM* ptr[K],
         h = stack[s--];
         l = stack[s--];
 
-        const int32_t p = row_quick_sort_internal_hoare_partition_without_histogram2(ptr, P, l, h, t);
+        const int32_t p = row_quick_sort_internal_hoare_partition_without_histogram2(ptr, P, l, h);
         if (p - 1 > l) {
             stack[++s] = l;
             stack[++s] = p - 1;
@@ -494,7 +489,7 @@ void col_quicksort_transpose(normalized_IS_t *V,
     }
 
     // row_quick_sort_recursive_internal_without_histogram(ptr, P, 0, K - 1);
-    row_quick_sort_internal_without_histogram(ptr, P, 0, K - 1, z);
+    row_quick_sort_internal_without_histogram(ptr, P, 0, K - 1);
 
     // apply the permutation
     for (uint32_t t = 0; t < K; t++) {

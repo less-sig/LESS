@@ -28,6 +28,10 @@ typedef struct {
    FQ_ELEM coefficients[N];
 } diagonal_t;
 
+int row_quick_sort_internal_compare_with_pivot_without_histogram(uint8_t *ptr[K],
+                                                                 const POSITION_T row_idx,
+                                                                 const uint8_t pivot[K]);
+
 int row_quick_sort_internal_compare_with_pivot(uint8_t *ptr[K],
                                                const uint32_t row_idx,
                                                const uint8_t pivot[K]);
@@ -35,6 +39,16 @@ int row_quick_sort_internal_compare_with_pivot(uint8_t *ptr[K],
 int compare_matrices(const normalized_IS_t *V1,
                      const normalized_IS_t *V2,
                      const uint32_t z);
+
+int compute_canonical_form_type3_sub(normalized_IS_t *G,
+                                     const uint32_t z);
+
+int compute_canonical_form_type4_sub_v2(normalized_IS_t *G,
+                                        const uint32_t z);
+
+int compute_canonical_form_type5_single_row(normalized_IS_t *G,
+                                           const uint32_t row);
+
 
 ////////////////////////////////////////////////////////////////////////
 ///                        Permutation                               ///
@@ -996,6 +1010,35 @@ int compute_canonical_form_type5_ct(normalized_IS_t *G) {
     return 1;
 }
 
+/// NOTE: only for "fastest" CF computation
+/// NOTE: non-constant time
+/// implements a total order on matrices
+/// we simply compare the columns lexicographically
+/// \param V1[in]
+/// \param V2[in]
+/// \param z[in]: number of rows within both matrices
+/// \return -x if V2 > V1
+///			 0 if V2 == V1
+///			+x
+int compare_matrices_fastest(const normalized_IS_t *__restrict__ V1,
+                             const normalized_IS_t *__restrict__ V2,
+                             const uint32_t z) {
+	for (uint32_t row = 0; row < z; row++) {
+        uint32_t i=0;
+        while((i < N-K) &&
+             ((V1->values[row][i] - V2->values[row][i]) == 0)) {
+            i++;
+        }
+
+        if (i >= K) { continue; }
+
+        return (int)(V2->values[row][i]) - (int)(V1->values[row][i]);
+	}
+
+	// if we are here the two matrices are equal
+	return 0;
+}
+
 
 /// NOTE: only operates on the first z rows
 /// NOTE: non-constant time
@@ -1041,54 +1084,6 @@ int compute_canonical_form_type4_sub_v2(normalized_IS_t *G,
 
     return 1;
 }
-
-/// NOTE: only for "fastest" CF computation
-/// NOTE: non-constant time
-/// implements a total order on matrices
-/// we simply compare the columns lexicographically
-/// \param V1[in]
-/// \param V2[in]
-/// \param z[in]: number of rows within both matrices
-/// \return -x if V2 > V1
-///			 0 if V2 == V1
-///			+x
-int compare_matrices_fastest(const normalized_IS_t *__restrict__ V1,
-                             const normalized_IS_t *__restrict__ V2,
-                             const uint32_t z) {
-	for (uint32_t row = 0; row < z; row++) {
-        uint32_t i=0;
-        while((i < N-K) &&
-             ((V1->values[row][i] - V2->values[row][i]) == 0)) {
-            i++;
-        }
-
-        if (i >= K) { continue; }
-
-        return (int)(V2->values[row][i]) - (int)(V1->values[row][i]);
-	}
-
-	// if we are here the two matrices are equal
-	return 0;
-}
-
-/// NOTE: non-constant time
-/// NOTE: computes the result inplace
-/// scales a single row `row` and computes cf5 for it
-/// \param G[in/out] non IS part of a generator matrix
-/// \param row[in]:
-/// \return 0 on failure
-/// 		1 on success
-int compute_canonical_form_type5_single_row(normalized_IS_t *G,
-                                           const uint32_t row) {
-    FQ_ELEM coeffs[N_K_pad] = {0};
-    row_inv2(coeffs, G->values[row]);
-    for (uint32_t row2 = 0; row2 < K; row2++) {
-        row_mul3(G->values[row2], G->values[row2], coeffs);
-    }
-
-    return compute_canonical_form_type4(G);
-}
-
 
 int compute_canonical_form_type5_single_row_v2(normalized_IS_t *M,
                                                normalized_IS_t *G,
@@ -1217,4 +1212,113 @@ int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
     }
 
 	return 1;
+}
+
+/// NOTE: non-constant time
+/// NOTE: computes the result inplace
+/// scales a single row `row` and computes cf5 for it
+/// \param G[in/out] non IS part of a generator matrix
+/// \param row[in]:
+/// \return 0 on failure
+/// 		1 on success
+int compute_canonical_form_type5_single_row(normalized_IS_t *G,
+                                           const uint32_t row) {
+    FQ_ELEM coeffs[N_K_pad] = {0};
+    row_inv2(coeffs, G->values[row]);
+    for (uint32_t row2 = 0; row2 < K; row2++) {
+        row_mul3(G->values[row2], G->values[row2], coeffs);
+    }
+
+    return compute_canonical_form_type4(G);
+}
+
+/// NOTE: non-constant time
+/// NOTE: computes the result inplace
+/// \param G[in/out] non IS part of a generator matrix
+/// \return 0 on failure
+/// 		1 on success
+int compute_canonical_form_type5_tony(normalized_IS_t *G) {
+	normalized_IS_t smallest = {0};
+    int touched = 0;
+
+	uint32_t J[N-K];
+    uint32_t z = 0;
+
+    // count zeros in each row
+    uint32_t max_zeros = 0;
+	uint8_t row_has_zero[K] = {0};
+	for (uint32_t row = 0; row < K; row++) {
+        uint32_t num_zeros = 0;
+	    for (uint32_t col = 0; col < N-K; col++) {
+            num_zeros += G->values[row][col] == 0;
+        }
+
+        if (num_zeros > 0) {
+            row_has_zero[row] = 1;
+        }
+
+        if (num_zeros > max_zeros) {
+            z = 1;
+            J[0] = row;
+            max_zeros = num_zeros;
+        	continue;
+        }
+
+        if (num_zeros == max_zeros) {
+            J[z++] = row;
+        }
+    }
+
+    /// NOTE: is this always correct?
+    if (z == (N-K)) {
+	    return compute_canonical_form_type5(G);
+    }
+
+    uint32_t ctr = 0;
+
+    uint8_t *ptr[K] = {0};
+    uint32_t   P[K] = {0};
+    uint32_t   L[K] = {0};
+    normalized_IS_t scaled_sub_G = {0};
+	FQ_ELEM row_inv_data[N_K_pad] = {0};
+	for (uint32_t row = 0; (row < K) && (ctr < K); row++) {
+        if (row_has_zero[row]) { continue; }
+
+		row_inv2(row_inv_data, G->values[row]);
+		for (uint32_t row2 = 0; row2 < z; row2++) {
+			row_mul3(scaled_sub_G.values[row2], G->values[J[row2]], row_inv_data);
+		}
+
+        if (compute_canonical_form_type4_sub_v2(&scaled_sub_G, z) &&
+            compute_canonical_form_type3_sub(&scaled_sub_G, z)) {
+            // memcpy(&smallest.values[z*ctr], &scaled_sub_G.values[0], z * (N_K_pad));
+            row_sort(smallest.values[ctr], scaled_sub_G.values[0], N_K_pad);
+            ptr[ctr] = smallest.values[ctr];
+            P[ctr] = ctr;
+            L[ctr] = row;
+            ctr += 1;
+        }
+    }
+
+    row_quick_sort_internal(ptr, P, ctr);
+
+    // apply the permutation
+    for (uint32_t t = 0; t < ctr; t++) {
+        uint32_t ind = P[t];
+        while(ind<t) { ind = P[ind]; }
+
+        // memcpy(&smallest.values[z*t], &scaled_sub_G.values[z*ind], z * (N_K_pad));
+        SWAP(L[t], L[ind]);
+    }
+
+    for (uint32_t i = 0; i < ctr; i++) {
+        normalized_copy(&smallest, G);
+        if (compute_canonical_form_type5_single_row(&smallest, L[i])) {
+            touched = 1;
+            normalized_copy(G, &smallest);
+            return 1;
+        }
+    }
+
+    return touched;
 }
