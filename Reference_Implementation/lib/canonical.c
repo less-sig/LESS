@@ -22,7 +22,6 @@ int compute_canonical_form_type3(normalized_IS_t *G) {
 #ifdef LESS_USE_HISTOGRAM
     col_quicksort_transpose(G, K_pad);
 #else
-    // col_quicksort_transpose(G, K);
     col_lex_quicksort(G, 0, N-K-1);
 #endif
     return 1;
@@ -282,6 +281,5 @@ void blind(normalized_IS_t *G,
 /// \return 0 on failure
 /// 		1 on success
 int cf5_nonct(normalized_IS_t *G) {
-	// return compute_canonical_form_type5(G);
     return compute_canonical_form_type5_popcnt(G);
 }

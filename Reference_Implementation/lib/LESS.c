@@ -168,7 +168,8 @@ size_t LESS_sign(const prikey_t *SK,
             return 0;
         }
 #endif
-        blind(&V_array, &cf_shake_state);
+        /// TODO reactivate
+        // blind(&V_array, &cf_shake_state);
         const int t = cf5_nonct(&V_array);
         if (t == 0) {
             *(ephem_monomial_seeds + i*SEED_LENGTH_BYTES) += 1;

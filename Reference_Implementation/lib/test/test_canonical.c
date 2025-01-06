@@ -143,7 +143,7 @@ int test_compute_canonical_form_type5(void) {
 
     if (compute_canonical_form_type5(&G1) == 0)        { return 1; }
     if (compute_canonical_form_type5_popcnt(&G2) == 0) { return 1; }
-    // if (compute_canonical_form_type5_fastest(&G3) == 0) { return 1; }
+    if (compute_canonical_form_type5_tony(&G3) == 0) { return 1; }
 
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < N-K; j++) {
@@ -198,7 +198,7 @@ int test_compute_canonical_form_type5_v2(void) {
 
         const int ret1 = compute_canonical_form_type5(&G1);
         const int ret2 = compute_canonical_form_type5_popcnt(&G2);
-        const int ret3 = compute_canonical_form_type5_fastest(&G3);
+        const int ret3 = compute_canonical_form_type5_tony(&G3);
         if (ret1 != ret2) {
             printf("error ret cf5 popcnt\n");
             return 1;
@@ -262,7 +262,7 @@ uint32_t  test_compute_canonical_form_type5_gaus(void) {
 
         const int ret1 = compute_canonical_form_type5(&V1);
         const int ret2 = compute_canonical_form_type5_popcnt(&V2);
-        const int ret3 = compute_canonical_form_type5_fastest(&V3);
+        const int ret3 = compute_canonical_form_type5_tony(&V3);
 
         if ((ret1 != ret2) && (ret1 != ret3)) {
             printf("error: cf5 gaus ret\n");
