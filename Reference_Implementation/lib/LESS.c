@@ -87,7 +87,6 @@ void LESS_keygen(prikey_t *SK,
     }
 } /* end LESS_keygen */
 
-// TODO, quick and dirty hack: instead of this just set the correct file in the cmake
 #ifdef SEED_TREE
 
 /// returns the number of opened seeds in the tree.
@@ -154,32 +153,29 @@ size_t LESS_sign(const prikey_t *SK,
                                           i);
 
 #if defined(LESS_REUSE_PIVOTS_SG)
-        // TODO half of these operations within this function can be removed
         if (prepare_digest_input_pivot_reuse(&V_array,
                                              &Q_bar[i],
                                              &full_G0,
                                              &Q_tilde,
                                              g0_initial_pivot_flags,
-                                             SIGN_PIVOT_REUSE_LIMIT) == 0) {
+                                             SIGN_PIVOT_REUSE_LIMIT, 0) == 0) {
             return 0;
         }
 #else
-        if (prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde) == 0) {
+        if (prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde, 0) == 0) {
             return 0;
         }
 #endif
-        /// TODO reactivate
-        // blind(&V_array, &cf_shake_state);
+        blind(&V_array, &cf_shake_state);
         const int t = cf5_nonct(&V_array);
         if (t == 0) {
             *(ephem_monomial_seeds + i*SEED_LENGTH_BYTES) += 1;
             i -= 1;
         } else {
-            // TODO this seems wrong
-            LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
-            //for (uint32_t sl = 0; sl < K; sl++) {
-            //    LESS_SHA3_INC_ABSORB(&state, V_array.values[sl], K);
-            //}
+            // LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&V_array, sizeof(normalized_IS_t));
+            for (uint32_t sl = 0; sl < K; sl++) {
+                LESS_SHA3_INC_ABSORB(&state, V_array.values[sl], K);
+            }
         }
     }
 
@@ -214,7 +210,6 @@ size_t LESS_sign(const prikey_t *SK,
 
             monomial_mat_seed_expand_prikey(&Q_to_multiply,
                                             private_monomial_seeds[sk_monom_seed_to_expand_idx - 1]);
-            // NOTE: this function is simplify. We do not need the full monomial matrix.
             monomial_compose_action(&mono_action, &Q_to_multiply, &Q_bar[i]);
 
             cf_compress_monomial_IS_action(sig->cf_monom_actions[emitted_monoms], &mono_action);
@@ -222,8 +217,7 @@ size_t LESS_sign(const prikey_t *SK,
         }
     }
 
-    // TODO this needs to be changed. As described in the TODO in overleaf, currently
-    // we need to keep track of the opened commitments.
+    // TODO: this needs to be changed. As described in the TODO in overleaf, currently we need to keep track of the opened commitments.
     sig->seed_storage[num_seeds_published*SEED_LENGTH_BYTES] = num_seeds_published;
     return num_seeds_published;
 } /* end LESS_sign */
@@ -273,8 +267,6 @@ int LESS_verify(const pubkey_t *const PK,
     for (uint32_t i = 0; i < T; i++) {
         if (fixed_weight_string[i] == 0) {
             generator_get_pivot_flags(&G0_rref, g_initial_pivot_flags);
-          
-            // TODO mov this out of the loop and keep `tmp_full_G` constant
             generator_rref_expand(&tmp_full_G, &G0_rref);
             monomial_t Q_to_multiply;
             monomial_mat_seed_expand_salt_rnd(&Q_to_multiply,
@@ -282,34 +274,23 @@ int LESS_verify(const pubkey_t *const PK,
                                               sig->tree_salt,
                                               i);
 #if defined(LESS_REUSE_PIVOTS_VY)
-            // TODO half of these operations can be optimized away
             if (prepare_digest_input_pivot_reuse(&V_array,
                                                  &Q_to_discard,
                                                  &tmp_full_G,
                                                  &Q_to_multiply,
                                                  g_initial_pivot_flags,
-                                                 VERIFY_PIVOT_REUSE_LIMIT) == 0) {
+                                                 VERIFY_PIVOT_REUSE_LIMIT,
+                                                 1) == 0) {
                 return 0;
             }
 #else
             if (prepare_digest_input(&V_array,
                                      &Q_to_discard,
                                      &tmp_full_G,
-                                     &Q_to_multiply) == 0) {
+                                     &Q_to_multiply, 1) == 0) {
                 return 0;
             }
 #endif
-            const int r = cf5_nonct(&V_array);
-            if (r == 0) {
-                // NOTE: we just silently reject the signature, if we do not
-                // have a valid CF input. This should only happen with a
-                // negl. probability.
-                return 0;
-            }
-            //for (uint32_t sl = 0; sl < K; sl++) {
-            //    LESS_SHA3_INC_ABSORB(&state, V_array.values[sl], K);
-            //}
-            LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array, sizeof(normalized_IS_t));
         } else {
             expand_to_rref(&tmp_full_G, PK->SF_G[fixed_weight_string[i] - 1], g_initial_pivot_flags);
             if (!is_cf_monom_action_valid(sig->cf_monom_actions[employed_monoms])) {
@@ -329,9 +310,7 @@ int LESS_verify(const pubkey_t *const PK,
             apply_cf_action_to_G(&G_hat, &tmp_full_G, sig->cf_monom_actions[employed_monoms]);
             const int ret = generator_RREF(&G_hat, is_pivot_column);
 #endif
-            if(ret == 0) {
-                return 0;
-            }
+            if(ret == 0) { return 0; }
 
             // just copy the non IS
             uint32_t ctr = 0;
@@ -348,19 +327,14 @@ int LESS_verify(const pubkey_t *const PK,
 
                 ctr += 1;
             }
-
-            const int r = cf5_nonct(&V_array);
-            if (r == 0) {
-                // NOTE: we just silently reject the signature, if we do not
-                // have a valid CF input. This should only happen with a
-                // negl. probability.
-                return 0;
-            }
-            //for (uint32_t sl = 0; sl < K; sl++) {
-            //    LESS_SHA3_INC_ABSORB(&state, V_array.values[sl], K);
-            //}
-            LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array.values, sizeof(normalized_IS_t));
             employed_monoms++;
+        }
+
+        const int r = cf5_nonct(&V_array);
+        if (r == 0) { return 0; }
+        // LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) &V_array.values, sizeof(normalized_IS_t));
+        for (uint32_t sl = 0; sl < K; sl++) {
+            LESS_SHA3_INC_ABSORB(&state, V_array.values[sl], K);
         }
     }
 

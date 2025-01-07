@@ -55,7 +55,7 @@ void inverse_mod_tester(void){
 }
 
 /*
- * TODO explain
+ *
  */
 void rref_gen_compress_tester(void){
      generator_mat_t G = {0}, Gcheck;
@@ -91,7 +91,7 @@ void rref_gen_compress_tester(void){
 }
 
 /*
- * TODO explain
+ *
  */
 void rref_gen_byte_compress_tester(void){
      generator_mat_t G = {0}, Gcheck;
@@ -126,7 +126,7 @@ void rref_gen_byte_compress_tester(void){
 }
 
 /*
- * TODO explain
+ *
  */
 void info(void){
     fprintf(stderr,"Code parameters: n= %d, k= %d, q=%d\n", N,K,Q);
@@ -256,7 +256,6 @@ int main(int argc, char* argv[]){
     info();
     return LESS_sign_verify_test();
 
-    /// TODO reenable tests
     int tests_ok = 0;
     for (int i = 0; i < NUM_TEST_ITERATIONS; i++) {
         fputc('.',stderr);

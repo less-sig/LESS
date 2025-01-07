@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "fq_arith.h"
+#include "test_helpers.h"
 
 #define TESTS (1u << 14)
 
@@ -57,8 +58,8 @@ void org_row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
 
 ///
 /// \param out = in1[i]*in2[i] for i in range(N-K)
-/// \param in1
-/// \param in2
+/// \param in1[in]: vector of length N-K
+/// \param in2[in]: vector of length N-K
 static inline
 void org_row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
     for (uint32_t col = 0; col < (N-K); col++) {
@@ -68,7 +69,7 @@ void org_row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
 
 /// invert a row
 /// \param out = in[i]**-1 for i in range(N-K)
-/// \param in
+/// \param in[in]: vector of length N-K
 static inline
 void org_row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
     for (uint32_t col = 0; col < (N-K); col++) {
@@ -76,7 +77,7 @@ void org_row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
     }
 }
 
-/// \param in
+/// \param in[in]: vector of length N-K
 /// \return 1 if all elements are the same
 ///         0 else
 static inline
@@ -89,10 +90,9 @@ uint32_t org_row_all_same(const FQ_ELEM *in) {
     return 1;
 }
 
-/// TODO write ct version
-/// \param in
+/// \param in[in]: vector of length N-K
 /// \return 0 if no zero was found
-///         1 if the row contains a least a single 0
+///         1 if the row contains at least a single 0
 static inline
 uint32_t org_row_contains_zero(const FQ_ELEM *in) {
     for (uint32_t col = 0; col < N-K; col++) {

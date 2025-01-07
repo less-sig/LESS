@@ -86,7 +86,6 @@ size_t LESS_sign(const prikey_t *SK,
     generator_rref_expand(&full_G0, &G0_rref);
 
     monomial_t Q_tilde;
-    // TODO: remove the values, as we only are interested in the permutation
     monomial_action_IS_t Q_bar[T];
     normalized_IS_t V_array;
 
@@ -95,7 +94,7 @@ size_t LESS_sign(const prikey_t *SK,
 
     for (uint32_t i = 0; i < T; i++) {
         monomial_mat_seed_expand_rnd(&Q_tilde, seeds + i*SEED_LENGTH_BYTES, i);
-        if (prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde) == 0) {
+        if (prepare_digest_input(&V_array, &Q_bar[i], &full_G0, &Q_tilde, 0) == 0) {
             return 0;
         }
 
@@ -130,9 +129,7 @@ size_t LESS_sign(const prikey_t *SK,
 
             monomial_mat_seed_expand_prikey(&Q_to_multiply,
                                             private_monomial_seeds[sk_monom_seed_to_expand_idx - 1]);
-            // NOTE: this function is simplify. We do not need the full monomial matrix.
             monomial_compose_action(&mono_action, &Q_to_multiply, &Q_bar[i]);
-
             cf_compress_monomial_IS_action(sig->cf_monom_actions[ctr2], &mono_action);
             ctr2 += 1;
         } else {
@@ -176,27 +173,24 @@ int LESS_verify(const pubkey_t *const PK,
     for (uint32_t i = 0; i < T; i++) {
         if (fixed_weight_string[i] == 0) {
             generator_get_pivot_flags(&G0_rref, g_initial_pivot_flags);
-
-            // TODO mov this out of the loop and keep `tmp_full_G` constant
             generator_rref_expand(&tmp_full_G, &G0_rref);
             monomial_t Q_to_multiply;
 
             monomial_mat_seed_expand_rnd(&Q_to_multiply, sig->seed_storage + ctr1*SEED_LENGTH_BYTES, i);
 #if defined(LESS_REUSE_PIVOTS_VY)
-            // TODO half of these operations can be optimized away
             if (prepare_digest_input_pivot_reuse(&V_array,
                                              &Q_to_discard,
                                              &tmp_full_G,
                                              &Q_to_multiply,
                                              g_initial_pivot_flags,
-                                             VERIFY_PIVOT_REUSE_LIMIT) == 0) {
+                                             VERIFY_PIVOT_REUSE_LIMIT, 1) == 0) {
                 return 0;
             }
 #else
             if (prepare_digest_input(&V_array,
                                  &Q_to_discard,
                                  &tmp_full_G,
-                                 &Q_to_multiply) == 0) {
+                                 &Q_to_multiply, 1) == 0) {
                 return 0;
             }
 #endif

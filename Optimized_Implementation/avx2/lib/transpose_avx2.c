@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <immintrin.h>
 
-/// needed for gf127_matrix_transpose_64x64_avx2
+/// needed for matrix_transpose_32x32_avx2
 static const uint8_t BLENDV_MASK[5][32] __attribute__((aligned(32)))= {
     { 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff },
     { 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff },
@@ -11,7 +11,7 @@ static const uint8_t BLENDV_MASK[5][32] __attribute__((aligned(32)))= {
     { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
 };
 
-// needed for gf127_matrix_transpose_64x64_avx2
+// needed for matrix_transpose_32x32_avx2
 static const uint8_t SHUFFLE_MASK[4][32] __attribute__((aligned(32))) = {
     { 1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14, 17, 16, 19, 18, 21, 20, 23, 22, 25, 24, 27, 26, 29, 28, 31, 30 },
     { 2, 3, 0, 1, 6, 7, 4, 5, 10, 11, 8, 9, 14, 15, 12, 13, 18, 19, 16, 17, 22, 23, 20, 21, 26, 27, 24, 25, 30, 31, 28, 29 },
@@ -19,9 +19,14 @@ static const uint8_t SHUFFLE_MASK[4][32] __attribute__((aligned(32))) = {
     { 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 24, 25, 26, 27, 28, 29, 30, 31, 16, 17, 18, 19, 20, 21, 22, 23 },
 };
 
-/// TODO probably just make two functions, one for aligned access and one for unaligned
-typedef __m256i_u LOAD_TYPE;
-typedef __m256i_u STORE_TYPE;
+typedef __m256i LOAD_TYPE;
+typedef __m256i STORE_TYPE;
+
+/// \param dst_origin[out]: output matrix
+/// \param src_origin[in]: input matrix
+/// \param prf_origin[in]: lookahead pointer to prefetch it
+/// \param src_stride[in]:
+/// \param dst_stride[in]:
 void matrix_transpose_32x32_avx2(uint8_t* dst_origin,
                                  const uint8_t* src_origin,
                                  const uint8_t* prf_origin,

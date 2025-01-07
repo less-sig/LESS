@@ -33,12 +33,7 @@
 #include "fq_arith.h"
 #include "macro.h"
 #include "utils.h"
-
-/// TODO describe
-#define LESS_WSZ 32
-
-// TODO replace with round up macro from 'paramters'
-#define NW ((N + LESS_WSZ - 1) / LESS_WSZ)
+#include "parameters.h"
 
 // Select low 8-bit, skip the high 8-bit in 16 bit type
 const uint8_t shuff_low_half[32] = {
@@ -47,13 +42,6 @@ const uint8_t shuff_low_half[32] = {
         0x0, 0x2, 0x4, 0x6, 0x8, 0xa, 0xc, 0xe,
         0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
 };
-
-// computes G[row] = a*G[row]
-void scale_row(generator_mat_t *G, const uint32_t row, const FQ_ELEM a) {
-	for (uint32_t col = 0; col < N; col++) {
-		G->values[row][col] = fq_mul(G->values[row][col], a);
-	}
-}
 
 /* Calculate pivot flag array */
 void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t pivot_flag [N]) {
@@ -67,9 +55,9 @@ void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t piv
 }
 
 /// NOTE: not constant time
-/// @param res
-/// @param G
-/// @param c
+/// \param res
+/// \param G
+/// \param c
 void apply_cf_action_to_G(generator_mat_t* res,
                           const generator_mat_t *G,
                           const uint8_t *const c) {
@@ -102,9 +90,9 @@ finish:
 
 
 /// NOTE: not constant time
-/// @param res
-/// @param G
-/// @param c
+/// \param res
+/// \param G
+/// \param c
 void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
                                       const generator_mat_t *G,
                                       const uint8_t *const c,
@@ -227,18 +215,6 @@ void column_cswap(normalized_IS_t *V,
     }
 }
 
-/// TODO avx/neon for all of this stuff
-void row_cswap(normalized_IS_t *V,
-              const POSITION_T row1,
-              const POSITION_T row2,
-              const uintptr_t mask) {
-    ASSERT(row1 < K);
-    ASSERT(row2 < K);
-
-    for(uint32_t i = 0; i < N-K;i++ ){
-        MASKED_SWAP(V->values[row1][i], V->values[row2][i], mask);
-    }
-}
 
 /// \param V
 /// \param row1
@@ -255,7 +231,7 @@ void generator_row_swap(generator_mat_t *V,
 }
 
 int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
-    int i, j, k, pivc;
+    int i, j, pivc;
     uint8_t tmp, sc;
 
     vec256_t *gm[K] __attribute__((aligned(32)));
@@ -300,7 +276,7 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
         /* if we found the pivot on a row which has an index > pivot_column
          * we need to swap the rows */
         if (i != j) {
-            for (k = 0; k < NW; k++) {
+            for (uint32_t k = 0; k < NW; k++) {
                 t = gm[i][k];
                 gm[i][k] = gm[j][k];
                 gm[j][k] = t;
@@ -316,7 +292,7 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
         memcpy(em[1], rg, LESS_WSZ * NW);
 
         for (j = 2; j < 127; j++) {
-            for (k = 0; k < NW; k++) {
+            for (uint32_t k = 0; k < NW; k++) {
                 vadd8(x, em[j - 1][k], rg[k])
                 W_RED127_(x);
                 em[j][k] = x;
@@ -343,7 +319,7 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
             sc = ((uint8_t *) gm[j])[pivc] & 0x7F;
             if (j != i && (sc != 0x00)) {
                 rp = ep[127 - sc];
-                for (k = 0; k < NW; k++) {
+                for (uint32_t k = 0; k < NW; k++) {
                     vadd8(x, gm[j][k], rp[k])
                     W_RED127_(x);
                     gm[j][k] = x;
@@ -362,7 +338,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                    uint8_t was_pivot_column[N],
                    const int pvt_reuse_limit) {
     // printf("AVX Pivot Reuse");
-    int i, j, k, pivc;
+    int i, j, pivc;
     uint8_t tmp, sc;
 
     vec256_t *gm[K] __attribute__((aligned(32)));
@@ -424,7 +400,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
          * we need to swap the rows */
         if (i != j) {
             was_pivot_column[j] = 0; // pivot no longer reusable - will be corrupted during reduce row
-            for (k = 0; k < NW; k++) {
+            for (uint32_t k = 0; k < NW; k++) {
                 t = gm[i][k];
                 gm[i][k] = gm[j][k];
                 gm[j][k] = t;
@@ -440,7 +416,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
         memcpy(em[1], rg, LESS_WSZ * NW);
 
         for (j = 2; j < 127; j++) {
-            for (k = 0; k < NW; k++) {
+            for (uint32_t k = 0; k < NW; k++) {
                 vadd8(x, em[j - 1][k], rg[k])
                 W_RED127_(x);
                 em[j][k] = x;
@@ -470,7 +446,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                 if (sc != 0x00 && j != i) {
 
                     rp = ep[127 - sc];
-                    for (k = 0; k < NW; k++) {
+                    for (uint32_t k = 0; k < NW; k++) {
                         vadd8(x, gm[j][k], rp[k])
                         W_RED127_(x);
                         gm[j][k] = x;
@@ -483,7 +459,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
     return 1;
 } /* end generator_RREF */
 
-/// TODO: change the type of "Q_bar_IS" to something which only tracks the permutation and not monomial
 /// \param V[out]: non IS-part of a generator matrix: K \times N-K
 ///         = NO_IS(RREF(G * Q_tilde))
 /// \param Q_bar_IS[out]: the permutation applied to get "V"
@@ -493,11 +468,11 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
 /// \return 0 on failure, can only fail if RREF fails
 ///         1 on success
 int prepare_digest_input(normalized_IS_t *V,
-                          monomial_action_IS_t *Q_bar_IS,
-                          const generator_mat_t *const G,
-                          const monomial_t *const Q_tilde) {
+                         monomial_action_IS_t *Q_bar_IS,
+                         const generator_mat_t *const G,
+                         const monomial_t *const Q_tilde,
+                         const uint32_t skip) {
     generator_mat_t G_dagger;
-    memset(&G_dagger,0,sizeof(generator_mat_t));
     generator_monomial_mul(&G_dagger, G, Q_tilde);
 
     uint8_t is_pivot_column[N_pad] = {0};
@@ -520,6 +495,8 @@ int prepare_digest_input(normalized_IS_t *V,
         ctr += 1;
     }
 
+    if (skip) { return 1; } 
+
     POSITION_T piv_idx = 0;
     for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
         POSITION_T row_idx = 0;
@@ -538,7 +515,6 @@ int prepare_digest_input(normalized_IS_t *V,
     return 1;
 } /* end prepare_digest_input */
 
-/// TODO: change the type of "Q_bar_IS" to something which only tracks the permutation and not monomial
 /// \param V[out]: non IS-part of a generator matrix: K \times N-K
 ///         = NO_IS(RREF(G * Q_tilde))
 /// \param Q_bar_IS[out]: the permutation applied to get "V"
@@ -550,15 +526,14 @@ int prepare_digest_input(normalized_IS_t *V,
 /// \return 0 on failure, can only fail if RREF fails
 ///         1 on success
 int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
-                                      monomial_action_IS_t *Q_bar_IS,
-                                      const generator_mat_t *const G,
-                                      const monomial_t *const Q_tilde,
-                                      const uint8_t initial_pivot_flags [N],
-                                      const int pvt_reuse_limit) {
+                                     monomial_action_IS_t *Q_bar_IS,
+                                     const generator_mat_t *const G,
+                                     const monomial_t *const Q_tilde,
+                                     const uint8_t initial_pivot_flags [N],
+                                     const int pvt_reuse_limit,
+                                     const uint32_t skip) {
     uint8_t g_permuated_pivot_flags[N];
     generator_mat_t G_dagger;
-     // TODO unneeded
-    memset(&G_dagger,0,sizeof(generator_mat_t));
     generator_monomial_mul(&G_dagger, G, Q_tilde);
 
     for (uint32_t i = 0; i < N; i++) {
@@ -585,8 +560,8 @@ int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
         ctr += 1;
     }
 
+    if (skip) { return 1; }
 
-    /// TODO this is unneeded in case of verify
     POSITION_T piv_idx = 0;
     for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
         POSITION_T row_idx = 0;
@@ -715,8 +690,6 @@ void compress_rref(uint8_t *compressed, const generator_mat_t *const full,
 void expand_to_rref(generator_mat_t *full,
                     const uint8_t *compressed,
                     uint8_t is_pivot_column[N]) {
-    /// TODO: this whole decompression code, can be removed. Specially since we moved to
-    /// the `reusage of pivots` strategy, which makes this very inefficient.
     // Decompress pivot flags
     for (int i = 0; i < N; i++) {
         is_pivot_column[i] = 0;

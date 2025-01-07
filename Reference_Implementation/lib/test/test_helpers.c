@@ -12,6 +12,7 @@
 #include "utils.h"
 #include "rng.h"
 #include "canonical.h"
+#include "test_helpers.h"
 
 // wrapper struct around the set S_n
 typedef struct {
@@ -27,6 +28,23 @@ typedef struct {
    /* coefficients listed in order of appearance column-wise */
    FQ_ELEM coefficients[N];
 } diagonal_t;
+
+
+/* samples a random monomial matrix */
+void generator_rnd(generator_mat_t *res);
+void generator_sf(generator_mat_t *res);
+
+void normalized_ind(normalized_IS_t *V);
+void normalized_sf(normalized_IS_t *V);
+void normalized_rng(normalized_IS_t *V);
+
+void generator_pretty_print(const generator_mat_t *const G);
+void generator_pretty_print_name(char *name, const generator_mat_t *const G);
+void generator_rref_pretty_print_name(char *name,
+                                      const rref_generator_mat_t *const G);
+
+void normalized_pretty_print(const normalized_IS_t *const G);
+
 
 int row_quick_sort_internal_compare_with_pivot_without_histogram(uint8_t *ptr[K],
                                                                  const POSITION_T row_idx,
@@ -49,6 +67,32 @@ int compute_canonical_form_type4_sub_v2(normalized_IS_t *G,
 int compute_canonical_form_type5_single_row(normalized_IS_t *G,
                                            const uint32_t row);
 
+void lex_minimize(normalized_IS_t *V,
+                  POSITION_T dst_col_idx,
+                  const generator_mat_t *const G,
+                  const POSITION_T col_idx);
+
+//
+int lex_compare_column(const generator_mat_t *G1,
+                       const generator_mat_t *G2,
+                       const POSITION_T col1,
+                       const POSITION_T col2);
+
+int lex_compare_col(const normalized_IS_t *G1,
+                    const POSITION_T col1,
+                    const POSITION_T col2);
+//
+int lex_compare_with_pivot(normalized_IS_t *V,
+                           const POSITION_T col_idx,
+                           const FQ_ELEM pivot[K]);
+
+// in place quick sort
+void col_lex_quicksort(normalized_IS_t *V,
+                       int start,
+                       int end);
+
+/* performs lexicographic sorting of the IS complement */
+void lex_sort_cols(normalized_IS_t *V);
 
 ////////////////////////////////////////////////////////////////////////
 ///                        Permutation                               ///
@@ -692,7 +736,7 @@ int row_bitonic_sort(normalized_IS_t *G) {
     return 1;
 }
 
-/// TODO doc
+/// unneded function. only for testing
 /// \param ptr
 /// \param P permutation: to keep track of the sorting
 /// \param row_l
@@ -793,7 +837,7 @@ int row_quick_sort_recursive(normalized_IS_t *G,
 }
 
 
-/// TODO doc
+/// unneded function. only for testing
 /// \param ptr
 /// \param P permutation: to keep track of the sorting
 /// \param row_l
@@ -924,6 +968,115 @@ void col_bitonic_sort_transpose(normalized_IS_t *V) {
 
 
 
+/// lexicographic comparison
+/// \return G1[col1] <=> G2[col2]:
+///         -1: G1[col1] > G2[col2]
+///          0: G1[col1] == G2[col2]
+///          1: G1[col1] < G2[col2]
+int lex_compare_column(const generator_mat_t *G1,
+					   const generator_mat_t *G2,
+                       const POSITION_T col1,
+                       const POSITION_T col2) {
+   uint32_t i=0;
+   while((i < K) &&
+         (G1->values[i][col1]-G2->values[i][col2] == 0)) {
+       i++;
+   }
+
+   if (i >= K) return 0;
+
+   if (G1->values[i][col1]-G2->values[i][col2] > 0){
+      return -1;
+   }
+
+   return 1;
+}
+
+/// lexicographic comparison
+/// \return G1[col1] <=> G1[col2]:
+///           1: G1[col1] >  G1[col2]
+///           0: G1[col1] == G1[col2]
+///          -1: G1[col1] <  G1[col2]
+int lex_compare_col(const normalized_IS_t *G1,
+                    const POSITION_T col1,
+                    const POSITION_T col2) {
+   uint32_t i=0;
+   while((i < (K-1)) &&
+         (G1->values[i][col1]-G1->values[i][col2] == 0)) {
+       i++;
+   }
+   return G1->values[i][col1]-G1->values[i][col2];
+}
+
+/* lexicographic comparison of a column with the pivot
+ * returns 1 if the pivot is greater, -1 if it is smaller,
+ * 0 if it matches */
+int lex_compare_with_pivot(normalized_IS_t *V,
+                           const POSITION_T col_idx,
+                           const FQ_ELEM pivot[K]){
+   uint32_t i=0;
+   while(i<K && V->values[i][col_idx]-pivot[i] == 0){
+       i++;
+   }
+   if (i==K) return 0;
+   if (V->values[i][col_idx]-pivot[i] > 0){
+      return -1;
+   }
+   return 1;
+}
+
+/// NOTE: only used in `col_lex_quicksort`
+int Hoare_partition(normalized_IS_t *V,
+                    const POSITION_T col_l,
+                    const POSITION_T col_h){
+    FQ_ELEM pivot_col[K];
+    for(uint32_t i = 0; i < K; i++){
+       pivot_col[i] = V->values[i][col_l];
+    }
+    // NOTE double comparison, but thats no so important
+    // as this function is only for testing
+
+    POSITION_T i = col_l, j = col_h+1;
+    do {
+        j--;
+    } while(lex_compare_with_pivot(V,j,pivot_col) == -1);
+    if(i >= j){
+        return j;
+    }
+
+    column_swap(V,i,j);
+
+    while(1){
+        do {
+            i++;
+        } while(lex_compare_with_pivot(V,i,pivot_col) == 1);
+        do {
+            j--;
+        } while(lex_compare_with_pivot(V,j,pivot_col) == -1);
+        if(i >= j){
+            return j;
+        }
+
+        column_swap(V,i,j);
+    }
+}
+
+/* In-place quicksort */
+void col_lex_quicksort(normalized_IS_t *V,
+                       int start,
+                       int end){
+    if(start < end){
+        int p = Hoare_partition(V,start,end);
+        col_lex_quicksort(V,start,p);
+        col_lex_quicksort(V,p+1,end);
+    }
+}
+
+/* Sorts the columns of V in lexicographic order */
+void lex_sort_cols(normalized_IS_t *V){
+   col_lex_quicksort(V,0,(N-K)-1);
+}
+
 ////////////////////////////////////////////////////////////////////////
 ///                         Canonical Form                           ///
 ////////////////////////////////////////////////////////////////////////
@@ -935,7 +1088,8 @@ void col_bitonic_sort_transpose(normalized_IS_t *V) {
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
 int compute_canonical_form_type3_ct(normalized_IS_t *G) {
-    // todo not working const int ret = row_bitonic_sort(G);
+    // NOTE: not working const int ret = row_bitonic_sort(G);
+    // but this is just for testing and will be removed.
     const int ret = row_quick_sort(G, K);
 #ifdef LESS_USE_HISTOGRAM
     col_quicksort_transpose(G, K);
@@ -1098,6 +1252,7 @@ int compute_canonical_form_type5_single_row_v2(normalized_IS_t *M,
 }
 
 
+/// NOTE: not fully correct, see comment in the function
 /// NOTE: not constant time
 /// \param G[in/out] non IS part of a generator matrix
 /// \return 0 on failure
@@ -1110,11 +1265,7 @@ int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
     uint32_t max_zeros = 0;
 	uint8_t row_has_zero[K] = {0};
 	for (uint32_t row = 0; row < K; row++) {
-        uint32_t num_zeros = 0;
-        // TODO optimize avx and stuff
-	    for (uint32_t col = 0; col < N-K; col++) {
-            num_zeros += G->values[row][col] == 0;
-        }
+        const uint32_t num_zeros = row_count_zero(G->values[row]);
 
         if (num_zeros > 0) {
             row_has_zero[row] = 1;
@@ -1165,7 +1316,7 @@ int compute_canonical_form_type5_fastest(normalized_IS_t *G) {
     		continue;
     	}
 
-    	/// TODO the problem is that this function is very good at finding the shortest
+    	/// NOTE: the problem is that this function is very good at finding the shortest
     	/// row. But this row necessary does not need to have sum() != 0
         if (compute_canonical_form_type4_sub_v2(&scaled_sub_G, z) &&
             compute_canonical_form_type3_sub(&scaled_sub_G, z)) {

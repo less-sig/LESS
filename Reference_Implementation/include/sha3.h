@@ -128,7 +128,6 @@ void sha3_512(unsigned char *output,
 
 static inline
 void xof_shake_init(SHAKE_STATE_STRUCT *state, int val) {
-    /// TODO what? why is val not used?
 	(void)val;
 #if defined(CATEGORY_1)
    shake128_inc_init(state);

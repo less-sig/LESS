@@ -265,8 +265,8 @@ void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
 }
 
 /// invert a row
-/// \param out = in[i]**-1 for i in range(N-K)
-/// \param in
+/// \param out[out]: = in[i]**-1 for i in range(N-K)
+/// \param in[in]: vector of length N-K
 static inline
 void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
     for (uint32_t col = 0; col < (N-K); col++) {
@@ -274,7 +274,8 @@ void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
     }
 }
 
-/// \param in
+/// NOTE: not ct.
+/// \param in[in]: vector of length N-K
 /// \return 1 if all elements are the same
 ///         0 else
 static inline
@@ -287,10 +288,10 @@ uint32_t row_all_same(const FQ_ELEM *in) {
     return 1;
 }
 
-/// TODO write ct version
-/// \param in
+/// NOTE: not ct.
+/// \param in[in]: vector of length N-K
 /// \return 0 if no zero was found
-///         1 if the row contains a least a single 0
+///         1 if the row contains at least a single 0
 static inline
 uint32_t row_contains_zero(const FQ_ELEM *in) {
     for (uint32_t col = 0; col < N-K; col++) {
@@ -299,4 +300,15 @@ uint32_t row_contains_zero(const FQ_ELEM *in) {
         }
     }
     return 0;
+}
+
+/// \param in[in]: vector of length N-K
+/// \return the number of zeros in the input vector
+static inline
+uint32_t row_count_zero(const FQ_ELEM *in) {
+    uint32_t r = 0;
+    for (uint32_t col = 0; col < N-K; col++) {
+        r += (in[col] == 0);
+    }
+    return r;
 }

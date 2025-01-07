@@ -58,14 +58,10 @@ typedef struct {
 } monomial_t;
 
 typedef struct {
-   /* coefficients listed in order of appearance of the columns of the
-    * target IS */
-   FQ_ELEM coefficients[K];
-   /* considering the product GQ, permutation[...] stores into the cell with
-    * index 0, the position of the ORIGINAL column in G that goes into 0-th 
-    * column of the IS after the computation of GQ.
-    */
-   POSITION_T permutation[K];
+    // NOTE: as we are now computing canonical forms, we do not need
+    // a full monomial matrix anymore. But only the permutation. So
+    // the name of the struct is maybe a little bit wrong.
+    POSITION_T permutation[K];
 } monomial_action_IS_t;
 
 typedef struct {

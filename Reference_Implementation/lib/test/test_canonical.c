@@ -11,8 +11,6 @@
 
 #define ITERS 100
 
-// TODO write tests for cf4 and cf5, which lead to an wrong computation
-
 // just debugging test
 int test_compute_canonical_form_type3(void) {
     normalized_IS_t G;

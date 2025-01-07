@@ -249,7 +249,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
    return 1;
 } /* end generator_RREF_pivot_reuse */
 
-/// TODO: change the type of "Q_bar_IS" to something which only tracks the permutation and not monomial
 /// \param V[out]: non IS-part of a generator matrix: K \times N-K
 ///         = NO_IS(RREF(G * Q_tilde))
 /// \param Q_bar_IS[out]: the permutation applied to get "V"
@@ -261,9 +260,9 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
 int prepare_digest_input(normalized_IS_t *V,
                           monomial_action_IS_t *Q_bar_IS,
                           const generator_mat_t *const G,
-                          const monomial_t *const Q_tilde) {
+                          const monomial_t *const Q_tilde,
+                          const uint32_t skip) {
     generator_mat_t G_dagger;
-    memset(&G_dagger,0,sizeof(generator_mat_t));
     generator_monomial_mul(&G_dagger, G, Q_tilde);
 
     uint8_t is_pivot_column[N] = {0};
@@ -286,6 +285,7 @@ int prepare_digest_input(normalized_IS_t *V,
         ctr += 1;
     }
 
+    if (skip) { return 1; }
     POSITION_T piv_idx = 0;
     for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
         POSITION_T row_idx = 0;
@@ -304,7 +304,6 @@ int prepare_digest_input(normalized_IS_t *V,
     return 1;
 } /* end prepare_digest_input */
 
-/// TODO: change the type of "Q_bar_IS" to something which only tracks the permutation and not monomial
 /// \param V[out]: non IS-part of a generator matrix: K \times N-K
 ///         = NO_IS(RREF(G * Q_tilde))
 /// \param Q_bar_IS[out]: the permutation applied to get "V"
@@ -320,19 +319,18 @@ int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
                                       const generator_mat_t *const G,
                                       const monomial_t *const Q_tilde,
                                       const uint8_t initial_pivot_flags [N],
-                                      const int pvt_reuse_limit) {
-   uint8_t g_permuated_pivot_flags[N];
+                                      const int pvt_reuse_limit,
+                                      const uint32_t skip) {
+   uint8_t g_permuted_pivot_flags[N];
    generator_mat_t G_dagger;
-    // TODO unneeded
-   memset(&G_dagger,0,sizeof(generator_mat_t));
    generator_monomial_mul(&G_dagger, G, Q_tilde);
 
    for (uint32_t i = 0; i < N; i++) {
-       g_permuated_pivot_flags[Q_tilde->permutation[i]] = initial_pivot_flags[i];
+       g_permuted_pivot_flags[Q_tilde->permutation[i]] = initial_pivot_flags[i];
    }
 
    uint8_t is_pivot_column[N] = {0};
-   if (generator_RREF_pivot_reuse(&G_dagger,is_pivot_column, g_permuated_pivot_flags, pvt_reuse_limit) == 0) {
+   if (generator_RREF_pivot_reuse(&G_dagger,is_pivot_column, g_permuted_pivot_flags, pvt_reuse_limit) == 0) {
        return 0;
    }
 
@@ -351,8 +349,8 @@ int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
         ctr += 1;
     }
 
+    if (skip) { return 1; }
 
-    /// TODO this is unneeded in case of verify
     POSITION_T piv_idx = 0;
     for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
         POSITION_T row_idx = 0;
@@ -549,8 +547,6 @@ void compress_rref(uint8_t *compressed, const generator_mat_t *const full,
 void expand_to_rref(generator_mat_t *full,
                     const uint8_t *compressed,
                     uint8_t is_pivot_column[N]) {
-    /// TODO: this whole decompression code, can be removed. Specially since we moved to
-    /// the `reusage of pivots` strategy, which makes this very inefficient.
     // Decompress pivot flags
     for (int i = 0; i < N; i++) {
         is_pivot_column[i] = 0;
