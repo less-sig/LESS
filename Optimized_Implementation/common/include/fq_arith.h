@@ -116,6 +116,10 @@ FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
     return fq_red(((FQ_DOUBLEPREC)x) *(FQ_DOUBLEPREC)y);
 }
 
+static inline
+FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
+      return (x + y) % Q;
+}
 /*
  * Barrett multiplication for uint8_t Q = 127
  */

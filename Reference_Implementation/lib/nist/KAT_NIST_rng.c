@@ -160,6 +160,7 @@ void KAT_NIST_randombytes_init(unsigned char *entropy_input,
                           unsigned char *personalization_string,
                           int security_strength) {
     unsigned char   seed_material[48];
+    (void)security_strength;
     
     memcpy(seed_material, entropy_input, 48);
     if (personalization_string)

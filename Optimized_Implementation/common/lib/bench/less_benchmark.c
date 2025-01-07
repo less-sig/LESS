@@ -116,7 +116,7 @@ long double welford_mean(const welford_t state) {
 #if defined(CATEGORY_5)
 #define NUM_TESTS 6
 #elif defined(CATEGORY_3)
-#define NUM_TESTS 12
+#define NUM_TESTS 50
 #else
 #define NUM_TESTS 100
 #endif
@@ -133,7 +133,7 @@ void microbench(void){
 
     generator_mat_t G;
     generator_rnd(&G);
-    uint8_t is_pivot_column[NN];
+    uint8_t is_pivot_column[N_pad];
 
     uint64_t cycles;
     for(int i = 0; i <NUM_TESTS; i++) {

@@ -208,6 +208,7 @@ int LESS_sign_verify_test_KAT(void) {
     //    seed[i] = i;
 	//}
 
+    init_randombytes(seed, 48);
     initialize_csprng(&platform_csprng_state,
                       (const unsigned char *)seed,
                       48);

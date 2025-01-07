@@ -41,7 +41,7 @@ int bench_row_sorting(void) {
     for (unsigned i = 0; i < ITERS; i++) {
         normalized_rng(&G1);
         c -= read_cycle_counter();
-        ctr += row_quick_sort(&G1, K);
+        ctr += SortRows(&G1, K);
         c += read_cycle_counter();
     }
     c1 = c / ITERS;
@@ -69,7 +69,7 @@ int bench_col_sorting(void) {
         normalized_rng(&G1);
 
         c -= read_cycle_counter();
-        col_quicksort_transpose(&G1, K);
+        SortCols(&G1, K);
         c += read_cycle_counter();
     }
     c1 = c / ITERS;

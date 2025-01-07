@@ -96,7 +96,7 @@ finish:
 void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
                                       const generator_mat_t *G,
                                       const uint8_t *const c,
-                                      uint8_t initial_G_col_pivot[N],
+                                      const uint8_t initial_G_col_pivot[N],
                                       uint8_t permuted_G_col_pivot[N]) {
     uint32_t l = 0, r = 0;
     for (uint32_t i = 0; i < N8; i++) {
@@ -189,46 +189,6 @@ void swap_rows(FQ_ELEM r[N], FQ_ELEM s[N]){
       s[i] = tmp;
    }
 } /* end swap_rows */
-
-
-void column_swap(normalized_IS_t *V,
-                 const POSITION_T col1,
-                 const POSITION_T col2){
-   for(uint32_t i = 0; i<K;i++ ){
-      POSITION_T tmp;
-      tmp = V->values[i][col2];
-      V->values[i][col2] = V->values[i][col1];
-      V->values[i][col1] = tmp;
-   }
-}
-
-/// \param V
-/// \param col1
-/// \param col2
-/// \param mask
-void column_cswap(normalized_IS_t *V,
-                  const POSITION_T col1,
-                  const POSITION_T col2,
-                  const uintptr_t mask){
-    for(uint32_t i = 0; i<K;i++ ){
-       MASKED_SWAP(V->values[i][col1], V->values[i][col2], mask);
-    }
-}
-
-
-/// \param V
-/// \param row1
-/// \param row2
-void generator_row_swap(generator_mat_t *V,
-                        const POSITION_T row1,
-                        const POSITION_T row2) {
-   for(uint32_t i = 0; i<N;i++ ){
-      POSITION_T tmp;
-      tmp = V->values[row1][i];
-      V->values[row1][i] = V->values[row2][i];
-      V->values[row2][i] = tmp;
-   }
-}
 
 int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
     int i, j, pivc;
@@ -458,127 +418,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
 
     return 1;
 } /* end generator_RREF */
-
-/// \param V[out]: non IS-part of a generator matrix: K \times N-K
-///         = NO_IS(RREF(G * Q_tilde))
-/// \param Q_bar_IS[out]: the permutation applied to get "V"
-/// \param G[in]: generator matrix: K \times N
-/// \param Q_tilde[in]: ephemeral monomial matrix to be applied to
-///         G.
-/// \return 0 on failure, can only fail if RREF fails
-///         1 on success
-int prepare_digest_input(normalized_IS_t *V,
-                         monomial_action_IS_t *Q_bar_IS,
-                         const generator_mat_t *const G,
-                         const monomial_t *const Q_tilde,
-                         const uint32_t skip) {
-    generator_mat_t G_dagger;
-    generator_monomial_mul(&G_dagger, G, Q_tilde);
-
-    uint8_t is_pivot_column[N_pad] = {0};
-    if (generator_RREF(&G_dagger, is_pivot_column) == 0) {
-        return 0;
-    }
-
-    // just copy the non IS
-    uint32_t ctr = 0;
-    for(uint32_t j = 0; j < N-K; j++) {
-        while (is_pivot_column[ctr]) {
-            ctr += 1;
-        }
-
-        /// copy colum
-        for (uint32_t i = 0; i < K; i++) {
-            V->values[i][j] = G_dagger.values[i][ctr];
-        }
-
-        ctr += 1;
-    }
-
-    if (skip) { return 1; } 
-
-    POSITION_T piv_idx = 0;
-    for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
-        POSITION_T row_idx = 0;
-        for(uint32_t i = 0; i < N; i++) {
-            if (Q_tilde->permutation[i] == col_idx) {
-                row_idx = i;
-            }
-        }
-
-        if(is_pivot_column[col_idx] == 1) {
-            Q_bar_IS->permutation[piv_idx] = row_idx;
-            piv_idx++;
-        }
-    }
-
-    return 1;
-} /* end prepare_digest_input */
-
-/// \param V[out]: non IS-part of a generator matrix: K \times N-K
-///         = NO_IS(RREF(G * Q_tilde))
-/// \param Q_bar_IS[out]: the permutation applied to get "V"
-/// \param G[in]: generator matrix: K \times N
-/// \param Q_tilde[in]: ephemeral monomial matrix to be applied to
-///         G.
-/// \param initial_pivot_flags
-/// \param pvt_reuse_limit
-/// \return 0 on failure, can only fail if RREF fails
-///         1 on success
-int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
-                                     monomial_action_IS_t *Q_bar_IS,
-                                     const generator_mat_t *const G,
-                                     const monomial_t *const Q_tilde,
-                                     const uint8_t initial_pivot_flags [N],
-                                     const int pvt_reuse_limit,
-                                     const uint32_t skip) {
-    uint8_t g_permuated_pivot_flags[N];
-    generator_mat_t G_dagger;
-    generator_monomial_mul(&G_dagger, G, Q_tilde);
-
-    for (uint32_t i = 0; i < N; i++) {
-        g_permuated_pivot_flags[Q_tilde->permutation[i]] = initial_pivot_flags[i];
-    }
-
-    uint8_t is_pivot_column[N] = {0};
-    if (generator_RREF_pivot_reuse(&G_dagger,is_pivot_column, g_permuated_pivot_flags, pvt_reuse_limit) == 0) {
-        return 0;
-    }
-
-    // just copy the non IS
-    uint32_t ctr = 0;
-    for(uint32_t j = 0; j < N-K; j++) {
-        while (is_pivot_column[ctr]) {
-            ctr += 1;
-        }
-
-        /// copy colum
-        for (uint32_t i = 0; i < K; i++) {
-            V->values[i][j] = G_dagger.values[i][ctr];
-        }
-
-        ctr += 1;
-    }
-
-    if (skip) { return 1; }
-
-    POSITION_T piv_idx = 0;
-    for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
-        POSITION_T row_idx = 0;
-        for(uint32_t i = 0; i < N; i++) {
-            if (Q_tilde->permutation[i] == col_idx) {
-                row_idx = i;
-            }
-        }
-
-        if(is_pivot_column[col_idx] == 1) {
-            Q_bar_IS->permutation[piv_idx] = row_idx;
-            piv_idx++;
-        }
-    }
-
-    return 1;
-} /* end prepare_digest_input_pivot_reuse */
 
 /* Compresses a generator matrix in RREF storing only non-pivot columns and
  * their position */

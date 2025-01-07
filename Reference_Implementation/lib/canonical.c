@@ -10,17 +10,17 @@
 #include "sort.h"
 
 
-/// NOTE: non ct
+/// NOTE: non-constant time
 /// NOTE: computes the result inplace
 /// first sort the rows, then the columns
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
 int compute_canonical_form_type3(normalized_IS_t *G) {
-    if (row_quick_sort(G, K) == 0) {
+    if (SortRows(G, K) == 0) {
 	    return 0;
     }
 #ifdef LESS_USE_HISTOGRAM
-    col_quicksort_transpose(G, K_pad);
+    SortCols(G, K_pad);
 #else
     col_lex_quicksort(G, 0, N-K-1);
 #endif
@@ -54,14 +54,16 @@ int compute_canonical_form_type4(normalized_IS_t *G) {
 }
 
 /// NOTE: non-constant time
-/// \param G[in] sub matrix with only z rows
-/// \param z[in] number of rows in G
-/// \param min_multiset[in]
-/// \return 0: if no multiset was found < `min_multiset`
-///         1: if one of the  z rows is < `min_multiset`
+/// \param G[in/out]: sub matrix with only z rows.
+///     Nothing really is returned in the matrix, but it still
+///     gets clobbered.
+/// \param z[in]: number of rows in G
+/// \param M[in]: the currently shortest multiset
+/// \return 0: if no multiset was found < `M`
+///         1: if one of the  z rows is < `M`
 int compute_canonical_form_type4_sub(normalized_IS_t *G,
                                      const uint32_t z,
-                                     const FQ_ELEM *min_multiset) {
+                                     const FQ_ELEM *M) {
 #ifdef LESS_USE_HISTOGRAM
     FQ_ELEM tmp[Q_pad] __attribute__((aligned(32)));
 #else
@@ -79,8 +81,8 @@ int compute_canonical_form_type4_sub(normalized_IS_t *G,
 		}
 
 		row_mul(G->values[i], s);
-        row_sort(tmp, G->values[i], N-K);
-        if (compare_rows(tmp, min_multiset) < 0) {
+        sort(tmp, G->values[i], N-K);
+        if (compare_rows(tmp, M) < 0) {
             return 1;
         }
     }
@@ -91,8 +93,8 @@ int compute_canonical_form_type4_sub(normalized_IS_t *G,
 /// NOTE: non-constant time
 /// implements a total order on matrices
 /// we simply compare the columns lexicographically
-/// \param V1[in]
-/// \param V2[in]
+/// \param V1[in]: first matrix
+/// \param V2[in]: second matrix
 /// \param z[in]: number of rows within both matrices
 /// \return -x if V2 > V1
 ///			 0 if V2 == V1
@@ -122,11 +124,11 @@ int compare_matrices(const normalized_IS_t *__restrict__ V1,
 /// \return 0 on failure
 /// 		1 on success
 int compute_canonical_form_type5(normalized_IS_t *G) {
-	normalized_IS_t Aj __attribute__((aligned(32))) = {0}, smallest;
+	normalized_IS_t A __attribute__((aligned(32))) = {0}, M;
     int touched = 0;
 
 	// init the output matrix to some `invalid` data
-	memset(&smallest.values, Q-1, sizeof(normalized_IS_t));
+	memset(&M.values, Q-1, sizeof(normalized_IS_t));
 
 	static FQ_ELEM row_inv_data[N_K_pad] = {0};
 	for (uint32_t row = 0; row < K; row++) {
@@ -134,18 +136,18 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
 
 		row_inv2(row_inv_data, G->values[row]);
 		for (uint32_t row2 = 0; row2 < K; row2++) {
-			row_mul3(Aj.values[row2], G->values[row2], row_inv_data);
+			row_mul3(A.values[row2], G->values[row2], row_inv_data);
 		}
 
-		const int ret = compute_canonical_form_type4(&Aj);
-		if ((ret == 1) && (compare_matrices(&Aj, &smallest, K) < 0)) {
+		const int ret = compute_canonical_form_type4(&A);
+		if ((ret == 1) && (compare_matrices(&A, &M, K) < 0)) {
 			touched = 1;
-			normalized_copy(&smallest, &Aj);
+			normalized_copy(&M, &A);
 		}
 	}
 
     if (!touched) { return 0; }
-	normalized_copy(G, &smallest);
+	normalized_copy(G, &M);
 	return 1;
 }
 
@@ -155,23 +157,25 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
 /// \return 0 on failure
 /// 		1 on success
 int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
-	normalized_IS_t Aj __attribute__((aligned(32))), smallest;
+	normalized_IS_t  M;
     int touched = 0;
 
 	// init the output matrix to some `invalid` data
-	memset(&smallest.values, Q-1, 3*N_K_pad);
+    // honestly, will be there ever a case, where more than 2 rows are compared?
+	memset(&M.values, Q-1, 2*N_K_pad);
 
-	uint32_t J[N-K];
+    /// track the rows with the most zeros.
+	uint32_t J[K];
     uint32_t z = 0;
 
     // count zeros in each row
     uint32_t max_zeros = 0;
-	uint8_t row_has_zero[K] = {0};
+	uint8_t Z[K] = {0};
 	for (uint32_t row = 0; row < K; row++) {
         const uint32_t num_zeros = row_count_zero(G->values[row]);
 
         if (num_zeros > 0) {
-            row_has_zero[row] = 1;
+            Z[row] = 1;
         }
 
         if (num_zeros > max_zeros) {
@@ -182,54 +186,54 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
         }
 
         if (num_zeros == max_zeros) {
-            J[z++] = row; 
+            J[z++] = row;
         }
     }
 
-    /// NOTE: is this always correct?
+    /// NOTE: fallback solution if everything falls apart
     if (z == (N-K)) {
 	    return compute_canonical_form_type5(G);
     }
 
-    static normalized_IS_t scaled_sub_G __attribute__((aligned(32))) = {0};
+    static normalized_IS_t B __attribute__((aligned(32))) = {0};
 	FQ_ELEM row_inv_data[N_K_pad] = {0};
 
 	/// NOTE: this is already "sorted"
 #ifdef LESS_USE_HISTOGRAM
-	FQ_ELEM min_multiset[Q_pad] __attribute__((aligned(32))) = {0};
+	FQ_ELEM L[Q_pad] __attribute__((aligned(32))) = {0};
 #else
 	FQ_ELEM min_multiset[N_K_pad];
 	memset(min_multiset, Q-1, N_K_pad);
 #endif
 	for (uint32_t row = 0; row < K; row++) {
-        if (row_has_zero[row]) { continue; }
+        if (Z[row]) { continue; }
 
 		row_inv2(row_inv_data, G->values[row]);
 		for (uint32_t row2 = 0; row2 < z; row2++) {
-			row_mul3(scaled_sub_G.values[row2], G->values[J[row2]], row_inv_data);
+			row_mul3(B.values[row2], G->values[J[row2]], row_inv_data);
 		}
 
-        if (compute_canonical_form_type4_sub(&scaled_sub_G, z, min_multiset)) {
+        if (compute_canonical_form_type4_sub(&B, z, L)) {
             for (uint32_t row2 = 0; row2 < K; row2++) {
-                row_mul3(Aj.values[row2], G->values[row2], row_inv_data);
+                row_mul3(B.values[row2], G->values[row2], row_inv_data);
             }
 
-		    const int ret = compute_canonical_form_type4(&Aj);
-		    if ((ret == 1) && (compare_matrices(&Aj, &smallest, K) < 0)) {
+		    const int ret = compute_canonical_form_type4(&B);
+		    if ((ret == 1) && (compare_matrices(&B, &M, K) < 0)) {
 #ifdef LESS_USE_HISTOGRAM
-            row_sort(min_multiset, Aj.values[0], N-K);
+            sort(L, B.values[0], N-K);
 #else
-            memcpy(min_multiset, Aj.values[0], N_K_pad);
+            memcpy(min_multiset, B.values[0], N_K_pad);
 #endif
 		    	touched = 1;
-		    	normalized_copy(&smallest, &Aj);
+		    	normalized_copy(&M, &B);
 		    }
         }
 	}
 
     if (!touched) { return 0; }
-	
-	normalized_copy(G, &smallest);
+
+	normalized_copy(G, &M);
 	return 1;
 }
 
@@ -256,7 +260,6 @@ void blind(normalized_IS_t *G,
     fq_star_rnd_state_elements(prng, left.coefficients, N-K);
     yt_shuffle_state_limit(prng, left.permutation, N-K);
 
-
     // apply the right multiplication
     for (uint32_t i = 0; i < K; i++) {
         const FQ_ELEM a = right.coefficients[i];
@@ -281,6 +284,6 @@ void blind(normalized_IS_t *G,
 /// \param G[in/out] non IS part of a generator matrix
 /// \return 0 on failure
 /// 		1 on success
-int cf5_nonct(normalized_IS_t *G) {
+int CF(normalized_IS_t *G) {
     return compute_canonical_form_type5_popcnt(G);
 }
