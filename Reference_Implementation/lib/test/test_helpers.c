@@ -12,7 +12,6 @@
 #include "utils.h"
 #include "rng.h"
 #include "canonical.h"
-#include "test_helpers.h"
 
 // wrapper struct around the set S_n
 typedef struct {
