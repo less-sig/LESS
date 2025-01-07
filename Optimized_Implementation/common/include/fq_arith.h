@@ -90,8 +90,6 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
  * Backup implementation for less aggressive compilers follows */
 
 
-/// TODO remove 
-#define FQ_TRIPLEPREC FQ_DOUBLEPREC
 
 
 static inline
@@ -113,16 +111,9 @@ FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
     return fq_cond_sub(x + Q - y);
 }
 
-/// todo remove both functions
-///
-static inline
-FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
-      return (x + y) % Q;
-}
-
 static inline
 FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
-   return ((FQ_DOUBLEPREC)x * (FQ_DOUBLEPREC)y) % Q;
+    return fq_red(((FQ_DOUBLEPREC)x) *(FQ_DOUBLEPREC)y);
 }
 
 /*
@@ -160,7 +151,7 @@ static inline
 FQ_DOUBLEPREC br_red16(FQ_DOUBLEPREC x)
 {
    FQ_DOUBLEPREC y;
-   FQ_TRIPLEPREC a;
+   FQ_DOUBLEPREC a;
 
    a = x + 1;
    a = (a << 7) + a;
@@ -237,11 +228,11 @@ FQ_ELEM row_acc(const FQ_ELEM *d) {
 /// \return sum(d[i]**-1) for i in range(N-K)
 static inline
 FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
-    // TODO actually only the last pos need to be 0
-    FQ_ELEM inv_data[N_K_pad] = {0}; 
+    // NOTE: actually only the last pos need to be 0
+    static FQ_ELEM inv_data[N_K_pad] = {0}; 
     for (uint32_t col = 0; col < (N-K); col++) {
         inv_data[col] = fq_inv(d[col]);
-	 }
+	}
 
     return row_acc(inv_data);
 }
@@ -389,8 +380,8 @@ void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
     }
 }
 
-/// TODO avx512 optimized version (it has a special instruction for stuff like this)
-/// \param in
+/// NOTE: avx512 optimized version (it has a special instruction for stuff like this)
+/// \param in[in]: vector of length N-K
 /// \return 1 if all elements are the same
 ///         0 else
 static inline
@@ -441,3 +432,35 @@ uint32_t row_contains_zero(const FQ_ELEM *in) {
     }
     return 0;
 }
+
+/// \param in[in]: vector of length N-K
+/// \return the number of zeros in the input vector
+static inline
+uint32_t row_count_zero(const FQ_ELEM *in) {
+    vec256_t t1, zero, acc, mask;
+    vset8(zero, 0);
+    vset8(acc, 0);
+    vset8(mask, 1);
+    uint32_t col = 0;
+    for (; col < (N_K_pad-32); col += 32) {
+        vload256(t1, (vec256_t *)(in + col));
+        vcmp8(t1, t1, zero);
+        vand(t1, t1, mask);
+        vadd8(acc, acc, t1);
+    }
+  
+    // NOTE: maybe apply a horizontal add algorithm here.
+    uint8_t tmp[32] __attribute__((aligned(32)));
+    vstore256((__m256i *)tmp, acc);
+
+    uint32_t a = 0;
+    for (uint32_t i = 0; i < 32; i++) {
+        a += tmp[i];
+    }
+
+    for (;col < N-K; col++) {
+        a += (in[col] == 0);
+    }
+    return a;
+}
+

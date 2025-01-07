@@ -46,8 +46,6 @@ typedef struct {
 } sha3_512incctx;
 
 
-/// TODO added by floyd
-/// TODO describe
 void keccak_inc_init(uint64_t *s_inc);
 void keccak_absorb(uint64_t *s,
                    uint32_t r,

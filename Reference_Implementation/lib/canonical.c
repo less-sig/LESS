@@ -168,10 +168,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
     uint32_t max_zeros = 0;
 	uint8_t row_has_zero[K] = {0};
 	for (uint32_t row = 0; row < K; row++) {
-        uint32_t num_zeros = 0;
-	    for (uint32_t col = 0; col < N-K; col++) {
-            num_zeros += G->values[row][col] == 0; 
-        }
+        const uint32_t num_zeros = row_count_zero(G->values[row]);
 
         if (num_zeros > 0) {
             row_has_zero[row] = 1;
@@ -194,7 +191,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 	    return compute_canonical_form_type5(G);
     }
 
-    normalized_IS_t scaled_sub_G = {0};
+    normalized_IS_t scaled_sub_G __attribute__((aligned(32))) = {0};
 	FQ_ELEM row_inv_data[N_K_pad] = {0};
 
 	/// NOTE: this is already "sorted"
@@ -242,7 +239,8 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 /// \param prng[in/out]:
 void blind(normalized_IS_t *G,
            SHAKE_STATE_STRUCT *prng) {
-    monomial_action_IS_t left, right;
+    /// note;
+    monomial_t left, right;
     normalized_IS_t B;
 
     // We compute the following matrix multiplication G = left * G * right
@@ -262,8 +260,9 @@ void blind(normalized_IS_t *G,
         const FQ_ELEM a = right.coefficients[i];
         const POSITION_T pos = right.permutation[i];
 
+        /// NOTE: thats quite a bottleneck.
         for (uint32_t j = 0; j < N-K; j++) {
-            B.values[j][i] = fq_mul(a, G->values[j][pos]);
+            B.values[j][i] = fq_mul(a,  G->values[j][pos]);
         }
     }
 

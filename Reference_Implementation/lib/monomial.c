@@ -181,7 +181,7 @@ void monomial_mat_inv(monomial_t *res,
  */
 void monomial_compose_action(monomial_action_IS_t* out,
                              const monomial_t * Q_in,
-                             const monomial_action_IS_t * in){
+                             const monomial_action_IS_t *in){
    /* to compose with monomial_action_IS_t, reverse the convention
     * for Q storage: store in permutation[i] the idx of the source column landing
     * as the i-th after the GQ product, and in coefficients[i] the coefficient

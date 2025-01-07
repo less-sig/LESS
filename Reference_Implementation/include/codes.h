@@ -77,45 +77,19 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                                  uint8_t was_pivot_column[N],
                                  const int pvt_reuse_limit);
 
-
-void lex_minimize(normalized_IS_t *V,
-                  POSITION_T dst_col_idx,
-                  const generator_mat_t *const G,
-                  const POSITION_T col_idx);
-
-//
-int lex_compare_column(const generator_mat_t *G1, 
-                       const generator_mat_t *G2,
-                       const POSITION_T col1,
-                       const POSITION_T col2);
-
-int lex_compare_col(const normalized_IS_t *G1,
-                    const POSITION_T col1,
-                    const POSITION_T col2);
-//
-int lex_compare_with_pivot(normalized_IS_t *V,
-                           const POSITION_T col_idx,
-                           const FQ_ELEM pivot[K]);
-
-// in place quick sort
-void col_lex_quicksort(normalized_IS_t *V, 
-                       int start, 
-                       int end);
-
-/* performs lexicographic sorting of the IS complement */
-void lex_sort_cols(normalized_IS_t *V);
-
 int prepare_digest_input(normalized_IS_t *V,
                          monomial_action_IS_t *Q_bar_IS,
                          const generator_mat_t *const G,
-                         const monomial_t *const Q_in);
+                         const monomial_t *const Q_in,
+                         const uint32_t skip);
 
 int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
                                      monomial_action_IS_t *Q_bar_IS,
                                      const generator_mat_t *const G,
                                      const monomial_t *const Q_in,
                                      const uint8_t initial_pivot_flags [N],
-                                     const int pvt_reuse_limit);
+                                     const int pvt_reuse_limit,
+                                     const uint32_t skip);
 
 /* extracts the last N-K columns from a generator matrix, filling
  * in the compact RREF representation*/
@@ -154,9 +128,10 @@ void generator_compact_rref_normalize(rref_generator_mat_t *compact);
 void generator_rref_expand(generator_mat_t *full,
                            const rref_generator_mat_t *const compact);
 
-/* Computes the systematic form of the generator matrix in place
- * returns 1 on success, 0 on failure */
-int generator_gausselim(generator_mat_t *G);
+/* expands a systematic form generator from a seed randomly drawing only
+ * non-identity portion */
+void generator_SF_seed_expand(rref_generator_mat_t *res,
+                              const unsigned char seed[SEED_LENGTH_BYTES]);
 
 //
 void apply_cf_action_to_G(generator_mat_t* res,
@@ -169,23 +144,4 @@ void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
                                       uint8_t initial_G_col_pivot[N],
                                       uint8_t permuted_G_col_pivot[N]);
 
-/* samples a random monomial matrix */
-void generator_rnd(generator_mat_t *res);
-void generator_sf(generator_mat_t *res);
-
-void normalized_ind(normalized_IS_t *V);
-void normalized_sf(normalized_IS_t *V);
-void normalized_rng(normalized_IS_t *V);
 void normalized_copy(normalized_IS_t *V1, const normalized_IS_t *V2);
-
-/* expands a systematic form generator from a seed randomly drawing only
- * non-identity portion */
-void generator_SF_seed_expand(rref_generator_mat_t *res,
-                              const unsigned char seed[SEED_LENGTH_BYTES]);
-
-void generator_pretty_print(const generator_mat_t *const G);
-void generator_pretty_print_name(char *name, const generator_mat_t *const G);
-void generator_rref_pretty_print_name(char *name,
-                                      const rref_generator_mat_t *const G);
-
-void normalized_pretty_print(const normalized_IS_t *const G);

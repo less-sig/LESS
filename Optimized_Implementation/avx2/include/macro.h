@@ -35,6 +35,14 @@
 typedef __m256i vec256_t;
 typedef __m128i vec128_t;
 
+
+/// number of Fq elements per vector register
+#define LESS_WSZ 32u
+
+// number of vector register for N bytes
+#define NW ((NEXT_MULTIPLE(N, LESS_WSZ))/LESS_WSZ)
+
+
 // c <- src
 #define vload256(c, src) c = _mm256_loadu_si256(src);
 #define vload128(c, src) c = _mm_loadu_si128(src);
@@ -59,6 +67,7 @@ typedef __m128i vec128_t;
 
 // c = a >> n
 #define vsr16(c, a, n) c = _mm256_srai_epi16(a, n);
+#define vsr32(c, a, n) c = _mm256_srli_epi32(a, n);
 
 // c = a << n
 #define vsl16(c, a, n) c = _mm256_slli_epi16(a, n);
@@ -147,13 +156,6 @@ typedef __m128i vec128_t;
     vadd16(a, a, t);    /* lo = (lo + hi) */ \
     vsl16(t, t, 7);     /* hi = (hi << 7) */ \
     vsub16(c, a, t);    /* c  = (lo - hi) */
-
-
-/// number of 8 bit elements in an avx register
-#define LESS_WSZ 32
-
-/// number of avx registers needed for a full row in a generator matrix
-#define NW ((N + LESS_WSZ - 1) / LESS_WSZ)
 
 /// original reduction formula
 #define W_RED127(x)                                                            \

@@ -37,8 +37,8 @@
 /*  no. of bytes of the public key */
 #define CRYPTO_PUBLICKEYBYTES (sizeof(pubkey_t))
 
-// TODO this is wrong. in the case of SEED_TREE
-/* no. of bytes of overhead in a signed message */
+/* no. of bytes of MAXIMAL overhead in a signed message,
+ * in case of ggm tree, the actual signature size can be less.  */
 #define CRYPTO_BYTES (sizeof(sign_t))
 
 /* required bytes of input randomness */

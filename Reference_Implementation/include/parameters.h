@@ -128,14 +128,17 @@
 #define K8 ((K+7u)/8u)
 #define N8 ((N+7u)/8u)
 
+/// rounds x to the next multiple of n
 #define NEXT_MULTIPLE(x,n) ((((x)+((n)-1u))/(n))*(n))
 
-/// TODO document what these macros do
 #ifdef USE_AVX2
+/// In case of the optimized implementation, we need that all vectors
+/// are of a length, which is a multiple of 32
 #define N_K_pad NEXT_MULTIPLE(N-K, 32)
 #define N_pad   NEXT_MULTIPLE(N, 32)
 #define K_pad   NEXT_MULTIPLE(K, 32)
 #else
+/// in case of the reference implementation, we do not need this behaviour.
 #define N_K_pad (N-K)
 #define N_pad   N
 #define K_pad   K
@@ -199,9 +202,13 @@
 #define LESS_CRYPTO_BYTES     (HASH_DIGEST_LENGTH + (N8*W) + ((W-T)*SEED_LENGTH_BYTES))
 #endif
 
-// TODO doc
+// if defined the gausian elimination will try to reuse the pivot rows
+// from its last computation, to speed up the computation. Note: this
+// leads to non constant time code, which is fine in vrfy.
 #define LESS_REUSE_PIVOTS_VY
 #define LESS_REUSE_PIVOTS_SG
 
-// TODO doc
+// if defined: each row will not be sorted in the canonical forms
+// computation. Rather only a histogram of the row will be computed,
+// which is enough to compare two rows.
 #define LESS_USE_HISTOGRAM
