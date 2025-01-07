@@ -360,7 +360,7 @@ int row_quick_sort_internal_without_histogram(FQ_ELEM* ptr[K],
 /// \param z[in]: number of rows within each col to sort
 void col_quicksort_transpose(normalized_IS_t *V,
                              const uint32_t z) {
-    normalized_IS_t VT __attribute__((aligned(32))) = {0};
+    normalized_IS_t VT __attribute__((aligned(32)));
     matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, z, K_pad);
 
     FQ_ELEM* ptr[K];

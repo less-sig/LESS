@@ -206,16 +206,4 @@ static inline uint8_t vhadd8(const __m256i in) {
     W_RED127_(t)
 
     return _mm256_extract_epi8(t, 0);
-
-    // uint8_t data[32] __attribute__((aligned(64)));
-    //_mm256_store_si256((__m256i *)data, in);
-    //uint8_t s1 = 0, s2 = 0, s3 = 0, s4 = 0;
-    //for (uint32_t i = 0; i < 8; i++) {
-    //    s1 = br_red(s1 + data[i +  0]);
-    //    s2 = br_red(s2 + data[i +  8]);
-    //    s3 = br_red(s3 + data[i + 16]);
-    //    s4 = br_red(s4 + data[i + 24]);
-    //}
-
-    //return br_red(br_red(s1 + s2) + br_red(s3 + s4));
 }

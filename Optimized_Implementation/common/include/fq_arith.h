@@ -449,15 +449,7 @@ uint32_t row_count_zero(const FQ_ELEM *in) {
         vadd8(acc, acc, t1);
     }
   
-    // NOTE: maybe apply a horizontal add algorithm here.
-    uint8_t tmp[32] __attribute__((aligned(32)));
-    vstore256((__m256i *)tmp, acc);
-
-    uint32_t a = 0;
-    for (uint32_t i = 0; i < 32; i++) {
-        a += tmp[i];
-    }
-
+    uint32_t a = vhadd8(acc);
     for (;col < N-K; col++) {
         a += (in[col] == 0);
     }
