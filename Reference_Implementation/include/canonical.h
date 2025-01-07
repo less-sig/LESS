@@ -18,7 +18,7 @@ int compute_canonical_form_type5(normalized_IS_t *G);
 int compute_canonical_form_type5_popcnt(normalized_IS_t *G);
 int compute_canonical_form_type5_tony(normalized_IS_t *G);
 
-int cf5_nonct(normalized_IS_t *G);
+int CF(normalized_IS_t *G);
 
 void blind(normalized_IS_t *G,
            SHAKE_STATE_STRUCT *prng);

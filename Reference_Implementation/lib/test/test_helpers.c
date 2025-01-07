@@ -30,6 +30,14 @@ typedef struct {
 } diagonal_t;
 
 
+///
+// static inline
+// FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
+//       return (x + y) % Q;
+// }
+
+
+
 /* samples a random monomial matrix */
 void generator_rnd(generator_mat_t *res);
 void generator_sf(generator_mat_t *res);
@@ -46,11 +54,11 @@ void generator_rref_pretty_print_name(char *name,
 void normalized_pretty_print(const normalized_IS_t *const G);
 
 
-int row_quick_sort_internal_compare_with_pivot_without_histogram(uint8_t *ptr[K],
+int SortCols_internal_compare(uint8_t *ptr[K],
                                                                  const POSITION_T row_idx,
                                                                  const uint8_t pivot[K]);
 
-int row_quick_sort_internal_compare_with_pivot(uint8_t *ptr[K],
+int SortRows_internal_compare(uint8_t *ptr[K],
                                                const uint32_t row_idx,
                                                const uint8_t pivot[K]);
 
@@ -93,6 +101,18 @@ void col_lex_quicksort(normalized_IS_t *V,
 
 /* performs lexicographic sorting of the IS complement */
 void lex_sort_cols(normalized_IS_t *V);
+
+
+void column_swap(normalized_IS_t *V,
+                 const POSITION_T col1,
+                 const POSITION_T col2){
+   for(uint32_t i = 0; i<K;i++ ){
+      POSITION_T tmp;
+      tmp = V->values[i][col2];
+      V->values[i][col2] = V->values[i][col1];
+      V->values[i][col1] = tmp;
+   }
+}
 
 ////////////////////////////////////////////////////////////////////////
 ///                        Permutation                               ///
@@ -685,7 +705,7 @@ int row_bitonic_sort(normalized_IS_t *G) {
     FQ_ELEM* ptr[K] __attribute__((aligned(32)));
     uint32_t P[K];
     for (uint32_t i = 0; i < K; ++i) {
-        row_sort(tmp[i], G->values[i], N-K);
+        sort(tmp[i], G->values[i], N-K);
 
         ptr[i] = tmp[i];
         P[i] = i;
@@ -763,12 +783,12 @@ int row_quick_sort_internal_hoare_partition(FQ_ELEM* ptr[K],
     while(1){
         do {
             i++;
-        	ret = row_quick_sort_internal_compare_with_pivot(ptr, i, pivot_row);
+        	ret = SortRows_internal_compare(ptr, i, pivot_row);
         } while(ret > 0);
 
         do {
             j--;
-        	ret = row_quick_sort_internal_compare_with_pivot(ptr, j, pivot_row);
+        	ret = SortRows_internal_compare(ptr, j, pivot_row);
         } while(ret < 0);
 
     	// if (ret == 0) { return -1; }
@@ -816,7 +836,7 @@ int row_quick_sort_recursive(normalized_IS_t *G,
     FQ_ELEM* ptr[K];
     uint32_t P[K];
     for (uint32_t i = 0; i < n; ++i) {
-        row_sort(tmp[i], G->values[i], N-K);
+        sort(tmp[i], G->values[i], N-K);
 
         ptr[i] = tmp[i];
         P[i] = i;
@@ -857,12 +877,12 @@ uint32_t row_quick_sort_internal_hoare_partition_without_histogram(FQ_ELEM* ptr[
     while(1){
         do {
             i++;
-        	ret = row_quick_sort_internal_compare_with_pivot_without_histogram(ptr, i, pivot_row);
+        	ret = SortCols_internal_compare(ptr, i, pivot_row);
         } while(ret > 0);
 
         do {
             j--;
-        	ret = row_quick_sort_internal_compare_with_pivot_without_histogram(ptr, j, pivot_row);
+        	ret = SortCols_internal_compare(ptr, j, pivot_row);
         } while(ret < 0);
 
     	// if (ret == 0) { return -1; }
@@ -1090,9 +1110,9 @@ void lex_sort_cols(normalized_IS_t *V){
 int compute_canonical_form_type3_ct(normalized_IS_t *G) {
     // NOTE: not working const int ret = row_bitonic_sort(G);
     // but this is just for testing and will be removed.
-    const int ret = row_quick_sort(G, K);
+    const int ret = SortRows(G, K);
 #ifdef LESS_USE_HISTOGRAM
-    col_quicksort_transpose(G, K);
+    SortCols(G, K);
 #else
     col_lex_quicksort(G, 0, N-K-1);
 #endif
@@ -1210,8 +1230,8 @@ int compute_canonical_form_type3_sub(normalized_IS_t *G,
         counting_sort_u8(G->values[0], N-K);
         return 1;
     }
-    if (row_quick_sort(G, z) == 0) { return 0; }
-    col_quicksort_transpose(G, z);
+    if (SortRows(G, z) == 0) { return 0; }
+    SortCols(G, z);
     return 1;
 }
 
@@ -1443,7 +1463,7 @@ int compute_canonical_form_type5_tony(normalized_IS_t *G) {
         if (compute_canonical_form_type4_sub_v2(&scaled_sub_G, z) &&
             compute_canonical_form_type3_sub(&scaled_sub_G, z)) {
             // memcpy(&smallest.values[z*ctr], &scaled_sub_G.values[0], z * (N_K_pad));
-            row_sort(smallest.values[ctr], scaled_sub_G.values[0], N_K_pad);
+            sort(smallest.values[ctr], scaled_sub_G.values[0], N_K_pad);
             ptr[ctr] = smallest.values[ctr];
             P[ctr] = ctr;
             L[ctr] = row;
@@ -1451,7 +1471,7 @@ int compute_canonical_form_type5_tony(normalized_IS_t *G) {
         }
     }
 
-    row_quick_sort_internal(ptr, P, ctr);
+    SortRows_internal(ptr, P, ctr);
 
     // apply the permutation
     for (uint32_t t = 0; t < ctr; t++) {

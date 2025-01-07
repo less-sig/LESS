@@ -96,7 +96,7 @@ finish:
 void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
                                       const generator_mat_t *G,
                                       const uint8_t *const c,
-                                      uint8_t initial_G_col_pivot[N],
+                                      const uint8_t initial_G_col_pivot[N],
                                       uint8_t permuted_G_col_pivot[N]) {
     uint32_t l = 0, r = 0;
     for (uint32_t i = 0; i < N8; i++) {
@@ -189,46 +189,6 @@ void swap_rows(FQ_ELEM r[N], FQ_ELEM s[N]){
       s[i] = tmp;
    }
 } /* end swap_rows */
-
-
-void column_swap(normalized_IS_t *V,
-                 const POSITION_T col1,
-                 const POSITION_T col2){
-   for(uint32_t i = 0; i<K;i++ ){
-      POSITION_T tmp;
-      tmp = V->values[i][col2];
-      V->values[i][col2] = V->values[i][col1];
-      V->values[i][col1] = tmp;
-   }
-}
-
-/// \param V
-/// \param col1
-/// \param col2
-/// \param mask
-void column_cswap(normalized_IS_t *V,
-                  const POSITION_T col1,
-                  const POSITION_T col2,
-                  const uintptr_t mask){
-    for(uint32_t i = 0; i<K;i++ ){
-       MASKED_SWAP(V->values[i][col1], V->values[i][col2], mask);
-    }
-}
-
-
-/// \param V
-/// \param row1
-/// \param row2
-void generator_row_swap(generator_mat_t *V,
-                        const POSITION_T row1,
-                        const POSITION_T row2) {
-   for(uint32_t i = 0; i<N;i++ ){
-      POSITION_T tmp;
-      tmp = V->values[row1][i];
-      V->values[row1][i] = V->values[row2][i];
-      V->values[row2][i] = tmp;
-   }
-}
 
 int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
     int i, j, pivc;

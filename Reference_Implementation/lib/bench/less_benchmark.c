@@ -30,7 +30,7 @@
 #include "rng.h"
 #include "cycles.h"
 
-#include "./test_helpers.c"
+// #include "./test_helpers.c"
 
 
 typedef struct {
@@ -101,6 +101,15 @@ long double welford_mean(const welford_t state) {
 #else
 #define NN N
 #endif
+
+
+/* samples a random generator matrix */
+void generator_rnd(generator_mat_t *res) {
+   for(uint32_t i = 0; i < K; i++) {
+      rand_range_q_elements(res->values[i], N);
+   }
+} /* end generator_rnd */
+
 
 void microbench(void){
     welford_t timer;

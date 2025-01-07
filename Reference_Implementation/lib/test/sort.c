@@ -53,7 +53,7 @@ int test_sorting_network_matrix(void) {
         memcpy((void *)G3.values, (void*)G1.values, sizeof(normalized_IS_t));
 
         row_bitonic_sort(&G2);
-        row_quick_sort(&G3, K);
+        SortRows(&G3, K);
 
         for (uint32_t i = 0; i < K; i++) {
             for (uint32_t j = 0; j < N-K; j++) {
@@ -78,7 +78,7 @@ int test_col_sorting_network_matrix(void) {
         memcpy((void *)G2.values, (void*)G1.values, sizeof(normalized_IS_t));
 
         lex_sort_cols(&G1);
-        col_quicksort_transpose(&G2, K_pad);//, 0, N - K - 1);
+        SortCols(&G2, K_pad);//, 0, N - K - 1);
 
         for (uint32_t i = 0; i < K; i++) {
             for (uint32_t j = 0; j < N-K; j++) {

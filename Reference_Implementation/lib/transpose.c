@@ -188,8 +188,8 @@ void matrix_transpose_opt(uint8_t *dst,
 #else
             const uint8_t *srcb_origin = src + (rb*src_stride + cb) * bsize;
                   uint8_t *dstb_origin = dst + (cb*dst_stride + rb) * bsize;
-            for (size_t rw = 0; rw < 64 / 8; rw++) {
-                for (size_t cw = 0; cw < 64 / 8; cw++) {
+            for (size_t rw = 0; rw < bsize / 8; rw++) {
+                for (size_t cw = 0; cw < bsize / 8; cw++) {
                     const uint8_t *srcw_origin = srcb_origin + (cw*src_stride + rw) * 8;
                           uint8_t *dstw_origin = dstb_origin + (rw*dst_stride + cw) * 8;
                     matrix_transpose8x8(dstw_origin, srcw_origin, src_stride, dst_stride);

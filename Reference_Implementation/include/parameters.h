@@ -121,7 +121,6 @@
 #error define category for parameters
 #endif
 
-
 #define VERIFY_PIVOT_REUSE_LIMIT K
 
 /* number of bytes needed to store K or N bits */
@@ -204,11 +203,20 @@
 
 // if defined the gausian elimination will try to reuse the pivot rows
 // from its last computation, to speed up the computation. Note: this
-// leads to non constant time code, which is fine in vrfy.
+// leads to non-constant time code, which is fine in vrfy.
 #define LESS_REUSE_PIVOTS_VY
 #define LESS_REUSE_PIVOTS_SG
 
-// if defined: each row will not be sorted in the canonical forms
+// if defined: each row will not be sorted in the canonical form
 // computation. Rather only a histogram of the row will be computed,
 // which is enough to compare two rows.
 #define LESS_USE_HISTOGRAM
+
+#ifdef USE_AVX2
+/// NOTE: only available for optimized implementations
+/// if set a custom 4 bucket histogram implementation is used. This only speedups the implementation
+/// in CAT 5
+#if defined(CATEGORY_5)
+#define LESS_USE_CUSTOM_HISTOGRAM
+#endif
+#endif

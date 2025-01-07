@@ -52,11 +52,11 @@ typedef struct {
 } prikey_t;
 
 
-typedef struct sig_t {
-    uint8_t cf_monom_actions[W][N8];
+typedef struct __attribute__((packed)) sig_t {
     uint8_t digest[HASH_DIGEST_LENGTH];
+    uint8_t salt[HASH_DIGEST_LENGTH];
+    uint8_t cf_monom_actions[W][N8];
 #ifdef SEED_TREE
-    uint8_t tree_salt[HASH_DIGEST_LENGTH];
     /// we need an additional byte to store the number of published seeds
     uint8_t seed_storage[SEED_TREE_MAX_PUBLISHED_BYTES + 1u];
 #else

@@ -141,7 +141,7 @@ void apply_cf_action_to_G(generator_mat_t* res,
 void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
                                       const generator_mat_t *G,
                                       const uint8_t *const c,
-                                      uint8_t initial_G_col_pivot[N],
+                                      const uint8_t initial_G_col_pivot[N],
                                       uint8_t permuted_G_col_pivot[N]);
 
 void normalized_copy(normalized_IS_t *V1, const normalized_IS_t *V2);

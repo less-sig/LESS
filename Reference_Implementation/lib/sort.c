@@ -76,13 +76,13 @@ int compare_rows(const FQ_ELEM *row1,
 /// 		   0 if it matches
 ///
 #ifdef LESS_USE_HISTOGRAM
-int row_quick_sort_internal_compare_with_pivot(uint8_t *ptr[Q],
-                                               const uint32_t row_idx,
-                                               const uint8_t pivot[Q]){
+int SortRows_internal_compare(uint8_t *ptr[Q],
+                              const uint32_t row_idx,
+                              const uint8_t pivot[Q]){
 #else 
-int row_quick_sort_internal_compare_with_pivot(uint8_t *ptr[K],
-                                               const uint32_t row_idx,
-                                               const uint8_t pivot[K]){
+int SortRows_internal_compare(uint8_t *ptr[K],
+                              const uint32_t row_idx,
+                              const uint8_t pivot[K]){
 #endif
 #ifdef LESS_USE_HISTOGRAM
     uint32_t i=0;
@@ -107,11 +107,11 @@ int row_quick_sort_internal_compare_with_pivot(uint8_t *ptr[K],
 #endif
 }
 
-/// NOTE: only used
-int row_quick_sort_internal_hoare_partition2(FQ_ELEM* ptr[K],
-                                            uint32_t P[K],
-                                            const int32_t l,
-                                            const int32_t h) {
+/// NOTE: only used in `rowsort_internal`
+int SortRows_internal_hoare_partition(FQ_ELEM* ptr[K],
+                                     uint32_t P[K],
+                                     const int32_t l,
+                                     const int32_t h) {
     int32_t i = l - 1;
     for (int32_t j = l; j <= h - 1; j++) {
         if (compare_rows(ptr[j], ptr[h]) < 0) {
@@ -128,15 +128,9 @@ int row_quick_sort_internal_hoare_partition2(FQ_ELEM* ptr[K],
     return i+1;
 }
 
+#ifdef LESS_USE_CUSTOM_HISTOGRAM
 void HISTEND4(uint8_t *cnt,
               uint8_t c[4][128]) {
-#if 1
-     for(uint32_t i = 0; i < Q; i++) {
-         const uint8_t t = c[0][i]+c[1][i]+c[2][i]+c[3][i];
-         ASSERT(t < Q);
-         cnt[i] = t;
-     }
-#else
     for(uint32_t i = 0; i < Q_pad; i+=32) {
         __m256i sv =                  _mm256_load_si256((const __m256i *)&c[0][i]);
                 sv = _mm256_add_epi8(_mm256_load_si256((const __m256i *)&c[1][i]), sv);
@@ -144,18 +138,11 @@ void HISTEND4(uint8_t *cnt,
                 sv = _mm256_add_epi8(_mm256_load_si256((const __m256i *)&c[3][i]), sv);
         _mm256_storeu_si256((__m256i *)&cnt[i], sv);
     }
-#endif
 }
 
 void HISTEND8(uint8_t *cnt,
               uint8_t c[8][128]) {
-#if 1
-    for(uint32_t i = 0; i < Q; i++) {
-        const uint8_t t = c[0][i]+c[1][i]+c[2][i]+c[3][i]+c[4][i]+c[5][i]+c[6][i]+c[7][i];
-        ASSERT(t < Q);
-        cnt[i] = t;
-    }
-#else
+
     for(uint32_t i = 0; i < Q_pad; i+=32) {
         __m256i v0 = _mm256_load_si256((const __m256i *)&c[0][i]);
         __m256i v1 = _mm256_load_si256((const __m256i *)&c[1][i]);
@@ -175,17 +162,17 @@ void HISTEND8(uint8_t *cnt,
 
         _mm256_storeu_si256((__m256i *)&cnt[i], _mm256_add_epi8(s0, s1));
     }
-#endif
 }
+#endif
 
 /// \param out[out]: pointer to the row to sort
 /// \param in[in]: pointer to the row to sort
 /// \param len[in]: length of the row
-void row_sort(uint8_t *out,
-              const uint8_t *in,
-              const uint32_t len) {
+void sort(uint8_t *out,
+          const uint8_t *in,
+          const uint32_t len) {
 #ifdef LESS_USE_HISTOGRAM
-#if 1
+#ifndef LESS_USE_CUSTOM_HISTOGRAM
     memset(out, 0, Q_pad);
 	for (uint32_t i = 0 ; i < len ; ++i) {
 	    const uint8_t t = in[i];
@@ -198,11 +185,11 @@ void row_sort(uint8_t *out,
     while(ip != in+ len        ) c[0][*ip++]++;
     HISTEND4(out, c);
 
-    // uint8_t c[8][Q_pad] __attribute__((aligned(32))) = {0};
-    // const uint8_t *ip = in;
-    // while(ip != in+(len&~(8-1))) c[0][*ip++]++, c[1][*ip++]++, c[2][*ip++]++, c[3][*ip++]++, c[4][*ip++]++, c[5][*ip++]++, c[6][*ip++]++, c[7][*ip++]++;
-    // while(ip != in+ len        ) c[0][*ip++]++;
-    // HISTEND8(out, c);
+    //uint8_t c[8][Q_pad] __attribute__((aligned(32))) = {0};
+    //const uint8_t *ip = in;
+    //while(ip != in+(len&~(8-1))) c[0][*ip++]++, c[1][*ip++]++, c[2][*ip++]++, c[3][*ip++]++, c[4][*ip++]++, c[5][*ip++]++, c[6][*ip++]++, c[7][*ip++]++;
+    //while(ip != in+ len        ) c[0][*ip++]++;
+    //HISTEND8(out, c);
 #endif
 #else
     memcpy(out, in, sizeof(FQ_ELEM) * N-K);
@@ -210,10 +197,10 @@ void row_sort(uint8_t *out,
 #endif
 }
 
-/// internal sorting function for `row_quick_sort`
-int row_quick_sort_internal(FQ_ELEM *ptr[K],
-                            uint32_t P[K],
-                            const uint32_t n) {
+/// internal sorting function for `rowsort`
+int SortRows_internal(FQ_ELEM *ptr[K],
+                     uint32_t P[K],
+                     const uint32_t n) {
     int32_t l = 0, h = (int32_t)n-1;
     int32_t s = -1;
 
@@ -225,7 +212,7 @@ int row_quick_sort_internal(FQ_ELEM *ptr[K],
         h = stack[s--];
         l = stack[s--];
 
-        const int32_t p = row_quick_sort_internal_hoare_partition2(ptr, P, l, h);
+        const int32_t p = SortRows_internal_hoare_partition(ptr, P, l, h);
         if (p - 1 > l) {
             stack[++s] = l;
             stack[++s] = p - 1;
@@ -245,7 +232,7 @@ int row_quick_sort_internal(FQ_ELEM *ptr[K],
 /// \param n[in] number of elements to sort
 /// \return 1 on success
 ///			0 if two rows generate the same multiset
-int row_quick_sort(normalized_IS_t *G,
+int SortRows(normalized_IS_t *G,
                    const uint32_t n) {
 	// first sort each row into a tmp buffer
 #ifdef LESS_USE_HISTOGRAM
@@ -256,13 +243,13 @@ int row_quick_sort(normalized_IS_t *G,
     FQ_ELEM* ptr[K] __attribute__((aligned(32)));
     uint32_t P[K];
 	for (uint32_t i = 0; i < n; ++i) {
-        row_sort(tmp[i], G->values[i], N-K);
+        sort(tmp[i], G->values[i], N-K);
 
         ptr[i] = tmp[i];
         P[i] = i;
 	}
 
-   row_quick_sort_internal(ptr, P, n);
+    SortRows_internal(ptr, P, n);
 
     // apply the permutation
     for (uint32_t t = 0; t < n; t++) {
@@ -282,9 +269,9 @@ int row_quick_sort(normalized_IS_t *G,
 /// \returns   1 if the pivot is greater,
 /// 	      -1 if it is smaller,
 /// 		   0 if it matches
-int row_quick_sort_internal_compare_with_pivot_without_histogram(uint8_t *ptr[K],
-                                                                 const POSITION_T row_idx,
-                                                                 const uint8_t pivot[K]){
+int SortCols_internal_compare(uint8_t *ptr[K],
+                              const POSITION_T row_idx,
+                              const uint8_t pivot[K]){
     uint32_t i=0;
     while((i < (N-K-1)) && (ptr[row_idx][i]-pivot[i] == 0)){
         i++;
@@ -292,8 +279,8 @@ int row_quick_sort_internal_compare_with_pivot_without_histogram(uint8_t *ptr[K]
     return -(((int)(ptr[row_idx][i]))-((int)(pivot[i])));
 }
 
-/// NOTE: only used
-int row_quick_sort_internal_hoare_partition_without_histogram2(FQ_ELEM* ptr[K],
+/// NOTE: only used in `SortCols_internal`
+int SortCols_internal_hoare_partition(FQ_ELEM* ptr[K],
                                             uint32_t P[K],
                                             const int32_t l,
                                             const int32_t h) {
@@ -304,7 +291,7 @@ int row_quick_sort_internal_hoare_partition_without_histogram2(FQ_ELEM* ptr[K],
 
     int32_t i = l - 1;
     for (int32_t j = l; j <= h - 1; j++) {
-        if (row_quick_sort_internal_compare_with_pivot_without_histogram(ptr, j, pivot_row) > 0) {
+        if (SortCols_internal_compare(ptr, j, pivot_row) > 0) {
             i++;
             if (i == j) { continue; }
             SWAP(P[i], P[j]);
@@ -318,16 +305,18 @@ int row_quick_sort_internal_hoare_partition_without_histogram2(FQ_ELEM* ptr[K],
     return i+1;
 }
 
+/// NOTE: even though this is named `SortCols`, it actually sorts
+/// rows, which where previously transposed
 /// \param ptr[in/out]:
 /// \param P[in/out]: a permutation to keep track of the sorting
 /// \param l[in]: inclusive
 /// \param h[in]: inclusive
 /// \return 1 on success
 ///			0 if two rows generate the same multi set
-int row_quick_sort_internal_without_histogram(FQ_ELEM* ptr[K],
-                            uint32_t P[K],
-                            int32_t l,
-                            int32_t h) {
+int SortCols_internal(FQ_ELEM* ptr[K],
+                      uint32_t P[K],
+                      int32_t l,
+                      int32_t h) {
     int32_t s = -1;
 
     // NOTE: worst case is 128
@@ -338,7 +327,7 @@ int row_quick_sort_internal_without_histogram(FQ_ELEM* ptr[K],
         h = stack[s--];
         l = stack[s--];
 
-        const int32_t p = row_quick_sort_internal_hoare_partition_without_histogram2(ptr, P, l, h);
+        const int32_t p = SortCols_internal_hoare_partition(ptr, P, l, h);
         if (p - 1 > l) {
             stack[++s] = l;
             stack[++s] = p - 1;
@@ -353,13 +342,14 @@ int row_quick_sort_internal_without_histogram(FQ_ELEM* ptr[K],
 }
 
 /// NOTE: non-constant time
+/// NOTE: implements quick sort
 /// Sorts the columns of the input matrix, via first transposing
 /// the matrix, subsequent sorting rows, and finally transposing
 /// it back.
 /// \param V[in/out]: non IS-part of a generator matrix
 /// \param z[in]: number of rows within each col to sort
-void col_quicksort_transpose(normalized_IS_t *V,
-                             const uint32_t z) {
+void SortCols(normalized_IS_t *V,
+              const uint32_t z) {
     normalized_IS_t VT __attribute__((aligned(32)));
     matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, z, K_pad);
 
@@ -370,8 +360,7 @@ void col_quicksort_transpose(normalized_IS_t *V,
         P[i] = i;
     }
 
-    // row_quick_sort_recursive_internal_without_histogram(ptr, P, 0, K - 1);
-    row_quick_sort_internal_without_histogram(ptr, P, 0, K - 1);
+    SortCols_internal(ptr, P, 0, K - 1);
 
     // apply the permutation
     for (uint32_t t = 0; t < K; t++) {

@@ -197,28 +197,28 @@ void monomial_compose_action(monomial_action_IS_t* out,
 }
 
 /// cf type5 compression
-/// \param compressed[out]: N bits in which K bits will be sed
-/// \param mono[in]: monomial matrix
-void cf_compress_monomial_IS_action(uint8_t *compressed,
-                                    const monomial_action_IS_t *mono) {
-    memset(compressed, 0, N8);
+/// \param b[out]: N bits in which K bits will be sed
+/// \param Q_star[in]: monomial matrix
+void CompressCanonicalAction(uint8_t *b,
+                             const monomial_action_IS_t *Q_star) {
+    memset(b, 0, N8);
     for (uint32_t i = 0; i < K; i++) {
-        const uint32_t limb = (mono->permutation[i])/8;
-        const uint32_t pos  = (mono->permutation[i])%8;
-        compressed[limb] ^= 1u << pos;
+        const uint32_t limb = (Q_star->permutation[i])/8;
+        const uint32_t pos  = (Q_star->permutation[i])%8;
+        b[limb] ^= 1u << pos;
     }
 }
 
 /// checks if the given (N+7/8) bytes are a valid
 /// canonical form action.
-/// \param mono: compressed canonical form output from
-///         `cf_compress_monomial_IS_action`
+/// \param b[in]: compressed canonical form output from
+///         `CompressCanonicalAction`
 /// \return true: if the weight is K
 ///         false: if the weight is not K
-int is_cf_monom_action_valid(const uint8_t* const mono) {
+int CheckCanonicalAction(const uint8_t* const b) {
     uint32_t w = 0;
     for (uint32_t i = 0; i < N8; i++) {
-        w += (uint32_t)__builtin_popcount(mono[i]);
+        w += (uint32_t)__builtin_popcount(b[i]);
     }
 
     return w == K;

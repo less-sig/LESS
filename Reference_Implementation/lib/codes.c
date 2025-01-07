@@ -33,21 +33,6 @@
 #include "parameters.h"
 
 
-/// \param V[in/out]: K \times N-K matrix in which column `col1` and
-///                 column `col2` are swapped
-/// \param col1[in]: first column to swap
-/// \param col2[in]: second column to swap
-void column_swap(normalized_IS_t *V,
-                 const POSITION_T col1,
-                 const POSITION_T col2){
-   for(uint32_t i = 0; i<K;i++ ){
-      POSITION_T tmp;
-      tmp = V->values[i][col2];
-      V->values[i][col2] = V->values[i][col1];
-      V->values[i][col1] = tmp;
-   }
-}
-
 /// swap N uint8 in r and s.
 /// \param r[in/out]
 /// \param s[in/out]
@@ -408,7 +393,7 @@ finish:
 void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
                                       const generator_mat_t *G,
                                       const uint8_t *const c,
-                                      uint8_t initial_G_col_pivot[N],
+                                      const uint8_t initial_G_col_pivot[N],
                                       uint8_t permuted_G_col_pivot[N]) {
     uint32_t l = 0, r = 0;
     for (uint32_t i = 0; i < N8; i++) {
