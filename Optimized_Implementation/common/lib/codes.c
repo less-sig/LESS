@@ -181,13 +181,15 @@ void generator_monomial_mul(generator_mat_t *res,
 
 
 
-void swap_rows(FQ_ELEM r[N], FQ_ELEM s[N]){
-   FQ_ELEM tmp;
-   for(uint32_t i=0; i<N; i++) {
-      tmp = r[i];
-      r[i] = s[i];
-      s[i] = tmp;
-   }
+void swap_rows(FQ_ELEM r[N_pad], 
+               FQ_ELEM s[N_pad]){
+    vec256_t a, b;
+    for(uint32_t i=0; i<N_pad; i+=32) {
+         vload256(a, (const vec256_t *)(r + i));
+         vload256(b, (const vec256_t *)(s + i));
+         vstore256((vec256_t *)(r + i), b);
+         vstore256((vec256_t *)(s + i), a);
+    }
 } /* end swap_rows */
 
 int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
@@ -292,12 +294,10 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
     return 1;
 } /* end generator_RREF */
 
-
 int generator_RREF_pivot_reuse(generator_mat_t *G,
-                   uint8_t is_pivot_column[N],
-                   uint8_t was_pivot_column[N],
-                   const int pvt_reuse_limit) {
-    // printf("AVX Pivot Reuse");
+                               uint8_t is_pivot_column[N],
+                               uint8_t was_pivot_column[N],
+                               const int pvt_reuse_limit) {
     int i, j, pivc;
     uint8_t tmp, sc;
 
@@ -311,11 +311,12 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
     vset8(c7f, 0x7f);
     int pvt_reuse_cnt = 0;
 
+    // this loop roughly takes 2.2% of the whole function runtime ()
     if (pvt_reuse_limit != 0) {
         for (int preproc_col = K - 1; preproc_col >= 0; preproc_col--) {
             if (was_pivot_column[preproc_col] == 1) {
                 // find pivot row
-                uint32_t pivot_el_row = -1u;
+                uint32_t pivot_el_row = 0;
                 for (uint32_t row = 0; row < K; row = row + 1) {
                     if (G->values[row][preproc_col] != 0) {
                         pivot_el_row = row;
@@ -367,6 +368,12 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
             }
         }
 
+        if (!(was_pivot_column[pivc] == 0 || 
+            (pvt_reuse_cnt >= pvt_reuse_limit) || 
+            (pivc >= K))) {
+            continue;
+        }
+
         /* Compute rescaling factor */
         /* rescale pivot row to have pivot = 1. Values at the left of the pivot
          * are already set to zero by previous iterations */
@@ -399,21 +406,19 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
 
         /* Subtract the now placed and reduced pivot rows, from the others,
          * after rescaling it */
-        if (was_pivot_column[pivc] == 0 || (pvt_reuse_cnt >= pvt_reuse_limit) || (pivc >= K)) { // Skip row-reduce when reusing a pivot
-            for (j = 0; j < K; j++) {
-                sc = ((uint8_t *) gm[j])[pivc];
-
-                if (sc != 0x00 && j != i) {
-
-                    rp = ep[127 - sc];
-                    for (uint32_t k = 0; k < NW; k++) {
-                        vadd8(x, gm[j][k], rp[k])
-                        W_RED127_(x);
-                        gm[j][k] = x;
-                    }
+        // Skip row-reduce when reusing a pivot
+        for (j = 0; j < K; j++) {
+            sc = ((uint8_t *) gm[j])[pivc];
+            if (sc != 0x00 && j != i) {
+                rp = ep[127 - sc];
+                for (uint32_t k = 0; k < NW; k++) {
+                    vadd8(x, gm[j][k], rp[k])
+                    W_RED127_(x);
+                    gm[j][k] = x;
                 }
             }
         }
+
     }
 
     return 1;
