@@ -57,7 +57,8 @@
 #define T (256)
 #define W (30)
 #define SEED_TREE
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
+// TODO: SEED_LENGTH_BYTES*math.ceil(W*math.log(T/W)))
+#define SEED_TREE_MAX_PUBLISHED_BYTES (1488)
 
 #elif defined(INTERMEDIATE)
 #define NUM_KEYPAIRS (4)

@@ -237,7 +237,9 @@ int LESS_sign_verify_test_KAT(void) {
         printf("crypto_sign_open returned <%d>\n", ret_val);
         return -1;
     }
-
+    
+    free(m1);
+    free(sm);
     printf("all good\n");
     return 0;
 }
