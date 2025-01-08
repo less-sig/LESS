@@ -4,7 +4,7 @@
 import random
 import copy
 import bitarray
-from ctypes import c_ushort
+from typing import Tuple
 
 from fq import Fq
 from matrix import Matrix
@@ -170,7 +170,7 @@ def compute_multisets(A, q):
     return multisets
 
 
-def case_3_CF(B: Matrix):
+def case_3_CF(B: Matrix) -> Tuple[bool, Matrix]:
     """
     :param B: input matrix
     """
@@ -187,7 +187,7 @@ def case_3_CF(B: Matrix):
     
     # Report failure if row permutation is not defined
     if row_indices == -1:
-        return -1, -1, -1
+        return False, B
     
     # Apply row permutation
     row_sorted_B = Matrix(n, m, q).zero()
@@ -207,10 +207,10 @@ def case_3_CF(B: Matrix):
         for j in range(n):
             CF_B[j, i] = row_sorted_B[j][col_indices[i]]
 
-    return row_indices, col_indices, CF_B
+    return True, CF_B
 
 
-def CF3_tony(A: Matrix) -> (bool, Matrix):
+def CF3_tony(A: Matrix) -> Tuple[bool, Matrix]:
     # get dimensions of input matrix A
     z = A.nrows
     k = A.ncols
@@ -245,7 +245,7 @@ def CF3_tony(A: Matrix) -> (bool, Matrix):
     return True, CF_B
 
 
-def case_4_CF(B: Matrix):
+def case_4_CF(B: Matrix) -> Tuple[bool, Matrix]:
     """
     standard version, taken from the paper
     """
@@ -275,7 +275,7 @@ def case_4_CF(B: Matrix):
 
 
 def case_4_CF_tony(B: Matrix,
-                   nz:list ):
+                   nz: list):
     """
     implements tonys improvement
     :param B: matrix
@@ -312,7 +312,7 @@ def case_4_CF_tony(B: Matrix,
     return case_3_CF(Ap)
 
 
-def sub_CF4(sub_A: Matrix, min_multiset):
+def sub_CF4(sub_A: Matrix, min_multiset) -> Tuple[bool, bool]:
     """
     faster CF4 for popcount cf5
     :param sub_A: sub matrix
@@ -415,7 +415,7 @@ def sub_CF4_tony_v2(sub_A: Matrix,
     return exists, min_found
 
 
-def case_5_CF(B: Matrix):
+def case_5_CF(B: Matrix) -> Tuple[bool, Matrix]:
     """
     original version from the paper
     :param B:
@@ -442,14 +442,14 @@ def case_5_CF(B: Matrix):
             for k in range(m):
                 A[k, j] = B[k, j] * sc
         
-        t, _, T = case_4_CF(A)
-        if t != -1 and lex_min_matrices(A_j, T):
+        t, T = case_4_CF(A)
+        if t and lex_min_matrices(A_j, T):
             A_j = T
     
-    return 0, 0, A_j
+    return True, A_j
 
 
-def case_5_CF_popcnt(B: Matrix):
+def case_5_CF_popcnt(B: Matrix) -> Tuple[bool, Matrix]:
     """
     version from paolo based on counting zeros
     """
@@ -519,9 +519,9 @@ def case_5_CF_popcnt(B: Matrix):
                     A_j = B_i
 
     if CF_fail:
-        return -1, -1, A_j
+        return False, A_j
     else:
-        return 0, 0, A_j
+        return True, A_j
 
 
 
@@ -591,6 +591,11 @@ def case_5_CF_tony(B: Matrix):
     return 0
 
 
+def CF(B: Matrix) -> Tuple[bool, Matrix]:
+    """ standard canonical form implementation """
+    return case_5_CF(B)
+
+
 q = 127
 k = 8
 n = 2*k
@@ -647,43 +652,6 @@ def test_cf5_tony():
 
 
 if __name__ == "__main__":
-    # test_cf5()
-    # test_cf5_paolo()
+    test_cf5()
+    test_cf5_paolo()
     test_cf5_tony()
-    exit(1)
-
-    A = Matrix(k, n-k, q).random()
-    #_, _, B = case_3_CF(A)
-    #print("B=CF3(A)")
-    #print(B)
-    
-    #_, _, B = case_4_CF(A)
-    #print("B=CF4(A)")
-    #print(B)
-    
-    _, _, B = case_5_CF(A)
-    print("B=CF5(A)")
-    print(B)
-    
-    #_, _, B = case_5_CF_popcnt(A)
-    #print("B=CF5_pop(A)")
-    #print(B)
-    #
-    #_, _, B = case_5_CF_tony(A)
-    #print("B=CF5_tony(A)")
-    #print(B)
-    exit(1)
-    
-    Pr = Permutation(k).random().to_matrix(q)
-    Pc = Permutation(n-k).random().to_matrix(q)
-    Dr = random_diagonal_matrix(k)
-    Dc = random_diagonal_matrix(n-k)
-    A_prime = Pr*Dr*A*Dc*Pc
-    
-    row, col, B = case_5_CF(A)
-    row_p, col_p, B_p = case_5_CF(A_prime)
-    print(B)
-    print(B_p)
-    
-    # print(A)
-    # print(A_prime)

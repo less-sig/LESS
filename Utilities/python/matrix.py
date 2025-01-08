@@ -20,7 +20,7 @@ class Matrix:
         self.data = [[Fq(0, self.q) for _ in range(ncols)] for _ in range(nrows)] 
 
     def __getitem__(self,
-                    tup: int | list[int] | tuple[int, int]):# -> Fq | list[Fq]:
+                    tup: int | list[int] | tuple[int, int]) -> Fq: #| list[Fq]:
         """ nice access function
         NOTE: access it via:
             A[i, j] or  (returns field element)
@@ -158,6 +158,49 @@ class Matrix:
         from Crypto.Hash import SHAKE256
         s = SHAKE256.new(seed)
         return self.random_from_rng(s)
+
+    def rref(self,
+             pivot_cols: list[int],
+             max_rank: Union[int, None] = None) -> int:
+        """ simple Gaussian elimination. Is an inplace operation
+        :return the rank of the matrix
+        """
+        if max_rank is None:
+            max_rank = self.nrows
+        
+        assert isinstance(max_rank, int)
+
+        for i in range(self.ncols):
+            pivot_cols[i] = 0
+
+        row = 0
+        for col in range(self.ncols):
+            if row >= min(max_rank, self.nrows): break
+
+            # find pivot
+            sel = -1
+            for i in range(row, self.nrows):
+                if self.data[i][col] == Fq(1, self.q):
+                    sel = i 
+                    break
+
+            if sel == -1:
+                return row
+
+            pivot_cols[sel] = 1
+            self.__swap_rows(sel, row)
+
+            # solve remaining coordinates
+            for i in range(self.nrows):
+                if i == row: continue 
+                if self.data[i][col] == Fq(0, self.q): continue
+
+                for j in range(self.ncols):
+                    self.data[i][j] += self.data[row][j]
+
+            row += 1
+        
+        return row
 
     def gauß(self, max_rank: Union[int, None] = None) -> int:
         """ simple Gaussian elimination. Is an inplace operation

@@ -418,7 +418,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                 }
             }
         }
-
     }
 
     return 1;

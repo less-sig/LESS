@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 from Crypto.Hash import SHAKE256
+from typing import Tuple
 
 from .drbg import NIST_KAT_DRBG
 from monomial import Monomial
 from matrix import Matrix
-
+from fq import Fq
+from cf import CF
 
 
 class less:
-    N = 256
-    K = 128
+    """
+    """
+    N = 252
+    K = N//2
     NK = N - K
     N8 = N // 8
     Q = 127
@@ -20,7 +24,7 @@ class less:
     HASH_DIGEST_LENGTH = 32
     SEED_LENGTH_BYTES = 16
     PRIVATE_KEY_SEED_LENGTH_BYTES = 2*SEED_LENGTH_BYTES
-    SEED_TREE_MAX_PUBLISHED_BYTES = 1472
+    SEED_TREE_MAX_PUBLISHED_BYTES = 1488
 
     class pk:
         def __init__(self) -> None:
@@ -83,14 +87,65 @@ class less:
         tmp_full_G = Matrix(less.K, less.N, less.Q)
         self.generator_rref_expand(tmp_full_G, G0_rref, G0_rred_pivots)
         
-        for i in range(less.NUM_KEYPAIRS):
-            Monomial 
+        for i in range(less.NUM_KEYPAIRS - 1):
+            private_Q_inv = Monomial(self.N, self.Q).random_from_seed(private_monomial_seeds[i])
+            private_Q = private_Q_inv.inv()
+            result_G = private_Q.apply(tmp_full_G)
+            pivot_cols = [0 for _ in range(self.N)]
+            result_G.rref(pivot_cols)
+            self.compress_rref(pk.SF_G, result_G, pivot_cols)
+        return sk, pk
 
-    def sign(self):
+    def sign(self, 
+             sk, 
+             m: bytearray,
+             mlen: int):
+        
+        ephermal_monomials_seed = self.rbg(self.SEED_LENGTH_BYTES)
+        cf_seed = self.rbg(self.SEED_LENGTH_BYTES)
+        for i in range(self.T):
+            G0 = mu_tilde(full_G0)
         pass
 
     def open(self):
         pass
+
+    def compress_rref(self, 
+                      compressed: bytearray, 
+                      G: Matrix,
+                      pivot_cols: list[int]):
+        for i in range(self.N//8):
+            t = (pivot_cols[8*i + 0] << 0) | \
+                (pivot_cols[8*i + 1] << 1) | \
+                (pivot_cols[8*i + 2] << 2) | \
+                (pivot_cols[8*i + 3] << 3) | \
+                (pivot_cols[8*i + 4] << 4) | \
+                (pivot_cols[8*i + 5] << 5) | \
+                (pivot_cols[8*i + 6] << 6) | \
+                (pivot_cols[8*i + 7] << 7)
+            compressed[i] = t
+
+        # TODO this is only correct for CAT I
+        compressed[self.N//8] = (pivot_cols[self.N-4]<<0) |\
+                                (pivot_cols[self.N-3]<<1) |\
+                                (pivot_cols[self.N-2]<<2) |\
+                                (pivot_cols[self.N-1]<<3)
+        i = self.N//8 + 1
+        state = 0
+        for r in range(self.K):
+            for c in range(self.N):
+                if not pivot_cols[c]:
+                    if state == 0:
+                        compressed[i] = G[r][c].get()
+                    else:
+                        compressed[i] |= (G[r][c].get() << (8-state))
+                        i = i + 1 
+                        if state < 7:
+                            compressed[i] |= (G[r][c].get() << state)
+                    if state < 7:
+                        state += 1 
+                    else:
+                        state = 0
 
     def generator_rref_expand(self, 
                               full: Matrix, 
@@ -121,8 +176,30 @@ class less:
 
     def compress(self, A: Monomial) -> bytearray:
         """
+        compress a canonical action
         """
         ret = bytearray(self.N)
         for i in range(self.N):
             ret[A.perm[i]] = 1
         return ret
+
+    def cf(self, G: Matrix) -> Tuple[bool, Matrix]:
+        """
+        :param G
+        :return canonical form of a matrix
+        """
+        return CF(G)
+
+    def blind(self, 
+              prng,
+              G: Matrix):
+        """ randomly chooses two monomial matrices
+        :param prng
+        :param G non-IS part of a generator matrix 
+        :return left * G * right
+        """
+        left = Monomial(self.NK, self.Q).random_from_rng(prng)
+        right = Monomial(self.NK, self.Q).random_from_rng(prng)
+        G = right.apply_right(G)
+        return left.apply_left(G)
+

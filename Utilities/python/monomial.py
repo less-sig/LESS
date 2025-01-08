@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import random
 
-from fq import Fq
+from fq import Fq, rand_elements
 from matrix import Matrix
+from utils import yt_shuffle_state
+
 
 class Monomial:
     def __init__(self, n: int, q: int = 127) -> None:
@@ -30,6 +32,25 @@ class Monomial:
         else:
             assert(False) # not implementated
         return self
+    
+    def random_from_rng(self, rng):
+        """ 
+        generate a random matrix mod q, generated from a given 
+        random number generator.
+        :param rng: should be shake state already init
+        """
+        rand_elements(rng, self.q, self.values, self.n)
+        self.perm = [i for i in range(self.n)]
+        yt_shuffle_state(rng, self.perm, self.n)
+        return self
+
+    def random_from_seed(self, seed):
+        """generates a random monomial
+        :param seed
+        """
+        from Crypto.Hash import SHAKE256
+        s = SHAKE256.new(seed)
+        return self.random_from_rng(s)
 
     def inv(self) -> 'Monomial':
         """ TODO not finished mod fq is missing """
@@ -53,7 +74,7 @@ class Monomial:
             ret.perm[i] = j
         return ret
     
-    def apply(self, G: Matrix) -> Matrix:
+    def apply_right(self, G: Matrix) -> Matrix:
         """Apply monomial matrix represented by perm and coeffs to input G
         NOTE: not inplace
         """
@@ -65,6 +86,24 @@ class Monomial:
             for j in range(n):
                 A[j, i] = G[j, self.perm[i]] * self.values[i]
         return A
+    
+    def apply_left(self, G: Matrix) -> Matrix:
+        """Apply monomial matrix represented by perm and coeffs to input G
+        NOTE: not inplace
+        """
+        n = G.nrows
+        m = G.ncols
+        assert m == self.n
+        A = Matrix(n, m, self.q)
+        for i in range(m):
+            for j in range(n):
+                A[i, m] = G[self.perm[i], j] * self.values[i]
+        return A
+    
+    def apply(self, G: Matrix) -> Matrix:
+        """ apply a monomial matrix from right """
+        return self.apply_right(G)
+
 
     def __str__(self) -> str:
         M = Matrix(self.n, self.n, self.q).zero()

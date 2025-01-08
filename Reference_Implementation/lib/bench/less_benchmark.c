@@ -88,11 +88,11 @@ long double welford_mean(const welford_t state) {
 }
 
 #if defined(CATEGORY_5)
-#define NUM_RUNS 6
+#define NUM_RUNS 128
 #elif defined(CATEGORY_3)
-#define NUM_RUNS 12
+#define NUM_RUNS 128
 #else
-#define NUM_RUNS 10
+#define NUM_RUNS 128
 // #define NUM_RUNS 256
 #endif
 
