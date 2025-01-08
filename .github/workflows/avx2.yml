@@ -1,10 +1,6 @@
 name: avx2
 
-on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+on: [push]
 
 env:
   BUILD_TYPE: Release
@@ -39,13 +35,6 @@ jobs:
     - name: Test
       working-directory: ${{github.workspace}}/build
       run: |
-        ./LESS_benchmark_cat_1_BALANCED
-        ./LESS_benchmark_cat_1_INTERMEDIATE
-        ./LESS_benchmark_cat_1_SHORT_SIG
-        ./LESS_benchmark_cat_3_BALANCED
-        ./LESS_benchmark_cat_3_SHORT_SIG
-        ./LESS_benchmark_cat_5_BALANCED
-        ./LESS_benchmark_cat_5_SHORT_SIG
         ./LESS_nist_cat_1_BALANCED
         ./LESS_nist_cat_1_INTERMEDIATE
         ./LESS_nist_cat_1_SHORT_SIG
@@ -60,3 +49,10 @@ jobs:
         ./LESS_test_cat_3_SHORT_SIG
         ./LESS_test_cat_5_BALANCED
         ./LESS_test_cat_5_SHORT_SIG
+        ./LESS_benchmark_cat_1_BALANCED
+        ./LESS_benchmark_cat_1_INTERMEDIATE
+        ./LESS_benchmark_cat_1_SHORT_SIG
+        ./LESS_benchmark_cat_3_BALANCED
+        ./LESS_benchmark_cat_3_SHORT_SIG
+        ./LESS_benchmark_cat_5_BALANCED
+        ./LESS_benchmark_cat_5_SHORT_SIG
