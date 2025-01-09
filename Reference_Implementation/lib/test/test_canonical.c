@@ -16,8 +16,9 @@
 int test_compute_canonical_form_type3(void) {
     normalized_IS_t G;
     normalized_sf(&G);
+    uint8_t L[N] = {0};
 
-    if (compute_canonical_form_type3(&G) == 0) return 1;
+    if (compute_canonical_form_type3(&G, L) == 0) return 1;
     return 0;
 }
 
@@ -25,6 +26,7 @@ int test_compute_canonical_form_type3(void) {
 int test_compute_canonical_form_type3_v2(void) {
     normalized_IS_t G1, G2, G3;
     permutation_t P_c, P_r;
+    uint8_t L[N] = {0};
 
     for (uint32_t k = 0; k < ITERS; k++) {
         permutation_mat_rng_v2(&P_c, N-K);
@@ -37,8 +39,8 @@ int test_compute_canonical_form_type3_v2(void) {
         permutation_apply_row(&P_r, &G2);
         normalized_copy(&G3, &G2);
 
-        if (compute_canonical_form_type3(&G1) == 0) return 1;
-        if (compute_canonical_form_type3(&G2) == 0) return 1;
+        if (compute_canonical_form_type3(&G1, L) == 0) return 1;
+        if (compute_canonical_form_type3(&G2, L) == 0) return 1;
         if (compute_canonical_form_type3_ct(&G3) == 0) return 1;
 
 
@@ -67,9 +69,10 @@ int test_compute_canonical_form_type3_v2(void) {
 int test_compute_canonical_form_type4(void) {
     normalized_IS_t G;
     normalized_sf(&G);
+    uint8_t L[N] = {0};
 
     // normalized_pretty_print(&G);
-    if (compute_canonical_form_type4(&G) == 0) return 1;
+    if (compute_canonical_form_type4(&G, L) == 0) return 1;
     // normalized_pretty_print(&G);
 
     return 0;
@@ -79,8 +82,7 @@ int test_compute_canonical_form_type4_v2(void) {
     normalized_IS_t G1, G2, G3;
     permutation_t P_c, P_r;
     diagonal_t D_r;
-
-
+    uint8_t L[N] = {0};
 
     for (uint32_t k = 0; k < ITERS; k++) {
         diagonal_mat_rnd_v2(&D_r, K);
@@ -95,8 +97,8 @@ int test_compute_canonical_form_type4_v2(void) {
         permutation_apply_row(&P_r, &G2);
 
         normalized_copy(&G3, &G2);
-        const int ret1 = compute_canonical_form_type4(&G1);
-        const int ret2 = compute_canonical_form_type4(&G2);
+        const int ret1 = compute_canonical_form_type4(&G1, L);
+        const int ret2 = compute_canonical_form_type4(&G2, L);
         const int ret3 = compute_canonical_form_type4_ct(&G3);
 
         if (ret1 != ret2) {

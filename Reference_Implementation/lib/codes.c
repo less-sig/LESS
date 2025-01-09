@@ -147,7 +147,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                    uint8_t was_pivot_column[N],
                    const int pvt_reuse_limit) {
    int pvt_reuse_cnt = 0;
-   int row_red_pvt_skip_cnt;
 
     // row swap pre-process - swap previous pivot elements to corresponding row to reduce likelihood of corruption
    int pivot_el_row;
@@ -214,7 +213,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                 FQ_ELEM multiplier = G->values[row_idx][pivot_column];
                 /* all elements before the pivot in the pivot row are null, no need to
                  * subtract them from other rows. */
-                row_red_pvt_skip_cnt = 0;
                 for(int col_idx = 0; col_idx < N; col_idx++) {
                     // if (!(col_idx < K && was_pivot_column[col_idx]) || (row_red_pvt_skip_cnt >= pvt_reuse_limit)) { // skip row reduce of pivots we will reuse
                        FQ_ELEM tmp = fq_mul(multiplier, G->values[pivot_row][col_idx]);

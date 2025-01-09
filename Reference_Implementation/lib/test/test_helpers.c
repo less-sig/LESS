@@ -35,8 +35,8 @@ typedef struct {
 //       return (x + y) % Q;
 // }
 
-int compute_canonical_form_type4(normalized_IS_t *G);
-int compute_canonical_form_type3(normalized_IS_t *G);
+int compute_canonical_form_type4(normalized_IS_t *G, const uint8_t *L);
+int compute_canonical_form_type3(normalized_IS_t *G, const uint8_t *L);
 
 
 /* samples a random monomial matrix */
@@ -1269,7 +1269,7 @@ int compute_canonical_form_type5_single_row_v2(normalized_IS_t *M,
         row_mul3(M->values[row2], G->values[row2], coeffs);
     }
 
-    return compute_canonical_form_type4(M);
+    return compute_canonical_form_type4(M, NULL);
 }
 
 
@@ -1401,7 +1401,7 @@ int compute_canonical_form_type5_single_row(normalized_IS_t *G,
         row_mul3(G->values[row2], G->values[row2], coeffs);
     }
 
-    return compute_canonical_form_type4(G);
+    return compute_canonical_form_type4(G, NULL);
 }
 
 /// NOTE: non-constant time
