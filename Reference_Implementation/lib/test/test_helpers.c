@@ -35,6 +35,8 @@ typedef struct {
 //       return (x + y) % Q;
 // }
 
+int compute_canonical_form_type4(normalized_IS_t *G);
+int compute_canonical_form_type3(normalized_IS_t *G);
 
 
 /* samples a random monomial matrix */
