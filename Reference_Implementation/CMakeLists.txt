@@ -86,7 +86,7 @@ foreach(category "252" "400" "548")
     # KATS generation
     set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/nist/KAT_NIST_rng.c ${PROJECT_SOURCE_DIR}/lib/nist/PQCgenKAT_sign.c)
-    target_link_libraries(${TARGET_BINARY_NAME} PRIVATE OpenSSL::Crypto)
+    target_link_libraries(${TARGET_BINARY_NAME} PRIVATE crypto)
     include_directories(${OPENSSL_INCLUDE_DIR})
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
@@ -109,7 +109,6 @@ set_property(TARGET bench_cf APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=252 -DTAR
 
 add_executable(bench_rref ${CMAKE_CURRENT_SOURCE_DIR}/lib/test/test_helpers.c ${CMAKE_CURRENT_SOURCE_DIR}/lib/bench/bench_rref.c ${SOURCES})
 target_include_directories(bench_rref PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
-target_link_libraries(bench_rref PRIVATE OpenSSL::Crypto)
 set_property(TARGET bench_rref APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=252 -DTARGET=192")
 
 add_executable(bench_sorting ${PROJECT_SOURCE_DIR}/lib/bench/bench_sorting.c ${SOURCES})

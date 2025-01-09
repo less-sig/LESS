@@ -72,7 +72,7 @@
 #define NUM_KEYPAIRS (8)
 #define T (45)
 #define W (34)
-#define SEED_TREE
+//#define SEED_TREE
 #define SEED_TREE_MAX_PUBLISHED_BYTES (224)
 
 #else
