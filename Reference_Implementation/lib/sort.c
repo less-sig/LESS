@@ -233,7 +233,8 @@ int SortRows_internal(FQ_ELEM *ptr[K],
 /// \return 1 on success
 ///			0 if two rows generate the same multiset
 int SortRows(normalized_IS_t *G,
-                   const uint32_t n) {
+             const uint32_t n,
+             const uint8_t *L) {
 	// first sort each row into a tmp buffer
 #ifdef LESS_USE_HISTOGRAM
 	FQ_ELEM tmp[K][Q_pad] __attribute__((aligned(32)));
@@ -242,12 +243,17 @@ int SortRows(normalized_IS_t *G,
 #endif
     FQ_ELEM* ptr[K] __attribute__((aligned(32)));
     uint32_t P[K];
+
+    uint32_t max_zeros = 0;
 	for (uint32_t i = 0; i < n; ++i) {
         sort(tmp[i], G->values[i], N-K);
+	    if (tmp[i][0] > max_zeros) {max_zeros = tmp[i][0]; }
 
         ptr[i] = tmp[i];
         P[i] = i;
 	}
+
+    if (max_zeros < L[0]) { return 0; }
 
     SortRows_internal(ptr, P, n);
 

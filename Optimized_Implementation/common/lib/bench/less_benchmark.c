@@ -28,7 +28,7 @@
 #include "LESS.h"
 #include "rng.h"
 
-#include "../test/test_helpers.c"
+//#include "../test/test_helpers.c"
 
 
 #if defined(__aarch64__) || defined(_M_ARM64)
@@ -59,6 +59,14 @@ uint64_t x86_64_rtdsc(void) {
 }
 #endif
 
+        // Skip row-reduce when reusing a pivot
+
+/* samples a random generator matrix */
+void generator_rnd(generator_mat_t *res) {
+   for(uint32_t i = 0; i < K; i++) {
+      rand_range_q_elements(res->values[i], N);
+   }
+} /* end generator_rnd */
 typedef struct {
     long double mean;
     long double M2;
@@ -154,7 +162,9 @@ void info(void){
     fprintf(stderr,"Private key: %luB\n", sizeof(prikey_t));
     fprintf(stderr,"Public key %luB\n", sizeof(pubkey_t));
     fprintf(stderr,"Signature: %luB, %f\n", sizeof(sign_t), ((float) sizeof(sign_t))/1024);
-
+#ifdef SEED_TREE
+    fprintf(stderr,"SeedTree\n");
+#endif
 }
 
 void LESS_sign_verify_speed(void){
