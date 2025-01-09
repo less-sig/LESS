@@ -47,13 +47,14 @@ int test_sorting_network(void) {
 int test_sorting_network_matrix(void) {
     normalized_IS_t G1, G2, G3;
 
+    uint8_t L[N] = {0};
     for (uint32_t k = 0; k < TESTS; k++) {
         normalized_sf(&G1);
         memcpy((void *)G2.values, (void*)G1.values, sizeof(normalized_IS_t));
         memcpy((void *)G3.values, (void*)G1.values, sizeof(normalized_IS_t));
 
         row_bitonic_sort(&G2);
-        SortRows(&G3, K);
+        SortRows(&G3, K, L);
 
         for (uint32_t i = 0; i < K; i++) {
             for (uint32_t j = 0; j < N-K; j++) {

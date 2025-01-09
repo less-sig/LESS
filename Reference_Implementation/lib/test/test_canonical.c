@@ -11,6 +11,7 @@
 
 #define ITERS 100
 
+
 // just debugging test
 int test_compute_canonical_form_type3(void) {
     normalized_IS_t G;

@@ -35,13 +35,14 @@ int bench_sorting(void) {
 int bench_row_sorting(void) {
     printf("row: \n");
     normalized_IS_t G1;
+    uint8_t L[N] = {0};
 
     unsigned c = 0, c1;
     uint32_t ctr = 0;
     for (unsigned i = 0; i < ITERS; i++) {
         normalized_rng(&G1);
         c -= read_cycle_counter();
-        ctr += SortRows(&G1, K);
+        ctr += SortRows(&G1, K, L);
         c += read_cycle_counter();
     }
     c1 = c / ITERS;

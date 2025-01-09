@@ -2,15 +2,12 @@ name: avx2
 
 on: [push]
 
-env:
-  BUILD_TYPE: Release
-
 jobs:
   build:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        compiler: [ g++-10, g++-11, g++-12, clang++-11, clang++-12, clang++-13, clang++-14, clang++-15, clang++-16 ]
+        compiler: [ g++-12, clang++-16 ]
 
     name: Build & test on ${{ matrix.os }} with ${{ matrix.compiler }}.
     runs-on: ${{ matrix.os }}
@@ -35,24 +32,25 @@ jobs:
     - name: Test
       working-directory: ${{github.workspace}}/build
       run: |
-        ./LESS_nist_cat_1_BALANCED
-        ./LESS_nist_cat_1_INTERMEDIATE
-        ./LESS_nist_cat_1_SHORT_SIG
-        ./LESS_nist_cat_3_BALANCED
-        ./LESS_nist_cat_3_SHORT_SIG
-        ./LESS_nist_cat_5_BALANCED
-        ./LESS_nist_cat_5_SHORT_SIG
-        ./LESS_test_cat_1_BALANCED
-        ./LESS_test_cat_1_INTERMEDIATE
-        ./LESS_test_cat_1_SHORT_SIG
-        ./LESS_test_cat_3_BALANCED
-        ./LESS_test_cat_3_SHORT_SIG
-        ./LESS_test_cat_5_BALANCED
-        ./LESS_test_cat_5_SHORT_SIG
-        ./LESS_benchmark_cat_1_BALANCED
-        ./LESS_benchmark_cat_1_INTERMEDIATE
-        ./LESS_benchmark_cat_1_SHORT_SIG
-        ./LESS_benchmark_cat_3_BALANCED
-        ./LESS_benchmark_cat_3_SHORT_SIG
-        ./LESS_benchmark_cat_5_BALANCED
-        ./LESS_benchmark_cat_5_SHORT_SIG
+        ./LESS_test_cat_252_192
+        ./LESS_test_cat_252_68
+        ./LESS_test_cat_252_45
+        ./LESS_test_cat_400_220
+        ./LESS_test_cat_400_102
+        ./LESS_test_cat_548_345
+        ./LESS_test_cat_548_137
+        sha1sum *.rsp
+        ./LESS_nist_cat_252_192
+        ./LESS_nist_cat_252_68
+        ./LESS_nist_cat_252_45
+        ./LESS_nist_cat_400_220
+        ./LESS_nist_cat_400_102
+        ./LESS_nist_cat_548_345
+        ./LESS_nist_cat_548_137
+        ./LESS_benchmark_cat_252_192
+        ./LESS_benchmark_cat_252_68
+        ./LESS_benchmark_cat_252_45
+        ./LESS_benchmark_cat_400_220
+        ./LESS_benchmark_cat_400_102
+        ./LESS_benchmark_cat_548_345
+        ./LESS_benchmark_cat_548_137

@@ -35,10 +35,11 @@
 #define POSITION_T uint16_t
 
 /********************************* Category 1 *********************************/
-#if defined(CATEGORY_0)
+
+#if !defined(CATEGORY)
 #define N (16)
 #define K (8)
-#define SEED_LENGTH_BYTES (24)
+#define SEED_LENGTH_BYTES (16)
 #define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operaiton is < 2^-64
 
 #define NUM_KEYPAIRS (3)
@@ -46,13 +47,13 @@
 #define W (57)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (3264)
 
-#elif defined(CATEGORY_1)
+#elif CATEGORY == 252
 #define N (252)
 #define K (126)
 #define SEED_LENGTH_BYTES (16)
 #define SIGN_PIVOT_REUSE_LIMIT (25) // Ensures probability of non-CT operation is < 2^-64
 
-#if defined(BALANCED)
+#if TARGET==192
 #define NUM_KEYPAIRS (2)
 #define T (192)
 #define W (36)
@@ -60,18 +61,18 @@
 // NOTE: SEED_LENGTH_BYTES*math.ceil(W*math.log(T/W)))
 #define SEED_TREE_MAX_PUBLISHED_BYTES (1488)
 
-#elif defined(INTERMEDIATE)
+#elif TARGET==68
 #define NUM_KEYPAIRS (4)
 #define T (68)
 #define W (42)
 #define SEED_TREE
 #define SEED_TREE_MAX_PUBLISHED_BYTES (480)
 
-#elif defined(SHORT_SIG)
+#elif TARGET==45
 #define NUM_KEYPAIRS (8)
 #define T (45)
 #define W (34)
-#define SEED_TREE
+//#define SEED_TREE
 #define SEED_TREE_MAX_PUBLISHED_BYTES (224)
 
 #else
@@ -79,20 +80,20 @@
 #endif
 
 /********************************* Category 3 *********************************/
-#elif defined(CATEGORY_3)
+#elif CATEGORY == 400
 #define N (400)
 #define K (200)
 #define SEED_LENGTH_BYTES (24)
 #define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operaiton is < 2^-64
 
-#if defined(BALANCED)
+#if TARGET==220
 #define NUM_KEYPAIRS (2)
 #define T (220)
 #define W (68)
 #define SEED_TREE
 #define SEED_TREE_MAX_PUBLISHED_BYTES (2784)
 
-#elif defined(SHORT_SIG)
+#elif TARGET==102
 #define NUM_KEYPAIRS (4)
 #define T (102)
 #define W (61)
@@ -103,20 +104,20 @@
 #endif
 
 /********************************* Category 5 *********************************/
-#elif defined(CATEGORY_5)
+#elif CATEGORY == 548
 #define N (548)
 #define K (274)
 #define SEED_LENGTH_BYTES (32)
 #define SIGN_PIVOT_REUSE_LIMIT (79) // Ensures probability of non-CT operaiton is < 2^-64
 
-#if defined(BALANCED)
+#if TARGET==345
 #define NUM_KEYPAIRS (2)
 #define T (345)
 #define W (75)
 #define SEED_TREE
 #define SEED_TREE_MAX_PUBLISHED_BYTES (5600)
 
-#elif defined(SHORT_SIG)
+#elif TARGET==137
 #define NUM_KEYPAIRS (4)
 #define T (137)
 #define W (79)
