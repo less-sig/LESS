@@ -36,16 +36,14 @@
 
 /* Public key: the first gen. matrix is shrunk to just a seed, all the
  * others are stored in RREF form  */
-// __attribute__((packed))
-typedef struct {
+typedef struct __attribute__((packed)){
    unsigned char G_0_seed[SEED_LENGTH_BYTES];
    uint8_t SF_G [NUM_KEYPAIRS-1][RREF_MAT_PACKEDBYTES];
 } pubkey_t;
 
 /* Private key: it contains both a single seed generating all private *
  * (inverse) monomials and the seed to geneate the public code */
-// __attribute__((packed))
-typedef struct {
+typedef struct __attribute__((packed)) {
    /*the private key is compressible down to a single seed*/
    unsigned char compressed_sk[PRIVATE_KEY_SEED_LENGTH_BYTES];
    unsigned char G_0_seed[SEED_LENGTH_BYTES];

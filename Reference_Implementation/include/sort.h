@@ -21,7 +21,7 @@ void sort(uint8_t *out, const uint8_t *in, const uint32_t len);
 
 int compare_rows(const FQ_ELEM *row1, const FQ_ELEM *row2);
 
-int SortRows(normalized_IS_t *G, const uint32_t n);
+int SortRows(normalized_IS_t *G, const uint32_t n, const uint8_t *L);
 int SortRows_internal(FQ_ELEM *ptr[K],
                             uint32_t P[K],
                             const uint32_t n);

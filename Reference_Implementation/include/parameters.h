@@ -54,21 +54,25 @@
 
 #if defined(BALANCED)
 #define NUM_KEYPAIRS (2)
-#define T (256)
-#define W (30)
+#define T (192)
+#define W (36)
 #define SEED_TREE
-// TODO: SEED_LENGTH_BYTES*math.ceil(W*math.log(T/W)))
+// NOTE: SEED_LENGTH_BYTES*math.ceil(W*math.log(T/W)))
 #define SEED_TREE_MAX_PUBLISHED_BYTES (1488)
 
 #elif defined(INTERMEDIATE)
 #define NUM_KEYPAIRS (4)
 #define T (68)
 #define W (42)
+#define SEED_TREE
+#define SEED_TREE_MAX_PUBLISHED_BYTES (480)
 
 #elif defined(SHORT_SIG)
 #define NUM_KEYPAIRS (8)
 #define T (45)
 #define W (34)
+#define SEED_TREE
+#define SEED_TREE_MAX_PUBLISHED_BYTES (224)
 
 #else
 #error define parameters in parameters.h
@@ -83,15 +87,17 @@
 
 #if defined(BALANCED)
 #define NUM_KEYPAIRS (2)
-#define T (204)
-#define W (79)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (3912)
+#define T (220)
+#define W (68)
+#define SEED_TREE
+#define SEED_TREE_MAX_PUBLISHED_BYTES (2784)
 
 #elif defined(SHORT_SIG)
-#define NUM_KEYPAIRS (3)
-#define T (106)
-#define W (57)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (3264)
+#define NUM_KEYPAIRS (4)
+#define T (102)
+#define W (61)
+#define SEED_TREE
+#define SEED_TREE_MAX_PUBLISHED_BYTES (1104)
 #else
 #error define optimization corner in parameters.h
 #endif
@@ -105,15 +111,17 @@
 
 #if defined(BALANCED)
 #define NUM_KEYPAIRS (2)
-#define T (266)
-#define W (111)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (7168)
+#define T (345)
+#define W (75)
+#define SEED_TREE
+#define SEED_TREE_MAX_PUBLISHED_BYTES (5600)
 
 #elif defined(SHORT_SIG)
-#define NUM_KEYPAIRS (3)
-#define T (133)
-#define W (85)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (5600)
+#define NUM_KEYPAIRS (4)
+#define T (137)
+#define W (79)
+#define SEED_TREE
+#define SEED_TREE_MAX_PUBLISHED_BYTES (2016)
 #else
 #error define optimization corner in parameters.h
 #endif

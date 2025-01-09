@@ -15,8 +15,9 @@
 /// first sort the rows, then the columns
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
-int compute_canonical_form_type3(normalized_IS_t *G) {
-    if (SortRows(G, K) == 0) {
+int compute_canonical_form_type3(normalized_IS_t *G,
+                                 const uint8_t *L) {
+    if (SortRows(G, K, L) == 0) {
 	    return 0;
     }
 #ifdef LESS_USE_HISTOGRAM
@@ -33,7 +34,8 @@ int compute_canonical_form_type3(normalized_IS_t *G) {
 /// 			- compute_power_column fails.
 /// 			- identical rows, which create the same multiset
 /// 		1 on success
-int compute_canonical_form_type4(normalized_IS_t *G) {
+int compute_canonical_form_type4(normalized_IS_t *G,
+                                 const uint8_t *L) {
 	for (uint32_t row = 0; row < K; row++) {
 		if (row_all_same(G->values[row])) { continue; }
 		FQ_ELEM s = row_acc(G->values[row]);
@@ -50,7 +52,7 @@ int compute_canonical_form_type4(normalized_IS_t *G) {
 		row_mul(G->values[row], s);
 	}
 
-	return compute_canonical_form_type3(G);
+	return compute_canonical_form_type3(G, L);
 }
 
 /// NOTE: non-constant time
@@ -139,7 +141,7 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
 			row_mul3(A.values[row2], G->values[row2], row_inv_data);
 		}
 
-		const int ret = compute_canonical_form_type4(&A);
+		const int ret = compute_canonical_form_type4(&A, NULL);
 		if ((ret == 1) && (compare_matrices(&A, &M, K) < 0)) {
 			touched = 1;
 			normalized_copy(&M, &A);
@@ -218,7 +220,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
                 row_mul3(B.values[row2], G->values[row2], row_inv_data);
             }
 
-		    const int ret = compute_canonical_form_type4(&B);
+		    const int ret = compute_canonical_form_type4(&B, L);
 		    if ((ret == 1) && (compare_matrices(&B, &M, K) < 0)) {
 #ifdef LESS_USE_HISTOGRAM
             sort(L, B.values[0], N-K);
@@ -231,10 +233,8 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
         }
 	}
 
-    if (!touched) { return 0; }
-
 	normalized_copy(G, &M);
-	return 1;
+    return touched;
 }
 
 /// samples to random monomial matrices (A, B) and comptes A*G*B

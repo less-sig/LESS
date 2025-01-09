@@ -406,7 +406,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
 
         /* Subtract the now placed and reduced pivot rows, from the others,
          * after rescaling it */
-        // Skip row-reduce when reusing a pivot
         for (j = 0; j < K; j++) {
             sc = ((uint8_t *) gm[j])[pivc];
             if (sc != 0x00 && j != i) {
@@ -419,6 +418,14 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
             }
         }
     }
+
+    // for (uint32_t t1 = 0; t1 < K; t1++) {
+    //     for (uint32_t t2 = 0; t2 < K; t2++) {
+    //         printf("%3d,", G->values[t1][t2]);
+    //     }
+    //     printf("\n");
+    // }
+    // printf("\n");
 
     return 1;
 } /* end generator_RREF */
