@@ -39,6 +39,7 @@ jobs:
         ./LESS_test_cat_400_102
         ./LESS_test_cat_548_345
         ./LESS_test_cat_548_137
+        sha1sum *.rsp
         ./LESS_nist_cat_252_192
         ./LESS_nist_cat_252_68
         ./LESS_nist_cat_252_45
