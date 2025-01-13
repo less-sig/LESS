@@ -1,4 +1,6 @@
+#include <string.h>
 #include "seedtree.h"
+#include "rng.h"
 
 #define LEFT_CHILD(i)  (2u*(i)+1u)
 #define RIGHT_CHILD(i) (2u*(i)+2u)
