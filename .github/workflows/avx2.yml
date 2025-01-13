@@ -40,6 +40,7 @@ jobs:
         ./LESS_nist_cat_548_345
         ./LESS_nist_cat_548_137
         sha1sum *.rsp
+        tar -cf kats.tar *.rsp 
         ./LESS_benchmark_cat_252_192
         ./LESS_benchmark_cat_252_68
         ./LESS_benchmark_cat_252_45
@@ -47,3 +48,9 @@ jobs:
         ./LESS_benchmark_cat_400_102
         ./LESS_benchmark_cat_548_345
         ./LESS_benchmark_cat_548_137
+
+    - name: save kats
+      uses: actions/upload-artifact@v4
+      with:
+        name: kats
+        path: ${{github.workspace}}/build/kats.tar
