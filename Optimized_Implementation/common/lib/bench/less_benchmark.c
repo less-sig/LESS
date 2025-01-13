@@ -26,9 +26,9 @@
 #include <math.h>
 
 #include "LESS.h"
+#include "codes.h"
 #include "rng.h"
-
-//#include "../test/test_helpers.c"
+#include "test_helpers.h"
 
 
 #if defined(__aarch64__) || defined(_M_ARM64)
