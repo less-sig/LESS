@@ -62,18 +62,18 @@ void LESS_keygen(prikey_t *SK,
 
     generator_mat_t tmp_full_G;
     generator_rref_expand(&tmp_full_G, &G0_rref);
-    uint8_t is_pivot_column[N_pad] = {0};
 
     /* note that the first "keypair" is just the public generator G_0, stored
      * as a seed and the identity matrix (not stored) */
     for (uint32_t i = 0; i < NUM_KEYPAIRS - 1; i++) {
+        uint8_t is_pivot_column[N_pad] = {0};
         /* expand inverse monomial from seed */
         monomial_t private_Q;
         monomial_t private_Q_inv;
         monomial_mat_seed_expand_prikey(&private_Q_inv, private_monomial_seeds[i]);
         monomial_mat_inv(&private_Q, &private_Q_inv);
 
-        generator_mat_t result_G;
+        generator_mat_t result_G = {0};
         generator_monomial_mul(&result_G,
                                &tmp_full_G,
                                &private_Q);
