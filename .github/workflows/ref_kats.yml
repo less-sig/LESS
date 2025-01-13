@@ -47,5 +47,5 @@ jobs:
     - name: save kats
       uses: actions/upload-artifact@v4
       with:
-        name: kats
+        name: kats_${{matrix.os}}_${{matrix.compiler}}
         path: ${{github.workspace}}/build/kats_${{matrix.os}}_${{matrix.compiler}}.tar
