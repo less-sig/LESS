@@ -21,7 +21,7 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
 	set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -march=native -mtune=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector -flto ${ALLOWED_WARNINGS}")
 else()
 	set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -O0 -ggdb -Wall -Wpedantic -Wextra -fsanitize=address ${ALLOWED_WARNINGS}")
-    set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -ftree-vectorize -fomit-frame-pointer -flto ${ALLOWED_WARNINGS}")
+    set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -mtune=native -ftree-vectorize -fomit-frame-pointer -flto ${ALLOWED_WARNINGS}")
 endif()
 
 
@@ -75,6 +75,7 @@ foreach(category "252" "400" "548")
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/bench/less_benchmark.c)
     target_link_libraries(${TARGET_BINARY_NAME} m)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
 
     # settings for unit tests binary
     set(TARGET_BINARY_NAME LESS_test_cat_${category}_${optimize_target})
@@ -82,12 +83,13 @@ foreach(category "252" "400" "548")
     target_link_libraries(${TARGET_BINARY_NAME} m)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
+    target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
 
     # KATS generation
     set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/nist/KAT_NIST_rng.c ${PROJECT_SOURCE_DIR}/lib/nist/PQCgenKAT_sign.c)
-    target_link_libraries(${TARGET_BINARY_NAME} PRIVATE crypto)
     include_directories(${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(${TARGET_BINARY_NAME} PRIVATE OpenSSL::Crypto)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
   endforeach(optimize_target)
