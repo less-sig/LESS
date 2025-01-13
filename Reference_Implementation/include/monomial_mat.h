@@ -29,7 +29,7 @@
 #include "fq_arith.h"
 
 /* Structure representing a monomial matrix */
-/* consider a n=3 example
+/* consider the example n=3
  *     [ 2  0  0 ]   [             ]
  * M = [ 0  0  1 ] = [ m_0 m_1 m_2 ]
  *     [ 0  3  0 ]   [             ]

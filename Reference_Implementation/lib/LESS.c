@@ -66,6 +66,8 @@ void LESS_keygen(prikey_t *SK,
     /* note that the first "keypair" is just the public generator G_0, stored
      * as a seed and the identity matrix (not stored) */
     for (uint32_t i = 0; i < NUM_KEYPAIRS - 1; i++) {
+        // TODO, this seems to be a bug:RREF_MAT_PACKEDBYTES is maybe a single byte to big?
+        memset(PK->SF_G[i], 0, RREF_MAT_PACKEDBYTES);
         uint8_t is_pivot_column[N_pad] = {0};
         /* expand inverse monomial from seed */
         monomial_t private_Q;
