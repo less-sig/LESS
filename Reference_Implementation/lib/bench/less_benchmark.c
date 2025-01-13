@@ -23,6 +23,7 @@
  **/
 
 #include <math.h>
+#include <stdio.h>
 
 #include "LESS.h"
 #include "codes.h"
