@@ -1,6 +1,5 @@
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "transpose.h"
 #include "parameters.h"

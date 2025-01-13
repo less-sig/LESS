@@ -23,8 +23,6 @@
  **/
 
 #include <string.h> // memcpy, memset
-#include <stdlib.h>
-#include <stdio.h>
 
 #include "LESS.h"
 #include "canonical.h"
@@ -32,7 +30,6 @@
 #include "rng.h"
 #include "utils.h"
 #include "fips202.h"
-#include "keccakf1600.h"
 #include "sha3.h"
 
 #if !defined(SEED_TREE)

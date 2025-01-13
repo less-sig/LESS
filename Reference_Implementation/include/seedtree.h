@@ -1,9 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include <string.h> // memcpy(...), memset(...)
 #include "parameters.h"
-#include "rng.h"
 
 /******************************************************************************/
 
