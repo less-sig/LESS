@@ -67,7 +67,7 @@ int compute_canonical_form_type4_sub(normalized_IS_t *G,
                                      const uint32_t z,
                                      const FQ_ELEM *M) {
 #ifdef LESS_USE_HISTOGRAM
-    FQ_ELEM tmp[Q_pad] __attribute__((aligned(32)));
+    FQ_ELEM tmp[Q_pad] __attribute__((aligned(32))) = {0};
 #else
     FQ_ELEM tmp[N_K_pad] = {0};
 #endif
@@ -159,12 +159,12 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
 /// \return 0 on failure
 /// 		1 on success
 int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
-	normalized_IS_t  M;
+	normalized_IS_t M;
     int touched = 0;
 
 	// init the output matrix to some `invalid` data
     // honestly, will be there ever a case, where more than 2 rows are compared?
-	memset(&M.values, Q-1, 2*N_K_pad);
+	memset(&M.values, Q-1, sizeof(normalized_IS_t));
 
     /// track the rows with the most zeros.
 	uint32_t J[K];

@@ -42,3 +42,10 @@ jobs:
         ./LESS_nist_cat_548_345
         ./LESS_nist_cat_548_137
         sha1sum *.rsp
+        tar -cf kats_${{matrix.os}}_${{matrix.compiler}}.tar *.rsp 
+
+    - name: save kats
+      uses: actions/upload-artifact@v4
+      with:
+        name: kats_${{matrix.os}}_${{matrix.compiler}}
+        path: ${{github.workspace}}/build/kats_${{matrix.os}}_${{matrix.compiler}}.tar

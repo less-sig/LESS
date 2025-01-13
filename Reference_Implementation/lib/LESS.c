@@ -62,18 +62,20 @@ void LESS_keygen(prikey_t *SK,
 
     generator_mat_t tmp_full_G;
     generator_rref_expand(&tmp_full_G, &G0_rref);
-    uint8_t is_pivot_column[N_pad];
 
     /* note that the first "keypair" is just the public generator G_0, stored
      * as a seed and the identity matrix (not stored) */
     for (uint32_t i = 0; i < NUM_KEYPAIRS - 1; i++) {
+        // TODO, this seems to be a bug:RREF_MAT_PACKEDBYTES is maybe a single byte to big?
+        memset(PK->SF_G[i], 0, RREF_MAT_PACKEDBYTES);
+        uint8_t is_pivot_column[N_pad] = {0};
         /* expand inverse monomial from seed */
         monomial_t private_Q;
         monomial_t private_Q_inv;
         monomial_mat_seed_expand_prikey(&private_Q_inv, private_monomial_seeds[i]);
         monomial_mat_inv(&private_Q, &private_Q_inv);
 
-        generator_mat_t result_G;
+        generator_mat_t result_G = {0};
         generator_monomial_mul(&result_G,
                                &tmp_full_G,
                                &private_Q);
@@ -299,8 +301,8 @@ int LESS_verify(const pubkey_t *const PK,
     rref_generator_mat_t G0_rref;
     generator_SF_seed_expand(&G0_rref, PK->G_0_seed);
 
-    generator_mat_t G0, G0_full;
-    generator_mat_t G_prime;
+    generator_mat_t G0 = {0}, G0_full = {0};
+    generator_mat_t G_prime = {0};
     monomial_t mu_tilde;
     normalized_IS_t Ai = {0};
     LESS_SHA3_INC_CTX state;

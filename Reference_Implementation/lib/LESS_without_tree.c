@@ -85,7 +85,7 @@ size_t LESS_sign(const prikey_t *SK,
     rref_generator_mat_t G0_rref;
     generator_SF_seed_expand(&G0_rref, SK->G_0_seed);
     generator_get_pivot_flags (&G0_rref, g0_initial_pivot_flags);
-    generator_mat_t full_G0, G0;
+    generator_mat_t full_G0 = {0}, G0 = {0};
     generator_rref_expand(&full_G0, &G0_rref);
 
     monomial_t mu_tilde;

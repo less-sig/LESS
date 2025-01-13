@@ -318,7 +318,7 @@ void generator_rref_compact(rref_generator_mat_t *compact,
    }
 } /* end generator_rref_compact */
 
-/* Compresses a generator matrix in RREF into a array of bytes */
+/* Compresses a generator matrix in RREF into an array of bytes */
 void compress_rref(uint8_t *compressed, const generator_mat_t *const full,
                    const uint8_t is_pivot_column[N]) {
     // Compress pivot flags
