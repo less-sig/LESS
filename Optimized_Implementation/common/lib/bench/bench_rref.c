@@ -3,6 +3,7 @@
 #include <string.h>
 #include <inttypes.h>
 
+#include "codes.h"
 #include "cycles.h"
 #include "sort.h"
 
