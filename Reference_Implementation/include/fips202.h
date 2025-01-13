@@ -1,7 +1,6 @@
 #pragma once
 
-#include <stddef.h>
-#include <stdint.h>
+#include <stdlib.h>
 
 #define SHAKE128_RATE (168)
 #define SHAKE256_RATE (136)

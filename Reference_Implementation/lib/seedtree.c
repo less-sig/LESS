@@ -1,5 +1,9 @@
 #include "seedtree.h"
-#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include "sha3.h"
+
+#include "rng.h"
 
 #define LEFT_CHILD(i)  (2u*(uint32_t)(i)+1u)
 #define RIGHT_CHILD(i) (2u*(uint32_t)(i)+2u)

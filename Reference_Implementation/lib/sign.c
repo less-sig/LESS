@@ -25,10 +25,10 @@
  **/
 
 
-
+#include <string.h> // memcpy
 #include "api.h"
-#include <stddef.h>  //  size_t
-#include <string.h>  // memcpy
+
+#include "LESS.h"
 /*----------------------------------------------------------------------------*/
 
 int crypto_sign_keypair(unsigned char *pk,

@@ -28,10 +28,7 @@
 #pragma once
 
 #include "parameters.h"
-#include "monomial_mat.h"
-#include "codes.h"
-#include <stdint.h>
-
+#include <stddef.h>
 
 
 /* Public key: the first gen. matrix is shrunk to just a seed, all the

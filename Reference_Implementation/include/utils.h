@@ -28,7 +28,7 @@
 
 #include "parameters.h"
 #include "codes.h"
-#include "sha3.h"
+#include <stddef.h>
 
 #define SWAP(a, b) { (a)^=(b); (b)^=(a); (a)^=(b); }
 #define MASKED_SWAP(a,b,m) { a^=(m&b); b^=(m&a); a^=(m&b); }

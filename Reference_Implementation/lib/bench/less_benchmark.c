@@ -22,15 +22,14 @@
  *
  **/
 
-#include <stdio.h>
 #include <math.h>
 
 #include "LESS.h"
+#include "codes.h"
+#include "cycles.h"
 #include "monomial_mat.h"
 #include "rng.h"
-#include "cycles.h"
-
-// #include "./test_helpers.c"
+#include "test_helpers.h"
 
 
 typedef struct {

@@ -115,6 +115,7 @@ void sha3_512(unsigned char *output,
 
 #else
 #include "fips202.h"
+#include <stddef.h>
 
 /* standalone SHA-3 implementation has no visible state for single-call SHA-3 */
 // #define SHA3_STATE_STRUCT shake256ctx

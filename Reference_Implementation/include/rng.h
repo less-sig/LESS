@@ -26,6 +26,7 @@
 
 #include "parameters.h"
 #include "sha3.h"
+#include <stddef.h>
 
 /* initializes a CSPRNG, given the seed and a state pointer */
 void initialize_csprng(SHAKE_STATE_STRUCT *shake_state,
