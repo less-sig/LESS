@@ -62,7 +62,7 @@ void LESS_keygen(prikey_t *SK,
 
     generator_mat_t tmp_full_G;
     generator_rref_expand(&tmp_full_G, &G0_rref);
-    uint8_t is_pivot_column[N_pad];
+    uint8_t is_pivot_column[N_pad] = {0};
 
     /* note that the first "keypair" is just the public generator G_0, stored
      * as a seed and the identity matrix (not stored) */
@@ -299,8 +299,8 @@ int LESS_verify(const pubkey_t *const PK,
     rref_generator_mat_t G0_rref;
     generator_SF_seed_expand(&G0_rref, PK->G_0_seed);
 
-    generator_mat_t G0, G0_full = {0};
-    generator_mat_t G_prime;
+    generator_mat_t G0 = {0}, G0_full = {0};
+    generator_mat_t G_prime = {0};
     monomial_t mu_tilde;
     normalized_IS_t Ai = {0};
     LESS_SHA3_INC_CTX state;
