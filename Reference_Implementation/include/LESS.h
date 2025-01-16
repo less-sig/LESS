@@ -40,10 +40,9 @@ typedef struct __attribute__((packed)) {
 
 /* Private key: it contains both a single seed generating all private *
  * (inverse) monomials and the seed to generate the public code */
-typedef struct {
+typedef struct __attribute__((packed)) {
    /*the private key is compressible down to a single seed*/
    unsigned char compressed_sk[PRIVATE_KEY_SEED_LENGTH_BYTES];
-   unsigned char G_0_seed[SEED_LENGTH_BYTES];
 } prikey_t;
 
 

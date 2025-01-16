@@ -81,19 +81,19 @@ void monomial_mat_mul(monomial_t *res,
                       const monomial_t *const B);
 
 /* computes the inverse of the monomial matrix */
-void monomial_mat_inv(monomial_t *res,
+void monomial_inv(monomial_t *res,
                       const monomial_t *const to_invert);
 
 /* expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
  * monomial matrices */
-void monomial_mat_seed_expand_salt_rnd(monomial_t *res,
+void monomial_sample_salt(monomial_t *res,
                                        const unsigned char seed[SEED_LENGTH_BYTES],
                                        const unsigned char salt[HASH_DIGEST_LENGTH],
                                        const uint16_t round_index);
 
 /* expands a monomial matrix, given a double length PRNG seed (used to prevent
  * multikey attacks) */
-void monomial_mat_seed_expand_prikey(monomial_t *res,
+void monomial_sample_prikey(monomial_t *res,
                                      const unsigned char seed[PRIVATE_KEY_SEED_LENGTH_BYTES]);
 
 ///
@@ -117,7 +117,7 @@ void compress_monom_action(uint8_t *compressed,
 void cf_compress_monom_action(uint8_t *compressed,
                               const monomial_t *mono);
 
-void CompressCanonicalAction(uint8_t *b,
+void CosetRep(uint8_t *b,
                                     const monomial_action_IS_t *Q_star);
 /* Decompress byte array to MonomialAction object */
 void expand_to_monom_action(monomial_action_IS_t *mono,

@@ -72,8 +72,8 @@
 #define NUM_KEYPAIRS (8)
 #define T (45)
 #define W (34)
-//#define SEED_TREE
-#define SEED_TREE_MAX_PUBLISHED_BYTES (224)
+#define SEED_TREE
+#define SEED_TREE_MAX_PUBLISHED_BYTES (280)
 
 #else
 #error define parameters in parameters.h
@@ -98,7 +98,7 @@
 #define T (102)
 #define W (61)
 #define SEED_TREE
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1104)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (1400)
 #else
 #error define optimization corner in parameters.h
 #endif
@@ -115,14 +115,14 @@
 #define T (345)
 #define W (75)
 #define SEED_TREE
-#define SEED_TREE_MAX_PUBLISHED_BYTES (5600)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (6000)
 
 #elif TARGET==137
 #define NUM_KEYPAIRS (4)
 #define T (137)
 #define W (79)
 #define SEED_TREE
-#define SEED_TREE_MAX_PUBLISHED_BYTES (2016)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (2300)
 #else
 #error define optimization corner in parameters.h
 #endif
@@ -211,7 +211,7 @@
 #define LESS_CRYPTO_BYTES     (HASH_DIGEST_LENGTH + (N8*W) + ((W-T)*SEED_LENGTH_BYTES))
 #endif
 
-// if defined the gausian elimination will try to reuse the pivot rows
+// if defined the gaussian elimination will try to reuse the pivot rows
 // from its last computation, to speed up the computation. Note: this
 // leads to non-constant time code, which is fine in vrfy.
 #define LESS_REUSE_PIVOTS_VY

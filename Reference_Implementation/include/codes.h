@@ -130,7 +130,7 @@ void generator_rref_expand(generator_mat_t *full,
 
 /* expands a systematic form generator from a seed randomly drawing only
  * non-identity portion */
-void generator_SF_seed_expand(rref_generator_mat_t *res,
+void generator_sample(rref_generator_mat_t *res,
                               const unsigned char seed[SEED_LENGTH_BYTES]);
 
 //

@@ -223,9 +223,9 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 		    const int ret = compute_canonical_form_type4(&B, L);
 		    if ((ret == 1) && (compare_matrices(&B, &M, K) < 0)) {
 #ifdef LESS_USE_HISTOGRAM
-            sort(L, B.values[0], N-K);
+                sort(L, B.values[0], N-K);
 #else
-            memcpy(min_multiset, B.values[0], N_K_pad);
+                memcpy(min_multiset, B.values[0], N_K_pad);
 #endif
 		    	touched = 1;
 		    	normalized_copy(&M, &B);

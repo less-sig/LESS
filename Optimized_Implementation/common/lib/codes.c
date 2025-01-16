@@ -368,9 +368,12 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
             }
         }
 
-        if (!(was_pivot_column[pivc] == 0 || 
-            (pvt_reuse_cnt >= pvt_reuse_limit) || 
-            (pivc >= K))) {
+        /// NOTE: this needs explenation. We can skip the reduction of the pivot row, because for
+        /// the CF it doesnt matter. The only thing that is important for the CF is the number of
+        /// zeros, and this doest change if we reduce a reused pivot row.
+        if ((was_pivot_column[pivc] == 1) &&
+            (pvt_reuse_cnt < pvt_reuse_limit) &&
+            (pivc < K)) {
             continue;
         }
 
@@ -418,14 +421,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
             }
         }
     }
-
-    // for (uint32_t t1 = 0; t1 < K; t1++) {
-    //     for (uint32_t t2 = 0; t2 < K; t2++) {
-    //         printf("%3d,", G->values[t1][t2]);
-    //     }
-    //     printf("\n");
-    // }
-    // printf("\n");
 
     return 1;
 } /* end generator_RREF */
@@ -687,8 +682,8 @@ void generator_rref_expand(generator_mat_t *full,
    }
 } /* end generator_rref_expand */
 
-void generator_SF_seed_expand(rref_generator_mat_t *res,
-                              const unsigned char seed[SEED_LENGTH_BYTES]) {
+void generator_sample(rref_generator_mat_t *res,
+                      const unsigned char seed[SEED_LENGTH_BYTES]) {
    SHAKE_STATE_STRUCT csprng_state;
    initialize_csprng(&csprng_state,seed,SEED_LENGTH_BYTES);
    for(uint32_t i = 0; i < K; i++) {
