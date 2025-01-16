@@ -64,14 +64,20 @@ size_t LESS_sign(const prikey_t *SK,
                            &sk_shake_state);
     }
 
+    // generate the salt from a TRNG
+    randombytes(sig->salt, HASH_DIGEST_LENGTH);
+
     /*         Ephemeral monomial generation        */
     uint8_t ephem_monomials_seed[SEED_LENGTH_BYTES];
-    randombytes(ephem_monomials_seed, SEED_LENGTH_BYTES);
-    randombytes(sig->salt, HASH_DIGEST_LENGTH);
+    csprng_randombytes(ephem_monomials_seed,
+                       SEED_LENGTH_BYTES,
+                       &sk_shake_state);
 
     /* create the prng for the "blinding" monomials for the canonical form computation */
     uint8_t cf_seed[SEED_LENGTH_BYTES];
-    randombytes(cf_seed, SEED_LENGTH_BYTES);
+    csprng_randombytes(cf_seed,
+                       SEED_LENGTH_BYTES,
+                       &sk_shake_state);
     SHAKE_STATE_STRUCT cf_shake_state;
     initialize_csprng(&cf_shake_state, cf_seed, SEED_LENGTH_BYTES);
 
