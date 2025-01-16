@@ -37,9 +37,19 @@ void LESS_keygen(prikey_t *SK,
                  pubkey_t *PK) {
     /* generating private key from a single seed */
     randombytes(SK->compressed_sk, PRIVATE_KEY_SEED_LENGTH_BYTES);
-    /* expanding it onto private (inverse) monomial seeds */
+
+    /* expanding it onto private seeds */
     SHAKE_STATE_STRUCT sk_shake_state;
     initialize_csprng(&sk_shake_state, SK->compressed_sk, PRIVATE_KEY_SEED_LENGTH_BYTES);
+
+    /* Generating public code G_0 */
+    csprng_randombytes(PK->G_0_seed, SEED_LENGTH_BYTES, &sk_shake_state);
+
+    rref_generator_mat_t G0_rref;
+    generator_sample(&G0_rref, PK->G_0_seed);
+
+    generator_mat_t tmp_full_G;
+    generator_rref_expand(&tmp_full_G, &G0_rref);
 
     /* The first private key monomial is an ID matrix, no need for random
      * generation, hence NUM_KEYPAIRS-1 */
@@ -50,16 +60,6 @@ void LESS_keygen(prikey_t *SK,
                            &sk_shake_state);
     }
 
-    /* Generating public code G_0 */
-    randombytes(SK->G_0_seed, SEED_LENGTH_BYTES);
-    memcpy(PK->G_0_seed, SK->G_0_seed, SEED_LENGTH_BYTES);
-
-    rref_generator_mat_t G0_rref;
-    generator_SF_seed_expand(&G0_rref, SK->G_0_seed);
-
-    generator_mat_t tmp_full_G;
-    generator_rref_expand(&tmp_full_G, &G0_rref);
-
     /* note that the first "keypair" is just the public generator G_0, stored
      * as a seed and the identity matrix (not stored) */
     for (uint32_t i = 0; i < NUM_KEYPAIRS - 1; i++) {
@@ -69,8 +69,8 @@ void LESS_keygen(prikey_t *SK,
         /* expand inverse monomial from seed */
         monomial_t private_Q;
         monomial_t private_Q_inv;
-        monomial_mat_seed_expand_prikey(&private_Q_inv, private_monomial_seeds[i]);
-        monomial_mat_inv(&private_Q, &private_Q_inv);
+        monomial_sample_prikey(&private_Q_inv, private_monomial_seeds[i]);
+        monomial_inv(&private_Q, &private_Q_inv);
 
         generator_mat_t result_G = {0};
         generator_monomial_mul(&result_G,
@@ -107,6 +107,10 @@ size_t LESS_sign(const prikey_t *SK,
     SHAKE_STATE_STRUCT sk_shake_state;
     initialize_csprng(&sk_shake_state, SK->compressed_sk, PRIVATE_KEY_SEED_LENGTH_BYTES);
 
+    /* Generating seed for public code G_0 */
+    unsigned char G_0_seed[SEED_LENGTH_BYTES];
+    csprng_randombytes(G_0_seed, SEED_LENGTH_BYTES, &sk_shake_state);
+
     /* The first private key monomial is an ID matrix, no need for random
      * generation, hence NUM_KEYPAIRS-1 */
     unsigned char private_monomial_seeds[NUM_KEYPAIRS - 1][PRIVATE_KEY_SEED_LENGTH_BYTES];
@@ -116,14 +120,20 @@ size_t LESS_sign(const prikey_t *SK,
                            &sk_shake_state);
     }
 
+    // generate the salt from a TRNG
+    randombytes(sig->salt, HASH_DIGEST_LENGTH);
+
     /*         Ephemeral monomial generation        */
     unsigned char ephem_monomials_seed[SEED_LENGTH_BYTES];
-    randombytes(ephem_monomials_seed, SEED_LENGTH_BYTES);
-    randombytes(sig->salt, HASH_DIGEST_LENGTH);
+    csprng_randombytes(ephem_monomials_seed,
+                       SEED_LENGTH_BYTES,
+                       &sk_shake_state);
 
     /* create the prng for the "blinding" monomials for the canonical form computation */
     uint8_t cf_seed[SEED_LENGTH_BYTES];
-    randombytes(cf_seed, SEED_LENGTH_BYTES);
+    csprng_randombytes(cf_seed,
+                       SEED_LENGTH_BYTES,
+                       &sk_shake_state);
     SHAKE_STATE_STRUCT cf_shake_state;
     initialize_csprng(&cf_shake_state, cf_seed, SEED_LENGTH_BYTES);
 
@@ -134,7 +144,7 @@ size_t LESS_sign(const prikey_t *SK,
 
     /*         Public G_0 expansion                  */
     rref_generator_mat_t G0_rref;
-    generator_SF_seed_expand(&G0_rref, SK->G_0_seed);
+    generator_sample(&G0_rref, G_0_seed);
     generator_get_pivot_flags (&G0_rref, g0_initial_pivot_flags);
     generator_mat_t full_G0, G0;
     generator_rref_expand(&full_G0, &G0_rref);
@@ -147,10 +157,10 @@ size_t LESS_sign(const prikey_t *SK,
     LESS_SHA3_INC_INIT(&state);
 
     for (uint32_t i = 0; i < T; i++) {
-        monomial_mat_seed_expand_salt_rnd(&mu_tilde,
-                                          ephem_monomial_seeds + i * SEED_LENGTH_BYTES,
-                                          sig->salt,
-                                          i);
+        monomial_sample_salt(&mu_tilde,
+                             ephem_monomial_seeds + i * SEED_LENGTH_BYTES,
+                             sig->salt,
+                             i);
         generator_monomial_mul(&G0, &full_G0, &mu_tilde);
         memset(is_pivot_column, 0, N_pad);
 #if defined(LESS_REUSE_PIVOTS_SG)
@@ -158,7 +168,7 @@ size_t LESS_sign(const prikey_t *SK,
         for (uint32_t t = 0; t < N; t++) {
             permuted_pivot_flags[mu_tilde.permutation[t]] = g0_initial_pivot_flags[t];
         }
-        if (generator_RREF_pivot_reuse(&G0,is_pivot_column, permuted_pivot_flags, SIGN_PIVOT_REUSE_LIMIT) == 0) {
+        if (generator_RREF_pivot_reuse(&G0, is_pivot_column, permuted_pivot_flags, SIGN_PIVOT_REUSE_LIMIT) == 0) {
             return 0;
         }
 #else
@@ -199,7 +209,7 @@ size_t LESS_sign(const prikey_t *SK,
         }
 
         // NOTE: blinding is currently not included in the pseudocode
-        blind(&A_i, &cf_shake_state);
+        // blind(&A_i, &cf_shake_state);
         const int t = CF(&A_i);
         if (t == 0) {
             *(ephem_monomial_seeds + i*SEED_LENGTH_BYTES) += 1;
@@ -214,7 +224,6 @@ size_t LESS_sign(const prikey_t *SK,
 #else
             LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&A_i, sizeof(normalized_IS_t));
 #endif
-
         }
     }
 
@@ -247,11 +256,11 @@ size_t LESS_sign(const prikey_t *SK,
         if (fixed_weight_string[i] != 0) {
             const int sk_monom_seed_to_expand_idx = fixed_weight_string[i];
 
-            monomial_mat_seed_expand_prikey(&Q_to_multiply,
-                                            private_monomial_seeds[sk_monom_seed_to_expand_idx - 1]);
+            monomial_sample_prikey(&Q_to_multiply,
+                                   private_monomial_seeds[sk_monom_seed_to_expand_idx - 1]);
             monomial_compose_action(&mono_action, &Q_to_multiply, &pi_tilde[i]);
 
-            CompressCanonicalAction(sig->cf_monom_actions[emitted_monoms], &mono_action);
+            CosetRep(sig->cf_monom_actions[emitted_monoms], &mono_action);
             emitted_monoms++;
         }
     }
@@ -272,7 +281,6 @@ int LESS_verify(const pubkey_t *const PK,
                 const char *const m,
                 const uint64_t mlen,
                 const sign_t *const sig) {
-
     uint8_t fixed_weight_string[T] = {0};
     uint8_t is_pivot_column[N_pad];
     uint8_t g0_initial_pivot_flags[N];
@@ -296,7 +304,7 @@ int LESS_verify(const pubkey_t *const PK,
     int employed_monoms = 0;
 
     rref_generator_mat_t G0_rref;
-    generator_SF_seed_expand(&G0_rref, PK->G_0_seed);
+    generator_sample(&G0_rref, PK->G_0_seed);
 
     generator_mat_t G0 = {0}, G0_full = {0};
     generator_mat_t G_prime = {0};
@@ -305,20 +313,21 @@ int LESS_verify(const pubkey_t *const PK,
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
 
-    generator_get_pivot_flags(&G0_rref, g0_initial_pivot_flags);
-    generator_rref_expand(&G0_full, &G0_rref);
-
     for (uint32_t i = 0; i < T; i++) {
         memset(is_pivot_column, 0, N_pad);
         if (fixed_weight_string[i] == 0) {
-            monomial_mat_seed_expand_salt_rnd(&mu_tilde,
-                                              ephem_monomial_seeds + i * SEED_LENGTH_BYTES,
-                                              sig->salt,
-                                              i);
+            monomial_sample_salt(&mu_tilde,
+                                 ephem_monomial_seeds + i * SEED_LENGTH_BYTES,
+                                 sig->salt,
+                                 i);
 
+            // TODO: why cant this be moved out of the loop. Somethimes the pivot-reusage-gaus
+            // produces wrong results
+            generator_get_pivot_flags(&G0_rref, g0_initial_pivot_flags);
+            generator_rref_expand(&G0_full, &G0_rref);
             generator_monomial_mul(&G_prime, &G0_full, &mu_tilde);
 #if defined(LESS_REUSE_PIVOTS_VY)
-            uint8_t permuted_pivot_flags[N_pad];
+            uint8_t permuted_pivot_flags[N_pad] = {0};
             for (uint32_t t = 0; t < N; t++) {
                 permuted_pivot_flags[mu_tilde.permutation[t]] = g0_initial_pivot_flags[t];
             }
@@ -349,7 +358,9 @@ int LESS_verify(const pubkey_t *const PK,
             apply_cf_action_to_G(&G_prime, &G0, sig->cf_monom_actions[employed_monoms]);
             const int ret = generator_RREF(&G_prime, is_pivot_column);
 #endif
-            if(ret == 0) { return 0; }
+            if(ret == 0) {
+                return 0;
+            }
 
             employed_monoms++;
         }
@@ -369,7 +380,9 @@ int LESS_verify(const pubkey_t *const PK,
             ctr += 1;
         }
         const int r = CF(&Ai);
-        if (r == 0) { return 0; }
+        if (r == 0) {
+            return 0;
+        }
 #ifdef USE_AVX2
         for (uint32_t sl = 0; sl < K; sl++) {
             LESS_SHA3_INC_ABSORB(&state, Ai.values[sl], K);

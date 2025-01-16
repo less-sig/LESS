@@ -51,6 +51,10 @@ size_t LESS_sign(const prikey_t *SK,
     SHAKE_STATE_STRUCT sk_shake_state;
     initialize_csprng(&sk_shake_state, SK->compressed_sk, PRIVATE_KEY_SEED_LENGTH_BYTES);
 
+    /* Generating seed for public code G_0 */
+    unsigned char G_0_seed[SEED_LENGTH_BYTES];
+    csprng_randombytes(G_0_seed, SEED_LENGTH_BYTES, &sk_shake_state);
+
     /* The first private key monomial is an ID matrix, no need for random
      * generation, hence NUM_KEYPAIRS-1 */
     unsigned char private_monomial_seeds[NUM_KEYPAIRS - 1][PRIVATE_KEY_SEED_LENGTH_BYTES];
@@ -60,18 +64,23 @@ size_t LESS_sign(const prikey_t *SK,
                            &sk_shake_state);
     }
 
+    // generate the salt from a TRNG
+    randombytes(sig->salt, HASH_DIGEST_LENGTH);
+
     /*         Ephemeral monomial generation        */
     uint8_t ephem_monomials_seed[SEED_LENGTH_BYTES];
-    randombytes(ephem_monomials_seed, SEED_LENGTH_BYTES);
-    randombytes(sig->salt, HASH_DIGEST_LENGTH);
+    csprng_randombytes(ephem_monomials_seed,
+                       SEED_LENGTH_BYTES,
+                       &sk_shake_state);
 
     /* create the prng for the "blinding" monomials for the canonical form computation */
     uint8_t cf_seed[SEED_LENGTH_BYTES];
-    randombytes(cf_seed, SEED_LENGTH_BYTES);
+    csprng_randombytes(cf_seed,
+                       SEED_LENGTH_BYTES,
+                       &sk_shake_state);
     SHAKE_STATE_STRUCT cf_shake_state;
     initialize_csprng(&cf_shake_state, cf_seed, SEED_LENGTH_BYTES);
 
-    // TODO salt is missing?
     SHAKE_STATE_STRUCT shake_monomial_state = {0};
     initialize_csprng(&shake_monomial_state, ephem_monomials_seed, SEED_LENGTH_BYTES);
     uint8_t seeds[T * SEED_LENGTH_BYTES] = {0};
@@ -80,20 +89,20 @@ size_t LESS_sign(const prikey_t *SK,
 
     /*         Public G_0 expansion                  */
     rref_generator_mat_t G0_rref;
-    generator_SF_seed_expand(&G0_rref, SK->G_0_seed);
+    generator_sample(&G0_rref, G_0_seed);
     generator_get_pivot_flags (&G0_rref, g0_initial_pivot_flags);
     generator_mat_t full_G0 = {0}, G0 = {0};
     generator_rref_expand(&full_G0, &G0_rref);
 
-    monomial_t mu_tilde;
+    monomial_t mu_tilde = {0};
     monomial_action_IS_t pi_tilde[T];
-    normalized_IS_t Ai;
+    normalized_IS_t Ai = {0};
 
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
 
     for (uint32_t i = 0; i < T; i++) {
-        monomial_mat_seed_expand_salt_rnd(&mu_tilde,
+        monomial_sample_salt(&mu_tilde,
                                           seeds + i*SEED_LENGTH_BYTES,
                                           sig->salt,
                                           i);
@@ -180,10 +189,10 @@ size_t LESS_sign(const prikey_t *SK,
             monomial_t mu;
             const int sk_monom_seed_to_expand_idx = fixed_weight_string[i];
 
-            monomial_mat_seed_expand_prikey(&mu,
+            monomial_sample_prikey(&mu,
                                             private_monomial_seeds[sk_monom_seed_to_expand_idx - 1]);
             monomial_compose_action(&mono_action, &mu, &pi_tilde[i]);
-            CompressCanonicalAction(sig->cf_monom_actions[ctr2], &mono_action);
+            CosetRep(sig->cf_monom_actions[ctr2], &mono_action);
             ctr2 += 1;
         } else {
             memcpy(sig->seed_storage + ctr1*SEED_LENGTH_BYTES, seeds + i*SEED_LENGTH_BYTES, SEED_LENGTH_BYTES);
@@ -206,19 +215,19 @@ int LESS_verify(const pubkey_t *const PK,
                 const uint64_t mlen,
                 const sign_t *const sig) {
     uint8_t fixed_weight_string[T] = {0};
-    uint8_t is_pivot_column[N_pad];
-    uint8_t g0_initial_pivot_flags[N_pad];
-    uint8_t g0_permuted_pivot_flags[N_pad];
+    uint8_t is_pivot_column[N_pad] = {0};
+    uint8_t g0_initial_pivot_flags[N_pad] = {0};
+    uint8_t g0_permuted_pivot_flags[N_pad] = {0};
 
     DigestToFixedWeight(fixed_weight_string, sig->digest);
 
     rref_generator_mat_t G0_rref;
-    generator_SF_seed_expand(&G0_rref, PK->G_0_seed);
+    generator_sample(&G0_rref, PK->G_0_seed);
 
-    generator_mat_t G0_full, G0;
-    monomial_t mu_tilde;
-    generator_mat_t G_prime;
-    normalized_IS_t Ai;
+    generator_mat_t G0_full={0}, G0={0};
+    monomial_t mu_tilde={0};
+    generator_mat_t G_prime={0};
+    normalized_IS_t Ai={0};
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
 
@@ -228,7 +237,7 @@ int LESS_verify(const pubkey_t *const PK,
     for (uint32_t i = 0; i < T; i++) {
         memset(is_pivot_column, 0, N_pad);
         if (fixed_weight_string[i] == 0) {
-            monomial_mat_seed_expand_salt_rnd(&mu_tilde,
+            monomial_sample_salt(&mu_tilde,
                                           sig->seed_storage + ctr1*SEED_LENGTH_BYTES,
                                                 sig->salt,
                                                 i);
