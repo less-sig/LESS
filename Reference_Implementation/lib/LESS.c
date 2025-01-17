@@ -284,6 +284,7 @@ int LESS_verify(const pubkey_t *const PK,
     uint8_t fixed_weight_string[T] = {0};
     uint8_t is_pivot_column[N_pad];
     uint8_t g0_initial_pivot_flags[N];
+    uint8_t gi_initial_pivot_flags[N];
 #ifdef LESS_REUSE_PIVOTS_VY
     uint8_t g0_permuted_pivot_flags[N];
 #endif
@@ -313,6 +314,9 @@ int LESS_verify(const pubkey_t *const PK,
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
 
+    generator_get_pivot_flags(&G0_rref, g0_initial_pivot_flags);
+    generator_rref_expand(&G0_full, &G0_rref);
+
     for (uint32_t i = 0; i < T; i++) {
         memset(is_pivot_column, 0, N_pad);
         if (fixed_weight_string[i] == 0) {
@@ -321,13 +325,10 @@ int LESS_verify(const pubkey_t *const PK,
                                  sig->salt,
                                  i);
 
-            // TODO: why cant this be moved out of the loop. Somethimes the pivot-reusage-gaus
-            // produces wrong results
-            generator_get_pivot_flags(&G0_rref, g0_initial_pivot_flags);
-            generator_rref_expand(&G0_full, &G0_rref);
             generator_monomial_mul(&G_prime, &G0_full, &mu_tilde);
 #if defined(LESS_REUSE_PIVOTS_VY)
             uint8_t permuted_pivot_flags[N_pad] = {0};
+
             for (uint32_t t = 0; t < N; t++) {
                 permuted_pivot_flags[mu_tilde.permutation[t]] = g0_initial_pivot_flags[t];
             }
@@ -340,7 +341,7 @@ int LESS_verify(const pubkey_t *const PK,
             }
 #endif
         } else {
-            expand_to_rref(&G0, PK->SF_G[fixed_weight_string[i] - 1], g0_initial_pivot_flags);
+            expand_to_rref(&G0, PK->SF_G[fixed_weight_string[i] - 1], gi_initial_pivot_flags);
             if (!CheckCanonicalAction(sig->cf_monom_actions[employed_monoms])) {
                 return 0;
             }
@@ -349,7 +350,7 @@ int LESS_verify(const pubkey_t *const PK,
             apply_cf_action_to_G_with_pivots(&G_prime,
                                              &G0,
                                              sig->cf_monom_actions[employed_monoms],
-                                             g0_initial_pivot_flags,
+                                             gi_initial_pivot_flags,
                                              g0_permuted_pivot_flags);
             const int ret = generator_RREF_pivot_reuse(&G_prime, is_pivot_column,
                                                        g0_permuted_pivot_flags,
