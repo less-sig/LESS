@@ -144,13 +144,12 @@ void matrix_transpose_opt(uint8_t *dst,
 #ifdef USE_AVX2
     // big block size
     const size_t bsize = 32;
-    const size_t src_stride = K_pad;
-    const size_t dst_stride = N_K_pad;
 #else
     const size_t bsize = 64;
-    const size_t src_stride = K;
-    const size_t dst_stride = K;
 #endif
+
+    const size_t src_stride = K_pad;
+    const size_t dst_stride = N_K_pad;
 
     if ((c < bsize) || (r < bsize)) {
         if (c <= small) {

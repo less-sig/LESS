@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
-project(less)
+project(less_neon)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_VERBOSE_MAKEFILE ON)
+
+enable_testing()
 
 # needed for nvim
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
@@ -11,28 +13,25 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS "-Wno-unused-function -Wno-ignored-attributes")
-
-IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
-set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0  -march=native -flax-vector-conversions")
-set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNING}")
-else()
-set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0 -Wall -fpermissive  -Wpedantic -Wextra -fpermissive -mavx2 -mavx -fsanitize=address ${ALLOWED_WARNING}")
-set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -mavx2 -mavx -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNING}")
-endif()
-
+set(ALLOWED_WARNINGS      " -Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal")
+set(CMAKE_C_FLAGS_DEBUG "-g -DUSE_NEON -DDEBUG -O0  -march=native -flax-vector-conversions")
+set(CMAKE_C_FLAGS_RELEASE "-g -DUSE_NEON -O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNING}")
 
 set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/codes.c
         ${PROJECT_SOURCE_DIR}/lib/fips202.c
         ${PROJECT_SOURCE_DIR}/lib/keccakf1600.c
         ${PROJECT_SOURCE_DIR}/lib/LESS.c
+        ${PROJECT_SOURCE_DIR}/lib/LESS_without_tree.c
         ${PROJECT_SOURCE_DIR}/lib/monomial.c
         ${PROJECT_SOURCE_DIR}/lib/rng.c
         ${PROJECT_SOURCE_DIR}/lib/seedtree.c
         ${PROJECT_SOURCE_DIR}/lib/sign.c
         ${PROJECT_SOURCE_DIR}/lib/utils.c
-        ${PROJECT_SOURCE_DIR}/lib/KeccakP-1600-AVX2.s
+        ${PROJECT_SOURCE_DIR}/lib/canonical.c
+        ${PROJECT_SOURCE_DIR}/lib/sort.c
+        ${PROJECT_SOURCE_DIR}/lib/transpose.c
+        ${PROJECT_SOURCE_DIR}/lib/transpose_neon.c
 )
 
 set(HEADERS
@@ -48,32 +47,44 @@ set(HEADERS
         ${PROJECT_SOURCE_DIR}/include/rng.h
         ${PROJECT_SOURCE_DIR}/include/seedtree.h
         ${PROJECT_SOURCE_DIR}/include/utils.h
+        ${PROJECT_SOURCE_DIR}/include/canonical.h
+        ${PROJECT_SOURCE_DIR}/include/sort.h
+        ${PROJECT_SOURCE_DIR}/include/transpose.h
 )
 
 include_directories(include)
-foreach(category RANGE 1 5 2)
-  if(category EQUAL 1)
-    set(PARAM_TARGETS SHORT_SIG INTERMEDIATE BALANCED)
-  else()
-    set(PARAM_TARGETS SHORT_SIG BALANCED)
+foreach(category "252" "400" "548")
+  if(${category} EQUAL "252")
+    set(PARAM_TARGETS "192" "68" "45")
+  elseif(${category} EQUAL "400")
+    set(PARAM_TARGETS "220" "102")
+  elseif(${category} EQUAL "548")
+    set(PARAM_TARGETS "345" "137")
   endif()
-  foreach(optimiz_target ${PARAM_TARGETS})
+
+  foreach(optimize_target ${PARAM_TARGETS})
     # settings for benchmarking binary
-    set(TARGET_BINARY_NAME LESS_benchmark_cat_${category}_${optimiz_target})
+    set(TARGET_BINARY_NAME LESS_benchmark_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/bench/less_benchmark.c)
     target_link_libraries(${TARGET_BINARY_NAME} m)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category}=1 -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
 
     # settings for unit tests binary
-    set(TARGET_BINARY_NAME LESS_test_cat_${category}_${optimiz_target})
+    set(TARGET_BINARY_NAME LESS_test_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/test/less_test.c)
     target_link_libraries(${TARGET_BINARY_NAME} m)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
+    target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
 
     # KATS generation
-    set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimiz_target})
+    set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/nist/KAT_NIST_rng.c ${PROJECT_SOURCE_DIR}/lib/nist/PQCgenKAT_sign.c)
-    target_link_libraries(${TARGET_BINARY_NAME} m crypto)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
-  endforeach(optimiz_target)
+    target_link_libraries(${TARGET_BINARY_NAME} PRIVATE crypto)
+    include_directories(${OPENSSL_INCLUDE_DIR})
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
+  endforeach(optimize_target)
 endforeach(category)
+

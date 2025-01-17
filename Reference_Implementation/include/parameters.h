@@ -140,7 +140,7 @@
 /// rounds x to the next multiple of n
 #define NEXT_MULTIPLE(x,n) ((((x)+((n)-1u))/(n))*(n))
 
-#ifdef USE_AVX2
+#if defined(USE_AVX2) || defined(USE_NEON)
 /// In case of the optimized implementation, we need that all vectors
 /// are of a length, which is a multiple of 32
 #define N_K_pad NEXT_MULTIPLE(N-K, 32)
