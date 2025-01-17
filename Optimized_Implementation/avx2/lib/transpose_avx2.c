@@ -27,7 +27,7 @@ typedef __m256i STORE_TYPE;
 /// \param prf_origin[in]: lookahead pointer to prefetch it
 /// \param src_stride[in]:
 /// \param dst_stride[in]:
-void matrix_transpose_32x32_avx2(uint8_t* dst_origin,
+void matrix_transpose_32x32(uint8_t* dst_origin,
                                  const uint8_t* src_origin,
                                  const uint8_t* prf_origin,
                                  const size_t src_stride,

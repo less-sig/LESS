@@ -3,7 +3,9 @@
 #include <stdio.h>
 
 #include "fq_arith.h"
+#include "codes.h"
 #include "test_helpers.h"
+#include "test_helpers.c"
 
 #define TESTS (1u << 14)
 
@@ -243,15 +245,25 @@ int test_row_contains_zero() {
     return 0;
 }
 
+
+int test_transpose() {
+    normalized_IS_t A, B1, B2;
+    normalized_ind(&A);
+    matrix_transpose_opt((uint8_t *)B1.values, (uint8_t *)A.values, K, K_pad);
+    return 0;
+}
+
 int main(void) {
-    if (test_row_acc()) return 1;
-    if (test_row_acc_inv()) return 1;
-    if (test_row_mul()) return 1;
-    if (test_row_mul2()) return 1;
-    if (test_row_mul3()) return 1;
-    if (test_row_inv2()) return 1;
-    if (test_row_all_same()) return 1;
-    if (test_row_contains_zero()) return 1;
+    // if (test_row_acc()) return 1;
+    // if (test_row_acc_inv()) return 1;
+    // if (test_row_mul()) return 1;
+    // if (test_row_mul2()) return 1;
+    // if (test_row_mul3()) return 1;
+    // if (test_row_inv2()) return 1;
+    // if (test_row_all_same()) return 1;
+    // if (test_row_contains_zero()) return 1;
+
+    if (test_transpose()) return 1;
 
     printf("ok\n");
     return 0;

@@ -25,11 +25,11 @@ static const uint8_t SHUFFLE_MASK[4][32] __attribute__((aligned(32))) = {
 /// \param prf_origin[in]: lookahead pointer to prefetch it
 /// \param src_stride[in]:
 /// \param dst_stride[in]:
-void matrix_transpose_32x32_avx2(uint8_t* dst_origin,
-                                 const uint8_t* src_origin,
-                                 const uint8_t* prf_origin,
-                                 const size_t src_stride,
-                                 const size_t dst_stride) {
+void matrix_transpose_32x32(uint8_t* dst_origin,
+                           const uint8_t* src_origin,
+                           const uint8_t* prf_origin,
+                           const size_t src_stride,
+                           const size_t dst_stride) {
     vec256_t *s = (vec256_t *)src_origin;
     vec256_t *d = (vec256_t *)dst_origin;
     //const __m256i shm_1 = _mm256_load_si256((const __m256i *)SHUFFLE_MASK[0]);
@@ -42,8 +42,8 @@ void matrix_transpose_32x32_avx2(uint8_t* dst_origin,
     //__m256i rnd_1_1 = _mm256_blendv_epi8(shf_1_0, rnd_0_1, blm_1);
     const vec256_t rnd_0_0 = *(s + 0*src_stride);
     const vec256_t rnd_0_1 = *(d + 1*src_stride);
-    vec256_t shf_1_0; shf_1_0.v[0] = vrev16q_u8(shf_0_0.v[0]); shf_1_0.v[1] = vrev16q_u8(shf_0_0.v[1]);
-    vec256_t shf_1_1; shf_1_1.v[0] = vrev16q_u8(shf_0_1.v[0]); shf_1_1.v[1] = vrev16q_u8(shf_0_1.v[1]);
+    vec256_t shf_1_0; shf_1_0.v[0] = vrev16q_u8(rnd_0_0.v[0]); shf_1_0.v[1] = vrev16q_u8(rnd_0_0.v[1]);
+    vec256_t shf_1_1; shf_1_1.v[0] = vrev16q_u8(rnd_0_1.v[0]); shf_1_1.v[1] = vrev16q_u8(rnd_0_1.v[1]);
     vec256_t rnd_1_0; rnd_1_0.v[0] = vtrn2q_u8(shf_1_0.v[0], rnd_0_0.v[0]);  rnd_1_0.v[1] = vtrn2q_u8(shf_1_0.v[0], rnd_0_1.v[0]); 
 
 

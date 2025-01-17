@@ -86,5 +86,11 @@ foreach(category "252" "400" "548")
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
   endforeach(optimize_target)
+
+  set(TARGET_BINARY_NAME LESS_test_arith_${category})
+  add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/test/test_arith.c)
+  include_directories(${OPENSSL_INCLUDE_DIR})
+  set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=192 ${KECCAK_EXTERNAL_ENABLE} ")
+  add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
 endforeach(category)
 
