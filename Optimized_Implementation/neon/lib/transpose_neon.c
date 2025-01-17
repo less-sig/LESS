@@ -30,22 +30,27 @@ void matrix_transpose_32x32(uint8_t* dst_origin,
                            const uint8_t* prf_origin,
                            const size_t src_stride,
                            const size_t dst_stride) {
-    vec256_t *s = (vec256_t *)src_origin;
-    vec256_t *d = (vec256_t *)dst_origin;
+    //vec256_t *s = (vec256_t *)src_origin;
+    //vec256_t *d = (vec256_t *)dst_origin;
     //const __m256i shm_1 = _mm256_load_si256((const __m256i *)SHUFFLE_MASK[0]);
     //const __m256i blm_1 = _mm256_load_si256((const __m256i *)BLENDV_MASK[0]);
+    const __uint8x16_t bm1 = vld1q_u8(BLENDV_MASK[0]);
     //__m256i rnd_0_0 = *(const LOAD_TYPE*)(src_origin + 0*src_stride);
     //__m256i rnd_0_1 = *(const LOAD_TYPE*)(src_origin + 1*src_stride);
     //__m256i shf_1_0 = _mm256_shuffle_epi8(rnd_0_0, shm_1);
     //__m256i shf_1_1 = _mm256_shuffle_epi8(rnd_0_1, shm_1);
     //__m256i rnd_1_0 = _mm256_blendv_epi8(rnd_0_0, shf_1_1, blm_1);
     //__m256i rnd_1_1 = _mm256_blendv_epi8(shf_1_0, rnd_0_1, blm_1);
-    const vec256_t rnd_0_0 = *(s + 0*src_stride);
-    const vec256_t rnd_0_1 = *(d + 1*src_stride);
-    vec256_t shf_1_0; shf_1_0.v[0] = vrev16q_u8(rnd_0_0.v[0]); shf_1_0.v[1] = vrev16q_u8(rnd_0_0.v[1]);
-    vec256_t shf_1_1; shf_1_1.v[0] = vrev16q_u8(rnd_0_1.v[0]); shf_1_1.v[1] = vrev16q_u8(rnd_0_1.v[1]);
-    vec256_t rnd_1_0; rnd_1_0.v[0] = vtrn2q_u8(shf_1_0.v[0], rnd_0_0.v[0]);  rnd_1_0.v[1] = vtrn2q_u8(shf_1_0.v[0], rnd_0_1.v[0]); 
-
+    const vec256_t rnd_0_0 = *((vec256_t *)(src_origin + 0*src_stride));
+    const vec256_t rnd_0_1 = *((vec256_t *)(src_origin + 1*src_stride));
+    // this is correct
+    //vec256_t shf_1_0; shf_1_0.v[0] = vrev16q_u8(rnd_0_0.v[0]); shf_1_0.v[1] = vrev16q_u8(rnd_0_0.v[1]);
+    //vec256_t shf_1_1; shf_1_1.v[0] = vrev16q_u8(rnd_0_1.v[0]); shf_1_1.v[1] = vrev16q_u8(rnd_0_1.v[1]);
+    //vec256_t rnd_1_0; rnd_1_0.v[0] = vbslq_u8(bm1, rnd_0_0.v[0], shf_1_1.v[0]); rnd_1_0.v[1] = vbslq_u8(bm1, rnd_0_0.v[1], shf_1_1.v[1]);
+    //vec256_t rnd_1_1; rnd_1_1.v[0] = vbslq_u8(bm1, rnd_0_1.v[0], shf_1_0.v[0]); rnd_1_1.v[1] = vbslq_u8(bm1, rnd_0_1.v[1], shf_1_0.v[1]);
+    vec256_t rnd_1_0; rnd_1_0.v[0] = vtrn1q_u8(rnd_0_0.v[0], rnd_0_1.v[0]);
+    vec256_t rnd_1_1; rnd_1_1.v[0] = vtrn2q_u8(rnd_0_0.v[0], rnd_0_1.v[0]);
+    printf("kek");
 
     //__m256i rnd_0_2 = *(const LOAD_TYPE*)(src_origin + 2*src_stride);
     //__m256i rnd_0_3 = *(const LOAD_TYPE*)(src_origin + 3*src_stride);
