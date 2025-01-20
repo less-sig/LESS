@@ -249,8 +249,9 @@ int test_row_contains_zero() {
 int test_transpose() {
     normalized_IS_t A = {0}, B1, B2;
     // normalized_ind(&A);
-    A.values[0][0] = 1;
-    A.values[0][1] = 1;
+    for (uint32_t i = 0; i < K; i++) {
+        A.values[i][0] = 1;
+    }
     matrix_transpose_opt((uint8_t *)B1.values, (uint8_t *)A.values, K, K_pad);
     return 0;
 }
