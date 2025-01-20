@@ -20,6 +20,10 @@ jobs:
       with:
         submodules: recursive
 
+    - name: install sha1sum
+      run: |
+        brew install md5sha1sum
+
     - name: Configure CMake
       working-directory: ${{github.workspace}}/Optimized_Implementation/neon
       run: |
