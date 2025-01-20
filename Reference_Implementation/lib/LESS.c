@@ -217,7 +217,7 @@ size_t LESS_sign(const prikey_t *SK,
         } else {
             // NOTE: as we increase the size of the `normalized_IS_t`
             // we need to hash the values row by row.
-#ifdef USE_AVX2
+#if defined(USE_AVX2) || defined(USE_NEON)
             for (uint32_t sl = 0; sl < K; sl++) {
                 LESS_SHA3_INC_ABSORB(&state, A_i.values[sl], K);
             }
@@ -384,7 +384,7 @@ int LESS_verify(const pubkey_t *const PK,
         if (r == 0) {
             return 0;
         }
-#ifdef USE_AVX2
+#if defined(USE_AVX2) || defined(USE_NEON)
         for (uint32_t sl = 0; sl < K; sl++) {
             LESS_SHA3_INC_ABSORB(&state, Ai.values[sl], K);
         }

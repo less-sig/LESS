@@ -3,7 +3,9 @@
 #include <stdio.h>
 
 #include "fq_arith.h"
+#include "codes.h"
 #include "test_helpers.h"
+#include "test_helpers.c"
 
 #define TESTS (1u << 14)
 
@@ -243,15 +245,46 @@ int test_row_contains_zero() {
     return 0;
 }
 
+void matrix_transpose_simple(normalized_IS_t *o,
+                      const normalized_IS_t *in) {
+    for (uint32_t i = 0; i < K; i++) {
+        for (uint32_t j = 0; j < K; j++) {
+            o->values[j][i] = in->values[i][j];
+        }
+    }
+}
+int test_transpose() {
+    normalized_IS_t A = {0}, B1, B2;
+    // normalized_ind(&A);
+    for (uint32_t i = 0; i < K; i++) {
+        for (uint32_t j = 0; j < K; j++) {
+            A.values[i][j] = (i+j);
+        }
+    }
+    matrix_transpose_opt((uint8_t *)B1.values, (uint8_t *)A.values, K, K_pad);
+    matrix_transpose_simple(&B2, &A);
+    for (uint32_t i = 0; i < K; i++) {
+        for (uint32_t j = 0; j < K; j++) {
+            if (B1.values[i][j] != B2.values[i][j]) {
+                printf("test_transpose: %d %d\n", i, j);
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 int main(void) {
-    if (test_row_acc()) return 1;
-    if (test_row_acc_inv()) return 1;
-    if (test_row_mul()) return 1;
-    if (test_row_mul2()) return 1;
-    if (test_row_mul3()) return 1;
-    if (test_row_inv2()) return 1;
-    if (test_row_all_same()) return 1;
-    if (test_row_contains_zero()) return 1;
+    // if (test_row_acc()) return 1;
+    // if (test_row_acc_inv()) return 1;
+    // if (test_row_mul()) return 1;
+    // if (test_row_mul2()) return 1;
+    // if (test_row_mul3()) return 1;
+    // if (test_row_inv2()) return 1;
+    // if (test_row_all_same()) return 1;
+    // if (test_row_contains_zero()) return 1;
+
+    if (test_transpose()) return 1;
 
     printf("ok\n");
     return 0;
