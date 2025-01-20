@@ -22,7 +22,9 @@ jobs:
 
     - name: Configure CMake
       working-directory: ${{github.workspace}}/Optimized_Implementation/neon
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release
+      run: |
+        /opt/homebrew/Cellar/openssl@3/bin/rehash
+        cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release
 
     - name: Build
       working-directory: ${{github.workspace}}/Optimized_Implementation/neon

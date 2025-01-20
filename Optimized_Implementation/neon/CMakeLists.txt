@@ -4,6 +4,11 @@ enable_language(C ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
+if(APPLE)
+    include_directories("/opt/homebrew/include/")
+    link_directories("/opt/homebrew/lib")
+endif()
+
 enable_testing()
 find_package(OpenSSL)
 
