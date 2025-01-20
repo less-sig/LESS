@@ -3,23 +3,6 @@
 
 #include "fq_arith.h"
 
-/// needed for matrix_transpose_32x32_avx2
-static const uint8_t BLENDV_MASK[5][32] __attribute__((aligned(32)))= {
-    { 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff },
-    { 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff },
-    { 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff },
-    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
-    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
-};
-
-// needed for matrix_transpose_32x32_avx2
-static const uint8_t SHUFFLE_MASK[4][32] __attribute__((aligned(32))) = {
-    { 1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14, 17, 16, 19, 18, 21, 20, 23, 22, 25, 24, 27, 26, 29, 28, 31, 30 },
-    { 2, 3, 0, 1, 6, 7, 4, 5, 10, 11, 8, 9, 14, 15, 12, 13, 18, 19, 16, 17, 22, 23, 20, 21, 26, 27, 24, 25, 30, 31, 28, 29 },
-    { 4, 5, 6, 7, 0, 1, 2, 3, 12, 13, 14, 15, 8, 9, 10, 11, 20, 21, 22, 23, 16, 17, 18, 19, 28, 29, 30, 31, 24, 25, 26, 27 },
-    { 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 24, 25, 26, 27, 28, 29, 30, 31, 16, 17, 18, 19, 20, 21, 22, 23 },
-};
-
 /// \param dst_origin[out]: output matrix
 /// \param src_origin[in]: input matrix
 /// \param prf_origin[in]: lookahead pointer to prefetch it
@@ -30,11 +13,12 @@ void matrix_transpose_32x32(uint8_t* dst_origin,
                            const uint8_t* prf_origin,
                            const size_t src_stride,
                            const size_t dst_stride) {
+    (void *)prf_origin;
     //vec256_t *s = (vec256_t *)src_origin;
     //vec256_t *d = (vec256_t *)dst_origin;
     //const __m256i shm_1 = _mm256_load_si256((const __m256i *)SHUFFLE_MASK[0]);
     //const __m256i blm_1 = _mm256_load_si256((const __m256i *)BLENDV_MASK[0]);
-    const __uint8x16_t bm1 = vld1q_u8(BLENDV_MASK[0]);
+    // const __uint8x16_t bm1 = vld1q_u8(BLENDV_MASK[0]);
     //__m256i rnd_0_0 = *(const LOAD_TYPE*)(src_origin + 0*src_stride);
     //__m256i rnd_0_1 = *(const LOAD_TYPE*)(src_origin + 1*src_stride);
     //__m256i shf_1_0 = _mm256_shuffle_epi8(rnd_0_0, shm_1);
@@ -67,7 +51,7 @@ void matrix_transpose_32x32(uint8_t* dst_origin,
     //__m256i rnd_1_4 = _mm256_blendv_epi8(rnd_0_4, shf_1_5, blm_1);
     //__m256i rnd_1_5 = _mm256_blendv_epi8(shf_1_4, rnd_0_5, blm_1);
     const vec256_t rnd_0_4 = *((vec256_t *)(src_origin + 4*src_stride));
-    const vec256_t rnd_0_5 = *((vec256_t *)(src_origin + 35*src_stride));
+    const vec256_t rnd_0_5 = *((vec256_t *)(src_origin + 5*src_stride));
     vec256_t rnd_1_4; rnd_1_4.v[0] = vtrn1q_u8(rnd_0_4.v[0], rnd_0_5.v[0]); rnd_1_4.v[1] = vtrn1q_u8(rnd_0_4.v[1], rnd_0_5.v[1]);
     vec256_t rnd_1_5; rnd_1_5.v[0] = vtrn2q_u8(rnd_0_4.v[0], rnd_0_5.v[0]); rnd_1_5.v[1] = vtrn2q_u8(rnd_0_4.v[1], rnd_0_5.v[1]);
     //__m256i rnd_0_6 = *(const LOAD_TYPE*)(src_origin + 6*src_stride);
@@ -110,7 +94,7 @@ void matrix_transpose_32x32(uint8_t* dst_origin,
     const vec256_t rnd_0_12 = *((vec256_t *)(src_origin + 12*src_stride));
     const vec256_t rnd_0_13 = *((vec256_t *)(src_origin + 13*src_stride));
     vec256_t rnd_1_12; rnd_1_12.v[0] = vtrn1q_u8(rnd_0_12.v[0], rnd_0_13.v[0]); rnd_1_12.v[1] = vtrn1q_u8(rnd_0_12.v[1], rnd_0_13.v[1]);
-    vec256_t rnd_1_13; rnd_1_13.v[0] = vtrn2q_u8(rnd_0_13.v[0], rnd_0_13.v[0]); rnd_1_13.v[1] = vtrn2q_u8(rnd_0_13.v[1], rnd_0_13.v[1]);
+    vec256_t rnd_1_13; rnd_1_13.v[0] = vtrn2q_u8(rnd_0_12.v[0], rnd_0_13.v[0]); rnd_1_13.v[1] = vtrn2q_u8(rnd_0_12.v[1], rnd_0_13.v[1]);
     //__m256i rnd_0_14 = *(const LOAD_TYPE*)(src_origin + 14*src_stride);
     //__m256i rnd_0_15 = *(const LOAD_TYPE*)(src_origin + 15*src_stride);
     //__m256i shf_1_14 = _mm256_shuffle_epi8(rnd_0_14, shm_1);
@@ -118,8 +102,8 @@ void matrix_transpose_32x32(uint8_t* dst_origin,
     //_mm_prefetch(prf_origin+1*src_stride, _MM_HINT_NTA);
     //__m256i rnd_1_14 = _mm256_blendv_epi8(rnd_0_14, shf_1_15, blm_1);
     //__m256i rnd_1_15 = _mm256_blendv_epi8(shf_1_14, rnd_0_15, blm_1);
-    const vec256_t rnd_0_14 = *((vec256_t *)(src_origin + 15*src_stride));
-    const vec256_t rnd_0_15 = *((vec256_t *)(src_origin + 16*src_stride));
+    const vec256_t rnd_0_14 = *((vec256_t *)(src_origin + 14*src_stride));
+    const vec256_t rnd_0_15 = *((vec256_t *)(src_origin + 15*src_stride));
     vec256_t rnd_1_14; rnd_1_14.v[0] = vtrn1q_u8(rnd_0_14.v[0], rnd_0_15.v[0]); rnd_1_14.v[1] = vtrn1q_u8(rnd_0_14.v[1], rnd_0_15.v[1]);
     vec256_t rnd_1_15; rnd_1_15.v[0] = vtrn2q_u8(rnd_0_14.v[0], rnd_0_15.v[0]); rnd_1_15.v[1] = vtrn2q_u8(rnd_0_14.v[1], rnd_0_15.v[1]);
     //__m256i rnd_0_16 = *(const LOAD_TYPE*)(src_origin + 16*src_stride);
@@ -128,8 +112,8 @@ void matrix_transpose_32x32(uint8_t* dst_origin,
     //__m256i shf_1_17 = _mm256_shuffle_epi8(rnd_0_17, shm_1);
     //__m256i rnd_1_16 = _mm256_blendv_epi8(rnd_0_16, shf_1_17, blm_1);
     //__m256i rnd_1_17 = _mm256_blendv_epi8(shf_1_16, rnd_0_17, blm_1);
-    const vec256_t rnd_0_16 = *((vec256_t *)(src_origin + 17*src_stride));
-    const vec256_t rnd_0_17 = *((vec256_t *)(src_origin + 18*src_stride));
+    const vec256_t rnd_0_16 = *((vec256_t *)(src_origin + 16*src_stride));
+    const vec256_t rnd_0_17 = *((vec256_t *)(src_origin + 17*src_stride));
     vec256_t rnd_1_16; rnd_1_16.v[0] = vtrn1q_u8(rnd_0_16.v[0], rnd_0_17.v[0]); rnd_1_16.v[1] = vtrn1q_u8(rnd_0_16.v[1], rnd_0_17.v[1]);
     vec256_t rnd_1_17; rnd_1_17.v[0] = vtrn2q_u8(rnd_0_16.v[0], rnd_0_17.v[0]); rnd_1_17.v[1] = vtrn2q_u8(rnd_0_16.v[1], rnd_0_17.v[1]);
     //__m256i rnd_0_18 = *(const LOAD_TYPE*)(src_origin + 18*src_stride);
@@ -265,8 +249,8 @@ void matrix_transpose_32x32(uint8_t* dst_origin,
     //__m256i shf_2_19 = _mm256_shuffle_epi8(rnd_1_19, shm_2);
     //__m256i rnd_2_17 = _mm256_blendv_epi8(rnd_1_17, shf_2_19, blm_2);
     //__m256i rnd_2_19 = _mm256_blendv_epi8(shf_2_17, rnd_1_19, blm_2);
-    vec256_t rnd_2_17; rnd_2_17.v[0] = vtrn1q_u16(rnd_1_17.v[0], rnd_1_18.v[0]); rnd_2_17.v[1] = vtrn1q_u16(rnd_1_17.v[1], rnd_1_18.v[1]);
-    vec256_t rnd_2_19; rnd_2_19.v[0] = vtrn2q_u16(rnd_1_17.v[0], rnd_1_18.v[0]); rnd_2_19.v[1] = vtrn2q_u16(rnd_1_17.v[1], rnd_1_18.v[1]);
+    vec256_t rnd_2_17; rnd_2_17.v[0] = vtrn1q_u16(rnd_1_17.v[0], rnd_1_19.v[0]); rnd_2_17.v[1] = vtrn1q_u16(rnd_1_17.v[1], rnd_1_19.v[1]);
+    vec256_t rnd_2_19; rnd_2_19.v[0] = vtrn2q_u16(rnd_1_17.v[0], rnd_1_19.v[0]); rnd_2_19.v[1] = vtrn2q_u16(rnd_1_17.v[1], rnd_1_19.v[1]);
     //__m256i shf_2_20 = _mm256_shuffle_epi8(rnd_1_20, shm_2);
     //__m256i shf_2_22 = _mm256_shuffle_epi8(rnd_1_22, shm_2);
     //__m256i rnd_2_20 = _mm256_blendv_epi8(rnd_1_20, shf_2_22, blm_2);
@@ -513,12 +497,20 @@ void matrix_transpose_32x32(uint8_t* dst_origin,
     //__m256i rnd_5_16 = _mm256_blendv_epi8(shf_5_0, rnd_4_16, blm_5);
     //*(STORE_TYPE*)(dst_origin + 0*dst_stride) = rnd_5_0;
     //*(STORE_TYPE*)(dst_origin + 16*dst_stride) = rnd_5_16;
+    vec256_t rnd_5_0;  rnd_5_0.v[0]  = rnd_4_0.v[0]; rnd_5_0.v[1]  = rnd_4_16.v[0];
+    vec256_t rnd_5_16; rnd_5_16.v[0] = rnd_4_0.v[1]; rnd_5_16.v[1] = rnd_4_16.v[1];
+    *((vec256_t *)(dst_origin +  0*dst_stride)) = rnd_5_0;
+    *((vec256_t *)(dst_origin + 16*dst_stride)) = rnd_5_16;
     //__m256i shf_5_1 = _mm256_permute2x128_si256(rnd_4_1, rnd_4_1, 0x01);
     //__m256i shf_5_17 = _mm256_permute2x128_si256(rnd_4_17, rnd_4_17, 0x01);
     //__m256i rnd_5_1 = _mm256_blendv_epi8(rnd_4_1, shf_5_17, blm_5);
     //__m256i rnd_5_17 = _mm256_blendv_epi8(shf_5_1, rnd_4_17, blm_5);
     //*(STORE_TYPE*)(dst_origin + 1*dst_stride) = rnd_5_1;
     //*(STORE_TYPE*)(dst_origin + 17*dst_stride) = rnd_5_17;
+    vec256_t rnd_5_1;  rnd_5_1.v[0]  = rnd_4_1.v[0]; rnd_5_1.v[1]  = rnd_4_17.v[0];
+    vec256_t rnd_5_17; rnd_5_17.v[0] = rnd_4_1.v[1]; rnd_5_17.v[1] = rnd_4_17.v[1];
+    *((vec256_t *)(dst_origin +  1*dst_stride)) = rnd_5_1;
+    *((vec256_t *)(dst_origin + 17*dst_stride)) = rnd_5_17;
     //__m256i shf_5_2 = _mm256_permute2x128_si256(rnd_4_2, rnd_4_2, 0x01);
     //__m256i shf_5_18 = _mm256_permute2x128_si256(rnd_4_18, rnd_4_18, 0x01);
     //__m256i rnd_5_2 = _mm256_blendv_epi8(rnd_4_2, shf_5_18, blm_5);
@@ -526,24 +518,40 @@ void matrix_transpose_32x32(uint8_t* dst_origin,
     //__m256i rnd_5_18 = _mm256_blendv_epi8(shf_5_2, rnd_4_18, blm_5);
     //*(STORE_TYPE*)(dst_origin + 2*dst_stride) = rnd_5_2;
     //*(STORE_TYPE*)(dst_origin + 18*dst_stride) = rnd_5_18;
+    vec256_t rnd_5_2;  rnd_5_2.v[0]  = rnd_4_2.v[0];  rnd_5_2.v[1] = rnd_4_18.v[0];
+    vec256_t rnd_5_18; rnd_5_18.v[0] = rnd_4_2.v[1]; rnd_5_18.v[1] = rnd_4_18.v[1];
+    *((vec256_t *)(dst_origin +  2*dst_stride)) = rnd_5_2;
+    *((vec256_t *)(dst_origin + 18*dst_stride)) = rnd_5_18;
     //__m256i shf_5_3 = _mm256_permute2x128_si256(rnd_4_3, rnd_4_3, 0x01);
     //__m256i shf_5_19 = _mm256_permute2x128_si256(rnd_4_19, rnd_4_19, 0x01);
     //__m256i rnd_5_3 = _mm256_blendv_epi8(rnd_4_3, shf_5_19, blm_5);
     //__m256i rnd_5_19 = _mm256_blendv_epi8(shf_5_3, rnd_4_19, blm_5);
     //*(STORE_TYPE*)(dst_origin + 3*dst_stride) = rnd_5_3;
     //*(STORE_TYPE*)(dst_origin + 19*dst_stride) = rnd_5_19;
+    vec256_t rnd_5_3;  rnd_5_3.v[0]  = rnd_4_3.v[0];  rnd_5_3.v[1] = rnd_4_19.v[0];
+    vec256_t rnd_5_19; rnd_5_19.v[0] = rnd_4_3.v[1]; rnd_5_19.v[1] = rnd_4_19.v[1];
+    *((vec256_t *)(dst_origin +  3*dst_stride)) = rnd_5_3;
+    *((vec256_t *)(dst_origin + 19*dst_stride)) = rnd_5_19;
     //__m256i shf_5_4 = _mm256_permute2x128_si256(rnd_4_4, rnd_4_4, 0x01);
     //__m256i shf_5_20 = _mm256_permute2x128_si256(rnd_4_20, rnd_4_20, 0x01);
     //__m256i rnd_5_4 = _mm256_blendv_epi8(rnd_4_4, shf_5_20, blm_5);
     //__m256i rnd_5_20 = _mm256_blendv_epi8(shf_5_4, rnd_4_20, blm_5);
     //*(STORE_TYPE*)(dst_origin + 4*dst_stride) = rnd_5_4;
     //*(STORE_TYPE*)(dst_origin + 20*dst_stride) = rnd_5_20;
+    vec256_t rnd_5_4;  rnd_5_4.v[0]  = rnd_4_4.v[0];  rnd_5_4.v[1] = rnd_4_20.v[0];
+    vec256_t rnd_5_20; rnd_5_20.v[0] = rnd_4_4.v[1]; rnd_5_20.v[1] = rnd_4_20.v[1];
+    *((vec256_t *)(dst_origin +  4*dst_stride)) = rnd_5_4;
+    *((vec256_t *)(dst_origin + 20*dst_stride)) = rnd_5_20;
     //__m256i shf_5_5 = _mm256_permute2x128_si256(rnd_4_5, rnd_4_5, 0x01);
     //__m256i shf_5_21 = _mm256_permute2x128_si256(rnd_4_21, rnd_4_21, 0x01);
     //__m256i rnd_5_5 = _mm256_blendv_epi8(rnd_4_5, shf_5_21, blm_5);
     //__m256i rnd_5_21 = _mm256_blendv_epi8(shf_5_5, rnd_4_21, blm_5);
     //*(STORE_TYPE*)(dst_origin + 5*dst_stride) = rnd_5_5;
     //*(STORE_TYPE*)(dst_origin + 21*dst_stride) = rnd_5_21;
+    vec256_t rnd_5_5;  rnd_5_5.v[0]  = rnd_4_5.v[0];  rnd_5_5.v[1] = rnd_4_21.v[0];
+    vec256_t rnd_5_21; rnd_5_21.v[0] = rnd_4_5.v[1]; rnd_5_21.v[1] = rnd_4_21.v[1];
+    *((vec256_t *)(dst_origin +  5*dst_stride)) = rnd_5_5;
+    *((vec256_t *)(dst_origin + 21*dst_stride)) = rnd_5_21;
     //__m256i shf_5_6 = _mm256_permute2x128_si256(rnd_4_6, rnd_4_6, 0x01);
     //__m256i shf_5_22 = _mm256_permute2x128_si256(rnd_4_22, rnd_4_22, 0x01);
     //__m256i rnd_5_6 = _mm256_blendv_epi8(rnd_4_6, shf_5_22, blm_5);
@@ -551,24 +559,40 @@ void matrix_transpose_32x32(uint8_t* dst_origin,
     //__m256i rnd_5_22 = _mm256_blendv_epi8(shf_5_6, rnd_4_22, blm_5);
     //*(STORE_TYPE*)(dst_origin + 6*dst_stride) = rnd_5_6;
     //*(STORE_TYPE*)(dst_origin + 22*dst_stride) = rnd_5_22;
+    vec256_t rnd_5_6;  rnd_5_6.v[0]  = rnd_4_6.v[0];  rnd_5_6.v[1] = rnd_4_22.v[0];
+    vec256_t rnd_5_22; rnd_5_22.v[0] = rnd_4_6.v[1]; rnd_5_22.v[1] = rnd_4_22.v[1];
+    *((vec256_t *)(dst_origin +  6*dst_stride)) = rnd_5_6;
+    *((vec256_t *)(dst_origin + 22*dst_stride)) = rnd_5_22;
     //__m256i shf_5_7 = _mm256_permute2x128_si256(rnd_4_7, rnd_4_7, 0x01);
     //__m256i shf_5_23 = _mm256_permute2x128_si256(rnd_4_23, rnd_4_23, 0x01);
     //__m256i rnd_5_7 = _mm256_blendv_epi8(rnd_4_7, shf_5_23, blm_5);
     //__m256i rnd_5_23 = _mm256_blendv_epi8(shf_5_7, rnd_4_23, blm_5);
     //*(STORE_TYPE*)(dst_origin + 7*dst_stride) = rnd_5_7;
     //*(STORE_TYPE*)(dst_origin + 23*dst_stride) = rnd_5_23;
+    vec256_t rnd_5_7;  rnd_5_7.v[0]  = rnd_4_7.v[0];  rnd_5_7.v[1] = rnd_4_23.v[0];
+    vec256_t rnd_5_23; rnd_5_23.v[0] = rnd_4_7.v[1]; rnd_5_23.v[1] = rnd_4_23.v[1];
+    *((vec256_t *)(dst_origin +  7*dst_stride)) = rnd_5_7;
+    *((vec256_t *)(dst_origin + 23*dst_stride)) = rnd_5_23;
     //__m256i shf_5_8 = _mm256_permute2x128_si256(rnd_4_8, rnd_4_8, 0x01);
     //__m256i shf_5_24 = _mm256_permute2x128_si256(rnd_4_24, rnd_4_24, 0x01);
     //__m256i rnd_5_8 = _mm256_blendv_epi8(rnd_4_8, shf_5_24, blm_5);
     //__m256i rnd_5_24 = _mm256_blendv_epi8(shf_5_8, rnd_4_24, blm_5);
     //*(STORE_TYPE*)(dst_origin + 8*dst_stride) = rnd_5_8;
     //*(STORE_TYPE*)(dst_origin + 24*dst_stride) = rnd_5_24;
+    vec256_t rnd_5_8;  rnd_5_8.v[0]  = rnd_4_8.v[0];  rnd_5_8.v[1] = rnd_4_24.v[0];
+    vec256_t rnd_5_24; rnd_5_24.v[0] = rnd_4_8.v[1]; rnd_5_24.v[1] = rnd_4_24.v[1];
+    *((vec256_t *)(dst_origin +  8*dst_stride)) = rnd_5_8;
+    *((vec256_t *)(dst_origin + 24*dst_stride)) = rnd_5_24;
     //__m256i shf_5_9 = _mm256_permute2x128_si256(rnd_4_9, rnd_4_9, 0x01);
     //__m256i shf_5_25 = _mm256_permute2x128_si256(rnd_4_25, rnd_4_25, 0x01);
     //__m256i rnd_5_9 = _mm256_blendv_epi8(rnd_4_9, shf_5_25, blm_5);
     //__m256i rnd_5_25 = _mm256_blendv_epi8(shf_5_9, rnd_4_25, blm_5);
     //*(STORE_TYPE*)(dst_origin + 9*dst_stride) = rnd_5_9;
     //*(STORE_TYPE*)(dst_origin + 25*dst_stride) = rnd_5_25;
+    vec256_t rnd_5_9;  rnd_5_9.v[0]  = rnd_4_9.v[0];  rnd_5_9.v[1] = rnd_4_25.v[0];
+    vec256_t rnd_5_25; rnd_5_25.v[0] = rnd_4_9.v[1]; rnd_5_25.v[1] = rnd_4_25.v[1];
+    *((vec256_t *)(dst_origin +  9*dst_stride)) = rnd_5_9;
+    *((vec256_t *)(dst_origin + 25*dst_stride)) = rnd_5_25;
     //__m256i shf_5_10 = _mm256_permute2x128_si256(rnd_4_10, rnd_4_10, 0x01);
     //__m256i shf_5_26 = _mm256_permute2x128_si256(rnd_4_26, rnd_4_26, 0x01);
     //__m256i rnd_5_10 = _mm256_blendv_epi8(rnd_4_10, shf_5_26, blm_5);
@@ -576,24 +600,40 @@ void matrix_transpose_32x32(uint8_t* dst_origin,
     //__m256i rnd_5_26 = _mm256_blendv_epi8(shf_5_10, rnd_4_26, blm_5);
     //*(STORE_TYPE*)(dst_origin + 10*dst_stride) = rnd_5_10;
     //*(STORE_TYPE*)(dst_origin + 26*dst_stride) = rnd_5_26;
+    vec256_t rnd_5_10; rnd_5_10.v[0] = rnd_4_10.v[0]; rnd_5_10.v[1] = rnd_4_26.v[0];
+    vec256_t rnd_5_26; rnd_5_26.v[0] = rnd_4_10.v[1]; rnd_5_26.v[1] = rnd_4_26.v[1];
+    *((vec256_t *)(dst_origin + 10*dst_stride)) = rnd_5_10;
+    *((vec256_t *)(dst_origin + 26*dst_stride)) = rnd_5_26;
     //__m256i shf_5_11 = _mm256_permute2x128_si256(rnd_4_11, rnd_4_11, 0x01);
     //__m256i shf_5_27 = _mm256_permute2x128_si256(rnd_4_27, rnd_4_27, 0x01);
     //__m256i rnd_5_11 = _mm256_blendv_epi8(rnd_4_11, shf_5_27, blm_5);
     //__m256i rnd_5_27 = _mm256_blendv_epi8(shf_5_11, rnd_4_27, blm_5);
     //*(STORE_TYPE*)(dst_origin + 11*dst_stride) = rnd_5_11;
     //*(STORE_TYPE*)(dst_origin + 27*dst_stride) = rnd_5_27;
+    vec256_t rnd_5_11; rnd_5_11.v[0] = rnd_4_11.v[0]; rnd_5_11.v[1] = rnd_4_27.v[0];
+    vec256_t rnd_5_27; rnd_5_27.v[0] = rnd_4_11.v[1]; rnd_5_27.v[1] = rnd_4_27.v[1];
+    *((vec256_t *)(dst_origin + 11*dst_stride)) = rnd_5_11;
+    *((vec256_t *)(dst_origin + 27*dst_stride)) = rnd_5_27;
     //__m256i shf_5_12 = _mm256_permute2x128_si256(rnd_4_12, rnd_4_12, 0x01);
     //__m256i shf_5_28 = _mm256_permute2x128_si256(rnd_4_28, rnd_4_28, 0x01);
     //__m256i rnd_5_12 = _mm256_blendv_epi8(rnd_4_12, shf_5_28, blm_5);
     //__m256i rnd_5_28 = _mm256_blendv_epi8(shf_5_12, rnd_4_28, blm_5);
     //*(STORE_TYPE*)(dst_origin + 12*dst_stride) = rnd_5_12;
     //*(STORE_TYPE*)(dst_origin + 28*dst_stride) = rnd_5_28;
+    vec256_t rnd_5_12; rnd_5_12.v[0] = rnd_4_12.v[0]; rnd_5_12.v[1] = rnd_4_28.v[0];
+    vec256_t rnd_5_28; rnd_5_28.v[0] = rnd_4_12.v[1]; rnd_5_28.v[1] = rnd_4_28.v[1];
+    *((vec256_t *)(dst_origin + 12*dst_stride)) = rnd_5_12;
+    *((vec256_t *)(dst_origin + 28*dst_stride)) = rnd_5_28;
     //__m256i shf_5_13 = _mm256_permute2x128_si256(rnd_4_13, rnd_4_13, 0x01);
     //__m256i shf_5_29 = _mm256_permute2x128_si256(rnd_4_29, rnd_4_29, 0x01);
     //__m256i rnd_5_13 = _mm256_blendv_epi8(rnd_4_13, shf_5_29, blm_5);
     //__m256i rnd_5_29 = _mm256_blendv_epi8(shf_5_13, rnd_4_29, blm_5);
     //*(STORE_TYPE*)(dst_origin + 13*dst_stride) = rnd_5_13;
     //*(STORE_TYPE*)(dst_origin + 29*dst_stride) = rnd_5_29;
+    vec256_t rnd_5_13; rnd_5_13.v[0] = rnd_4_13.v[0]; rnd_5_13.v[1] = rnd_4_29.v[0];
+    vec256_t rnd_5_29; rnd_5_29.v[0] = rnd_4_13.v[1]; rnd_5_29.v[1] = rnd_4_29.v[1];
+    *((vec256_t *)(dst_origin + 13*dst_stride)) = rnd_5_13;
+    *((vec256_t *)(dst_origin + 29*dst_stride)) = rnd_5_29;
     //__m256i shf_5_14 = _mm256_permute2x128_si256(rnd_4_14, rnd_4_14, 0x01);
     //__m256i shf_5_30 = _mm256_permute2x128_si256(rnd_4_30, rnd_4_30, 0x01);
     //__m256i rnd_5_14 = _mm256_blendv_epi8(rnd_4_14, shf_5_30, blm_5);
@@ -601,11 +641,18 @@ void matrix_transpose_32x32(uint8_t* dst_origin,
     //__m256i rnd_5_30 = _mm256_blendv_epi8(shf_5_14, rnd_4_30, blm_5);
     //*(STORE_TYPE*)(dst_origin + 14*dst_stride) = rnd_5_14;
     //*(STORE_TYPE*)(dst_origin + 30*dst_stride) = rnd_5_30;
+    vec256_t rnd_5_14; rnd_5_14.v[0] = rnd_4_14.v[0]; rnd_5_14.v[1] = rnd_4_30.v[0];
+    vec256_t rnd_5_30; rnd_5_30.v[0] = rnd_4_14.v[1]; rnd_5_30.v[1] = rnd_4_30.v[1];
+    *((vec256_t *)(dst_origin + 14*dst_stride)) = rnd_5_14;
+    *((vec256_t *)(dst_origin + 30*dst_stride)) = rnd_5_30;
     //__m256i shf_5_15 = _mm256_permute2x128_si256(rnd_4_15, rnd_4_15, 0x01);
     //__m256i shf_5_31 = _mm256_permute2x128_si256(rnd_4_31, rnd_4_31, 0x01);
     //__m256i rnd_5_15 = _mm256_blendv_epi8(rnd_4_15, shf_5_31, blm_5);
     //__m256i rnd_5_31 = _mm256_blendv_epi8(shf_5_15, rnd_4_31, blm_5);
     //*(STORE_TYPE*)(dst_origin + 15*dst_stride) = rnd_5_15;
     //*(STORE_TYPE*)(dst_origin + 31*dst_stride) = rnd_5_31;
-    printf("kek");
+    vec256_t rnd_5_15; rnd_5_15.v[0] = rnd_4_15.v[0]; rnd_5_15.v[1] = rnd_4_31.v[0];
+    vec256_t rnd_5_31; rnd_5_31.v[0] = rnd_4_15.v[1]; rnd_5_31.v[1] = rnd_4_31.v[1];
+    *((vec256_t *)(dst_origin + 15*dst_stride)) = rnd_5_15;
+    *((vec256_t *)(dst_origin + 31*dst_stride)) = rnd_5_31;
 }
