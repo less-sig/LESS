@@ -6,8 +6,11 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [maxos-14-latest]
+        os: [macos-14]
         compiler: [ g++-14, clang++-15 ]
+        settings:
+          - host: macos-14
+            target: arm64-apple-darwin
 
     name: Build & test on ${{ matrix.os }} with ${{ matrix.compiler }}.
     runs-on: ${{ matrix.os }}
