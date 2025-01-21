@@ -13,8 +13,7 @@
 
 
 
-/// TODO: this seems wrong: If Floyd activates the avx implementation it computes wrong results
-#if  USE_AVX2
+#if  defined(USE_AVX2)// || defined(USE_NEON)
 void KeccakP1600_Permute_24rounds(uint64_t *state);
 void KeccakP1600_ExtractBytes(uint64_t *state, unsigned char *data,
                               unsigned int offset, unsigned int length);

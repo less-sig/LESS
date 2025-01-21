@@ -115,13 +115,13 @@ typedef union {
 #define vor(c, a, b)    c.v[0] = vorrq_u8(a.v[0], b.v[0]); c.v[1] = vorrq_u8(a.v[1], b.v[1]);
 
 // c[0..16] = n
-#define vset8(c, n)   c.v[0] = vdupq_n_u8(n); c.v[1] = vdupq_n_u8(n);
+#define vset8(c, n)   c.v[0] = vdupq_n_u8((uint8_t)n); c.v[1] = vdupq_n_u8((uint8_t)n);
 #define vset16(c, n)  c.v[0] = (__uint16x8_t)vdupq_n_u16(n); c.v[1] = (__uint16x8_t)vdupq_n_u16(n);
 
 // c = a == b
 #define vcmp8(c, a, b) c.v[0] = vceqq_u8(a.v[0], b.v[0]); c.v[1] = vceqq_u8(a.v[1], b.v[1]);
 
-// TODO a implementation
+// moves the msb of each uint8_t limb int a single bit
 static inline uint32_t vmovemask8(const vec256_t a) {
 	uint16x8_t high_bits0 = vreinterpretq_u16_u8(vshrq_n_u8(a.v[0], 7));
 	uint16x8_t high_bits1 = vreinterpretq_u16_u8(vshrq_n_u8(a.v[1], 7));

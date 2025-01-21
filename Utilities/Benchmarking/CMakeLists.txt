@@ -27,8 +27,8 @@ option(USE_SANITIZE "enable compiler memory sanitation" OFF)
 option(USE_REFERENCE "Use reference implementation" OFF)
 
 # use AVX2 implementations.
-option(USE_AVX2 "Use the AVX2 Optimized Omplementation." ON)
-option(USE_NEON "Use the NEON Optimized Omplementation." OFF)
+option(USE_AVX2 "Use the AVX2 Optimized Omplementation." OFF)
+option(USE_NEON "Use the NEON Optimized Omplementation." ON)
 option(USE_M4 "Use the M4 Optimized Omplementation." OFF)
 
 # default compilation picks reference codebase
@@ -168,36 +168,34 @@ endif()
 
 if(USE_NEON)
 	set(HEADERS ${HEADERS} ${BASE_DIR}/include/macro.h)
+	set(SOURCES ${SOURCES} ${BASE_DIR}/lib/transpose_neon.c)
 endif()
 
-foreach(category RANGE 1 5 2)
-  if(category EQUAL 1)
-  set(PARAM_TARGETS SHORT_SIG INTERMEDIATE BALANCED)
-  else()
-  set(PARAM_TARGETS SHORT_SIG BALANCED)
+include_directories(${BASE_DIR}/include)
+
+foreach(category "252" "400" "548")
+  if(${category} EQUAL "252")
+    set(PARAM_TARGETS "192" "68" "45")
+  elseif(${category} EQUAL "400")
+    set(PARAM_TARGETS "220" "102")
+  elseif(${category} EQUAL "548")
+    set(PARAM_TARGETS "345" "137")
   endif()
-  foreach(optimiz_target ${PARAM_TARGETS})
+
+  foreach(optimize_target ${PARAM_TARGETS})
     # settings for benchmarking binary
-    set(TARGET_BINARY_NAME LESS_benchmark_cat_${category}_${optimiz_target})
-    add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}
-                       ./lib/less_benchmark.c)
-    target_include_directories(${TARGET_BINARY_NAME} PRIVATE
-                               ${BASE_DIR}/include
-                               ./include)
-    target_link_libraries(${TARGET_BINARY_NAME} m ${SANITIZE} ${KECCAK_EXTERNAL_LIB})
-    set_target_properties(${TARGET_BINARY_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ./bin)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY
-       COMPILE_FLAGS "-DCATEGORY_${category}=1 -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+    set(TARGET_BINARY_NAME LESS_benchmark_cat_${category}_${optimize_target})
+    add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/less_benchmark.c)
+    target_link_libraries(${TARGET_BINARY_NAME} m)
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
+
     # settings for unit tests binary
-    set(TARGET_BINARY_NAME LESS_test_cat_${category}_${optimiz_target})
-    add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}
-                       ./lib/less_test.c)
-    target_include_directories(${TARGET_BINARY_NAME} PRIVATE
-                               ${BASE_DIR}/include
-                               ./include)
-    target_link_libraries(${TARGET_BINARY_NAME} m ${SANITIZE} ${KECCAK_EXTERNAL_LIB})
-    set_target_properties(${TARGET_BINARY_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ./bin)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY
-       COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
-  endforeach(optimiz_target)
+    set(TARGET_BINARY_NAME LESS_test_cat_${category}_${optimize_target})
+    add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/less_test.c)
+    target_link_libraries(${TARGET_BINARY_NAME} m)
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
+    target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
+  endforeach(optimize_target)
 endforeach(category)

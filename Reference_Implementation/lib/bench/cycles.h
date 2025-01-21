@@ -13,7 +13,7 @@ static
 void setup_cycle_counter(void)
 {
 #ifdef MACOS_KPERF
-   kperf_init_once();
+    __m1_setup_rdtsc();
 #endif
 }
 

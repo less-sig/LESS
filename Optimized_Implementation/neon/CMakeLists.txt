@@ -19,14 +19,15 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS      " -Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal")
+set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal")
 set(CMAKE_C_FLAGS_DEBUG "-g -DUSE_NEON -DDEBUG -O0  -march=native -flax-vector-conversions")
-set(CMAKE_C_FLAGS_RELEASE "-g -DUSE_NEON -O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNING}")
+set(CMAKE_C_FLAGS_RELEASE "-g -DUSE_NEON -O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNINGS}")
 
 set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/codes.c
         ${PROJECT_SOURCE_DIR}/lib/fips202.c
         ${PROJECT_SOURCE_DIR}/lib/keccakf1600.c
+        # ${PROJECT_SOURCE_DIR}/lib/KeccakP-1600-armv8a-neon.s
         ${PROJECT_SOURCE_DIR}/lib/LESS.c
         ${PROJECT_SOURCE_DIR}/lib/LESS_without_tree.c
         ${PROJECT_SOURCE_DIR}/lib/monomial.c
