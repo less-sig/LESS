@@ -24,10 +24,10 @@ endif()
 option(USE_SANITIZE "enable compiler memory sanitation" OFF)
 
 # default compilation picks reference codebase
-option(USE_REFERENCE "Use reference implementation" OFF)
+option(USE_REFERENCE "Use reference implementation" ON)
 
 # use AVX2 implementations.
-option(USE_AVX2 "Use the AVX2 Optimized Omplementation." ON)
+option(USE_AVX2 "Use the AVX2 Optimized Omplementation." OFF)
 option(USE_NEON "Use the NEON Optimized Omplementation." OFF)
 option(USE_M4 "Use the M4 Optimized Omplementation." OFF)
 
@@ -99,11 +99,11 @@ endif()
 set(CMAKE_C_STANDARD 99)
 
 if(USE_AVX2)
-    set(CMAKE_C_FLAGS "-DUSE_AVX2 -mavx -mavx2 ${CMAKE_C_FLAGS} ")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_AVX2 -mavx -mavx2 ")
 endif()
 
 if(USE_NEON)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flax-vector-conversions")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_NEON -flax-vector-conversions")
 endif()
 
 message(STATUS "Compilation flags:" ${CMAKE_C_FLAGS})
