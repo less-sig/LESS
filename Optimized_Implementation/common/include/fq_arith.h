@@ -261,7 +261,7 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
     vget_hi(tmp, b);
     vextend8_16(b_hi, tmp);
 
-    for (uint32_t col = 0; col < N_K_pad; col+=32) {
+    for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
         vload256(a, (vec256_t *)(row + col));
 
         vget_lo(tmp, a);
@@ -306,7 +306,7 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
     vget_hi(tmp, b);
     vextend8_16(b_hi, tmp);
 
-    for (uint32_t col = 0; col < N_K_pad; col+=32) {
+    for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
         vload256(a, (vec256_t *)(in + col));
 
         vget_lo(tmp, a);
@@ -344,7 +344,7 @@ void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
     vset8(c7f, 127);
     vset8(c01, 1);
 
-    for (uint32_t col = 0; col < N_K_pad; col+=32) {
+    for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
         vload256(a, (vec256_t *)(in1 + col));
         vload256(b, (vec256_t *)(in2 + col));
 
