@@ -131,8 +131,8 @@ static inline uint32_t vmovemask8(const vec256_t a) {
 	uint64x2_t paired321  = vreinterpretq_u64_u32(vsraq_n_u32(paired161, paired161, 14));
 	uint8x16_t paired640  = vreinterpretq_u8_u64(vsraq_n_u64(paired320, paired320, 28));
 	uint8x16_t paired641  = vreinterpretq_u8_u64(vsraq_n_u64(paired321, paired321, 28));
-	return (vgetq_lane_u8(paired640, 0) <<  0) | ((int) vgetq_lane_u8(paired640, 8) <<  8) |
-		   (vgetq_lane_u8(paired641, 0) << 16) | ((int) vgetq_lane_u8(paired641, 8) << 24);
+	return (uint32_t)((vgetq_lane_u8(paired640, 0) <<  0) | ((int) vgetq_lane_u8(paired640, 8) <<  8) |
+		              (vgetq_lane_u8(paired641, 0) << 16) | ((int) vgetq_lane_u8(paired641, 8) << 24));
 }
 
 // Unpack 8-bit low: a[0] | b[0] ... a[7] | b[7]
