@@ -80,11 +80,11 @@ typedef union {
 /// NOTE: ptr must be (v256_t *)
 // c <- src
 #define vload256(c, src) c.v[0] = vld1q_u8((uint8_t *)src); c.v[1] = vld1q_u8(((uint8_t *)src) + 16u);
-#define vload128(c, src) c.v[0] = vld1q_u8(suint8_t *)src);
+#define vload128(c, src) c.v[0] = vld1q_u8((uint8_t *)src);
 
 // src <- c
-#define vstore256(src, c) vst1q_u8((uint8_t *)src, c.v[0]); vst1q_u8(((uint8_t *)src + 16), c.v[1]);
-#define vstore128(src, c) vst1q_u8(suint8_t *)src, c.v);
+#define vstore256(src, c) vst1q_u8((uint8_t *)src, c.v[0]); vst1q_u8(((uint8_t *)src) + 16, c.v[1]);
+#define vstore128(src, c) vst1q_u8((uint8_t *)src, c.v);
 
 // c = a + b
 #define vadd8(c, a, b)   c.v[0] = vaddq_u8(a.v[0], b.v[0]); c.v[1] = vaddq_u8(a.v[1], b.v[1]);
@@ -115,13 +115,13 @@ typedef union {
 #define vor(c, a, b)    c.v[0] = vorrq_u8(a.v[0], b.v[0]); c.v[1] = vorrq_u8(a.v[1], b.v[1]);
 
 // c[0..16] = n
-#define vset8(c, n)   c.v[0] = vdupq_n_u8(n); c.v[1] = vdupq_n_u8(n);
+#define vset8(c, n)   c.v[0] = vdupq_n_u8((uint8_t)n); c.v[1] = vdupq_n_u8((uint8_t)n);
 #define vset16(c, n)  c.v[0] = (__uint16x8_t)vdupq_n_u16(n); c.v[1] = (__uint16x8_t)vdupq_n_u16(n);
 
 // c = a == b
 #define vcmp8(c, a, b) c.v[0] = vceqq_u8(a.v[0], b.v[0]); c.v[1] = vceqq_u8(a.v[1], b.v[1]);
 
-// TODO a implementation
+// moves the msb of each uint8_t limb int a single bit
 static inline uint32_t vmovemask8(const vec256_t a) {
 	uint16x8_t high_bits0 = vreinterpretq_u16_u8(vshrq_n_u8(a.v[0], 7));
 	uint16x8_t high_bits1 = vreinterpretq_u16_u8(vshrq_n_u8(a.v[1], 7));
@@ -131,8 +131,8 @@ static inline uint32_t vmovemask8(const vec256_t a) {
 	uint64x2_t paired321  = vreinterpretq_u64_u32(vsraq_n_u32(paired161, paired161, 14));
 	uint8x16_t paired640  = vreinterpretq_u8_u64(vsraq_n_u64(paired320, paired320, 28));
 	uint8x16_t paired641  = vreinterpretq_u8_u64(vsraq_n_u64(paired321, paired321, 28));
-	return (vgetq_lane_u8(paired640, 0) <<  0) | ((int) vgetq_lane_u8(paired640, 8) <<  8) |
-		   (vgetq_lane_u8(paired641, 0) << 16) | ((int) vgetq_lane_u8(paired641, 8) << 24);
+	return (uint32_t)((vgetq_lane_u8(paired640, 0) <<  0) | ((int) vgetq_lane_u8(paired640, 8) <<  8) |
+		              (vgetq_lane_u8(paired641, 0) << 16) | ((int) vgetq_lane_u8(paired641, 8) << 24));
 }
 
 // Unpack 8-bit low: a[0] | b[0] ... a[7] | b[7]

@@ -145,7 +145,7 @@ void generator_monomial_mul(generator_mat_t *res,
     for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
 
         const FQ_ELEM *G_pointer = G->values[row_idx];
-        for (uint32_t src_col_idx = 0; src_col_idx < N_pad; src_col_idx += 32) {
+        for (uint32_t src_col_idx = 0; (src_col_idx+32) <= N_pad; src_col_idx += 32) {
             vload256(g, (vec256_t *) &G_pointer[src_col_idx]);
             vload256(mono, (vec256_t *) &(monom->coefficients[src_col_idx]));
 

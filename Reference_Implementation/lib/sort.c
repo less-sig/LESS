@@ -128,7 +128,7 @@ int SortRows_internal_hoare_partition(FQ_ELEM* ptr[K],
     return i+1;
 }
 
-#ifdef LESS_USE_CUSTOM_HISTOGRAM
+#if defined(LESS_USE_CUSTOM_HISTOGRAM) && defined(USE_AVX2)
 void HISTEND4(uint8_t *cnt,
               uint8_t c[4][128]) {
     for(uint32_t i = 0; i < Q_pad; i+=32) {
@@ -174,11 +174,25 @@ void sort(uint8_t *out,
 #ifdef LESS_USE_HISTOGRAM
 #ifndef LESS_USE_CUSTOM_HISTOGRAM
     memset(out, 0, Q_pad);
-	for (uint32_t i = 0 ; i < len ; ++i) {
-	    const uint8_t t = in[i];
+	for (uint32_t i = 0 ; i < len; ++i) {
+	    const uint32_t t = in[i];
 		out[t]++;
 	}
 #else
+#ifdef USE_NEON
+    uint8_t c[4][Q_pad] __attribute__((aligned(32))) = {0};
+    const uint8_t *ip = in;
+    while(ip != in+(len&~(4-1))) c[0][*ip++]++, c[1][*ip++]++, c[2][*ip++]++, c[3][*ip++]++;
+    while(ip != in+ len        ) c[0][*ip++]++;
+    for (uint32_t i = 0; i < Q_pad; i++){
+        out[i] = c[0][i]
+               + c[1][i]
+               + c[2][i]
+               + c[3][i];
+    }
+#endif
+
+#ifdef USE_AVX2
     uint8_t c[4][Q_pad] __attribute__((aligned(32))) = {0};
     const uint8_t *ip = in;
     while(ip != in+(len&~(4-1))) c[0][*ip++]++, c[1][*ip++]++, c[2][*ip++]++, c[3][*ip++]++;
@@ -191,13 +205,14 @@ void sort(uint8_t *out,
     //while(ip != in+ len        ) c[0][*ip++]++;
     //HISTEND8(out, c);
 #endif
+#endif
 #else
     memcpy(out, in, sizeof(FQ_ELEM) * N-K);
     counting_sort_u8(out, len);
 #endif
 }
 
-/// internal sorting function for `rowsort`
+/// internal sorting function for `SortRows`
 int SortRows_internal(FQ_ELEM *ptr[K],
                      uint32_t P[K],
                      const uint32_t n) {

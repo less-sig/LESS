@@ -222,6 +222,11 @@
 // which is enough to compare two rows.
 #define LESS_USE_HISTOGRAM
 
+/// made it slower
+//#ifdef USE_NEON
+//#define LESS_USE_CUSTOM_HISTOGRAM
+//#endif
+
 #ifdef USE_AVX2
 /// NOTE: only available for optimized implementations
 /// if set a custom 4 bucket histogram implementation is used. This only speedups the implementation

@@ -2,16 +2,10 @@
 
 calc(){ awk "BEGIN { print "$*" }"; }
 
-SUDO=""
-if [[ $OSTYPE == 'darwin'* ]]; then
-	echo 'macOS'
-	SUDO="sudo"
-fi
-
-for file in build/*
+for file in cmake-build-release/*
 do
     if grep -q benchmark "${file}"; then
-	    output=$(${SUDO} ./${file} 2>&1)
+	    output=$(sudo ./${file} 2>&1)
 	    keygen_time=0
 	    verification_time=0
 	    signature_time=0
