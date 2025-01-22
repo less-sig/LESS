@@ -2,7 +2,7 @@
 
 calc(){ awk "BEGIN { print "$*" }"; }
 
-for file in build/bin/*
+for file in build/*
 do
     if grep -q benchmark "${file}"; then
 	    output=$(./${file} 2>&1)

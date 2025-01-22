@@ -80,11 +80,11 @@ typedef union {
 /// NOTE: ptr must be (v256_t *)
 // c <- src
 #define vload256(c, src) c.v[0] = vld1q_u8((uint8_t *)src); c.v[1] = vld1q_u8(((uint8_t *)src) + 16u);
-#define vload128(c, src) c.v[0] = vld1q_u8(suint8_t *)src);
+#define vload128(c, src) c.v[0] = vld1q_u8((uint8_t *)src);
 
 // src <- c
-#define vstore256(src, c) vst1q_u8((uint8_t *)src, c.v[0]); vst1q_u8(((uint8_t *)src + 16), c.v[1]);
-#define vstore128(src, c) vst1q_u8(suint8_t *)src, c.v);
+#define vstore256(src, c) vst1q_u8((uint8_t *)src, c.v[0]); vst1q_u8(((uint8_t *)src) + 16, c.v[1]);
+#define vstore128(src, c) vst1q_u8((uint8_t *)src, c.v);
 
 // c = a + b
 #define vadd8(c, a, b)   c.v[0] = vaddq_u8(a.v[0], b.v[0]); c.v[1] = vaddq_u8(a.v[1], b.v[1]);
