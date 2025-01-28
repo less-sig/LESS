@@ -164,7 +164,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
         }
     }
 
-    for (int row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
+    for (uint32_t row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
         uint32_t pivot_row = row_to_reduce;
         /*start by searching the pivot in the col = row*/
         uint32_t pivot_column = row_to_reduce;

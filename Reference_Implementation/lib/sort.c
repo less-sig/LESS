@@ -9,6 +9,8 @@
 #include "codes.h"
 #include "transpose.h"
 
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+
 /// NOTE: specialised counting sort for Fq. Thus,
 /// this implementation assumes that every input element
 /// is reduced mod 127
