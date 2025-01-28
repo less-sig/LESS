@@ -53,6 +53,7 @@ void randombytes(unsigned char *x,
    xof_shake_extract(&platform_csprng_state, x, xlen);
 }
 
+__attribute__((unused))
 static
 void init_randombytes(const unsigned char *seed,
                        const size_t seed_len_bytes)

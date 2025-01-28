@@ -83,8 +83,6 @@ void apply_cf_action_to_G(generator_mat_t* res,
         }
     }
 finish:
-    assert(l == K);
-    assert(r == (N-K));
     return;
 }
 
@@ -121,9 +119,7 @@ void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
             }
         }
     }
-    finish:
-    ASSERT(l == K);
-    ASSERT(r == (N-K));
+finish:
     return;
 }
 
@@ -651,8 +647,6 @@ void normalized_copy(normalized_IS_t *V1,
 void normalized_row_swap(normalized_IS_t *V,
               const POSITION_T row1,
               const POSITION_T row2) {
-    ASSERT(row1 < K);
-    ASSERT(row2 < K);
     for(uint32_t i = 0; i < N-K; i++){
         POSITION_T tmp;
         tmp = V->values[row1][i];

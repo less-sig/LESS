@@ -321,8 +321,6 @@ void permutation_apply_row(const permutation_t *P,
 void permutation_swap(permutation_t *P,
                       const uint32_t i,
                       const uint32_t j) {
-    ASSERT(i < K);
-    ASSERT(i < N);
     POSITION_T tmp = P->permutation[i];
     P->permutation[i] = P->permutation[j];
     P->permutation[j] = tmp;
@@ -336,8 +334,6 @@ void permutation_cswap(permutation_t *P,
                        const uint32_t i,
                        const uint32_t j,
                        const uintptr_t mask) {
-    ASSERT(i < K);
-    ASSERT(i < N);
     MASKED_SWAP(P->permutation[i], P->permutation[j], mask);
 }
 
@@ -544,9 +540,6 @@ void bitonic_sort_i8(FQ_ELEM *x,
 int compare_rows_bitonic_sort(FQ_ELEM **rows,
 							  const uint32_t row1,
 							  const uint32_t row2) {
-    ASSERT(row1 < K);
-    ASSERT(row2 < K);
-
 #ifdef LESS_USE_HISTOGRAM
     uint32_t i = 0;
     while((i < (N-K-1)) && (rows[row1][i] == rows[row2][i])) {
@@ -642,42 +635,42 @@ int row_bitonic_sort(normalized_IS_t *G) {
 /// \param row_l
 /// \param row_h
 /// \return
-int row_quick_sort_internal_hoare_partition(FQ_ELEM* ptr[K],
-                                            uint32_t P[K],
-                                            const POSITION_T row_l,
-                                            const POSITION_T row_h) {
-#ifdef LESS_USE_HISTOGRAM
-    FQ_ELEM pivot_row[Q_pad];
-    for(uint32_t i = 0; i < Q_pad; i++){
-       pivot_row[i] = ptr[row_l][i];
-    }
-#else
-    FQ_ELEM pivot_row[N-K];
-    for(uint32_t i = 0; i < N-K; i++){
-       pivot_row[i] = ptr[row_l][i];
-    }
-#endif
-
-    POSITION_T i = row_l-1, j = row_h+1;
-	int ret;
-    while(1){
-        do {
-            i++;
-        	ret = SortRows_internal_compare(ptr, i, pivot_row);
-        } while(ret > 0);
-
-        do {
-            j--;
-        	ret = SortRows_internal_compare(ptr, j, pivot_row);
-        } while(ret < 0);
-
-    	// if (ret == 0) { return -1; }
-        if(i >= j){ return j; }
-
-        SWAP(P[i], P[j]);
-        cswap((uintptr_t *)(&ptr[i]), (uintptr_t *)(&ptr[j]), -1ull);
-    }
-}
+// int row_quick_sort_internal_hoare_partition(FQ_ELEM* ptr[K],
+//                                             uint32_t P[K],
+//                                             const POSITION_T row_l,
+//                                             const POSITION_T row_h) {
+// #ifdef LESS_USE_HISTOGRAM
+//     FQ_ELEM pivot_row[Q_pad];
+//     for(uint32_t i = 0; i < Q_pad; i++){
+//        pivot_row[i] = ptr[row_l][i];
+//     }
+// #else
+//     FQ_ELEM pivot_row[N-K];
+//     for(uint32_t i = 0; i < N-K; i++){
+//        pivot_row[i] = ptr[row_l][i];
+//     }
+// #endif
+// 
+//     POSITION_T i = row_l-1, j = row_h+1;
+// 	int ret;
+//     while(1){
+//         do {
+//             i++;
+//         	ret = SortRows_internal_compare(ptr, i, pivot_row);
+//         } while(ret > 0);
+// 
+//         do {
+//             j--;
+//         	ret = SortRows_internal_compare(ptr, j, pivot_row);
+//         } while(ret < 0);
+// 
+//     	// if (ret == 0) { return -1; }
+//         if(i >= j){ return j; }
+// 
+//         SWAP(P[i], P[j]);
+//         cswap((uintptr_t *)(&ptr[i]), (uintptr_t *)(&ptr[j]), -1ull);
+//     }
+// }
 
 /// \param ptr[in/out]:
 /// \param P[in/out]: a permutation to keep track of the sorting
@@ -690,7 +683,7 @@ int row_quick_sort_recursive_internal(FQ_ELEM* ptr[K],
                                      const uint32_t start,
                                      const uint32_t end) {
     if(start < end){
-        const uint32_t p = (uint32_t)row_quick_sort_internal_hoare_partition(ptr, P, start, end);
+        const uint32_t p = 0; //(uint32_t)row_quick_sort_internal_hoare_partition(ptr, P, start, end);
     	if (p == -1u) { return 0; }
         row_quick_sort_recursive_internal(ptr, P, start, p);
         row_quick_sort_recursive_internal(ptr, P, p + 1u, end);
@@ -1373,3 +1366,86 @@ int compute_canonical_form_type5_tony(normalized_IS_t *G) {
 
     return touched;
 }
+
+
+
+
+int SortRows_internal2(FQ_ELEM *ptr[K],
+                     uint32_t P[K],
+                     const uint32_t n) {
+    uint32_t p = 64;
+    const uint32_t t = 6;
+    while(p > 0) {
+        uint32_t q = 1u << t, r=0, d=p;
+        while (d>0) {
+            for (uint32_t i = 0; i < n-d; i++) {
+                if ((i & p) == r) {
+                    const uint32_t pos1 = i, pos2 = i + d;
+                    if (compare_rows(ptr[pos1], ptr[pos2]) < 0) {
+                        SWAP(P[pos1], P[pos2]);
+                        cswap((uintptr_t *)(&ptr[pos1]), (uintptr_t *)(&ptr[pos2]), -1ull);
+                    }
+                }
+            }
+
+            d = q - p;
+            q >>= 1;
+            r = p;
+        }
+
+        p >>= 1u;
+    }
+
+    return 1;
+}
+uint8_t network[] = { 0,2,1,3,4,6,5,7,8,10,9,11,12,14,13,15,16,18,17,19,20,22,21,23,24,26,25,27,28,30,29,31,32,34,33,35,36,38,37,39,40,42,41,43,44,46,45,47,48,50,49,51,52,54,53,55,56,58,57,59,60,62,61,63,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,0,52,1,2,3,55,4,48,5,6,7,51,8,60,9,10,11,63,12,56,13,14,15,59,16,32,17,18,19,35,20,24,21,22,23,27,25,26,28,44,29,30,31,47,33,34,36,40,37,38,39,43,41,42,45,46,49,50,53,54,57,58,61,62,0,20,1,53,2,54,3,23,4,28,5,49,6,50,7,31,8,36,9,61,10,62,11,39,12,16,13,57,14,58,15,19,17,33,18,34,21,25,22,26,24,52,27,55,29,45,30,46,32,56,35,59,37,41,38,42,40,60,43,63,44,48,47,51,0,4,1,21,2,22,3,7,5,29,6,30,8,12,9,37,10,38,11,15,13,17,14,18,16,20,19,23,24,32,25,53,26,54,27,35,28,36,31,39,33,57,34,58,40,44,41,61,42,62,43,47,45,49,46,50,48,52,51,55,56,60,59,63,0,8,1,5,2,6,3,11,4,12,7,15,9,13,10,14,16,40,17,21,18,22,19,43,20,44,23,47,24,28,25,33,26,34,27,31,29,37,30,38,32,36,35,39,41,45,42,46,48,56,49,53,50,54,51,59,52,60,55,63,57,61,58,62,1,9,2,10,4,8,5,13,6,14,7,11,12,48,15,51,16,24,17,41,18,42,19,27,20,28,21,45,22,46,23,31,25,29,26,30,32,40,33,37,34,38,35,43,36,44,39,47,49,57,50,58,52,56,53,61,54,62,55,59,4,16,5,9,6,10,7,19,8,24,11,27,13,49,14,50,17,25,18,26,20,32,21,29,22,30,23,35,28,40,31,43,33,41,34,42,36,52,37,45,38,46,39,55,44,56,47,59,53,57,54,58,1,4,5,17,6,18,8,16,9,25,10,26,11,19,12,24,15,27,21,33,22,34,29,41,30,42,36,48,37,53,38,54,39,51,44,52,45,57,46,58,47,55,59,62,2,8,9,17,10,18,12,20,13,25,14,26,15,23,24,32,27,35,28,36,31,39,37,49,38,50,40,48,43,51,45,53,46,54,55,61,2,4,12,16,13,21,14,22,15,19,20,24,23,27,25,33,26,34,28,32,29,37,30,38,31,35,36,40,39,43,41,49,42,50,44,48,47,51,59,61,4,16,5,20,10,40,13,17,14,18,21,25,22,26,23,53,24,28,27,31,29,33,30,34,32,36,35,39,37,41,38,42,43,58,45,49,46,50,47,59,3,17,6,36,7,21,8,32,9,24,11,41,13,28,14,44,15,45,18,48,19,49,22,52,25,29,26,30,27,57,31,55,33,37,34,38,35,50,39,54,42,56,46,60,6,20,8,16,10,24,11,25,14,28,15,29,17,33,18,32,21,37,22,36,26,42,27,41,30,46,31,45,34,48,35,49,38,52,39,53,43,57,47,55,3,18,5,8,6,12,7,22,15,21,17,32,19,33,23,37,26,40,30,44,31,46,41,56,42,48,45,60,51,57,55,58,3,16,7,20,11,26,18,24,19,25,22,28,23,29,27,33,30,36,34,40,35,41,37,52,38,44,39,45,43,56,47,60,3,9,7,13,10,16,11,17,14,20,15,30,19,34,21,36,23,38,25,40,26,32,27,42,29,44,31,37,33,48,43,49,46,52,47,53,50,56,54,60,3,8,7,10,9,12,11,18,13,14,15,24,17,22,19,28,21,26,23,25,27,34,29,36,30,32,31,33,35,44,37,42,38,40,39,48,41,46,45,52,49,50,51,54,53,56,55,60,3,6,7,12,11,16,15,17,18,20,19,24,21,22,23,30,25,32,26,28,27,29,31,38,33,40,34,36,35,37,39,44,41,42,43,45,46,48,47,52,51,56,57,60,3,5,6,8,7,9,10,12,11,13,14,16,15,18,17,20,19,21,22,24,23,26,25,28,27,30,29,32,31,34,33,36,35,38,37,40,39,41,42,44,43,46,45,48,47,49,50,52,51,53,54,56,55,57,58,60,3,4,7,8,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,55,56,59,60};
+
+int SortRows_internal3(FQ_ELEM *ptr[K],
+                     uint32_t P[K],
+                     const uint32_t n) {
+    // sort forward
+    for (uint32_t i = 0; i < sizeof(network); i+=2) {
+        const uint32_t pos1 = network[i], pos2 = network[i+1];
+        if (compare_rows(ptr[pos1], ptr[pos2]) < 0) {
+            SWAP(P[pos1], P[pos2]);
+            cswap((uintptr_t *)(&ptr[pos1]), (uintptr_t *)(&ptr[pos2]), -1ull);
+        }
+    }
+
+    // sort backward
+    for (uint32_t i = 0; i < 1042; i+=2) {
+        const uint32_t pos1 = 64 + network[i], pos2 = 64 + network[i+1];
+        if (pos1 >= n || pos2 >= n) { continue; }
+        if (compare_rows(ptr[pos1], ptr[pos2]) < 0) {
+            SWAP(P[pos1], P[pos2]);
+            cswap((uintptr_t *)(&ptr[pos1]), (uintptr_t *)(&ptr[pos2]), -1ull);
+        }
+    }
+
+    // merge
+    //for (uint32_t r = 64; r > 1; r >>=1u) {
+    //    for (uint32_t lo = 64; r > 1; r >>=1u) {
+    //        const uint32_t m = r << 1u;
+    //        for (uint32_t i = lo+r; i+r<lo+n; i += m) {
+    //        
+    //        }
+    //    }
+    //}
+    // source idea: https://stackoverflow.com/questions/33320414/optimal-batcher-odd-even-merge-networks-for-sizes-different-than-2n   
+    const uint32_t t = 5;
+    uint32_t q = 1u << t, d=q-1;
+    while (d>0) {
+        for (uint32_t i = 1; (i+2) < n-d; i+=2) {
+            const uint32_t pos1 = i, pos2 = i + d;
+            if (compare_rows(ptr[pos1], ptr[pos2]) < 0) {
+                SWAP(P[pos1], P[pos2]);
+                cswap((uintptr_t *)(&ptr[pos1]), (uintptr_t *)(&ptr[pos2]), -1ull);
+            }
+        }
+
+        d = q - 1;
+        q >>= 1;
+    }
+    return 1;
+}
+

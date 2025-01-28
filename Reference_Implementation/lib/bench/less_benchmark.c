@@ -58,33 +58,10 @@ void welford_update(welford_t *state, long double sample) {
 }
 
 static inline
-double welch_t_statistic(const welford_t state1,
-                         const welford_t state2) {
-    long double num, den, var1, var2;
-    var1 = state1.M2/(long double)(state1.count-1);
-    var2 = state2.M2/(long double)(state2.count-1);
-
-    num = state1.mean - state2.mean;
-    den = sqrtl(var1/(long double) state1.count + var2/(long double) state2.count );
-
-    return num/den;
-}
-
-static inline
 void welford_print(const welford_t state) {
     printf("%.2Lf,%.2Lf",
            state.mean,
            sqrtl(state.M2/(long double)(state.count-1)));
-}
-
-static inline
-long double welford_stddev(const welford_t state) {
-    return sqrtl(state.M2/(long double)(state.count-1));
-}
-
-static inline
-long double welford_mean(const welford_t state) {
-    return state.mean;
 }
 
 #if defined(CATEGORY_5)

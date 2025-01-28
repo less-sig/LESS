@@ -160,7 +160,6 @@ int LESS_sign_verify_test_multiple(void){
     unsigned char *m  = (unsigned char *)calloc(MLEN, sizeof(unsigned char));
     unsigned char *sm = (unsigned char *)calloc(MLEN+CRYPTO_BYTES, sizeof(unsigned char));
     unsigned char       pk[CRYPTO_PUBLICKEYBYTES] = {0}, sk[CRYPTO_SECRETKEYBYTES] = {0};
-    ASSERT(m); ASSERT(sm);
 
     int ret = 0;
     for (size_t i = 0; i < NUMBER_OF_TESTS; ++i) {
@@ -186,7 +185,10 @@ int LESS_sign_verify_test_multiple(void){
             return -1;
         }
 
-        ASSERT(mlen1 == msg_len);
+        if(mlen1 != msg_len) {
+            printf("crypto_sign_open wrong length\n");
+            return -1;
+        }
         printf("OK: %zu\n", i);
 
         ret |= ret_val;

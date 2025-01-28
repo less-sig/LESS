@@ -8,7 +8,7 @@
 #include "m1cycles.h"
 #endif
 
-
+__attribute__((unused))
 static
 void setup_cycle_counter(void)
 {
@@ -17,6 +17,7 @@ void setup_cycle_counter(void)
 #endif
 }
 
+__attribute__((unused))
 static inline
 uint64_t read_cycle_counter(void)
 {

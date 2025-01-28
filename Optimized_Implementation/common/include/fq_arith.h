@@ -33,22 +33,12 @@
 
 #define NUM_BITS_Q (BITS_TO_REPRESENT(Q))
 
-/*
- * assertion _only_ in debug builds (CMAKE_BUILD_TYPE=Debug)
-*/
-#if !defined(NDEBUG) || defined(DEBUG)
-#include <assert.h>
-#define ASSERT(X) assert(X);
-#else
-#define ASSERT(X)  {(void) (X);}
-#endif
 
 #define DEF_RAND_STATE(FUNC_NAME, EL_T, MINV, MAXV) \
 static inline void FUNC_NAME(SHAKE_STATE_STRUCT *shake_monomial_state, EL_T *buffer, size_t num_elements) { \
    typedef uint64_t WORD_T; \
    static const EL_T MIN_VALUE = (MINV);\
    static const EL_T MAX_VALUE = (MAXV); \
-   ASSERT(MIN_VALUE <= MAX_VALUE); \
    static const EL_T SPAN = MAX_VALUE - MIN_VALUE; \
    static const size_t REQ_BITS = BITS_TO_REPRESENT(SPAN); \
    static const EL_T EL_MASK = ((EL_T) 1 << REQ_BITS) - 1; \
@@ -69,7 +59,6 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
    typedef uint64_t WORD_T; \
    static const EL_T MIN_VALUE = (MINV); \
    static const EL_T MAX_VALUE = (MAXV); \
-   ASSERT(MIN_VALUE <= MAX_VALUE); \
    static const EL_T SPAN = MAX_VALUE - MIN_VALUE; \
    static const size_t REQ_BITS = BITS_TO_REPRESENT(SPAN); \
    static const EL_T EL_MASK = ((EL_T) 1 << REQ_BITS) - 1; \

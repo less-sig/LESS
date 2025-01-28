@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 project(less_neon)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 if(APPLE)
     include_directories("/opt/homebrew/include/")
@@ -10,7 +10,7 @@ if(APPLE)
 endif()
 
 enable_testing()
-find_package(OpenSSL)
+find_package(crypto)
 
 # needed for nvim
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
@@ -19,9 +19,9 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS " -Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal")
-set(CMAKE_C_FLAGS_DEBUG "-g -DUSE_NEON -DDEBUG -O0  -march=native -flax-vector-conversions")
-set(CMAKE_C_FLAGS_RELEASE "-g -DUSE_NEON -O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector ${ALLOWED_WARNINGS}")
+set(ALLOWED_WARNINGS      "")
+set(CMAKE_C_FLAGS_DEBUG   "-g -DUSE_NEON -Og -DDEBUG -march=native -flax-vector-conversions")
+set(CMAKE_C_FLAGS_RELEASE "-DUSE_NEON -O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
 
 set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/codes.c
@@ -76,20 +76,19 @@ foreach(category "252" "400" "548")
     target_link_libraries(${TARGET_BINARY_NAME} m)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
     target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
+    add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
 
     # settings for unit tests binary
     set(TARGET_BINARY_NAME LESS_test_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/test/less_test.c)
-    target_link_libraries(${TARGET_BINARY_NAME} m)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
-    add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
     target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
+    add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
 
     # KATS generation
     set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/nist/KAT_NIST_rng.c ${PROJECT_SOURCE_DIR}/lib/nist/PQCgenKAT_sign.c)
     target_link_libraries(${TARGET_BINARY_NAME} PRIVATE crypto)
-    include_directories(${OPENSSL_INCLUDE_DIR})
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
   endforeach(optimize_target)

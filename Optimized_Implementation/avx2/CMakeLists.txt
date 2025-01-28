@@ -1,11 +1,11 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.0)
 project(less_avx2)
 enable_language(C ASM)
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 enable_testing()
-#find_package(OpenSSL QUIET)
+find_package(crypto QUIET)
 
 # needed for nvim
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
@@ -14,9 +14,9 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS      " -Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal")
-set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -g -O0 -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -fsanitize=address ${ALLOWED_WARNINGS}")
-set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -flto -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
+set(ALLOWED_WARNINGS      " -Wno-type-limits")
+set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -g -Og -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi ${ALLOWED_WARNINGS}")
+set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -flto -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
 
 
 set(SOURCES
@@ -76,7 +76,6 @@ foreach(category "252" "400" "548")
     # settings for unit tests binary
     set(TARGET_BINARY_NAME LESS_test_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/test/less_test.c)
-    target_link_libraries(${TARGET_BINARY_NAME} m)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
     target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
@@ -85,7 +84,6 @@ foreach(category "252" "400" "548")
     set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/nist/KAT_NIST_rng.c ${PROJECT_SOURCE_DIR}/lib/nist/PQCgenKAT_sign.c)
     target_link_libraries(${TARGET_BINARY_NAME} PRIVATE crypto)
-    include_directories(${OPENSSL_INCLUDE_DIR})
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
   endforeach(optimize_target)

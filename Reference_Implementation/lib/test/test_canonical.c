@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <assert.h>
 
 #include "monomial_mat.h"
 #include "codes.h"
@@ -252,7 +251,9 @@ uint32_t  test_compute_canonical_form_type5_gaus(void) {
         generator_RREF(&G2, is_pivot_column);
         for (uint32_t i = 0; i < K; ++i) {
             for (uint32_t j = 0; j < N; ++j) {
-                assert(G2.values[i][j] < Q);
+                if (G2.values[i][j] >= Q) {
+                    return 2;
+                }
             }
         }
 
