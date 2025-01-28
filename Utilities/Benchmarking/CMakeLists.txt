@@ -94,7 +94,7 @@ else() # Debug, RelWithDebInfo, etc
 endif()
 
 if(USE_AVX2)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_AVX2 -mavx -mavx2 ")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_AVX2 -mavx -mavx2 -mbmi -mbmi2")
 endif()
 
 if(USE_NEON)

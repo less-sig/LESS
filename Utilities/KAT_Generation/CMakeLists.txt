@@ -43,7 +43,7 @@ include(CheckCCompilerFlag)
 unset(COMPILER_SUPPORTS_MARCH_NATIVE CACHE)
 check_c_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic -pedantic ")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic -pedantic -Wno-type-limits")
 
 if(USE_SANITZE)
   set(SANITIZE "-fsanitize=address -fsanitize=pointer-compare")
@@ -69,11 +69,11 @@ endif()
 # this is generally not needed as `-march=native` is enough to hint the compiler 
 # that certain optimizations are available. But not so on nixos.
 if(USE_AVX2)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -mavx2 -mbmi -mbmi2")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_AVX2 -mavx -mavx2 -mbmi -mbmi2")
 endif()
 
 if(USE_NEON)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flax-vector-conversions")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_NEON -flax-vector-conversions")
 endif()
 
 message(STATUS "Compilation flags:" ${CMAKE_C_FLAGS})

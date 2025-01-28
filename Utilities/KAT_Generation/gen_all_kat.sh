@@ -17,5 +17,5 @@ do
 done
 
 mkdir -p KAT
-mv *.req ../KAT/
-mv *.rsp ../KAT/
+mv *.req ./KAT
+mv *.rsp ./KAT
