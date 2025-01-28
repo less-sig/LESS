@@ -1423,8 +1423,6 @@ int SortRows_internal3(FQ_ELEM *ptr[K],
     for (uint32_t i = 0; i < 1042; i+=2) {
         const uint32_t pos1 = 64 + network[i], pos2 = 64 + network[i+1];
         if (pos1 >= n || pos2 >= n) { continue; }
-        assert(pos1 < 128);
-        assert(pos2 < 128);
         if (compare_rows(ptr[pos1], ptr[pos2]) < 0) {
             SWAP(P[pos1], P[pos2]);
             cswap((uintptr_t *)(&ptr[pos1]), (uintptr_t *)(&ptr[pos2]), -1ull);

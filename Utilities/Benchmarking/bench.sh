@@ -2,6 +2,7 @@
 
 calc(){ awk "BEGIN { print "$*" }"; }
 
+# NOTE: this is needed, as a normal user is not allowed to read the performance counter
 SUDO=""
 if [[ $OSTYPE == 'darwin'* ]]; then
 	echo 'macOS'

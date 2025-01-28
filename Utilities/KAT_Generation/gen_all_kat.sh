@@ -1,16 +1,21 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# mkdir -p build 
-# cd build 
-# cmake ..
-# make 
-# cd ..
+### uncomment the following lines if you also want to build the project
+#mkdir -p build 
+#cd build 
+#cmake ..
+#make 
+#cd ..
 
-for i in build/bin/*
+for i in build/*
 do
-    echo Generating KATs for $i
-    ./$i
+    if [[ -x "${i}" ]]
+    then
+        echo Generating KATs for ${i}
+        ./${i}
+    fi
 done
 
-mv *.req ../../KAT/
-mv *.rsp ../../KAT/
+mkdir -p KAT
+mv *.req ../KAT/
+mv *.rsp ../KAT/

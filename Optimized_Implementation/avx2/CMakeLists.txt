@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 project(less_avx2)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 99)
-set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 enable_testing()
 find_package(crypto QUIET)
