@@ -52,12 +52,11 @@ prikey_t sk;
 sign_t signature;
 char message[8] = "Signme!";
 
-void LESS_verify_mem(){
-    int is_signature_ok;
+void LESS_verify_mem(void){
     welford_init(&timer);
     for(int i = 0; i <NUM_TESTS; i++) {
         cycles = x86_64_rtdsc();
-        is_signature_ok = LESS_verify(&pk,message,8,&signature);
+        LESS_verify(&pk,message,8,&signature);
         welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
     }
     welford_print(timer);
@@ -65,7 +64,7 @@ void LESS_verify_mem(){
 }
 
 
-int main(int argc, char* argv[]){
+int main(void){
     initialize_csprng(&platform_csprng_state,
                       (const unsigned char *)"0123456789012345",16);
 	LESS_keygen(&sk, &pk);

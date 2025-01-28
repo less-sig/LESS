@@ -321,8 +321,6 @@ void permutation_apply_row(const permutation_t *P,
 void permutation_swap(permutation_t *P,
                       const uint32_t i,
                       const uint32_t j) {
-    ASSERT(i < K);
-    ASSERT(i < N);
     POSITION_T tmp = P->permutation[i];
     P->permutation[i] = P->permutation[j];
     P->permutation[j] = tmp;
@@ -336,8 +334,6 @@ void permutation_cswap(permutation_t *P,
                        const uint32_t i,
                        const uint32_t j,
                        const uintptr_t mask) {
-    ASSERT(i < K);
-    ASSERT(i < N);
     MASKED_SWAP(P->permutation[i], P->permutation[j], mask);
 }
 
@@ -544,9 +540,6 @@ void bitonic_sort_i8(FQ_ELEM *x,
 int compare_rows_bitonic_sort(FQ_ELEM **rows,
 							  const uint32_t row1,
 							  const uint32_t row2) {
-    ASSERT(row1 < K);
-    ASSERT(row2 < K);
-
 #ifdef LESS_USE_HISTOGRAM
     uint32_t i = 0;
     while((i < (N-K-1)) && (rows[row1][i] == rows[row2][i])) {

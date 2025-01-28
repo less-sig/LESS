@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.9.4)
+cmake_minimum_required(VERSION 3.0.0)
 project(LESS)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 99)
@@ -162,7 +162,6 @@ if(USE_AVX2)
 endif()
 
 if(USE_NEON)
-	set(SOURCES ${SOURCES} ${BASE_DIR}/lib/KeccakP-1600-armv8a-neon.s)
 	set(SOURCES ${SOURCES} ${BASE_DIR}/lib/transpose_neon.c)
 	set(HEADERS ${HEADERS} ${BASE_DIR}/include/macro.h)
 endif()

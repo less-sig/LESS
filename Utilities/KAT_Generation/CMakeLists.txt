@@ -160,7 +160,6 @@ if(USE_AVX2)
 endif()
 
 if(USE_NEON)
-	set(SOURCES ${SOURCES} ${BASE_DIR}/lib/KeccakP-1600-armv8a-neon.s)
 	set(SOURCES ${SOURCES} ${BASE_DIR}/lib/transpose_neon.c)
 	set(HEADERS ${HEADERS} ${BASE_DIR}/include/macro.h)
 endif()

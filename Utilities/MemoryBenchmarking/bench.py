@@ -302,19 +302,17 @@ def command(cmd):
     os.system(cmd)
 
 values = {
-        1 : {"INTERMEDIATE": {"keygen": 0, "sign": 0, "verify": 0},
-             "SHORT_SIG": {"keygen": 0, "sign": 0, "verify": 0},
-             "BALANCED": {"keygen": 0, "sign": 0, "verify": 0},},
-        3 : {"INTERMEDIATE": {"keygen": 0, "sign": 0, "verify": 0},
-             "SHORT_SIG": {"keygen": 0, "sign": 0, "verify": 0},
-             "BALANCED": {"keygen": 0, "sign": 0, "verify": 0},},
-        5 : {"INTERMEDIATE": {"keygen": 0, "sign": 0, "verify": 0},
-             "SHORT_SIG": {"keygen": 0, "sign": 0, "verify": 0},
-             "BALANCED": {"keygen": 0, "sign": 0, "verify": 0},}
+        252 : {"192": {"keygen": 0, "sign": 0, "verify": 0},
+             "68": {"keygen": 0, "sign": 0, "verify": 0},
+             "45": {"keygen": 0, "sign": 0, "verify": 0},},
+        400 : {"220": {"keygen": 0, "sign": 0, "verify": 0},
+             "102": {"keygen": 0, "sign": 0, "verify": 0},},
+        548 : {"345": {"keygen": 0, "sign": 0, "verify": 0},
+             "137": {"keygen": 0, "sign": 0, "verify": 0},}
 }
 
 # create all the massif files:
-command("./bench.sh")
+# command("./bench.sh")
 
 file = "build/LESS_memory_1_BALANCED_sign.massif"
 rootdir = "./build"
@@ -336,12 +334,5 @@ for subdir, dirs, files in os.walk(rootdir):
 
             values[cat][kind][method] = max_stack
 
-
 print(values)
 print("Everything's done!\n")
-
-# DATA for ryzen 7600X Reference impl
-# {1: {'INTERMEDIATE': {'keygen': 82472, 'sign': 171736, 'verify': 110216}, 'SHORT_SIG': {'keygen': 82616, 'sign': 159992, 'verify': 110104}, 'BALANCED': {'keygen': 82376, 'sign': 172440, 'verify': 110232}}, 3: {'INTERMEDIATE': {'keygen': 0, 'sign': 0, 'verify': 0}, 'SHORT_SIG': {'keygen': 204840, 'sign': 836936, 'verify': 300120}, 'BALANCED': {'keygen': 204760, 'sign': 754728, 'verify': 299864}}, 5: {'INTERMEDIATE': {'keygen': 0, 'sign': 0, 'verify': 0}, 'SHORT_SIG': {'keygen': 381496, 'sign': 1270320, 'verify': 525104}, 'BALANCED': {'keygen': 381400, 'sign': 1702640, 'verify': 591816}}}
-
-# DATA for ryzen 7600X AVX2 impl
-#{1: {'INTERMEDIATE': {'keygen': 119496, 'sign': 206328, 'verify': 142152}, 'SHORT_SIG': {'keygen': 119640, 'sign': 194584, 'verify': 142008}, 'BALANCED': {'keygen': 119384, 'sign': 207032, 'verify': 142136}}, 3: {'INTERMEDIATE': {'keygen': 0, 'sign': 0, 'verify': 0}, 'SHORT_SIG': {'keygen': 284872, 'sign': 977752, 'verify': 375480}, 'BALANCED': {'keygen': 284808, 'sign': 886072, 'verify': 375224}}, 5: {'INTERMEDIATE': {'keygen': 0, 'sign': 0, 'verify': 0}, 'SHORT_SIG': {'keygen': 477128, 'sign': 1403800, 'verify': 618520}, 'BALANCED': {'keygen': 477032, 'sign': 1854648, 'verify': 684952}}}
