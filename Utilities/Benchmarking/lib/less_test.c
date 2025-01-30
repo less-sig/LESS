@@ -258,54 +258,53 @@ void rref_gen_compress_tester(){
     }
 }
 
-void mono_is_compress_tester(){
-    monomial_action_IS_t Q_a, Qcheck;
-    uint8_t compressed [MONO_ACTION_PACKEDBYTES];
-
-    monomial_t mono_rnd;
-    monomial_mat_rnd(&mono_rnd);
-
-    // Create random q
-    for (int i = 0; i < K; i++) {
-        Q_a.coefficients[i] = mono_rnd.coefficients[i];
-        Q_a.permutation[i] = mono_rnd.permutation[i];
-    }
-
-     compress_monom_action(compressed,&Q_a);
-     expand_to_monom_action(&Qcheck,compressed);
-
-    if( memcmp( &Qcheck,&Q_a,sizeof(monomial_action_IS_t)) !=0 ){
-        printf("Monomial Action compression: ko\n");
-
-       fprintf(stderr,"perm = [");
-       for(int i = 0; i < K-1; i++) {
-          fprintf(stderr,"%03u, ",Q_a.permutation[i]);
-       }
-       fprintf(stderr,"%03u ]\n",Q_a.permutation[K-1]);
-       fprintf(stderr,"coeffs = [");
-       for(int i = 0; i < K-1; i++) {
-          fprintf(stderr,"%03u, ",Q_a.coefficients[i]);
-       }
-       fprintf(stderr,"%03u ]\n",Q_a.coefficients[K-1]);
-
-       fprintf(stderr,"\n\n\n");
-       fprintf(stderr,"perm = [");
-       for(int i = 0; i < K-1; i++
-        ) {
-          fprintf(stderr,"%03u, ",Qcheck.permutation[i]);
-       }
-       fprintf(stderr,"%03u ]\n",Qcheck.permutation[K-1]);
-       fprintf(stderr,"coeffs = [");
-       for(int i = 0; i < K-1; i++) {
-          fprintf(stderr,"%03u, ",Qcheck.coefficients[i]);
-       }
-       fprintf(stderr,"%03u ]\n",Qcheck.coefficients[K-1]);
-
-    } else {
-        printf("Monomial Action compression: ok\n");
-    }
-
-}
+// void mono_is_compress_tester(){
+//     monomial_action_IS_t Q_a, Qcheck;
+//     uint8_t compressed[MONO_ACTION_PACKEDBYTES];
+//
+//     monomial_t mono_rnd;
+//     monomial_mat_rnd(&mono_rnd);
+//
+//     // Create random q
+//     for (int i = 0; i < K; i++) {
+//         Q_a.coefficients[i] = mono_rnd.coefficients[i];
+//         Q_a.permutation[i] = mono_rnd.permutation[i];
+//     }
+//
+//      compress_monom_action(compressed,&Q_a);
+//      expand_to_monom_action(&Qcheck,compressed);
+//
+//     if( memcmp( &Qcheck,&Q_a,sizeof(monomial_action_IS_t)) !=0 ){
+//         printf("Monomial Action compression: ko\n");
+//
+//        fprintf(stderr,"perm = [");
+//        for(int i = 0; i < K-1; i++) {
+//           fprintf(stderr,"%03u, ",Q_a.permutation[i]);
+//        }
+//        fprintf(stderr,"%03u ]\n",Q_a.permutation[K-1]);
+//        fprintf(stderr,"coeffs = [");
+//        for(int i = 0; i < K-1; i++) {
+//           fprintf(stderr,"%03u, ",Q_a.coefficients[i]);
+//        }
+//        fprintf(stderr,"%03u ]\n",Q_a.coefficients[K-1]);
+//
+//        fprintf(stderr,"\n\n\n");
+//        fprintf(stderr,"perm = [");
+//        for(int i = 0; i < K-1; i++
+//         ) {
+//           fprintf(stderr,"%03u, ",Qcheck.permutation[i]);
+//        }
+//        fprintf(stderr,"%03u ]\n",Qcheck.permutation[K-1]);
+//        fprintf(stderr,"coeffs = [");
+//        for(int i = 0; i < K-1; i++) {
+//           fprintf(stderr,"%03u, ",Qcheck.coefficients[i]);
+//        }
+//        fprintf(stderr,"%03u ]\n",Qcheck.coefficients[K-1]);
+//
+//     } else {
+//         printf("Monomial Action compression: ok\n");
+//     }
+// }
 
 
 void rref_gen_byte_compress_tester(){
@@ -322,7 +321,7 @@ void rref_gen_byte_compress_tester(){
      memcpy(&Gcheck,&G, sizeof(G));
      compress_rref(G_compressed,&G,is_pivot_column);
      generator_rnd(&G); /* fill with garbage to elicit faults */
-     expand_to_rref(&G,G_compressed);
+     expand_to_rref(&G,G_compressed,is_pivot_column);
 
     if( memcmp( &Gcheck,&G,sizeof(generator_mat_t)) !=0 ){
         printf("Generator SF byte compression: ko\n");
@@ -364,7 +363,7 @@ int LESS_sign_verify_test(){
     return is_signature_ok;
 }
 
-#define NUM_TEST_ITERATIONS 1
+#define NUM_TEST_ITERATIONS 20
 int main(int argc, char* argv[]){
     initialize_csprng(&platform_csprng_state,
                       (const unsigned char *)"012345678912345",
@@ -372,6 +371,8 @@ int main(int argc, char* argv[]){
     fprintf(stderr,"LESS reference implementation functional testbench\n");
     info();
     int tests_ok = 0;
+    fprintf(stderr,"Starting %d tests \n",NUM_TEST_ITERATIONS);
+
     for (int i = 0; i < NUM_TEST_ITERATIONS; i++) {
         fputc('.',stderr);
       // fprintf(stderr,"test %d: ",i);
@@ -386,6 +387,6 @@ int main(int argc, char* argv[]){
         // mono_is_compress_tester();
       tests_ok += LESS_sign_verify_test();
     }
-    fprintf(stderr,"%d tests functional out of %d\n",tests_ok,NUM_TEST_ITERATIONS);    
+    fprintf(stderr,"%d tests functional out of %d\n",tests_ok,NUM_TEST_ITERATIONS);
     return 0;
 }

@@ -15,14 +15,13 @@ endif()
 
 set(ALLOWED_WARNINGS " -Wno-gnu-binary-literal -Wno-unused-function -Wno-type-limits")
 
-IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
+IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
 	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0  -march=native -flax-vector-conversions ${ALLOWED_WARNINGS}")
 	set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -march=native -mtune=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector -flto ${ALLOWED_WARNINGS}")
 else()
 	set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -O0 -ggdb -Wall -Wpedantic -Wextra -fsanitize=address ${ALLOWED_WARNINGS}")
     set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -ftree-vectorize -fomit-frame-pointer -flto ${ALLOWED_WARNINGS}")
 endif()
-
 
 set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/codes.c
