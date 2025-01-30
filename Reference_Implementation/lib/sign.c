@@ -58,8 +58,7 @@ int crypto_sign(unsigned char *sm,
     /// So we need to keep track of them
     /// TODO second problem: the `without tree` version does not return seeds
     const uint32_t num_seeds_published = LESS_sign(
-            (const prikey_t *)
-                    sk,                                             // in parameter
+            (const prikey_t *)sk,                                   // in parameter
             (const char *const) m, (const uint64_t) mlen,           // in parameter
             (sign_t *) (sm + mlen));                                // out parameter
 #if defined(SEED_TREE)
