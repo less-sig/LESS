@@ -30,7 +30,7 @@
 #include "codes.h"
 #include "fq_arith.h"
 #include "parameters.h"
-#include <assert.h>
+
 
 /// \param V[in/out]: K \times N-K matrix in which column `col1` and
 ///                 column `col2` are swapped
@@ -117,9 +117,9 @@ void generator_monomial_mul(generator_mat_t *res,
    }
 } /* end generator_monomial_mul */
 
-/// @param G
-/// @param is_pivot_column
-/// @return
+/// @param G 
+/// @param is_pivot_column 
+/// @return 
 int generator_RREF(generator_mat_t *G,
                    uint8_t is_pivot_column[N]) {
    for(uint32_t row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
@@ -256,7 +256,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
       /* Subtract the now placed and reduced pivot rows, from the others,
        * after rescaling it */
           for(int row_idx = 0; row_idx < K; row_idx++) {
-             if (row_idx != pivot_row) {
+             if (row_idx != pivot_row) { 
                 FQ_DOUBLEPREC multiplier = G->values[row_idx][pivot_column];
                 /* all elements before the pivot in the pivot row are null, no need to
                  * subtract them from other rows. */
@@ -703,7 +703,7 @@ void generator_rref_expand(generator_mat_t *full,
       } else {
          /* regenerate the appropriate pivot column */
          for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
-            full->values[row_idx][col_idx] = (uint32_t)(row_idx == (uint32_t)(col_idx-placed_dense_cols));
+            full->values[row_idx][col_idx] = (row_idx == col_idx-placed_dense_cols);
          }
       }
    }

@@ -45,18 +45,12 @@
 #define SIGN_PIVOT_REUSE_LIMIT (25) // Ensures probability of non-CT operation is < 2^-64
 
 #if defined(BALANCED)
-// Whenever the SEED_TREE macro is absent for a parameter set, no trees will be used
-#define SEED_TREE
 #define NUM_KEYPAIRS (2)
 #define T (192)
 #define W (36)
-#define TREE_OFFSETS {0, 0, 0, 0, 0, 0, 0, 0, 128}
-#define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 16, 32, 64, 128, 128}
-#define TREE_LEAVES_PER_LEVEL {0, 0, 0, 0, 0, 0, 0, 64, 128}
-#define TREE_SUBROOTS 2
-#define TREE_LEAVES_START_INDICES {255, 191}
-#define TREE_CONSECUTIVE_LEAVES {128, 64}
-#define MAX_PUBLISHED_SEEDS 388
+// Whenever the SEED_TREE macro is absent for a parameter set, no trees will be used
+#define SEED_TREE
+#define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
 
 #elif defined(INTERMEDIATE)
 #define NUM_KEYPAIRS (4)
@@ -84,11 +78,13 @@
 #define NUM_KEYPAIRS (2)
 #define T (220)
 #define W (68)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (3912)
 
 #elif defined(SHORT_SIG)
 #define NUM_KEYPAIRS (3)
 #define T (102)
 #define W (61)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (3264)
 #else
 #error define optimization corner in parameters.h
 #endif
@@ -105,11 +101,13 @@
 #define NUM_KEYPAIRS (2)
 #define T (345)
 #define W (75)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (7168)
 
 #elif defined(SHORT_SIG)
 #define NUM_KEYPAIRS (3)
 #define T (137)
 #define W (79)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (5600)
 #else
 #error define optimization corner in parameters.h
 #endif
@@ -128,16 +126,16 @@
 #define K8 ((K+7u)/8u)
 #define N8 ((N+7u)/8u)
 
-// TODO
+/// TODO
 #define N_K_pad (N-K)
 
 /***************** Derived parameters *****************************************/
 
-
+#define MAX_PUBLISHED_SEEDS (SEED_TREE_MAX_PUBLISHED_BYTES/SEED_LENGTH_BYTES)
 
 /*length of the output of the cryptographic hash, in bytes */
 #define HASH_DIGEST_LENGTH (2*SEED_LENGTH_BYTES)
-#define SALT_LENGTH_BYTES HASH_DIGEST_LENGTH
+
 /* length of the private key seed doubled to avoid multikey attacks */
 #define PRIVATE_KEY_SEED_LENGTH_BYTES (2*SEED_LENGTH_BYTES)
 
@@ -168,10 +166,9 @@
                  + IS_REPRESENTABLE_IN_D_BITS(16, N)    \
                  )                                      \
    )
-#define LOG2(L) ( (BITS_TO_REPRESENT(L) > BITS_TO_REPRESENT(L-1)) ? (BITS_TO_REPRESENT(L-1)) : (BITS_TO_REPRESENT(L)) )
 
-#define NUM_LEAVES_SEED_TREE (T)
-#define NUM_NODES_SEED_TREE (2*NUM_LEAVES_SEED_TREE-1)
+#define NUM_LEAVES_OF_SEED_TREE (1UL << BITS_TO_REPRESENT(T) )
+#define NUM_NODES_OF_SEED_TREE (2*NUM_LEAVES_OF_SEED_TREE-1 )
 
 #define RREF_MAT_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*(N-K)*K + 7)/8 + (N + 7)/8)
 #define RREF_IS_COLUMNS_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*(N-K)*K + 7)/8)
@@ -181,8 +178,8 @@
 
 #if defined(SEED_TREE)
 // returns the maximum bytes the signature can occupy
-#define SEED_TREE_MAX_PUBLISHED_BYTES (MAX_PUBLISHED_SEEDS*SEED_LENGTH_BYTES)
 #define LESS_CRYPTO_MAX_BYTES        (HASH_DIGEST_LENGTH*2 + N8*W + SEED_TREE_MAX_PUBLISHED_BYTES + 1)
+#define LESS_CRYPTO_BYTES(NR_LEAVES) (HASH_DIGEST_LENGTH*2 + N8*W + NR_LEAVES*SEED_LENGTH_BYTES + 1)
 #else
 // returns the maximum bytes the signature can occupy
 #define LESS_CRYPTO_BYTES     (HASH_DIGEST_LENGTH + (N8*W) + ((W-T)*SEED_LENGTH_BYTES))
