@@ -31,7 +31,7 @@
 #include "codes.h"
 #include "fq_arith.h"
 #include "parameters.h"
-
+#include <assert.h>
 
 /// swap N uint8 in r and s.
 /// \param r[in/out]
@@ -73,6 +73,7 @@ void generator_monomial_mul(generator_mat_t *res,
 ///                 is a pivot column
 /// \return 0 on failure
 ///         1 on success
+
 int generator_RREF(generator_mat_t *G,
                    uint8_t is_pivot_column[N]) {
    for(unsigned row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
@@ -522,6 +523,7 @@ void generator_rref_expand(generator_mat_t *full,
             /* regenerate the appropriate pivot column */
             for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
                 full->values[row_idx][col_idx] = (row_idx == col_idx - placed_dense_cols);
+
             }
         }
     }
