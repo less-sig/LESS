@@ -26,12 +26,12 @@
 #pragma once
 #include <stdint.h>
 
+#define Qm1 (126)
 #define MMM 0x204081020408103ull
 /* Seed tree max size is computed according to Parameter Generation Script in Utilities folder */
 
 /***************************** Common Parameters ******************************/
 #define Q (127)
-#define Qm1 (Q-1)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
 #define POSITION_T uint8_t
@@ -42,13 +42,12 @@
 #define N (252)
 #define K (126)
 #define SEED_LENGTH_BYTES (16)
-#define SIGN_PIVOT_REUSE_LIMIT (25) // Ensures probability of non-CT operation is < 2^-64
+#define SIGN_PIVOT_REUSE_LIMIT (25) // Ensures probability of non-CT operaiton is < 2^-64
 
 #if defined(BALANCED)
 #define NUM_KEYPAIRS (2)
-#define T (192)
-#define W (36)
-// Whenever the SEED_TREE macro is absent for a parameter set, no trees will be used
+#define T (256)
+#define W (30)
 #define SEED_TREE
 #define SEED_TREE_MAX_PUBLISHED_BYTES (1472)
 
@@ -71,19 +70,19 @@
 #define N (400)
 #define K (200)
 #define SEED_LENGTH_BYTES (24)
-#define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operation is < 2^-64
+#define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operaiton is < 2^-64
 #define POSITION_T uint16_t
 
 #if defined(BALANCED)
 #define NUM_KEYPAIRS (2)
-#define T (220)
-#define W (68)
+#define T (204)
+#define W (79)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (3912)
 
 #elif defined(SHORT_SIG)
 #define NUM_KEYPAIRS (3)
-#define T (102)
-#define W (61)
+#define T (106)
+#define W (57)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (3264)
 #else
 #error define optimization corner in parameters.h
@@ -94,19 +93,19 @@
 #define N (548)
 #define K (274)
 #define SEED_LENGTH_BYTES (32)
-#define SIGN_PIVOT_REUSE_LIMIT (79) // Ensures probability of non-CT operation is < 2^-64
+#define SIGN_PIVOT_REUSE_LIMIT (79) // Ensures probability of non-CT operaiton is < 2^-64
 #define POSITION_T uint16_t
 
 #if defined(BALANCED)
 #define NUM_KEYPAIRS (2)
-#define T (345)
-#define W (75)
+#define T (266)
+#define W (111)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (7168)
 
 #elif defined(SHORT_SIG)
 #define NUM_KEYPAIRS (3)
-#define T (137)
-#define W (79)
+#define T (133)
+#define W (85)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (5600)
 #else
 #error define optimization corner in parameters.h
@@ -117,7 +116,7 @@
 #endif
 
 
-#define VERIFY_PIVOT_REUSE_LIMIT K
+#define VERIFY_PIVOT_REUSE_LIMIT K 
 
 // #define SIGN_PIVOT_REUSE_LIMIT   0
 // #define VERIFY_PIVOT_REUSE_LIMIT 0
