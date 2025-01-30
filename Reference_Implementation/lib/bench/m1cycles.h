@@ -100,7 +100,9 @@ static void kperf_init(void) {
     }
 }
 
-static void kperf_init_once(void) {
+static inline void kperf_init_once(void);
+
+static inline void kperf_init_once(void) {
     pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
     static pthread_once_t init_static_once = PTHREAD_ONCE_INIT;
     pthread_once(&init_static_once, kperf_init);
