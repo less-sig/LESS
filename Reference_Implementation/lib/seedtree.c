@@ -1,12 +1,52 @@
+#include "parameters.h"
+
+#if defined(SEED_TREE)
 #include "seedtree.h"
-#include <stdio.h>
 
-#define LEFT_CHILD(i)  (2u*(uint32_t)(i)+1u)
-#define RIGHT_CHILD(i) (2u*(uint32_t)(i)+2u)
-#define PARENT(i) ((i-1)/2)
+#define LEFT_CHILD(i) (2*(i)+1)
+#define RIGHT_CHILD(i) (2*(i)+2)
+#define PARENT(i) ( ((i)%2) ? (((i)-1)/2) : (((i)-2)/2) )
+#define SIBLING(i) ( ((i)%2) ? (i)+1 : (i)-1 )
 
-/* Seed tree implementation. The binary seed tree is linearized into an array
- * from root to leaves, and from left to right */
+
+/****************************** Pretty Printers ******************************/
+
+// #include <stdio.h>
+// void pseed(unsigned char seed[SEED_LENGTH_BYTES]){
+//      fprintf(stderr,"-");
+//    for (int i = 0 ; i < SEED_LENGTH_BYTES; i++){
+//      fprintf(stderr,"%02X", seed[i]);
+//    }
+//      fprintf(stderr,"- ");
+// }
+//
+// void psalt(unsigned char salt[SALT_LENGTH_BYTES]){
+//      fprintf(stderr,"-");
+//    for (int i = 0 ; i < SALT_LENGTH_BYTES; i++){
+//      fprintf(stderr,"%02X", salt[i]);
+//    }
+//      fprintf(stderr,"- ");
+// }
+//
+// void ptree(unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES]){
+//    const uint16_t npl[LOG2(T)+1] = TREE_NODES_PER_LEVEL;
+//    int node_idx =0;
+//    fprintf(stderr,"Tree dump\n");
+//    int ancestors = 0;
+//    for (int level = 0; level < LOG2(T)+1; level++){
+//       fprintf(stderr,"level %d ", level);
+//       for (int idx_in_level = 0; idx_in_level < npl[level]; idx_in_level++ ) {
+//           node_idx = ancestors + idx_in_level ;
+//           fprintf(stderr," [%d] ",node_idx);
+//           pseed(seed_tree+node_idx*SEED_LENGTH_BYTES);
+//       }
+//       ancestors += npl[level];
+//       fprintf(stderr,"\n");
+//    }
+//    fprintf(stderr,"\n");
+// }
+
+
 
 /**
  * unsigned char *seed_tree:
@@ -23,31 +63,55 @@
  *
  */
 void generate_seed_tree_from_root(unsigned char
-                                  seed_tree[NUM_NODES_OF_SEED_TREE * SEED_LENGTH_BYTES],
+                                  seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES],
                                   const unsigned char root_seed[SEED_LENGTH_BYTES],
                                   const unsigned char salt[HASH_DIGEST_LENGTH]) {
-   /* input buffer to the CSPRNG, contains a salt, the seed to be expanded
-    * and the integer index of the node being expanded for domain separation */
-   const uint32_t csprng_input_len = HASH_DIGEST_LENGTH +
-                                     SEED_LENGTH_BYTES;
-   unsigned char csprng_input[csprng_input_len];
-   SHAKE_STATE_STRUCT tree_csprng_state;
+    /* input buffer to the CSPRNG, contains the seed to be expanded, a salt,
+     * and the integer index of the node being expanded for domain separation */
+    const uint32_t csprng_input_len = SALT_LENGTH_BYTES +
+        SEED_LENGTH_BYTES;
+    unsigned char csprng_input[csprng_input_len];
+    SHAKE_STATE_STRUCT tree_csprng_state;
+    memcpy(csprng_input+SEED_LENGTH_BYTES, salt, SALT_LENGTH_BYTES);
 
-   memcpy(csprng_input, salt, HASH_DIGEST_LENGTH);
+    /* Set the root seed in the tree from the received parameter */
+    memcpy(seed_tree,root_seed,SEED_LENGTH_BYTES);
 
-   /* Set the root seed in the tree from the received parameter */
-   memcpy(seed_tree, root_seed, SEED_LENGTH_BYTES);
-   for (uint32_t i = 0; i < NUM_LEAVES_OF_SEED_TREE-1; i++) {
-      /* prepare the CSPRNG input to expand the children of node i */
-      memcpy(csprng_input + HASH_DIGEST_LENGTH,
-             seed_tree + i*SEED_LENGTH_BYTES,
-             SEED_LENGTH_BYTES);
+    /* off contains the offsets required to move between two layers in order
+     * to compensate for the truncation.
+     * npl contains the number of nodes per level.
+     * lpl contains the number of leaves per level
+     * */
+    const uint16_t off[LOG2(T)+1] = TREE_OFFSETS;
+    const uint16_t npl[LOG2(T)+1] = TREE_NODES_PER_LEVEL;
+    const uint16_t lpl[LOG2(T)+1] = TREE_LEAVES_PER_LEVEL;
 
-      /* expand the children (stored contiguously) */
-      initialize_csprng(&tree_csprng_state, csprng_input, csprng_input_len);
-      csprng_randombytes(seed_tree + LEFT_CHILD(i)*SEED_LENGTH_BYTES,
-                         2*SEED_LENGTH_BYTES, &tree_csprng_state);
-   }
+    /* Generate the log_2(t) layers from the root, each iteration generates a tree
+     * level; iterate on nodes of the parent level; the leaf nodes on each level
+     * don't need to be expanded, thus only iterate to npl[level]-lpl[level] */
+    int start_node = 0;
+    for (int level = 0; level < LOG2(T); level++){
+        for (int node_in_level = 0; node_in_level < npl[level]-lpl[level]; node_in_level++ ) {
+            uint16_t father_node = start_node + node_in_level;
+            uint16_t left_child_node = LEFT_CHILD(father_node) - off[level];
+
+            /* prepare the CSPRNG input to expand the father node */
+            memcpy(csprng_input,
+                    seed_tree + father_node*SEED_LENGTH_BYTES,
+                    SEED_LENGTH_BYTES);
+
+            /* Domain separation using father node index */
+            uint16_t domain_sep = father_node;
+
+            /* Generate the children (stored contiguously).
+             * By construction, the tree has always two children */
+            initialize_csprng_ds(&tree_csprng_state, csprng_input, csprng_input_len, domain_sep);
+            csprng_randombytes(seed_tree + left_child_node*SEED_LENGTH_BYTES,
+                    2*SEED_LENGTH_BYTES,
+                    &tree_csprng_state);
+        }
+        start_node += npl[level];
+    }
 } /* end generate_seed_tree */
 
 /*****************************************************************************/
@@ -74,34 +138,56 @@ void generate_seed_tree_from_root(unsigned char
 #define TO_PUBLISH 0
 #define NOT_TO_PUBLISH 1
 
-static void compute_seeds_to_publish(
-   /* OUTPUT:
-	* linearized binary tree of boolean nodes containing
-    * flags for each node.
-	* NOTE:1-filled nodes are not to be released */
-   unsigned char flags_tree_to_publish[NUM_NODES_OF_SEED_TREE],
-   /* INPUT:
-	* Boolean Array indicating which of the T seeds must be
-    * released convention as per the above defines */
-   const unsigned char indices_to_publish[T]) {
-   /* the indices to publish may be less than the full leaves, copy them
-    * into the linearized tree leaves */
-   memcpy(flags_tree_to_publish + NUM_LEAVES_OF_SEED_TREE-1, 
-		  indices_to_publish, T);
+static
+void label_leaves(unsigned char flag_tree[NUM_NODES_SEED_TREE],
+                     const unsigned char indices_to_publish[T])
+{
+    const uint16_t cons_leaves[TREE_SUBROOTS] = TREE_CONSECUTIVE_LEAVES;
+    const uint16_t leaves_start_indices[TREE_SUBROOTS] = TREE_LEAVES_START_INDICES;
 
-   /* NOTE: do not change the `int`.
-    * compute the value for the internal nodes of the tree starting from the
-    * fathers of the leaves, right to left */
-   for (int i = NUM_LEAVES_OF_SEED_TREE-2; i >= 0; i--) {
-      flags_tree_to_publish[i] = ( flags_tree_to_publish[LEFT_CHILD(i)]  == NOT_TO_PUBLISH) ||
-                                 ( flags_tree_to_publish[RIGHT_CHILD(i)] == NOT_TO_PUBLISH);
-   }
+    unsigned int cnt = 0;
+    for (size_t i=0; i<TREE_SUBROOTS; i++) {
+        for (size_t j=0; j<cons_leaves[i]; j++) {
+            flag_tree[leaves_start_indices[i]+j] = indices_to_publish[cnt];
+            cnt++;
+        }
+    }
+}
+
+static void compute_seeds_to_publish(
+    /* linearized binary tree of boolean nodes containing
+     * flags for each node 1-filled nodes are to be released */
+    unsigned char flags_tree_to_publish[NUM_NODES_SEED_TREE],
+    /* Boolean Array indicating which of the T seeds must be
+     * released convention as per the above defines */
+    const unsigned char indices_to_publish[T]) {
+    /* the indices to publish may be less than the full leaves, copy them
+     * into the linearized tree leaves */
+    label_leaves(flags_tree_to_publish, indices_to_publish);
+
+    const uint16_t off[LOG2(T)+1] = TREE_OFFSETS;
+    const uint16_t npl[LOG2(T)+1] = TREE_NODES_PER_LEVEL;
+    const uint16_t leaves_start_indices[TREE_SUBROOTS] = TREE_LEAVES_START_INDICES;
+
+    /* compute the value for the internal nodes of the tree starting from the
+     * the leaves, right to left */
+    unsigned int start_node = leaves_start_indices[0];
+    for (int level=LOG2(T); level>0; level--) {
+        for (int i=npl[level]-2; i>=0; i-=2) {
+            uint16_t current_node = start_node + i;
+            uint16_t parent_node = PARENT(current_node) + (off[level-1] >> 1);
+
+            flags_tree_to_publish[parent_node] = (flags_tree_to_publish[current_node] == TO_PUBLISH)
+                && (flags_tree_to_publish[SIBLING(current_node)] == TO_PUBLISH);
+        }
+        start_node -= npl[level-1];
+    }
 } /* end compute_seeds_to_publish */
 
 /*****************************************************************************/
 
 uint32_t seed_tree_path(const unsigned char
-                  seed_tree[NUM_NODES_OF_SEED_TREE*SEED_LENGTH_BYTES],
+                  seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES],
                   // INPUT: binary array storing in each cell a binary value (i.e., 0 or 1),
                   //        which in turn denotes if the seed of the node with the same index
                   //        must be released (i.e., cell == 0) or not (i.e., cell == 1).
@@ -111,68 +197,110 @@ uint32_t seed_tree_path(const unsigned char
                   unsigned char
                   *seed_storage)             // OUTPUT: sequence of seeds to be released
 {
-   /* complete linearized binary tree containing boolean values determining
-    * if a node is to be released or not. Nodes set to 1 are not to be released
-    * oldest ancestor of sets of nodes equal to 0 are to be released */
-   unsigned char flags_tree_to_publish[NUM_NODES_OF_SEED_TREE] = {0};
-   compute_seeds_to_publish(flags_tree_to_publish, indices_to_publish);
+    /* complete linearized binary tree containing boolean values determining
+     * if a node is to be released or not according to convention above.
+     * */
+    unsigned char flags_tree_to_publish[NUM_NODES_SEED_TREE] = {NOT_TO_PUBLISH};
+    compute_seeds_to_publish(flags_tree_to_publish, indices_to_publish);
 
-   uint32_t num_seeds_published = 0;
-   for (uint32_t i = 0; i < 2*NUM_LEAVES_OF_SEED_TREE-1; i++) {
-      if (flags_tree_to_publish[i]         == TO_PUBLISH &&
-          flags_tree_to_publish[PARENT(i)] == NOT_TO_PUBLISH ) {
-         memcpy(seed_storage + num_seeds_published*SEED_LENGTH_BYTES,
-                seed_tree + i*SEED_LENGTH_BYTES,
-                SEED_LENGTH_BYTES );
-         num_seeds_published++;
-      }
-   }
+    const uint16_t off[LOG2(T)+1] = TREE_OFFSETS;
+    const uint16_t npl[LOG2(T)+1] = TREE_NODES_PER_LEVEL;
 
+    /* no sense in trying to publish the root node, start examining from level 1 */
+    int start_node = 1;
+    int num_seeds_published = 0;
+    for (int level = 1; level <= LOG2(T); level++){
+        for (int node_in_level = 0; node_in_level < npl[level]; node_in_level++ ) {
+            uint16_t current_node = start_node + node_in_level;
+            uint16_t father_node = PARENT(current_node) + (off[level-1] >> 1);
+
+            /* if seed is to published and its ancestor/parent node is not,
+             * add it to the seed storage */
+            if ( (flags_tree_to_publish[current_node] == TO_PUBLISH) &&
+                (flags_tree_to_publish[father_node] == NOT_TO_PUBLISH) ) {
+                memcpy(seed_storage + num_seeds_published*SEED_LENGTH_BYTES,
+                        seed_tree + current_node*SEED_LENGTH_BYTES,
+                        SEED_LENGTH_BYTES);
+                num_seeds_published++;
+            }
+        }
+        start_node += npl[level];
+    }
    return num_seeds_published;
 } /* end seed_tree_path */
 
 /*****************************************************************************/
 
 uint32_t rebuild_seed_tree_leaves(unsigned char
-                      seed_tree[NUM_NODES_OF_SEED_TREE*SEED_LENGTH_BYTES],
+                      seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES],
                       const unsigned char indices_to_publish[T],
                       const unsigned char *stored_seeds,
                       const unsigned char salt[HASH_DIGEST_LENGTH]) {
    /* complete linearized binary tree containing boolean values determining
-    * if a node is to be released or not. Nodes set to 1 are not to be released
-    * oldest ancestor of sets of nodes equal to 0 are to be released */
-   unsigned char flags_tree_to_publish[2*NUM_LEAVES_OF_SEED_TREE-1] = {0};
-   compute_seeds_to_publish(flags_tree_to_publish, indices_to_publish);
+     * if a node is to be released or not according to aboves convention
+     */
+    unsigned char flags_tree_to_publish[NUM_NODES_SEED_TREE] = {0};
+    compute_seeds_to_publish(flags_tree_to_publish, indices_to_publish);
 
-   const uint32_t csprng_input_len = HASH_DIGEST_LENGTH +
-                                     SEED_LENGTH_BYTES;
-   unsigned char csprng_input[csprng_input_len];
-   SHAKE_STATE_STRUCT tree_csprng_state;
+    const uint32_t csprng_input_len = SALT_LENGTH_BYTES +
+        SEED_LENGTH_BYTES;
+    unsigned char csprng_input[csprng_input_len];
+    SHAKE_STATE_STRUCT tree_csprng_state;
 
-   memcpy(csprng_input, salt, HASH_DIGEST_LENGTH);
+    const uint16_t off[LOG2(T)+1] = TREE_OFFSETS;
+    const uint16_t npl[LOG2(T)+1] = TREE_NODES_PER_LEVEL;
+    const uint16_t lpl[LOG2(T)+1] = TREE_LEAVES_PER_LEVEL;
 
-   uint32_t nodes_used = 0;
-   for (uint32_t i = 0; i < NUM_NODES_OF_SEED_TREE; i++) {
-      /* if the current node is a seed which was published, memcpy it in place */
-      if ( flags_tree_to_publish[i] == TO_PUBLISH ) {
-         if ( flags_tree_to_publish[PARENT(i)] == NOT_TO_PUBLISH ) {
-            memcpy(seed_tree + SEED_LENGTH_BYTES*i,
-                   stored_seeds + SEED_LENGTH_BYTES*nodes_used,
-                   SEED_LENGTH_BYTES );
-            nodes_used++;
-         }
-         /* if the current node is not a leaf, CSPRNG-expand its children */
-         if ( i < NUM_LEAVES_OF_SEED_TREE-1 ) {
-            /* prepare the CSPRNG input to expand the children of node i */
-            memcpy(csprng_input + HASH_DIGEST_LENGTH,
-                   seed_tree + i*SEED_LENGTH_BYTES,
-                   SEED_LENGTH_BYTES);
-            initialize_csprng(&tree_csprng_state, csprng_input, csprng_input_len);
-            csprng_randombytes(seed_tree + LEFT_CHILD(i)*SEED_LENGTH_BYTES,
-                               2*SEED_LENGTH_BYTES, &tree_csprng_state);
-         }
-      }
-   }
+    memcpy(csprng_input + SEED_LENGTH_BYTES, salt, SALT_LENGTH_BYTES);
 
-   return nodes_used;
+    /* regenerating the seed tree never starts from the root, as it is never
+     * disclosed */
+    int nodes_used = 0;
+    int start_node = 1;
+    for (int level = 1; level <= LOG2(T); level++){
+        for (int node_in_level = 0; node_in_level < npl[level]; node_in_level++ ) {
+            uint16_t current_node = start_node + node_in_level;
+            uint16_t father_node = PARENT(current_node) + (off[level-1] >> 1);
+            uint16_t left_child = LEFT_CHILD(current_node) - off[level];
+
+            /* if the current node is a seed which was published (thus its father
+             * was not), memcpy it in place */
+            if ( flags_tree_to_publish[current_node] == TO_PUBLISH ) {
+                if ( flags_tree_to_publish[father_node] == NOT_TO_PUBLISH ) {
+                    memcpy(seed_tree + current_node*SEED_LENGTH_BYTES,
+                            stored_seeds + nodes_used*SEED_LENGTH_BYTES,
+                            SEED_LENGTH_BYTES );
+                    nodes_used++;
+                }
+            }
+            /* If the current node is published and not a leaf, CSPRNG-expand its children.
+             * Since there is no reason of expanding leaves, only iterate to nodes per level (npl)
+             * minus leaves per level (lpl) in each level */
+            if ( ( flags_tree_to_publish[current_node] == TO_PUBLISH ) && (node_in_level < npl[level]-lpl[level] ) ) {
+                /* prepare the CSPRNG input to expand the children of node current_node */
+                memcpy(csprng_input,
+                        seed_tree + current_node*SEED_LENGTH_BYTES,
+                        SEED_LENGTH_BYTES);
+
+                /* Domain separation using father node index */
+                uint16_t domain_sep = current_node;
+
+                /* expand the children (stored contiguously), by construction always two children */
+                initialize_csprng_ds(&tree_csprng_state, csprng_input, csprng_input_len, domain_sep);
+                csprng_randombytes(seed_tree + left_child*SEED_LENGTH_BYTES,
+                        2*SEED_LENGTH_BYTES,
+                        &tree_csprng_state);
+            }
+        }
+        start_node += npl[level];
+    }
+
+    // Check for correct zero padding in the remaining parth of the seed path to
+    // prevent trivial forgery
+    uint8_t error = 0;
+    for (int i=nodes_used*SEED_LENGTH_BYTES; i<MAX_PUBLISHED_SEEDS*SEED_LENGTH_BYTES; i++) {
+        error |= stored_seeds[i];
+    }
+    return (error == 0);
 } /* end rebuild_seed_tree_leaves */
+#endif // if defined SEED_TREE

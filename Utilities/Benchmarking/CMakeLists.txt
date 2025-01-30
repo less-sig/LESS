@@ -15,7 +15,7 @@ endif()
 option(USE_SANITIZE "enable compiler memory sanitation" OFF)
 
 # default compilation picks reference codebase
-option(USE_REFERENCE "Use reference implementation" OFF)
+option(USE_REFERENCE "Use reference implementation" ON)
 
 # use AVX2 implementations.
 option(USE_AVX2 "Use the AVX2 Optimized Omplementation." ON)
@@ -100,13 +100,7 @@ endif()
 message(STATUS "Compilation flags:" ${CMAKE_C_FLAGS})
 
 
-
-
-find_library(KECCAK_LIB keccak)
-if(NOT KECCAK_LIB)
- set(STANDALONE_KECCAK 1)
-endif()
-
+set(STANDALONE_KECCAK 1)
 
 set(HEADERS
   ${BASE_DIR}/include/api.h
@@ -138,13 +132,17 @@ endif()
 
 set(SOURCES
   ${COMMON_SOURCES}
+  ${BASE_DIR}/lib/canonical.c
   ${BASE_DIR}/lib/codes.c
   ${BASE_DIR}/lib/LESS.c
+  ${BASE_DIR}/lib/LESS_without_tree.c
   ${BASE_DIR}/lib/monomial.c
   ${BASE_DIR}/lib/rng.c
   ${BASE_DIR}/lib/seedtree.c
-  ${BASE_DIR}/lib/utils.c
   ${BASE_DIR}/lib/sign.c
+  ${BASE_DIR}/lib/sort.c
+  ${BASE_DIR}/lib/transpose.c
+  ${BASE_DIR}/lib/utils.c
 )
 
 if(USE_AVX2)

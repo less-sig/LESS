@@ -101,6 +101,8 @@ size_t LESS_sign(const prikey_t *SK,
                  const uint64_t mlen,
                  sign_t *sig) {
     uint8_t g0_initial_pivot_flags [N];
+    /* start  by clearing signature memory, as padding must be null */
+    memset(sig,0,sizeof(sign_t));
 
     /*         Private key expansion        */
     /* expand sequence of seeds for private inverse-monomial matrices */
@@ -127,10 +129,10 @@ size_t LESS_sign(const prikey_t *SK,
     SHAKE_STATE_STRUCT cf_shake_state;
     initialize_csprng(&cf_shake_state, cf_seed, SEED_LENGTH_BYTES);
 
-    unsigned char seed_tree[NUM_NODES_OF_SEED_TREE * SEED_LENGTH_BYTES] = {0};
+    unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES] = {0};
     generate_seed_tree_from_root(seed_tree, ephem_monomials_seed, sig->tree_salt);
     unsigned char *ephem_monomial_seeds = seed_tree +
-                                          SEED_LENGTH_BYTES * (NUM_LEAVES_OF_SEED_TREE - 1);
+                                          SEED_LENGTH_BYTES * (NUM_LEAVES_SEED_TREE - 1);
 
     /*         Public G_0 expansion                  */
     rref_generator_mat_t G0_rref;
@@ -225,10 +227,10 @@ int LESS_verify(const pubkey_t *const PK,
                 const char *const m,
                 const uint64_t mlen,
                 const sign_t *const sig) {
-
-    uint8_t fixed_weight_string[T] = {0};
     uint8_t g_initial_pivot_flags [N];
     uint8_t g_permuted_pivot_flags [N];
+
+    uint8_t fixed_weight_string[T] = {0};
     expand_digest_to_fixed_weight(fixed_weight_string, sig->digest);
 
     uint8_t published_seed_indexes[T];
@@ -236,12 +238,12 @@ int LESS_verify(const pubkey_t *const PK,
         published_seed_indexes[i] = !!(fixed_weight_string[i]);
     }
 
-    unsigned char seed_tree[NUM_NODES_OF_SEED_TREE * SEED_LENGTH_BYTES] = {0};
+    unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES] = {0};
     rebuild_seed_tree_leaves(seed_tree, published_seed_indexes,
                              (unsigned char *) &sig->seed_storage, sig->tree_salt);
 
     unsigned char *ephem_monomial_seeds = seed_tree +
-                                          SEED_LENGTH_BYTES * (NUM_LEAVES_OF_SEED_TREE - 1);
+                                          SEED_LENGTH_BYTES * (NUM_LEAVES_SEED_TREE - 1);
 
     int employed_monoms = 0;
 
@@ -250,8 +252,8 @@ int LESS_verify(const pubkey_t *const PK,
 
     uint8_t is_pivot_column[N] = {0};
     generator_mat_t tmp_full_G;
-    generator_mat_t G_hat;
     monomial_action_IS_t Q_to_discard;
+    generator_mat_t G_hat;
     normalized_IS_t V_array;
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
@@ -259,7 +261,7 @@ int LESS_verify(const pubkey_t *const PK,
     for (uint32_t i = 0; i < T; i++) {
         if (fixed_weight_string[i] == 0) {
             generator_get_pivot_flags(&G0_rref, g_initial_pivot_flags);
-          
+
             // TODO mov this out of the loop and keep `tmp_full_G` constant
             generator_rref_expand(&tmp_full_G, &G0_rref);
             monomial_t Q_to_multiply;
@@ -309,15 +311,15 @@ int LESS_verify(const pubkey_t *const PK,
             apply_cf_action_to_G(&G_hat, &tmp_full_G, sig->cf_monom_actions[employed_monoms]);
             const int ret = generator_RREF(&G_hat, is_pivot_column);
 #endif
-            if(ret != 1) {
+            if (ret != 1) {
                 return 0;
             }
 
             // TODO not CT, not correct if more than 1 col is not a pivot column. Somehow merge with the loop just below
             // just copy the non IS
             uint32_t ctr = 0, offset = K;
-            for(uint32_t j = 0; j < N-K; j++) {
-                if (is_pivot_column[j+K]) {
+            for (uint32_t j = 0; j < N - K; j++) {
+                if (is_pivot_column[j + K]) {
                     ctr += 1;
                     offset = K - ctr;
                 }
