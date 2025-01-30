@@ -139,10 +139,10 @@ size_t LESS_sign(const prikey_t *SK,
     SHAKE_STATE_STRUCT cf_shake_state;
     initialize_csprng(&cf_shake_state, cf_seed, SEED_LENGTH_BYTES);
 
-    unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES] = {0};
+    unsigned char seed_tree[NUM_NODES_OF_SEED_TREE * SEED_LENGTH_BYTES] = {0};
     generate_seed_tree_from_root(seed_tree, ephem_monomials_seed, sig->salt);
     unsigned char *ephem_monomial_seeds = seed_tree +
-                                          SEED_LENGTH_BYTES * (NUM_LEAVES_SEED_TREE - 1);
+                                          SEED_LENGTH_BYTES * (NUM_LEAVES_OF_SEED_TREE - 1);
 
     /*         Public G_0 expansion                  */
     rref_generator_mat_t G0_rref;
@@ -297,12 +297,12 @@ int LESS_verify(const pubkey_t *const PK,
         published_seed_indexes[i] = !!(fixed_weight_string[i]);
     }
 
-    unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES] = {0};
+    unsigned char seed_tree[NUM_NODES_OF_SEED_TREE * SEED_LENGTH_BYTES] = {0};
     rebuild_seed_tree_leaves(seed_tree, published_seed_indexes,
                              (unsigned char *) &sig->seed_storage, sig->salt);
 
     unsigned char *ephem_monomial_seeds = seed_tree +
-                                          SEED_LENGTH_BYTES * (NUM_LEAVES_SEED_TREE - 1);
+                                          SEED_LENGTH_BYTES * (NUM_LEAVES_OF_SEED_TREE - 1);
 
     int employed_monoms = 0;
 

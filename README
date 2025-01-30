@@ -27,6 +27,13 @@ The library is organized in the same fashion as the reference one, except there
 is no support for using libkeccak. All implementations come with their own 
 optimized SHA3 and SHAKE implementation.
 
+The following libraries/tools are needed:
+- `cmake`
+- `make`
+- `gcc`/`clang`
+- `openssl`
+- `pkg-config`
+
 
 Utilities
 ===========

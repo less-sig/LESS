@@ -3,6 +3,7 @@ project(LESS)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
+find_package(OpenSSL)
 
 
 # Set a default build type if none was specified
@@ -179,7 +180,8 @@ foreach(category "252" "400" "548")
     # KATS generation
     set(TARGET_BINARY_NAME LESS_nist_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/KAT_NIST_rng.c ${PROJECT_SOURCE_DIR}/lib/PQCgenKAT_sign.c)
-    target_link_libraries(${TARGET_BINARY_NAME} PRIVATE crypto)
+    target_include_directories(${TARGET_BINARY_NAME} PRIVATE $OPENSSL_INCLUDE_DIR)
+    target_link_libraries(${TARGET_BINARY_NAME} PRIVATE OpenSSL::Crypto)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
   endforeach(optimize_target)
