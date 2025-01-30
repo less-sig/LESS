@@ -2,9 +2,9 @@ name: avx2
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["main", "develop"]
   pull_request:
-    branches: [ "master" ]
+    branches: ["main", "develop"]
 
 env:
   BUILD_TYPE: Release

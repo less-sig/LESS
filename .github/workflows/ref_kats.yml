@@ -1,0 +1,56 @@
+name: ref_kats
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        compiler: [ g++-12, clang++-16 ]
+
+    name: Build & test on ${{ matrix.os }} with ${{ matrix.compiler }}.
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Install Software
+      run: |
+        sudo apt-get install -y cmake libssl-dev
+    
+    - name: Configure CMake
+      working-directory: ${{github.workspace}}/Reference_Implementation
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+    - name: Build
+      working-directory: ${{github.workspace}}/Reference_Implementation
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      run: |
+        ./LESS_nist_cat_252_192
+        ./LESS_nist_cat_252_68
+        ./LESS_nist_cat_252_45
+        ./LESS_nist_cat_400_220
+        ./LESS_nist_cat_400_102
+        ./LESS_nist_cat_548_345
+        ./LESS_nist_cat_548_137
+        sha1sum *.rsp
+        tar -cf kats_${{matrix.os}}_${{matrix.compiler}}.tar *.rsp 
+
+    - name: save kats
+      uses: actions/upload-artifact@v4
+      with:
+        name: kats_${{matrix.os}}_${{matrix.compiler}}
+        path: ${{github.workspace}}/build/kats_${{matrix.os}}_${{matrix.compiler}}.tar
