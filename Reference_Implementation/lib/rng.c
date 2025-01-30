@@ -60,6 +60,6 @@ void initialize_csprng_ds(SHAKE_STATE_STRUCT *shake_state,
    // the second parameter is the security level of the SHAKE instance
    xof_shake_init(shake_state, SEED_LENGTH_BYTES*8);
    xof_shake_update(shake_state,seed,seed_len_bytes);
-   xof_shake_update(shake_state,&domain_sep_constant,2);
+   xof_shake_update(shake_state,(uint8_t *)&domain_sep_constant,2);
    xof_shake_final(shake_state);
 } /* end initialize_csprng_ds */

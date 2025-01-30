@@ -21,18 +21,10 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-<<<<<<< HEAD
 set(ALLOWED_WARNINGS " -Wno-type-limits")
 IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
 	set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -Og -ggdb -Wall -Wextra -Wpedantic -fsanitize=address ${ALLOWED_WARNINGS}")
 	set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -march=native -mtune=native -flax-vector-conversions -ftree-vectorize -funroll-loops -flto ${ALLOWED_WARNINGS}")
-=======
-set(ALLOWED_WARNINGS " -Wno-gnu-binary-literal -Wno-unused-function -Wno-type-limits")
-
-IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
-	set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0  -march=native -flax-vector-conversions ${ALLOWED_WARNINGS}")
-	set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -march=native -mtune=native -flax-vector-conversions -ftree-vectorize -funroll-loops -fomit-frame-pointer -fno-stack-protector -flto ${ALLOWED_WARNINGS}")
->>>>>>> origin/main
 else()
 	set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -Og -ggdb -Wall -Wextra -Wpedantic -fsanitize=address ${ALLOWED_WARNINGS}")
     set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -O3 -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -mtune=native -ftree-vectorize -flto ${ALLOWED_WARNINGS}")
