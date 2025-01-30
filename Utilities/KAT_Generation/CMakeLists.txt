@@ -45,8 +45,8 @@ check_c_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic -pedantic -Wno-type-limits")
 
-if(USE_SANITZE)
-  set(SANITIZE "-fsanitize=address -fsanitize=pointer-compare")
+if(USE_SANITIZE)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize=pointer-compare")
 endif()
 
 string(TOUPPER "${CMAKE_BUILD_TYPE}" UPPER_CMAKE_BUILD_TYPE)
