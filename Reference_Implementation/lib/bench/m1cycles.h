@@ -9,7 +9,6 @@
 #include <libkern/OSCacheControl.h>
 #include <pthread.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #define KPERF_LIST                                                                                                     \
     /*  ret, name, params */                                                                                           \
