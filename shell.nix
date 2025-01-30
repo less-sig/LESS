@@ -29,11 +29,12 @@ gccStdenv.mkDerivation {
     llvm
     gcc
     pkg-config
+    openssl
+  ] ++ (lib.optionals pkgs.stdenv.isLinux ([
     gdb
     valgrind
     massif-visualizer
-    openssl
     libxslt
     linuxKernel.packages.linux_6_6.perf
-  ];
+  ]));
 }
