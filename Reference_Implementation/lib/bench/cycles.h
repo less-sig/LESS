@@ -12,7 +12,7 @@ static
 void setup_cycle_counter(void)
 {
 #if defined(__APPLE__) && (defined(__aarch64__) || defined(__arm64__))
-    kperf_init_once();
+    __m1_setup_rdtsc();
 #endif
 }
 
