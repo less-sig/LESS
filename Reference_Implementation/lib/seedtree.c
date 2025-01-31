@@ -146,6 +146,8 @@ static void compute_seeds_to_publish(
             if ((flags_tree_to_publish[current_node] == TO_PUBLISH) &&
                 (flags_tree_to_publish[SIBLING(current_node)] == TO_PUBLISH)){
                  flags_tree_to_publish[parent_node] = TO_PUBLISH;
+            } else {
+                 flags_tree_to_publish[parent_node] = NOT_TO_PUBLISH;
             }
         }
         start_node -= npl[level-1];

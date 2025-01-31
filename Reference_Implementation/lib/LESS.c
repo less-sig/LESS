@@ -214,7 +214,8 @@ size_t LESS_sign(const prikey_t *SK,
         }
 
         // NOTE: blinding is currently not included in the pseudocode
-        // blind(&A_i, &cf_shake_state);
+        // TODO blind(&A_i, &cf_shake_state);
+
         const int t = CF(&A_i);
         if (t == 0) {
             *(ephem_monomial_seeds + i*SEED_LENGTH_BYTES) += 1;
