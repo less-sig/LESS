@@ -143,9 +143,10 @@ static void compute_seeds_to_publish(
         for (int i=npl[level]-2; i>=0; i-=2) {
             uint16_t current_node = start_node + i;
             uint16_t parent_node = PARENT(current_node) + (off[level-1] >> 1);
-
-            flags_tree_to_publish[parent_node] = (flags_tree_to_publish[current_node] == TO_PUBLISH)
-                && (flags_tree_to_publish[SIBLING(current_node)] == TO_PUBLISH);
+            if ((flags_tree_to_publish[current_node] == TO_PUBLISH) &&
+                (flags_tree_to_publish[SIBLING(current_node)] == TO_PUBLISH)){
+                 flags_tree_to_publish[parent_node] = TO_PUBLISH;
+            }
         }
         start_node -= npl[level-1];
     }

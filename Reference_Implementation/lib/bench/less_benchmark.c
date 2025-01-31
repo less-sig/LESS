@@ -69,8 +69,7 @@ void welford_print(const welford_t state) {
 #elif defined(CATEGORY_3)
 #define NUM_RUNS 128
 #else
-#define NUM_RUNS 128
-// #define NUM_RUNS 256
+#define NUM_RUNS 20 
 #endif
 
 #ifdef N_pad
@@ -151,7 +150,7 @@ void LESS_sign_verify_speed(void){
     welford_print(timer);
     printf("\n");
     
-    int is_signature_ok;
+    int is_signature_ok = 1;
     welford_init(&timer);
     for(int i = 0; i <NUM_RUNS; i++) {
         cycles = read_cycle_counter();

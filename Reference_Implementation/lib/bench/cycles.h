@@ -4,7 +4,6 @@
 #include <stdint.h>
 
 #if defined(__APPLE__) && (defined(__aarch64__) || defined(__arm64__))
-#define MACOS_KPERF
 #include "m1cycles.h"
 #endif
 
@@ -12,8 +11,8 @@ __attribute__((unused))
 static
 void setup_cycle_counter(void)
 {
-#ifdef MACOS_KPERF
-    __m1_setup_rdtsc();
+#if defined(__APPLE__) && (defined(__aarch64__) || defined(__arm64__))
+    kperf_init_once();
 #endif
 }
 
@@ -21,7 +20,7 @@ __attribute__((unused))
 static inline
 uint64_t read_cycle_counter(void)
 {
-#ifdef MACOS_KPERF
+#if defined(__APPLE__) && (defined(__aarch64__) || defined(__arm64__))
    return __m1_rdtsc();
 #elif defined(__amd64) || defined(__amd64__) || defined(__x86_64__)
 

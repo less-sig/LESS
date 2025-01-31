@@ -1,11 +1,12 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.10)
 project(less)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 enable_testing()
-find_package(crypto QUIET)
+find_package(OpenSSL)
+
 set(default_build_type "Release")
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
@@ -22,14 +23,13 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
 endif()
 
 set(ALLOWED_WARNINGS " -Wno-type-limits")
-IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") 
+IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
 	set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -Og -ggdb -Wall -Wextra -Wpedantic -fsanitize=address ${ALLOWED_WARNINGS}")
 	set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -march=native -mtune=native -flax-vector-conversions -ftree-vectorize -funroll-loops -flto ${ALLOWED_WARNINGS}")
 else()
 	set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -Og -ggdb -Wall -Wextra -Wpedantic -fsanitize=address ${ALLOWED_WARNINGS}")
     set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -O3 -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -mtune=native -ftree-vectorize -flto ${ALLOWED_WARNINGS}")
 endif()
-
 
 set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/codes.c
@@ -94,7 +94,8 @@ foreach(category "252" "400" "548")
     # KATS generation
     set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/nist/KAT_NIST_rng.c ${PROJECT_SOURCE_DIR}/lib/nist/PQCgenKAT_sign.c)
-    target_link_libraries(${TARGET_BINARY_NAME} PRIVATE crypto)
+    target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(${TARGET_BINARY_NAME} PRIVATE OpenSSL::Crypto)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
   endforeach(optimize_target)

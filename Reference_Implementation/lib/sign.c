@@ -53,20 +53,11 @@ int crypto_sign(unsigned char *sm,
     /* sign cannot fail */
     memcpy((unsigned char *) sm, (const unsigned char *) m, (size_t) mlen);
 
-    /// TODO: we need to fix this somehow: But how do we do this?
-    /// The problem, iirc, is that always a different amount of seeds are opened.
-    /// So we need to keep track of them
-    /// TODO second problem: the `without tree` version does not return seeds
-    const uint32_t num_seeds_published = LESS_sign(
-            (const prikey_t *)sk,                                   // in parameter
-            (const char *const) m, (const uint64_t) mlen,           // in parameter
-            (sign_t *) (sm + mlen));                                // out parameter
-#if defined(SEED_TREE)
-    const uint32_t sig_len = LESS_CRYPTO_BYTES(num_seeds_published);
-#else
-    (void)num_seeds_published;
-    const uint32_t sig_len = sizeof(sign_t);//LESS_CRYPTO_BYTES;
-#endif
+    
+    LESS_sign( (const prikey_t *) sk,                                  // in parameter
+               (const char *const) m, (const uint64_t) mlen,           // in parameter
+               (sign_t *) (sm + mlen));                                // out parameter
+    const uint32_t sig_len = sizeof(struct sig_t); //LESS_CRYPTO_BYTES;
 
     *smlen = mlen + sig_len;
     return 0;  // NIST convention: 0 == zero errors
@@ -82,18 +73,7 @@ int crypto_sign_open(unsigned char *m,
                      const unsigned char *sm, unsigned long long smlen, // in parameter
                      const unsigned char *pk)                           // in parameter
 {
-#if defined(SEED_TREE)
-    /// TODO, see sign for explanation
-    const uint8_t num_seeds_published = sm[smlen - 1u];
-    if (num_seeds_published >= MAX_PUBLISHED_SEEDS) {
-        return -1;
-    }
-
-    // the size of the signature in bytes
-    const uint32_t sig_len = LESS_CRYPTO_BYTES((uint32_t)num_seeds_published);
-#else
-    const uint32_t sig_len = sizeof(sign_t);//LESS_CRYPTO_BYTES;
-#endif
+    const uint32_t sig_len = sizeof(struct sig_t);//LESS_CRYPTO_BYTES;
 
     *mlen = smlen - (unsigned long long)sig_len;
     memcpy((unsigned char *) m, (const unsigned char *) sm, (size_t) *mlen);

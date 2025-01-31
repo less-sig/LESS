@@ -1,6 +1,11 @@
 name: ref_kats
 
-on: [push]
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+
 env:
   BUILD_TYPE: Release
 

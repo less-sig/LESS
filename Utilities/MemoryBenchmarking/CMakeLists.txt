@@ -56,8 +56,8 @@ check_c_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic -pedantic -Wno-type-limits")
 
-if(USE_SANITZE)
-  set(SANITIZE "-fsanitize=address -fsanitize=pointer-compare")
+if(USE_SANITIZE)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize=pointer-compare")
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES Release)
@@ -180,8 +180,7 @@ foreach(category "252" "400" "548")
        COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
 
    	set(TARGET_BINARY_NAME LESS_memory_${category}_${optimize_target}_sign)
-    add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}
-                       ./lib/less_sign.c)
+    add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ./lib/less_sign.c)
     target_include_directories(${TARGET_BINARY_NAME} PRIVATE
                                ${BASE_DIR}/include
                                ./include)

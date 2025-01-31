@@ -4,6 +4,8 @@ enable_language(C ASM)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 
+find_package(OpenSSL)
+
 # needed for nvim
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 if(CMAKE_EXPORT_COMPILE_COMMANDS)
@@ -23,7 +25,7 @@ endif()
 option(USE_SANITIZE "enable compiler memory sanitation" OFF)
 
 # default compilation picks reference codebase
-option(USE_REFERENCE "Use reference implementation" OFF)
+option(USE_REFERENCE "Use reference implementation" ON)
 
 # use AVX2 implementations.
 option(USE_AVX2 "Use the AVX2 Optimized Omplementation." ON)
@@ -65,8 +67,8 @@ check_c_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto -ftree-vectorize -funroll-loops -Wall -Wpedantic -pedantic ")
 
-if(USE_SANITZE)
-  set(SANITIZE "-fsanitize=address -fsanitize=pointer-compare")
+if(USE_SANITIZE)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize=pointer-compare ")
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES Release)
@@ -103,13 +105,7 @@ endif()
 message(STATUS "Compilation flags:" ${CMAKE_C_FLAGS})
 
 
-
-
-find_library(KECCAK_LIB keccak)
-if(NOT KECCAK_LIB)
- set(STANDALONE_KECCAK 1)
-endif()
-
+set(STANDALONE_KECCAK 1)
 
 set(HEADERS
   ${BASE_DIR}/include/api.h
@@ -140,18 +136,18 @@ endif()
 
 set(SOURCES
   ${COMMON_SOURCES}
+  ${BASE_DIR}/lib/canonical.c
   ${BASE_DIR}/lib/codes.c
   ${BASE_DIR}/lib/LESS.c
   ${BASE_DIR}/lib/LESS_without_tree.c
   ${BASE_DIR}/lib/monomial.c
   ${BASE_DIR}/lib/rng.c
   ${BASE_DIR}/lib/seedtree.c
-  ${BASE_DIR}/lib/utils.c
   ${BASE_DIR}/lib/sign.c
   ${BASE_DIR}/lib/sort.c
   ${BASE_DIR}/lib/transpose.c
-  ${BASE_DIR}/lib/canonical.c
   ${BASE_DIR}/lib/keccakf1600.c
+  ${BASE_DIR}/lib/utils.c
 )
 
 if(USE_AVX2)
@@ -182,7 +178,7 @@ foreach(category "252" "400" "548")
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/less_benchmark.c)
     target_link_libraries(${TARGET_BINARY_NAME} m)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
-    target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
+    target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${OPENSSL_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
   endforeach(optimize_target)
 endforeach(category)

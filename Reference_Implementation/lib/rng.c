@@ -40,23 +40,25 @@ SHAKE_STATE_STRUCT platform_csprng_state;
 /// \param shake_state[in/out]
 /// \param seed[in]
 /// \param seed_len_bytes[in]
-void initialize_csprng(SHAKE_STATE_STRUCT *shake_state,
-                       const unsigned char *seed,
-                       const size_t seed_len_bytes)
-{
-   // the second parameter is the security level of the SHAKE instance
-   xof_shake_init(shake_state, SEED_LENGTH_BYTES*8);
-   xof_shake_update(shake_state, seed,seed_len_bytes);
-   xof_shake_final(shake_state);
+void initialize_csprng(SHAKE_STATE_STRUCT *shake_state, const unsigned char *seed, const uint32_t seed_len_bytes) {
+    // the second parameter is the security level of the SHAKE instance
+    xof_shake_init(shake_state, SEED_LENGTH_BYTES * 8);
+    xof_shake_update(shake_state, seed, seed_len_bytes);
+    xof_shake_final(shake_state);
 } /* end initialize_csprng */
 
 void initialize_csprng_ds(SHAKE_STATE_STRUCT *shake_state,
                        const unsigned char *seed,
                        const uint32_t seed_len_bytes,
                        const uint16_t domain_sep_constant ){
-   // the second parameter is the security level of the SHAKE instance
-   xof_shake_init(shake_state, SEED_LENGTH_BYTES*8);
-   xof_shake_update(shake_state,seed,seed_len_bytes);
-   xof_shake_update(shake_state,(uint8_t *)&domain_sep_constant,2);
-   xof_shake_final(shake_state);
+    // the second parameter is the security level of the SHAKE instance
+    xof_shake_init(shake_state, SEED_LENGTH_BYTES * 8);
+    xof_shake_update(shake_state, seed, seed_len_bytes);
+#if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+    unsigned char domain_sep[] = {domain_sep_constant >> 8, domain_sep_constant & 0xff};
+#else
+    unsigned char* domain_sep = (unsigned char *) &domain_sep_constant;
+#endif
+    xof_shake_update(shake_state, domain_sep, sizeof(uint16_t));
+    xof_shake_final(shake_state);
 } /* end initialize_csprng_ds */
