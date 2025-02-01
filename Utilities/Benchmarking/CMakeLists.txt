@@ -65,7 +65,7 @@ include(CheckCCompilerFlag)
 unset(COMPILER_SUPPORTS_MARCH_NATIVE CACHE)
 check_c_compiler_flag(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto -ftree-vectorize -funroll-loops -Wall -Wpedantic -pedantic ")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -flto -ftree-vectorize -funroll-loops -Wall -Wpedantic -pedantic ")
 
 if(USE_SANITIZE)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize=pointer-compare ")

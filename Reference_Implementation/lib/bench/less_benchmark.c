@@ -69,7 +69,7 @@ void welford_print(const welford_t state) {
 #elif defined(CATEGORY_3)
 #define NUM_RUNS 128
 #else
-#define NUM_RUNS 1
+#define NUM_RUNS 10
 #endif
 
 #ifdef N_pad

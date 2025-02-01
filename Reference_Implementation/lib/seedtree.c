@@ -146,8 +146,6 @@ void generate_seed_tree_from_root(unsigned char
         }
         start_node += npl[level];
     }
-    fprintf(stderr,"Generated seed tree\n");
-    ptree(seed_tree);
 } /* end generate_seed_tree */
 
 /*****************************************************************************/
@@ -225,7 +223,7 @@ static void compute_seeds_to_publish(
 
 /*****************************************************************************/
 
-uint32_t seed_tree_path(const unsigned char
+uint32_t extract_seed_tree_paths(const unsigned char
                   seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES],
                   // INPUT: binary array storing in each cell a binary value (i.e., 0 or 1),
                   //        which in turn denotes if the seed of the node with the same index
@@ -254,10 +252,10 @@ uint32_t seed_tree_path(const unsigned char
             uint16_t current_node = start_node + node_in_level;
             uint16_t father_node = PARENT(current_node) + (off[level-1] >> 1);
 
-            /* if seed is to published and its ancestor/parent node is not,
+            /* if seed is to be published and its ancestor/parent node is not,
              * add it to the seed storage */
             if ( (flags_tree_to_publish[current_node] == TO_PUBLISH) &&
-                (flags_tree_to_publish[father_node] == NOT_TO_PUBLISH) ) {
+                 (flags_tree_to_publish[father_node] == NOT_TO_PUBLISH) ) {
                 memcpy(seed_storage + num_seeds_published*SEED_LENGTH_BYTES,
                         seed_tree + current_node*SEED_LENGTH_BYTES,
                         SEED_LENGTH_BYTES);
@@ -334,8 +332,6 @@ uint32_t rebuild_seed_tree_leaves(unsigned char
         }
         start_node += npl[level];
     }
-    fprintf(stderr,"Rebuilt seed tree\n");
-    p_fs_tree(seed_tree,flags_tree_to_publish);
 
     // Check for correct zero padding in the remaining parth of the seed path to
     // prevent trivial forgery
@@ -345,4 +341,23 @@ uint32_t rebuild_seed_tree_leaves(unsigned char
     }
     return (error == 0);
 } /* end rebuild_seed_tree_leaves */
+
+
+/*****************************************************************************/
+void seed_leaves(unsigned char rounds_seeds[T*SEED_LENGTH_BYTES],
+                 unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES])
+{
+    const uint16_t cons_leaves[TREE_SUBROOTS] = TREE_CONSECUTIVE_LEAVES;
+    const uint16_t leaves_start_indices[TREE_SUBROOTS] = TREE_LEAVES_START_INDICES;
+
+    unsigned int cnt = 0;
+    for (size_t i=0; i<TREE_SUBROOTS; i++) {
+        for (size_t j=0; j<cons_leaves[i]; j++) {
+            memcpy(rounds_seeds + cnt*SEED_LENGTH_BYTES,
+                   seed_tree + (leaves_start_indices[i]+j)*SEED_LENGTH_BYTES,
+                   SEED_LENGTH_BYTES);
+            cnt++;
+        }
+    }
+}
 #endif // if defined SEED_TREE

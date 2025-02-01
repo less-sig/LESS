@@ -239,7 +239,7 @@ int LESS_sign_verify_test_KAT(void) {
         printf("crypto_sign_open returned <%d>\n", ret_val);
         return -1;
     }
-    
+
     free(m1);
     free(sm);
     printf("all good\n");
@@ -259,12 +259,12 @@ int main(int argc, char* argv[]){
                       16);
     fprintf(stderr,"LESS reference implementation functional testbench\n");
     info();
-    return LESS_sign_verify_test();
 
+    fprintf(stderr,"Starting %d tests: \n", NUM_TEST_ITERATIONS);
     int tests_ok = 0;
     for (int i = 0; i < NUM_TEST_ITERATIONS; i++) {
         fputc('.',stderr);
-      // fprintf(stderr,"test %d: ",i);
+       // fprintf(stderr,"test %d: ",i);
        // inverse_mod_tester();
        // gen_by_monom_tester();
        // monomial_tester();
@@ -274,6 +274,6 @@ int main(int argc, char* argv[]){
        // rref_gen_byte_compress_tester();
       tests_ok += LESS_sign_verify_test();
     }
-    fprintf(stderr,"%d tests functional out of %d\n",tests_ok,NUM_TEST_ITERATIONS);    
+    fprintf(stderr,"%d tests functional out of %d\n",tests_ok,NUM_TEST_ITERATIONS);
     return 0;
 }

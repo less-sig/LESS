@@ -72,7 +72,7 @@ void DigestToFixedWeight(uint8_t fixed_weight_string[T],
                      HASH_DIGEST_LENGTH);
 
    uint16_t rnd_buf;
-   for (int i = 0; i < T-W; i++) 
+   for (int i = 0; i < T-W; i++)
       fixed_weight_string[i] = 0;
 
     if (NUM_KEYPAIRS != 2) {
@@ -106,5 +106,5 @@ void DigestToFixedWeight(uint8_t fixed_weight_string[T],
       tmp = fixed_weight_string[p];
       fixed_weight_string[p] = fixed_weight_string[pos];
       fixed_weight_string[pos] = tmp;
-   }      
+   }
 } /* end parse_digest */
