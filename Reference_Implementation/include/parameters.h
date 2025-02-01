@@ -41,7 +41,8 @@
 #define N (16)
 #define K (8)
 #define SEED_LENGTH_BYTES (16)
-#define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operaiton is < 2^-64
+// Ensures probability of non-CT operation is < 2^-64
+#define SIGN_PIVOT_REUSE_LIMIT (51)
 
 #define NUM_KEYPAIRS (3)
 #define T (106)
@@ -105,7 +106,7 @@
 #define N (400)
 #define K (200)
 #define SEED_LENGTH_BYTES (24)
-#define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operaiton is < 2^-64
+#define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operation is < 2^-64
 
 #if TARGET==220
 #define NUM_KEYPAIRS (2)
@@ -144,7 +145,7 @@
 #define N (548)
 #define K (274)
 #define SEED_LENGTH_BYTES (32)
-#define SIGN_PIVOT_REUSE_LIMIT (79) // Ensures probability of non-CT operaiton is < 2^-64
+#define SIGN_PIVOT_REUSE_LIMIT (79) // Ensures probability of non-CT operation is < 2^-64
 
 #if TARGET==345
 #define NUM_KEYPAIRS (2)
