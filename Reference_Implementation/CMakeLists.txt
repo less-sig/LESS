@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.0)
 project(less)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 99)
@@ -36,7 +36,6 @@ set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/fips202.c
         ${PROJECT_SOURCE_DIR}/lib/keccakf1600.c
         ${PROJECT_SOURCE_DIR}/lib/LESS.c
-        ${PROJECT_SOURCE_DIR}/lib/LESS_without_tree.c
         ${PROJECT_SOURCE_DIR}/lib/monomial.c
         ${PROJECT_SOURCE_DIR}/lib/rng.c
         ${PROJECT_SOURCE_DIR}/lib/seedtree.c

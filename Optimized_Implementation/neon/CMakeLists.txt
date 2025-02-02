@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.0)
 project(less_neon)
 enable_language(C ASM)
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 99)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 if(APPLE)
@@ -27,7 +27,7 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS      "")
+set(ALLOWED_WARNINGS      "-Wno-type-limits")
 set(CMAKE_C_FLAGS_DEBUG   "-g -DUSE_NEON -Og -DDEBUG -march=native -flax-vector-conversions")
 set(CMAKE_C_FLAGS_RELEASE "-DUSE_NEON -O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
 
@@ -35,9 +35,7 @@ set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/codes.c
         ${PROJECT_SOURCE_DIR}/lib/fips202.c
         ${PROJECT_SOURCE_DIR}/lib/keccakf1600.c
-        # ${PROJECT_SOURCE_DIR}/lib/KeccakP-1600-armv8a-neon.s
         ${PROJECT_SOURCE_DIR}/lib/LESS.c
-        ${PROJECT_SOURCE_DIR}/lib/LESS_without_tree.c
         ${PROJECT_SOURCE_DIR}/lib/monomial.c
         ${PROJECT_SOURCE_DIR}/lib/rng.c
         ${PROJECT_SOURCE_DIR}/lib/seedtree.c

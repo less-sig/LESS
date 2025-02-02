@@ -32,7 +32,6 @@ set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/fips202.c
         ${PROJECT_SOURCE_DIR}/lib/keccakf1600.c
         ${PROJECT_SOURCE_DIR}/lib/LESS.c
-        ${PROJECT_SOURCE_DIR}/lib/LESS_without_tree.c
         ${PROJECT_SOURCE_DIR}/lib/monomial.c
         ${PROJECT_SOURCE_DIR}/lib/rng.c
         ${PROJECT_SOURCE_DIR}/lib/seedtree.c
@@ -92,7 +91,7 @@ foreach(category "252" "400" "548")
     set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/nist/KAT_NIST_rng.c ${PROJECT_SOURCE_DIR}/lib/nist/PQCgenKAT_sign.c)
     target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${OPENSSL_INCLUDE_DIR})
-        target_link_libraries(${TARGET_BINARY_NAME} PRIVATE OpenSSL::Crypto)
+    target_link_libraries(${TARGET_BINARY_NAME} PRIVATE OpenSSL::Crypto)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
   endforeach(optimize_target)

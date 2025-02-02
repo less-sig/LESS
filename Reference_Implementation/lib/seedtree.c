@@ -2,7 +2,6 @@
 #include <string.h>
 
 #include "parameters.h"
-#if defined(SEED_TREE)
 
 #include "seedtree.h"
 #include "sha3.h"
@@ -12,72 +11,6 @@
 #define RIGHT_CHILD(i) (2*(i)+2)
 #define PARENT(i) ( ((i)%2) ? (((i)-1)/2) : (((i)-2)/2) )
 #define SIBLING(i) ( ((i)%2) ? (i)+1 : (i)-1 )
-
-
-/****************************** Pretty Printers ******************************/
-
-#include <stdio.h>
-
-/* pretty-prints a seed */
-void pseed(unsigned char seed[SEED_LENGTH_BYTES]){
-     fprintf(stderr,"-");
-   for (int i = 0 ; i < SEED_LENGTH_BYTES; i++){
-     fprintf(stderr,"%02X", seed[i]);
-   }
-     fprintf(stderr,"- ");
-}
-
-/* pretty-prints a salt */
-void psalt(unsigned char salt[SALT_LENGTH_BYTES]){
-     fprintf(stderr,"-");
-   for (int i = 0 ; i < SALT_LENGTH_BYTES; i++){
-     fprintf(stderr,"%02X", salt[i]);
-   }
-     fprintf(stderr,"- ");
-}
-
-/* pretty-prints a seed tree */
-void ptree(unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES]){
-   const uint16_t npl[LOG2(T)+1] = TREE_NODES_PER_LEVEL;
-   int node_idx =0;
-   fprintf(stderr,"Tree dump\n");
-   int ancestors = 0;
-   for (int level = 0; level < LOG2(T)+1; level++){
-      fprintf(stderr," * Level %d \n", level);
-      for (int idx_in_level = 0; idx_in_level < npl[level]; idx_in_level++ ) {
-          node_idx = ancestors + idx_in_level ;
-          fprintf(stderr," [%d] ",node_idx);
-          pseed(seed_tree+node_idx*SEED_LENGTH_BYTES);
-      }
-      ancestors += npl[level];
-      fprintf(stderr,"\n");
-   }
-   fprintf(stderr,"\n");
-}
-
-/* pretty-prints a seed tree pairing each node with the corresponding flag
- * in the stencil flag tree */
-void p_fs_tree(unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES],
-               unsigned char flag_tree[NUM_NODES_SEED_TREE]){
-   const uint16_t npl[LOG2(T)+1] = TREE_NODES_PER_LEVEL;
-   int node_idx =0;
-   fprintf(stderr,"Tree dump\n");
-   int ancestors = 0;
-   for (int level = 0; level < LOG2(T)+1; level++){
-      fprintf(stderr," * Level %d \n", level);
-      for (int idx_in_level = 0; idx_in_level < npl[level]; idx_in_level++ ) {
-          node_idx = ancestors + idx_in_level ;
-          fprintf(stderr," [%d:f=%d] ",node_idx, flag_tree[node_idx]);
-          pseed(seed_tree+node_idx*SEED_LENGTH_BYTES);
-      }
-      ancestors += npl[level];
-      fprintf(stderr,"\n");
-   }
-   fprintf(stderr,"\n");
-}
-
-
-/************************ End of Pretty Printers ******************************/
 
 
 /* Seed tree implementation. The binary seed tree is linearized into an array
@@ -360,4 +293,3 @@ void seed_leaves(unsigned char rounds_seeds[T*SEED_LENGTH_BYTES],
         }
     }
 }
-#endif // if defined SEED_TREE

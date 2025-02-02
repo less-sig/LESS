@@ -25,7 +25,7 @@ endif()
 option(USE_SANITIZE "enable compiler memory sanitation" OFF)
 
 # default compilation picks reference codebase
-option(USE_REFERENCE "Use reference implementation" ON)
+option(USE_REFERENCE "Use reference implementation" OFF)
 
 # use AVX2 implementations.
 option(USE_AVX2 "Use the AVX2 Optimized Omplementation." ON)
@@ -139,7 +139,6 @@ set(SOURCES
   ${BASE_DIR}/lib/canonical.c
   ${BASE_DIR}/lib/codes.c
   ${BASE_DIR}/lib/LESS.c
-  ${BASE_DIR}/lib/LESS_without_tree.c
   ${BASE_DIR}/lib/monomial.c
   ${BASE_DIR}/lib/rng.c
   ${BASE_DIR}/lib/seedtree.c

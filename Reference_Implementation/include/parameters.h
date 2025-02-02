@@ -36,7 +36,7 @@
 #define POSITION_T uint16_t
 
 
-/******************************** Toy parameters? *********************************/
+/***************************** Toy parameters *********************************/
 #if !defined(CATEGORY)
 #define N (16)
 #define K (8)
@@ -60,7 +60,6 @@
 #define NUM_KEYPAIRS (2)
 #define T (192)
 #define W (36)
-#define SEED_TREE
 #define TREE_OFFSETS {0, 0, 0, 0, 0, 0, 0, 0, 128}
 #define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 16, 32, 64, 128, 128}
 #define TREE_LEAVES_PER_LEVEL {0, 0, 0, 0, 0, 0, 0, 64, 128}
@@ -74,7 +73,6 @@
 #define T (68)
 #define W (42)
 
-#define SEED_TREE
 #define TREE_OFFSETS {0, 0, 0, 0, 8, 8, 8, 8}
 #define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 8, 16, 32, 64}
 #define TREE_LEAVES_PER_LEVEL {0, 0, 0, 4, 0, 0, 0, 64}
@@ -88,7 +86,6 @@
 #define NUM_KEYPAIRS (8)
 #define T (45)
 #define W (34)
-#define SEED_TREE
 #define TREE_OFFSETS {0, 0, 0, 0, 2, 2, 26}
 #define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 14, 28, 32}
 #define TREE_LEAVES_PER_LEVEL {0, 0, 0, 1, 0, 12, 32}
@@ -113,7 +110,6 @@
 #define T (220)
 #define W (68)
 
-#define SEED_TREE
 #define TREE_OFFSETS {0, 0, 0, 0, 0, 0, 0, 8, 56}
 #define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 16, 32, 64, 120, 192}
 #define TREE_LEAVES_PER_LEVEL {0, 0, 0, 0, 0, 0, 4, 24, 192}
@@ -127,7 +123,6 @@
 #define T (102)
 #define W (61)
 
-#define SEED_TREE
 #define TREE_OFFSETS {0, 0, 0, 0, 0, 4, 12, 12}
 #define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 16, 28, 48, 96}
 #define TREE_LEAVES_PER_LEVEL {0, 0, 0, 0, 2, 4, 0, 96}
@@ -152,15 +147,6 @@
 #define T (345)
 #define W (75)
 
-#define SEED_TREE
-#define TREE_OFFSETS {0, 0, 0, 0, 0, 2, 2, 2, 50, 178}
-#define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 16, 30, 60, 120, 192, 256}
-#define TREE_LEAVES_PER_LEVEL {0, 0, 0, 0, 1, 0, 0, 24, 64, 256}
-#define TREE_SUBROOTS 4
-#define TREE_LEAVES_START_INDICES {433, 369, 217, 30}
-#define TREE_CONSECUTIVE_LEAVES {256, 64, 24, 1}
-#define MAX_PUBLISHED_SEEDS 170
-
 #define TREE_OFFSETS {0, 0, 0, 0, 0, 2, 2, 2, 50, 178}
 #define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 16, 30, 60, 120, 192, 256}
 #define TREE_LEAVES_PER_LEVEL {0, 0, 0, 0, 1, 0, 0, 24, 64, 256}
@@ -174,7 +160,6 @@
 #define T (137)
 #define W (79)
 
-#define SEED_TREE
 #define TREE_OFFSETS {0, 0, 0, 2, 2, 2, 18, 18, 18}
 #define TREE_NODES_PER_LEVEL {1, 2, 4, 6, 12, 24, 32, 64, 128}
 #define TREE_LEAVES_PER_LEVEL {0, 0, 1, 0, 0, 8, 0, 0, 128}
@@ -257,23 +242,13 @@
 #define NUM_LEAVES_SEED_TREE (T)
 #define NUM_NODES_SEED_TREE ((2*NUM_LEAVES_SEED_TREE) - 1)
 
-
 #define RREF_MAT_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*(N-K)*K + 7)/8 + (N + 7)/8)
-#define RREF_IS_COLUMNS_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*(N-K)*K + 7)/8)
 
 #define LESS_CRYPTO_PUBLICKEYBYTES (NUM_KEYPAIRS*RREF_MAT_PACKEDBYTES)
 #define LESS_CRYPTO_SECRETKEYBYTES ((NUM_KEYPAIRS-1)*SEED_LENGTH_BYTES + RREF_MAT_PACKEDBYTES)
 
-#if defined(SEED_TREE)
 #define SEED_TREE_MAX_PUBLISHED_BYTES (MAX_PUBLISHED_SEEDS*SEED_LENGTH_BYTES)
-
-// returns the maximum bytes the signature can occupy
-//#define SEED_TREE_MAX_PUBLISHED_BYTES (MAX_PUBLISHED_SEEDS*SEED_LENGTH_BYTES)
 #define LESS_CRYPTO_MAX_BYTES   (HASH_DIGEST_LENGTH*2 + N8*W + SEED_TREE_MAX_PUBLISHED_BYTES + 1)
-#else
-// returns the maximum bytes the signature can occupy
-#define LESS_CRYPTO_BYTES     (HASH_DIGEST_LENGTH + (N8*W) + ((W-T)*SEED_LENGTH_BYTES))
-#endif
 
 // if defined the gaussian elimination will try to reuse the pivot rows
 // from its last computation, to speed up the computation. Note: this
@@ -281,16 +256,9 @@
 #define LESS_REUSE_PIVOTS_VY
 #define LESS_REUSE_PIVOTS_SG
 
-// if defined: each row will not be sorted in the canonical form
-// computation. Rather only a histogram of the row will be computed,
-// which is enough to compare two rows.
-#define LESS_USE_HISTOGRAM
-
-
 #ifdef USE_AVX2
-/// NOTE: only available for optimized implementations
-/// if set a custom 4 bucket histogram implementation is used. This only speedups the implementation
-/// in CAT 5
+/// NOTE: only available for optimized implementations if set a custom 4 bucket 
+/// histogram implementation is used. This only speedups the implementation in CAT 5
 #if defined(CATEGORY_5)
 #define LESS_USE_CUSTOM_HISTOGRAM
 #endif

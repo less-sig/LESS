@@ -540,26 +540,11 @@ void bitonic_sort_i8(FQ_ELEM *x,
 int compare_rows_bitonic_sort(FQ_ELEM **rows,
 							  const uint32_t row1,
 							  const uint32_t row2) {
-#ifdef LESS_USE_HISTOGRAM
     uint32_t i = 0;
     while((i < (N-K-1)) && (rows[row1][i] == rows[row2][i])) {
         i += 1;
     }
     return (((int)(rows[row1][i])) - ((int)(rows[row2][i])));
-
-#else
-    uint32_t i = 0;
-    while((i < (N-K)) && (rows[row1][i] == rows[row2][i])) {
-        i += 1;
-    }
-
-    // if they are the same, they generate the same multiset
-    if (i >= (N-K)) {
-        return 0;
-    }
-
-    return (int)rows[row1][i] - (int)rows[row2][i];
-#endif
 }
 
 
@@ -570,11 +555,7 @@ int compare_rows_bitonic_sort(FQ_ELEM **rows,
 /// 		1 on success
 int row_bitonic_sort(normalized_IS_t *G) {
     // first sort each row into a tmp buffer
-#ifdef LESS_USE_HISTOGRAM
 	FQ_ELEM  tmp[K][Q] __attribute__((aligned(32)));
-#else
-	FQ_ELEM  tmp[K][N-K];
-#endif
     FQ_ELEM* ptr[K] __attribute__((aligned(32)));
     uint32_t P[K];
     for (uint32_t i = 0; i < K; ++i) {
@@ -639,17 +620,10 @@ int row_bitonic_sort(normalized_IS_t *G) {
 //                                             uint32_t P[K],
 //                                             const POSITION_T row_l,
 //                                             const POSITION_T row_h) {
-// #ifdef LESS_USE_HISTOGRAM
 //     FQ_ELEM pivot_row[Q_pad];
 //     for(uint32_t i = 0; i < Q_pad; i++){
 //        pivot_row[i] = ptr[row_l][i];
 //     }
-// #else
-//     FQ_ELEM pivot_row[N-K];
-//     for(uint32_t i = 0; i < N-K; i++){
-//        pivot_row[i] = ptr[row_l][i];
-//     }
-// #endif
 // 
 //     POSITION_T i = row_l-1, j = row_h+1;
 // 	int ret;
@@ -701,11 +675,7 @@ int row_quick_sort_recursive_internal(FQ_ELEM* ptr[K],
 int row_quick_sort_recursive(normalized_IS_t *G,
                              const uint32_t n) {
     // first sort each row into a tmp buffer
-#ifdef LESS_USE_HISTOGRAM
     FQ_ELEM tmp[K][Q];
-#else
-    FQ_ELEM tmp[K][N-K];
-#endif
     FQ_ELEM* ptr[K];
     uint32_t P[K];
     for (uint32_t i = 0; i < n; ++i) {
@@ -984,11 +954,8 @@ int compute_canonical_form_type3_ct(normalized_IS_t *G) {
     // NOTE: not working const int ret = row_bitonic_sort(G);
     // but this is just for testing and will be removed.
     const int ret = SortRows(G, K, NULL);
-#ifdef LESS_USE_HISTOGRAM
     SortCols(G, K);
-#else
-    col_lex_quicksort(G, 0, N-K-1);
-#endif
+    // col_lex_quicksort(G, 0, N-K-1);
     return ret;
 }
 
@@ -1449,3 +1416,67 @@ int SortRows_internal3(FQ_ELEM *ptr[K],
     return 1;
 }
 
+/****************************** Pretty Printers ******************************/
+
+#include <stdio.h>
+
+/* pretty-prints a seed */
+void pseed(unsigned char seed[SEED_LENGTH_BYTES]){
+     fprintf(stderr,"-");
+   for (int i = 0 ; i < SEED_LENGTH_BYTES; i++){
+     fprintf(stderr,"%02X", seed[i]);
+   }
+     fprintf(stderr,"- ");
+}
+
+/* pretty-prints a salt */
+void psalt(unsigned char salt[SALT_LENGTH_BYTES]){
+     fprintf(stderr,"-");
+   for (int i = 0 ; i < SALT_LENGTH_BYTES; i++){
+     fprintf(stderr,"%02X", salt[i]);
+   }
+     fprintf(stderr,"- ");
+}
+
+/* pretty-prints a seed tree */
+void ptree(unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES]){
+   const uint16_t npl[LOG2(T)+1] = TREE_NODES_PER_LEVEL;
+   int node_idx =0;
+   fprintf(stderr,"Tree dump\n");
+   int ancestors = 0;
+   for (int level = 0; level < LOG2(T)+1; level++){
+      fprintf(stderr," * Level %d \n", level);
+      for (int idx_in_level = 0; idx_in_level < npl[level]; idx_in_level++ ) {
+          node_idx = ancestors + idx_in_level ;
+          fprintf(stderr," [%d] ",node_idx);
+          pseed(seed_tree+node_idx*SEED_LENGTH_BYTES);
+      }
+      ancestors += npl[level];
+      fprintf(stderr,"\n");
+   }
+   fprintf(stderr,"\n");
+}
+
+/* pretty-prints a seed tree pairing each node with the corresponding flag
+ * in the stencil flag tree */
+void p_fs_tree(unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES],
+               unsigned char flag_tree[NUM_NODES_SEED_TREE]){
+   const uint16_t npl[LOG2(T)+1] = TREE_NODES_PER_LEVEL;
+   int node_idx =0;
+   fprintf(stderr,"Tree dump\n");
+   int ancestors = 0;
+   for (int level = 0; level < LOG2(T)+1; level++){
+      fprintf(stderr," * Level %d \n", level);
+      for (int idx_in_level = 0; idx_in_level < npl[level]; idx_in_level++ ) {
+          node_idx = ancestors + idx_in_level ;
+          fprintf(stderr," [%d:f=%d] ",node_idx, flag_tree[node_idx]);
+          pseed(seed_tree+node_idx*SEED_LENGTH_BYTES);
+      }
+      ancestors += npl[level];
+      fprintf(stderr,"\n");
+   }
+   fprintf(stderr,"\n");
+}
+
+
+/************************ End of Pretty Printers ******************************/

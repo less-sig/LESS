@@ -119,7 +119,7 @@ void sha3_512(unsigned char *output,
 /* standalone SHA-3 implementation has no visible state for single-call SHA-3 */
 // #define SHA3_STATE_STRUCT shake256ctx
 /* and has different states for SHAKE depending on security level*/
-#if defined(CATEGORY_1)
+#if CATEGORY == 252
 #define SHAKE_STATE_STRUCT shake128incctx
 #else
 #define SHAKE_STATE_STRUCT shake256incctx
@@ -129,7 +129,7 @@ void sha3_512(unsigned char *output,
 static inline
 void xof_shake_init(SHAKE_STATE_STRUCT *state, int val) {
 	(void)val;
-#if defined(CATEGORY_1)
+#if CATEGORY == 252
    shake128_inc_init(state);
 #else
    shake256_inc_init(state);
@@ -140,7 +140,7 @@ static inline
 void xof_shake_update(SHAKE_STATE_STRUCT *state,
                       const unsigned char *input,
                       unsigned int inputByteLen) {
-#if defined(CATEGORY_1)
+#if CATEGORY == 252
    shake128_inc_absorb(state,
                        (const uint8_t *)input,
                        inputByteLen);
@@ -153,7 +153,7 @@ void xof_shake_update(SHAKE_STATE_STRUCT *state,
 
 static inline
 void xof_shake_final(SHAKE_STATE_STRUCT *state) {
-#if defined(CATEGORY_1)
+#if CATEGORY == 252
    shake128_inc_finalize(state);
 #else
    shake256_inc_finalize(state);
@@ -164,7 +164,7 @@ static inline
 void xof_shake_extract(SHAKE_STATE_STRUCT *state,
                        unsigned char *output,
                        unsigned int outputByteLen) {
-#if defined(CATEGORY_1)
+#if CATEGORY == 252
    shake128_inc_squeeze(output, outputByteLen, state);
 #else
    shake256_inc_squeeze(output, outputByteLen, state);

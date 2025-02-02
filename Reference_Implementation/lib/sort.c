@@ -48,25 +48,11 @@ void counting_sort_u8(FQ_ELEM *arr,
 ///         -x if row1 < row2
 int compare_rows(const FQ_ELEM *row1,
                  const FQ_ELEM *row2) {
-#ifdef LESS_USE_HISTOGRAM
     uint32_t i=0;
     while((i < (Q-1)) && (row1[i] == row2[i])) {
         i += 1;
     }
     return (((int)(row2[i]))-((int)(row1[i])));
-#else
-    uint32_t i = 0;
-    while((i < (N-K)) && (row1[i] == row2[i])) {
-        i += 1;
-    }
-
-    // if they are the same, they generate the same multiset
-    if (i >= (N-K)) {
-        return 0;
-    }
-
-    return (int)row1[i] - (int)row2[i];
-#endif
 }
 
 /// lexicographic comparison between a row with the pivot row
@@ -77,36 +63,14 @@ int compare_rows(const FQ_ELEM *row1,
 /// 	      -1 if it is smaller,
 /// 		   0 if it matches
 ///
-#ifdef LESS_USE_HISTOGRAM
 int SortRows_internal_compare(uint8_t *ptr[Q],
                               const uint32_t row_idx,
                               const uint8_t pivot[Q]){
-#else 
-int SortRows_internal_compare(uint8_t *ptr[K],
-                              const uint32_t row_idx,
-                              const uint8_t pivot[K]){
-#endif
-#ifdef LESS_USE_HISTOGRAM
     uint32_t i=0;
     while((i<(Q-1)) && (ptr[row_idx][i]-pivot[i] == 0)){
         i++;
     }
     return ((int)ptr[row_idx][i]-(int)pivot[i]);
-#else
-    uint32_t i=0;
-    while((i<(N-K)) && (ptr[row_idx][i]-pivot[i] == 0)){
-        i++;
-    }
-    if (i==(N-K)) {
-        return 0;
-    }
-
-    if ((int)ptr[row_idx][i]-(int)pivot[i] > 0){
-        return -1;
-    }
-
-    return 1;
-#endif
 }
 
 /// NOTE: only used in `rowsort_internal`
@@ -141,29 +105,6 @@ void HISTEND4(uint8_t *cnt,
         _mm256_storeu_si256((__m256i *)&cnt[i], sv);
     }
 }
-
-void HISTEND8(uint8_t *cnt,
-              uint8_t c[8][128]) {
-
-    for(uint32_t i = 0; i < Q_pad; i+=32) {
-        __m256i v0 = _mm256_load_si256((const __m256i *)&c[0][i]);
-        __m256i v1 = _mm256_load_si256((const __m256i *)&c[1][i]);
-	    __m256i s0 = _mm256_add_epi8(v0, v1);
-                v0 = _mm256_load_si256((const __m256i *)&c[2][i]);
-                v1 = _mm256_load_si256((const __m256i *)&c[3][i]);
-	    __m256i s1 = _mm256_add_epi8(v0, v1);
-                s0 = _mm256_add_epi8(s0, s1);
-
-                v0 = _mm256_load_si256((const __m256i *)&c[4][i]);
-                v1 = _mm256_load_si256((const __m256i *)&c[5][i]);
-	    		s1 = _mm256_add_epi8(v0, v1);
-                v0 = _mm256_load_si256((const __m256i *)&c[6][i]);
-                v1 = _mm256_load_si256((const __m256i *)&c[7][i]);
-	            s0 = _mm256_add_epi8(s0, v0);
-	    		s1 = _mm256_add_epi8(s1, v1);
-
-        _mm256_storeu_si256((__m256i *)&cnt[i], _mm256_add_epi8(s0, s1));
-    }
 }
 #endif
 
@@ -173,7 +114,6 @@ void HISTEND8(uint8_t *cnt,
 void sort(uint8_t *out,
           const uint8_t *in,
           const uint32_t len) {
-#ifdef LESS_USE_HISTOGRAM
 #ifndef LESS_USE_CUSTOM_HISTOGRAM
     memset(out, 0, Q_pad);
 	for (uint32_t i = 0 ; i < len; ++i) {
@@ -200,17 +140,7 @@ void sort(uint8_t *out,
     while(ip != in+(len&~(4-1))) c[0][*ip++]++, c[1][*ip++]++, c[2][*ip++]++, c[3][*ip++]++;
     while(ip != in+ len        ) c[0][*ip++]++;
     HISTEND4(out, c);
-
-    //uint8_t c[8][Q_pad] __attribute__((aligned(32))) = {0};
-    //const uint8_t *ip = in;
-    //while(ip != in+(len&~(8-1))) c[0][*ip++]++, c[1][*ip++]++, c[2][*ip++]++, c[3][*ip++]++, c[4][*ip++]++, c[5][*ip++]++, c[6][*ip++]++, c[7][*ip++]++;
-    //while(ip != in+ len        ) c[0][*ip++]++;
-    //HISTEND8(out, c);
 #endif
-#endif
-#else
-    memcpy(out, in, sizeof(FQ_ELEM) * N-K);
-    counting_sort_u8(out, len);
 #endif
 }
 
@@ -253,11 +183,7 @@ int SortRows(normalized_IS_t *G,
              const uint32_t n,
              const uint8_t *L) {
 	// first sort each row into a tmp buffer
-#ifdef LESS_USE_HISTOGRAM
 	FQ_ELEM tmp[K][Q_pad] __attribute__((aligned(32)));
-#else
-	FQ_ELEM tmp[K][N-K];
-#endif
     FQ_ELEM* ptr[K] __attribute__((aligned(32)));
     uint32_t P[K];
 
