@@ -35,22 +35,24 @@
 #define FQ_DOUBLEPREC uint16_t
 #define POSITION_T uint16_t
 
+
 /******************************** Toy parameters? *********************************/
 #if !defined(CATEGORY)
 #define N (16)
 #define K (8)
 #define SEED_LENGTH_BYTES (16)
-#define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operaiton is < 2^-64
+// Ensures probability of non-CT operation is < 2^-64
+#define SIGN_PIVOT_REUSE_LIMIT (51)
 
 #define NUM_KEYPAIRS (3)
 #define T (106)
 #define W (57)
-#define SEED_TREE_MAX_PUBLISHED_BYTES (3264)
 
 /********************************* Category 1 *********************************/
 #elif CATEGORY == 252
 #define N (252)
 #define K (126)
+
 #define SEED_LENGTH_BYTES (16)
 #define SIGN_PIVOT_REUSE_LIMIT (25) // Ensures probability of non-CT operation is < 2^-64
 
@@ -65,13 +67,13 @@
 #define TREE_SUBROOTS 2
 #define TREE_LEAVES_START_INDICES {255, 191}
 #define TREE_CONSECUTIVE_LEAVES {128, 64}
-#define MAX_PUBLISHED_SEEDS 388
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1488)
+#define MAX_PUBLISHED_SEEDS 88
 
 #elif TARGET==68
 #define NUM_KEYPAIRS (4)
 #define T (68)
 #define W (42)
+
 #define SEED_TREE
 #define TREE_OFFSETS {0, 0, 0, 0, 8, 8, 8, 8}
 #define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 8, 16, 32, 64}
@@ -80,7 +82,7 @@
 #define TREE_LEAVES_START_INDICES {71, 11}
 #define TREE_CONSECUTIVE_LEAVES {64, 4}
 #define MAX_PUBLISHED_SEEDS 31
-#define SEED_TREE_MAX_PUBLISHED_BYTES (480)
+
 
 #elif TARGET==45
 #define NUM_KEYPAIRS (8)
@@ -94,7 +96,6 @@
 #define TREE_LEAVES_START_INDICES {57, 45, 14}
 #define TREE_CONSECUTIVE_LEAVES {32, 12, 1}
 #define MAX_PUBLISHED_SEEDS 17
-#define SEED_TREE_MAX_PUBLISHED_BYTES (280)
 
 #else
 #error define parameters in parameters.h
@@ -105,12 +106,13 @@
 #define N (400)
 #define K (200)
 #define SEED_LENGTH_BYTES (24)
-#define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operaiton is < 2^-64
+#define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operation is < 2^-64
 
 #if TARGET==220
 #define NUM_KEYPAIRS (2)
 #define T (220)
 #define W (68)
+
 #define SEED_TREE
 #define TREE_OFFSETS {0, 0, 0, 0, 0, 0, 0, 8, 56}
 #define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 16, 32, 64, 120, 192}
@@ -119,12 +121,12 @@
 #define TREE_LEAVES_START_INDICES {247, 223, 123}
 #define TREE_CONSECUTIVE_LEAVES {192, 24, 4}
 #define MAX_PUBLISHED_SEEDS 120
-#define SEED_TREE_MAX_PUBLISHED_BYTES (2784)
 
 #elif TARGET==102
 #define NUM_KEYPAIRS (4)
 #define T (102)
 #define W (61)
+
 #define SEED_TREE
 #define TREE_OFFSETS {0, 0, 0, 0, 0, 4, 12, 12}
 #define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 16, 28, 48, 96}
@@ -133,7 +135,6 @@
 #define TREE_LEAVES_START_INDICES {107, 55, 29}
 #define TREE_CONSECUTIVE_LEAVES {96, 4, 2}
 #define MAX_PUBLISHED_SEEDS 49
-#define SEED_TREE_MAX_PUBLISHED_BYTES (1400)
 
 #else
 #error define optimization corner in parameters.h
@@ -144,12 +145,13 @@
 #define N (548)
 #define K (274)
 #define SEED_LENGTH_BYTES (32)
-#define SIGN_PIVOT_REUSE_LIMIT (79) // Ensures probability of non-CT operaiton is < 2^-64
+#define SIGN_PIVOT_REUSE_LIMIT (79) // Ensures probability of non-CT operation is < 2^-64
 
 #if TARGET==345
 #define NUM_KEYPAIRS (2)
 #define T (345)
 #define W (75)
+
 #define SEED_TREE
 #define TREE_OFFSETS {0, 0, 0, 0, 0, 2, 2, 2, 50, 178}
 #define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 16, 30, 60, 120, 192, 256}
@@ -158,12 +160,20 @@
 #define TREE_LEAVES_START_INDICES {433, 369, 217, 30}
 #define TREE_CONSECUTIVE_LEAVES {256, 64, 24, 1}
 #define MAX_PUBLISHED_SEEDS 170
-#define SEED_TREE_MAX_PUBLISHED_BYTES (6000)
+
+#define TREE_OFFSETS {0, 0, 0, 0, 0, 2, 2, 2, 50, 178}
+#define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 16, 30, 60, 120, 192, 256}
+#define TREE_LEAVES_PER_LEVEL {0, 0, 0, 0, 1, 0, 0, 24, 64, 256}
+#define TREE_SUBROOTS 4
+#define TREE_LEAVES_START_INDICES {433, 369, 217, 30}
+#define TREE_CONSECUTIVE_LEAVES {256, 64, 24, 1}
+#define MAX_PUBLISHED_SEEDS 170
 
 #elif TARGET==137
 #define NUM_KEYPAIRS (4)
 #define T (137)
 #define W (79)
+
 #define SEED_TREE
 #define TREE_OFFSETS {0, 0, 0, 2, 2, 2, 18, 18, 18}
 #define TREE_NODES_PER_LEVEL {1, 2, 4, 6, 12, 24, 32, 64, 128}
@@ -172,7 +182,6 @@
 #define TREE_LEAVES_START_INDICES {145, 41, 6}
 #define TREE_CONSECUTIVE_LEAVES {128, 8, 1}
 #define MAX_PUBLISHED_SEEDS 65
-#define SEED_TREE_MAX_PUBLISHED_BYTES (2300)
 
 #else
 #error define optimization corner in parameters.h
@@ -207,11 +216,11 @@
 #define Q_pad   NEXT_MULTIPLE(Q, 8)
 
 /***************** Derived parameters *****************************************/
-
-
 /*length of the output of the cryptographic hash, in bytes */
 #define HASH_DIGEST_LENGTH (2*SEED_LENGTH_BYTES)
 #define SALT_LENGTH_BYTES HASH_DIGEST_LENGTH
+
+
 /* length of the private key seed doubled to avoid multikey attacks */
 #define PRIVATE_KEY_SEED_LENGTH_BYTES (2*SEED_LENGTH_BYTES)
 
@@ -242,12 +251,12 @@
                  + IS_REPRESENTABLE_IN_D_BITS(16, N)    \
                  )                                      \
    )
+
 #define LOG2(L) ( (BITS_TO_REPRESENT(L) > BITS_TO_REPRESENT(L-1)) ? (BITS_TO_REPRESENT(L-1)) : (BITS_TO_REPRESENT(L)) )
 
-//#define NUM_LEAVES_SEED_TREE (T)
-//#define NUM_NODES_SEED_TREE (2*NUM_LEAVES_SEED_TREE-1)
-#define NUM_LEAVES_OF_SEED_TREE (1UL << BITS_TO_REPRESENT(T) )
-#define NUM_NODES_OF_SEED_TREE (2*NUM_LEAVES_OF_SEED_TREE-1 )
+#define NUM_LEAVES_SEED_TREE (T)
+#define NUM_NODES_SEED_TREE ((2*NUM_LEAVES_SEED_TREE) - 1)
+
 
 #define RREF_MAT_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*(N-K)*K + 7)/8 + (N + 7)/8)
 #define RREF_IS_COLUMNS_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*(N-K)*K + 7)/8)
@@ -256,9 +265,11 @@
 #define LESS_CRYPTO_SECRETKEYBYTES ((NUM_KEYPAIRS-1)*SEED_LENGTH_BYTES + RREF_MAT_PACKEDBYTES)
 
 #if defined(SEED_TREE)
+#define SEED_TREE_MAX_PUBLISHED_BYTES (MAX_PUBLISHED_SEEDS*SEED_LENGTH_BYTES)
+
 // returns the maximum bytes the signature can occupy
 //#define SEED_TREE_MAX_PUBLISHED_BYTES (MAX_PUBLISHED_SEEDS*SEED_LENGTH_BYTES)
-#define LESS_CRYPTO_MAX_BYTES        (HASH_DIGEST_LENGTH*2 + N8*W + SEED_TREE_MAX_PUBLISHED_BYTES + 1)
+#define LESS_CRYPTO_MAX_BYTES   (HASH_DIGEST_LENGTH*2 + N8*W + SEED_TREE_MAX_PUBLISHED_BYTES + 1)
 #else
 // returns the maximum bytes the signature can occupy
 #define LESS_CRYPTO_BYTES     (HASH_DIGEST_LENGTH + (N8*W) + ((W-T)*SEED_LENGTH_BYTES))
@@ -275,10 +286,6 @@
 // which is enough to compare two rows.
 #define LESS_USE_HISTOGRAM
 
-/// made it slower
-//#ifdef USE_NEON
-//#define LESS_USE_CUSTOM_HISTOGRAM
-//#endif
 
 #ifdef USE_AVX2
 /// NOTE: only available for optimized implementations

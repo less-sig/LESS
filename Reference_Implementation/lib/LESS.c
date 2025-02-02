@@ -22,9 +22,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  **/
-
 #include <string.h> // memcpy, memset
-
 #include "LESS.h"
 #include "canonical.h"
 #include "seedtree.h"
@@ -104,6 +102,9 @@ size_t LESS_sign(const prikey_t *SK,
     /* start  by clearing signature memory, as padding must be null */
     memset(sig,0,sizeof(sign_t));
 
+    /* start  by clearing signature memory, as padding must be null */
+    memset(sig,0,sizeof(sign_t));
+
     /*         Private key expansion        */
     /* expand sequence of seeds for private inverse-monomial matrices */
     SHAKE_STATE_STRUCT sk_shake_state;
@@ -139,10 +140,11 @@ size_t LESS_sign(const prikey_t *SK,
     SHAKE_STATE_STRUCT cf_shake_state;
     initialize_csprng(&cf_shake_state, cf_seed, SEED_LENGTH_BYTES);
 
-    unsigned char seed_tree[NUM_NODES_OF_SEED_TREE * SEED_LENGTH_BYTES] = {0};
+    unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES] = {0};
     generate_seed_tree_from_root(seed_tree, ephem_monomials_seed, sig->salt);
-    unsigned char *ephem_monomial_seeds = seed_tree +
-                                          SEED_LENGTH_BYTES * (NUM_LEAVES_OF_SEED_TREE - 1);
+
+    unsigned char linearized_rounds_seeds[T*SEED_LENGTH_BYTES] = {0};
+    seed_leaves(linearized_rounds_seeds,seed_tree);
 
     /*         Public G_0 expansion                  */
     rref_generator_mat_t G0_rref;
@@ -160,7 +162,7 @@ size_t LESS_sign(const prikey_t *SK,
 
     for (uint32_t i = 0; i < T; i++) {
         monomial_sample_salt(&mu_tilde,
-                             ephem_monomial_seeds + i * SEED_LENGTH_BYTES,
+                             linearized_rounds_seeds + i * SEED_LENGTH_BYTES,
                              sig->salt,
                              i);
         generator_monomial_mul(&G0, &full_G0, &mu_tilde);
@@ -178,19 +180,16 @@ size_t LESS_sign(const prikey_t *SK,
             return 0;
         }
 #endif
-
         // just copy the non IS
         uint32_t ctr = 0;
         for(uint32_t j = 0; j < N-K; j++) {
             while (is_pivot_column[ctr]) {
                 ctr += 1;
             }
-
             /// copy column
             for (uint32_t k = 0; k < K; k++) {
                 A_i.values[k][j] = G0.values[k][ctr];
             }
-
             ctr += 1;
         }
 
@@ -203,7 +202,6 @@ size_t LESS_sign(const prikey_t *SK,
                    break;
                }
             }
-
             if(is_pivot_column[col_idx] == 1) {
                pi_tilde[i].permutation[piv_idx] = row_idx;
                piv_idx++;
@@ -211,10 +209,12 @@ size_t LESS_sign(const prikey_t *SK,
         }
 
         // NOTE: blinding is currently not included in the pseudocode
-        // blind(&A_i, &cf_shake_state);
+        // TODO blind(&A_i, &cf_shake_state);
+
         const int t = CF(&A_i);
+
         if (t == 0) {
-            *(ephem_monomial_seeds + i*SEED_LENGTH_BYTES) += 1;
+            *(linearized_rounds_seeds + i*SEED_LENGTH_BYTES) += 1;
             i -= 1;
         } else {
             // NOTE: as we increase the size of the `normalized_IS_t`
@@ -234,10 +234,10 @@ size_t LESS_sign(const prikey_t *SK,
 
     /* Squeeze output */
     LESS_SHA3_INC_FINALIZE(sig->digest, &state);
-
     // (x_0, ..., x_{t-1})
     uint8_t fixed_weight_string[T] = {0};
     DigestToFixedWeight(fixed_weight_string, sig->digest);
+
 
     uint8_t indices_to_publish[T];
     for (uint32_t i = 0; i < T; i++) {
@@ -248,7 +248,7 @@ size_t LESS_sign(const prikey_t *SK,
     memset(&sig->seed_storage, 0, SEED_TREE_MAX_PUBLISHED_BYTES);
 
     const uint32_t num_seeds_published =
-            seed_tree_path(seed_tree,
+            extract_seed_tree_paths(seed_tree,
                            indices_to_publish,
                            (unsigned char *) &sig->seed_storage);
 
@@ -266,9 +266,6 @@ size_t LESS_sign(const prikey_t *SK,
             emitted_monoms++;
         }
     }
-
-    // TODO: this needs to be changed. As described in the TODO in overleaf, currently we need to keep track of the opened commitments.
-    sig->seed_storage[num_seeds_published*SEED_LENGTH_BYTES] = num_seeds_published;
     return num_seeds_published;
 } /* end LESS_sign */
 
@@ -292,17 +289,20 @@ int LESS_verify(const pubkey_t *const PK,
 #endif
     DigestToFixedWeight(fixed_weight_string, sig->digest);
 
+
     uint8_t published_seed_indexes[T];
     for (uint32_t i = 0; i < T; i++) {
         published_seed_indexes[i] = !!(fixed_weight_string[i]);
     }
 
-    unsigned char seed_tree[NUM_NODES_OF_SEED_TREE * SEED_LENGTH_BYTES] = {0};
-    rebuild_seed_tree_leaves(seed_tree, published_seed_indexes,
+    unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES] = {0};
+    uint32_t rebuilding_seeds_went_fine;
+    rebuilding_seeds_went_fine = rebuild_seed_tree_leaves(seed_tree,
+                                                          published_seed_indexes,
                              (unsigned char *) &sig->seed_storage, sig->salt);
 
-    unsigned char *ephem_monomial_seeds = seed_tree +
-                                          SEED_LENGTH_BYTES * (NUM_LEAVES_OF_SEED_TREE - 1);
+    unsigned char linearized_rounds_seeds[T*SEED_LENGTH_BYTES] = {0};
+    seed_leaves(linearized_rounds_seeds,seed_tree);
 
     int employed_monoms = 0;
 
@@ -323,7 +323,7 @@ int LESS_verify(const pubkey_t *const PK,
         memset(is_pivot_column, 0, N_pad);
         if (fixed_weight_string[i] == 0) {
             monomial_sample_salt(&mu_tilde,
-                                 ephem_monomial_seeds + i * SEED_LENGTH_BYTES,
+                                 linearized_rounds_seeds + i * SEED_LENGTH_BYTES,
                                  sig->salt,
                                  i);
 
@@ -367,19 +367,16 @@ int LESS_verify(const pubkey_t *const PK,
 
             employed_monoms++;
         }
-
         // just copy the non IS
         uint32_t ctr = 0;
         for(uint32_t j = 0; j < N-K; j++) {
             while (is_pivot_column[ctr]) {
                 ctr += 1;
             }
-
             /// copy column
             for (uint32_t k = 0; k < K; k++) {
                 Ai.values[k][j] = G_prime.values[k][ctr];
             }
-
             ctr += 1;
         }
         const int r = CF(&Ai);
@@ -398,10 +395,14 @@ int LESS_verify(const pubkey_t *const PK,
     uint8_t recomputed_digest[HASH_DIGEST_LENGTH] = {0};
     LESS_SHA3_INC_ABSORB(&state, (const uint8_t *) m, mlen);
     LESS_SHA3_INC_ABSORB(&state, sig->salt, HASH_DIGEST_LENGTH);
-
     /* Squeeze output */
     LESS_SHA3_INC_FINALIZE(recomputed_digest, &state);
-    return (verify(recomputed_digest, sig->digest, HASH_DIGEST_LENGTH) == 0);
+
+    int verification_ok = (verify(recomputed_digest, sig->digest,
+                                  HASH_DIGEST_LENGTH) == 0);
+
+    verification_ok = verification_ok || rebuilding_seeds_went_fine;
+    return verification_ok;
 } /* end LESS_verify */
 
 #endif

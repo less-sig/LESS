@@ -12,7 +12,7 @@
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ''AS IS'' AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * 
+ *
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
@@ -52,7 +52,7 @@ typedef struct sig_t {
     uint8_t cf_monom_actions[W][N8];
 #ifdef SEED_TREE
     /// we need an additional byte to store the number of published seeds
-    uint8_t seed_storage[SEED_TREE_MAX_PUBLISHED_BYTES + 1u];
+    uint8_t seed_storage[SEED_TREE_MAX_PUBLISHED_BYTES];
 #else
     uint8_t seed_storage[(T-W)*SEED_LENGTH_BYTES];
 #endif

@@ -52,6 +52,7 @@ int crypto_sign(unsigned char *sm,
 {
     /* sign cannot fail */
     memcpy((unsigned char *) sm, (const unsigned char *) m, (size_t) mlen);
+
     
     LESS_sign( (const prikey_t *) sk,                                  // in parameter
                (const char *const) m, (const uint64_t) mlen,           // in parameter

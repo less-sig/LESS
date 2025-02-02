@@ -1,4 +1,3 @@
-
 /**
  *
  * Reference ISO-C11 Implementation of LESS.
@@ -47,8 +46,6 @@ void initialize_csprng(SHAKE_STATE_STRUCT *shake_state, const unsigned char *see
     xof_shake_update(shake_state, seed, seed_len_bytes);
     xof_shake_final(shake_state);
 } /* end initialize_csprng */
-
-
 
 void initialize_csprng_ds(SHAKE_STATE_STRUCT *shake_state,
                        const unsigned char *seed,
