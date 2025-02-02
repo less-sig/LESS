@@ -30,7 +30,7 @@
 #include <stdio.h>
 
 #if !defined(__APPLE__) || !defined(__aarch64__) || !defined(_M_ARM64)
-//TODO #error "only available on aarch64"
+#error "only available on aarch64"
 #endif
 
 #include <_types/_uint32_t.h>
@@ -180,16 +180,6 @@ static inline uint32_t vmovemask8(const vec256_t a) {
 		c.v[0] = vpermute_4x64_tmp.v[0];									\
 		c.v[1] = vpermute_4x64_tmp.v[1];									\
 	}
-
-
-
-/*
- * Fix width 16-bit Barrett modulo reduction Q = 127
- * c = a % q
- * TODO
- */
-#define barrett_red16(c, a, t, c127, c516, c1)
-
 
 /*
  * Fix width 8-bit Barrett modulo reduction Q = 127

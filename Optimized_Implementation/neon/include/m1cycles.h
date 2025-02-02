@@ -110,7 +110,6 @@ static void init_rdtsc(void)
     KPERF_LIST
 #undef F
 
-    // TODO: KPC_CLASS_RAWPMU_MASK
     const unsigned c1 = kpc_get_counter_count(KPC_MASK);
     if (c1 != CONFIG_COUNT)
     {

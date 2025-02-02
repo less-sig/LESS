@@ -164,7 +164,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 
 	// init the output matrix to some `invalid` data
     // honestly, will be there ever a case, where more than 2 rows are compared?
-	memset(&M.values, Q-1, sizeof(normalized_IS_t));
+	memset(&M, Q-1, sizeof(normalized_IS_t));
 
     /// track the rows with the most zeros.
 	uint32_t J[K];
@@ -201,12 +201,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 	FQ_ELEM row_inv_data[N_K_pad] = {0};
 
 	/// NOTE: this is already "sorted"
-#ifdef LESS_USE_HISTOGRAM
 	FQ_ELEM L[Q_pad] __attribute__((aligned(32))) = {0};
-#else
-	FQ_ELEM min_multiset[N_K_pad];
-	memset(min_multiset, Q-1, N_K_pad);
-#endif
 	for (uint32_t row = 0; row < K; row++) {
         if (Z[row]) { continue; }
 
@@ -222,11 +217,7 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 
 		    const int ret = compute_canonical_form_type4(&B, L);
 		    if ((ret == 1) && (compare_matrices(&B, &M, K) < 0)) {
-#ifdef LESS_USE_HISTOGRAM
                 sort(L, B.values[0], N-K);
-#else
-                memcpy(min_multiset, B.values[0], N_K_pad);
-#endif
 		    	touched = 1;
 		    	normalized_copy(&M, &B);
 		    }
@@ -245,7 +236,10 @@ void blind(normalized_IS_t *G,
     /// NOTE: the type `monomial` allocates a N elements, which is a little
     /// bit a overkill, as we only need K or N-K.
     monomial_t left, right;
-    normalized_IS_t B;
+
+    // NOTE: init with zero to please valgrind, as the tailing (K_pad - K) rows
+    // are never used/initialized.
+    static normalized_IS_t B = {0};
 
     for(uint32_t i = 0; i < N-K; i++) {
         left.permutation[i] = i;
