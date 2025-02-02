@@ -50,12 +50,7 @@ typedef struct sig_t {
     uint8_t digest[HASH_DIGEST_LENGTH];
     uint8_t salt[HASH_DIGEST_LENGTH];
     uint8_t cf_monom_actions[W][N8];
-#ifdef SEED_TREE
-    /// we need an additional byte to store the number of published seeds
     uint8_t seed_storage[SEED_TREE_MAX_PUBLISHED_BYTES];
-#else
-    uint8_t seed_storage[(T-W)*SEED_LENGTH_BYTES];
-#endif
 } sign_t;
 
 /* keygen cannot fail */

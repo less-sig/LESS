@@ -134,7 +134,6 @@ set(SOURCES
   ${COMMON_SOURCES}
   ${BASE_DIR}/lib/codes.c
   ${BASE_DIR}/lib/LESS.c
-  ${BASE_DIR}/lib/LESS_without_tree.c
   ${BASE_DIR}/lib/monomial.c
   ${BASE_DIR}/lib/rng.c
   ${BASE_DIR}/lib/seedtree.c

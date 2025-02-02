@@ -2,7 +2,6 @@
 #include <string.h>
 
 #include "parameters.h"
-#if defined(SEED_TREE)
 
 #include "seedtree.h"
 #include "sha3.h"
@@ -360,4 +359,3 @@ void seed_leaves(unsigned char rounds_seeds[T*SEED_LENGTH_BYTES],
         }
     }
 }
-#endif // if defined SEED_TREE

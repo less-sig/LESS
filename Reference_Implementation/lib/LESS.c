@@ -84,8 +84,6 @@ void LESS_keygen(prikey_t *SK,
     }
 } /* end LESS_keygen */
 
-#ifdef SEED_TREE
-
 /// returns the number of opened seeds in the tree.
 /// \param SK[in]: secret key
 /// \param m[in]: message to sign
@@ -209,7 +207,7 @@ size_t LESS_sign(const prikey_t *SK,
         }
 
         // NOTE: blinding is currently not included in the pseudocode
-        // TODO blind(&A_i, &cf_shake_state);
+        blind(&A_i, &cf_shake_state);
 
         const int t = CF(&A_i);
 
@@ -405,4 +403,3 @@ int LESS_verify(const pubkey_t *const PK,
     return verification_ok;
 } /* end LESS_verify */
 
-#endif
