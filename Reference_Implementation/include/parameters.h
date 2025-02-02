@@ -242,11 +242,7 @@
 #define NUM_LEAVES_SEED_TREE (T)
 #define NUM_NODES_SEED_TREE ((2*NUM_LEAVES_SEED_TREE) - 1)
 
-//#if (CATEGORY==400) && (TARGET==102)
-//#define RREF_MAT_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*(N-K)*K + 7)/8 + (N + 7)/8 - 1)
-//#else
 #define RREF_MAT_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*(N-K)*K + 7)/8 + (N + 7)/8)
-//#endif
 
 #define LESS_CRYPTO_PUBLICKEYBYTES (NUM_KEYPAIRS*RREF_MAT_PACKEDBYTES)
 #define LESS_CRYPTO_SECRETKEYBYTES ((NUM_KEYPAIRS-1)*SEED_LENGTH_BYTES + RREF_MAT_PACKEDBYTES)
@@ -261,9 +257,8 @@
 #define LESS_REUSE_PIVOTS_SG
 
 #ifdef USE_AVX2
-/// NOTE: only available for optimized implementations
-/// if set a custom 4 bucket histogram implementation is used. This only speedups the implementation
-/// in CAT 5
+/// NOTE: only available for optimized implementations if set a custom 4 bucket 
+/// histogram implementation is used. This only speedups the implementation in CAT 5
 #if defined(CATEGORY_5)
 #define LESS_USE_CUSTOM_HISTOGRAM
 #endif
