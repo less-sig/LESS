@@ -256,12 +256,6 @@
 #define LESS_REUSE_PIVOTS_VY
 #define LESS_REUSE_PIVOTS_SG
 
-// if defined: each row will not be sorted in the canonical form
-// computation. Rather only a histogram of the row will be computed,
-// which is enough to compare two rows.
-#define LESS_USE_HISTOGRAM
-
-
 #ifdef USE_AVX2
 /// NOTE: only available for optimized implementations
 /// if set a custom 4 bucket histogram implementation is used. This only speedups the implementation

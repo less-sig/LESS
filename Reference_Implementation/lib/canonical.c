@@ -20,11 +20,7 @@ int compute_canonical_form_type3(normalized_IS_t *G,
     if (SortRows(G, K, L) == 0) {
 	    return 0;
     }
-#ifdef LESS_USE_HISTOGRAM
     SortCols(G, K_pad);
-#else
-    col_lex_quicksort(G, 0, N-K-1);
-#endif
     return 1;
 }
 
@@ -66,12 +62,7 @@ int compute_canonical_form_type4(normalized_IS_t *G,
 int compute_canonical_form_type4_sub(normalized_IS_t *G,
                                      const uint32_t z,
                                      const FQ_ELEM *M) {
-#ifdef LESS_USE_HISTOGRAM
     FQ_ELEM tmp[Q_pad] __attribute__((aligned(32))) = {0};
-#else
-    FQ_ELEM tmp[N_K_pad] = {0};
-#endif
-
     for (uint32_t i = 0; i < z; i++) {
 		FQ_ELEM s = row_acc(G->values[i]);
 
