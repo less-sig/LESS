@@ -36,7 +36,7 @@
 #define POSITION_T uint16_t
 
 
-/******************************** Toy parameters? *********************************/
+/***************************** Toy parameters *********************************/
 #if !defined(CATEGORY)
 #define N (16)
 #define K (8)
