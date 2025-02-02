@@ -420,7 +420,7 @@ void expand_to_rref(generator_mat_t *full,
         is_pivot_column[col_byte * 8 + 7] = (compressed[col_byte] >> 7) & 0x1;
     }
 
-#if defined(CATEGORY_1) || defined(CATEGORY_5)
+#if (CATEGORY == 200) || (CATEGORY == 558)
     // Decompress last flags
     is_pivot_column[N - 4] = compressed[N / 8] & 0x1;
     is_pivot_column[N - 3] = (compressed[N / 8] >> 1) & 0x1;
