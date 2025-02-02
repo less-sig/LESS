@@ -25,7 +25,7 @@ endif()
 option(USE_SANITIZE "enable compiler memory sanitation" OFF)
 
 # default compilation picks reference codebase
-option(USE_REFERENCE "Use reference implementation" ON)
+option(USE_REFERENCE "Use reference implementation" OFF)
 
 # use AVX2 implementations.
 option(USE_AVX2 "Use the AVX2 Optimized Omplementation." ON)
