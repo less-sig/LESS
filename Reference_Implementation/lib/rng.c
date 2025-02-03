@@ -26,15 +26,8 @@
 
 #include "rng.h"
 
-
-/******************************************************************************/
-/*----------------------------------------------------------------------------*/
-/*              start PSEUDO-RAND GENERATOR ROUTINES for rnd.h                */
-/*----------------------------------------------------------------------------*/
-
 /* Initializes a CSPRNG from either an input seed or the output of
  * clock_gettime. Input seed assumed to be a C convention string */
-
 SHAKE_STATE_STRUCT platform_csprng_state;
 
 /// \param shake_state[in/out]
@@ -62,3 +55,4 @@ void initialize_csprng_ds(SHAKE_STATE_STRUCT *shake_state,
     xof_shake_update(shake_state, domain_sep, sizeof(uint16_t));
     xof_shake_final(shake_state);
 } /* end initialize_csprng_ds */
+

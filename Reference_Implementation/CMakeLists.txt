@@ -31,6 +31,7 @@ else()
     set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -O3 -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -mtune=native -ftree-vectorize -flto ${ALLOWED_WARNINGS}")
 endif()
 
+
 set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/codes.c
         ${PROJECT_SOURCE_DIR}/lib/fips202.c

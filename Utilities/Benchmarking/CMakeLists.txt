@@ -105,7 +105,13 @@ endif()
 message(STATUS "Compilation flags:" ${CMAKE_C_FLAGS})
 
 
-set(STANDALONE_KECCAK 1)
+
+
+find_library(KECCAK_LIB keccak)
+if(NOT KECCAK_LIB)
+ set(STANDALONE_KECCAK 1)
+endif()
+
 
 set(HEADERS
   ${BASE_DIR}/include/api.h
@@ -136,7 +142,6 @@ endif()
 
 set(SOURCES
   ${COMMON_SOURCES}
-  ${BASE_DIR}/lib/canonical.c
   ${BASE_DIR}/lib/codes.c
   ${BASE_DIR}/lib/LESS.c
   ${BASE_DIR}/lib/monomial.c
@@ -147,6 +152,7 @@ set(SOURCES
   ${BASE_DIR}/lib/transpose.c
   ${BASE_DIR}/lib/keccakf1600.c
   ${BASE_DIR}/lib/utils.c
+  ${BASE_DIR}/lib/sign.c
 )
 
 if(USE_AVX2)
