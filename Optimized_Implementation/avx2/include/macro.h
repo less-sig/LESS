@@ -2,10 +2,8 @@
  *
  * Optimized Implementation of LESS.
  *
- * @version 1.2 (May 2023)
- *
- * @author Duc Tri Nguyen <dnguye69@gmu.edu>
-
+ * @version 1.2 (May 2025)
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *

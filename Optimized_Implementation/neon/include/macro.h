@@ -2,10 +2,9 @@
  *
  * Optimized Implementation of LESS.
  *
- * @version 1.2 (May 2023)
+ * @version 1.2 (May 2025)
  *
  * @author Floyd Zweydinger
-
  *
  * This code is hereby placed in the public domain.
  *

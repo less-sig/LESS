@@ -2,10 +2,11 @@
  *
  * Reference ISO-C11 Implementation of LESS.
  *
- * @version 1.1 (March 2023)
+ * @version 1.2 (February 2025)
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -32,6 +33,14 @@
 void initialize_csprng(SHAKE_STATE_STRUCT *shake_state,
                        const unsigned char *seed,
                        const uint32_t seed_len_bytes);
+
+/* initializes a CSPRNG, given the seed, a state pointer and a domain separation
+ * constant */
+void initialize_csprng_ds(SHAKE_STATE_STRUCT *shake_state,
+                       const unsigned char *seed,
+                       const uint32_t seed_len_bytes,
+                       const uint16_t domain_sep_constant );
+
 
 /* extracts xlen bytes from the CSPRNG, given the state */
 static inline
