@@ -136,7 +136,7 @@ size_t LESS_sign(const prikey_t *SK,
     initialize_csprng(&cf_shake_state, cf_seed, SEED_LENGTH_BYTES);
 
     unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES] = {0};
-    generate_seed_tree_from_root(seed_tree, ephem_monomials_seed, sig->salt);
+    BuildGGM(seed_tree, ephem_monomials_seed, sig->salt);
 
     unsigned char linearized_rounds_seeds[T*SEED_LENGTH_BYTES] = {0};
     seed_leaves(linearized_rounds_seeds,seed_tree);
@@ -240,7 +240,7 @@ size_t LESS_sign(const prikey_t *SK,
     memset(&sig->seed_storage, 0, SEED_TREE_MAX_PUBLISHED_BYTES);
 
     const uint32_t num_seeds_published =
-            extract_seed_tree_paths(seed_tree,
+            GGMPath(seed_tree,
                            indices_to_publish,
                            (unsigned char *) &sig->seed_storage);
 
@@ -288,7 +288,7 @@ int LESS_verify(const pubkey_t *const PK,
 
     unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES] = {0};
     uint32_t rebuilding_seeds_went_fine;
-    rebuilding_seeds_went_fine = rebuild_seed_tree_leaves(seed_tree,
+    rebuilding_seeds_went_fine = RebuildGGM(seed_tree,
                                                           published_seed_indexes,
                                                           (unsigned char *) &sig->seed_storage,
                                                           sig->salt);

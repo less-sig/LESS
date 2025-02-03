@@ -106,46 +106,56 @@ int verify(const uint8_t *a,
 /* Expands a digest expanding it into a fixed weight string with elements in
  * Z_{NUM_KEYPAIRS}. */
 void SampleChallenge(uint8_t fixed_weight_string[T],
-                     const uint8_t digest[HASH_DIGEST_LENGTH]){
-   SHAKE_STATE_STRUCT shake_state;
-   initialize_csprng(&shake_state,
-                     (const unsigned char *) digest,
-                     HASH_DIGEST_LENGTH);
+                     const uint8_t digest[HASH_DIGEST_LENGTH]) {
+    SHAKE_STATE_STRUCT shake_state;
+    initialize_csprng(&shake_state,
+                      (const unsigned char *) digest,
+                      HASH_DIGEST_LENGTH);
 
-   uint16_t rnd_buf;
-   for (int i = 0; i < T-W; i++) 
-      fixed_weight_string[i] = 0;
+    uint64_t rnd_buf;
+    uint32_t c = 0;
+    for (uint32_t i = 0; i < T-W; i++) {
+        fixed_weight_string[i] = 0;
+    }
 
     if (NUM_KEYPAIRS != 2) {
-        for (int i = T-W; i < T; i++) {
+        for (uint32_t i = T-W; i < T; i++) {
             uint8_t value;
             do {
-                csprng_randombytes((unsigned char *) &rnd_buf,
-                                 sizeof(uint8_t),
-                                 &shake_state);
+                if (c == 0) {
+                    csprng_randombytes((unsigned char *) &rnd_buf,
+                                     sizeof(uint64_t),
+                                     &shake_state);
+                    c = 64u / BITS_TO_REPRESENT(MAX_KEYPAIR_INDEX);
+                }
 
                 value = rnd_buf & (KEYPAIR_INDEX_MASK);
-          } while (value >= NUM_KEYPAIRS-1);
-          fixed_weight_string[i] = value + 1;
-       }
+                rnd_buf >>= BITS_TO_REPRESENT(MAX_KEYPAIR_INDEX);
+                c -= 1;
+            } while (value >= (NUM_KEYPAIRS-1));
+            fixed_weight_string[i] = value + 1;
+        }
     } else {
-        for (int i = T-W; i < T; i++) {
+        for (uint32_t i = T-W; i < T; i++) {
             fixed_weight_string[i] = 1;
         }
-   }
+    }
 
-   for (int p = T-W; p < T; p++) {
-      POSITION_T pos;
-      uint8_t tmp;
-      do {
-         csprng_randombytes((unsigned char *) &rnd_buf,
-                             sizeof(POSITION_T),
-                             &shake_state);
-
-         pos = rnd_buf & (POSITION_MASK);
-      } while (pos > p);
-      tmp = fixed_weight_string[p];
-      fixed_weight_string[p] = fixed_weight_string[pos];
-      fixed_weight_string[pos] = tmp;
-   }      
-} /* end parse_digest */
+    for (uint32_t p = T - W; p < T; p++) {
+        POSITION_T pos;
+        do {
+            if (c == 0) {
+                csprng_randombytes((unsigned char *) &rnd_buf,
+                                   sizeof(uint64_t),
+                                   &shake_state);
+                c = 64u / BITS_TO_REPRESENT(T-1);
+            }
+            pos = rnd_buf & (POSITION_MASK);
+            rnd_buf >>= BITS_TO_REPRESENT(T-1);
+            c -= 1;
+        } while (pos > p);
+        const uint8_t tmp = fixed_weight_string[p];
+        fixed_weight_string[p] = fixed_weight_string[pos];
+        fixed_weight_string[pos] = tmp;
+    }
+}

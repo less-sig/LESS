@@ -27,7 +27,7 @@ IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
 	set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -Og -ggdb -Wall -Wextra -Wpedantic -fsanitize=address ${ALLOWED_WARNINGS}")
 	set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -Wall -Wextra -Wpedantic -march=native -mtune=native -flax-vector-conversions -ftree-vectorize -funroll-loops -flto ${ALLOWED_WARNINGS}")
 else()
-	set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -Og -ggdb -Wall -Wextra -Wpedantic -fsanitize=address ${ALLOWED_WARNINGS}")
+	set(CMAKE_C_FLAGS_DEBUG "-DDEBUG -O0 -ggdb -Wall -Wextra -Wpedantic -fsanitize=address ${ALLOWED_WARNINGS}")
     set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -O3 -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -mtune=native -ftree-vectorize -flto ${ALLOWED_WARNINGS}")
 endif()
 

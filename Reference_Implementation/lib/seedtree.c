@@ -29,10 +29,9 @@
  *             counting from 0 (the integer bound with the root node)"
  *
  */
-void generate_seed_tree_from_root(unsigned char
-                                  seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES],
-                                  const unsigned char root_seed[SEED_LENGTH_BYTES],
-                                  const unsigned char salt[HASH_DIGEST_LENGTH]) {
+void BuildGGM(unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES],
+              const unsigned char root_seed[SEED_LENGTH_BYTES],
+              const unsigned char salt[HASH_DIGEST_LENGTH]) {
     /* input buffer to the CSPRNG, contains the seed to be expanded, a salt,
      * and the integer index of the node being expanded for domain separation */
     const uint32_t csprng_input_len = SALT_LENGTH_BYTES +
@@ -79,7 +78,7 @@ void generate_seed_tree_from_root(unsigned char
         }
         start_node += npl[level];
     }
-} /* end generate_seed_tree */
+}
 
 /*****************************************************************************/
 
@@ -136,7 +135,7 @@ static void compute_seeds_to_publish(
     const uint16_t npl[LOG2(T)+1] = TREE_NODES_PER_LEVEL;
     const uint16_t leaves_start_indices[TREE_SUBROOTS] = TREE_LEAVES_START_INDICES;
 
-    /* compute the value for the internal nodes of the tree starting from the
+    /* compute the value for the internal nodes of the tree starting from
      * the leaves, right to left */
     unsigned int start_node = leaves_start_indices[0];
     for (int level=LOG2(T); level>0; level--) {
@@ -152,20 +151,17 @@ static void compute_seeds_to_publish(
         }
         start_node -= npl[level-1];
     }
-} /* end compute_seeds_to_publish */
+}
 
 /*****************************************************************************/
 
-uint32_t extract_seed_tree_paths(const unsigned char
-                  seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES],
-                  // INPUT: binary array storing in each cell a binary value (i.e., 0 or 1),
-                  //        which in turn denotes if the seed of the node with the same index
-                  //        must be released (i.e., cell == 0) or not (i.e., cell == 1).
-                  //        Indeed the seed will be stored in the sequence computed as a result into the out[...] array.
-                  const unsigned char
-                  indices_to_publish[T], // INPUT: binary array denoting which node has to be released (cell == 0) or not
-                  unsigned char
-                  *seed_storage)             // OUTPUT: sequence of seeds to be released
+uint32_t GGMPath(const unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES],
+                 // INPUT: binary array storing in each cell a binary value (i.e., 0 or 1),
+                 //        which in turn denotes if the seed of the node with the same index
+                 //        must be released (i.e., cell == 0) or not (i.e., cell == 1).
+                 //        Indeed, the seed will be stored in the sequence computed as a result into the out[...] array.
+                 const unsigned char indices_to_publish[T], // INPUT: binary array denoting which node has to be released (cell == 0) or not
+                 unsigned char *seed_storage)             // OUTPUT: sequence of seeds to be released
 {
     /* complete linearized binary tree containing boolean values determining
      * if a node is to be released or not according to convention above.
@@ -198,17 +194,16 @@ uint32_t extract_seed_tree_paths(const unsigned char
         start_node += npl[level];
     }
    return num_seeds_published;
-} /* end seed_tree_path */
+}
 
 /*****************************************************************************/
 
 // \return 1 on success
 //         0 on failure
-uint32_t rebuild_seed_tree_leaves(unsigned char
-                      seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES],
-                      const unsigned char indices_to_publish[T],
-                      const unsigned char *stored_seeds,
-                      const unsigned char salt[HASH_DIGEST_LENGTH]) {
+uint32_t RebuildGGM(unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES],
+                    const unsigned char indices_to_publish[T],
+                    const unsigned char *stored_seeds,
+                    const unsigned char salt[HASH_DIGEST_LENGTH]) {
    /* complete linearized binary tree containing boolean values determining
      * if a node is to be released or not according to aboves convention
      */
@@ -270,7 +265,7 @@ uint32_t rebuild_seed_tree_leaves(unsigned char
     }
 
     return 1;
-} /* end rebuild_seed_tree_leaves */
+}
 
 
 /*****************************************************************************/
