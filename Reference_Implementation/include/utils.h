@@ -37,8 +37,8 @@ void cswap(uintptr_t *a,
            uintptr_t *b,
            uintptr_t mask);
 
-void DigestToFixedWeight(uint8_t fixed_weight_string[T],
-                                   const uint8_t digest[HASH_DIGEST_LENGTH]);
+void SampleChallenge(uint8_t fixed_weight_string[T],
+                     const uint8_t digest[HASH_DIGEST_LENGTH]);
 
 int verify(const uint8_t *a,
            const uint8_t *b,

@@ -87,8 +87,7 @@ void LESS_keygen(prikey_t *SK,
 /// \param m[in]: message to sign
 /// \param mlen[in]: length of the message to sign in bytes
 /// \param sig[out]: signature
-/// \return: 0: on failure
-///          x: number of leaves opened by the algorithm
+/// \return: x: number of leaves opened by the algorithm
 size_t LESS_sign(const prikey_t *SK,
                  const char *const m,
                  const uint64_t mlen,
@@ -230,8 +229,7 @@ size_t LESS_sign(const prikey_t *SK,
     LESS_SHA3_INC_FINALIZE(sig->digest, &state);
     // (x_0, ..., x_{t-1})
     uint8_t fixed_weight_string[T] = {0};
-    DigestToFixedWeight(fixed_weight_string, sig->digest);
-
+    SampleChallenge(fixed_weight_string, sig->digest);
 
     uint8_t indices_to_publish[T];
     for (uint32_t i = 0; i < T; i++) {
@@ -281,8 +279,7 @@ int LESS_verify(const pubkey_t *const PK,
 #ifdef LESS_REUSE_PIVOTS_VY
     uint8_t g0_permuted_pivot_flags[N];
 #endif
-    DigestToFixedWeight(fixed_weight_string, sig->digest);
-
+    SampleChallenge(fixed_weight_string, sig->digest);
 
     uint8_t published_seed_indexes[T];
     for (uint32_t i = 0; i < T; i++) {
@@ -293,7 +290,11 @@ int LESS_verify(const pubkey_t *const PK,
     uint32_t rebuilding_seeds_went_fine;
     rebuilding_seeds_went_fine = rebuild_seed_tree_leaves(seed_tree,
                                                           published_seed_indexes,
-                             (unsigned char *) &sig->seed_storage, sig->salt);
+                                                          (unsigned char *) &sig->seed_storage,
+                                                          sig->salt);
+    if (!rebuilding_seeds_went_fine) {
+        return 0;
+    }
 
     unsigned char linearized_rounds_seeds[T*SEED_LENGTH_BYTES] = {0};
     seed_leaves(linearized_rounds_seeds,seed_tree);
@@ -392,10 +393,7 @@ int LESS_verify(const pubkey_t *const PK,
     /* Squeeze output */
     LESS_SHA3_INC_FINALIZE(recomputed_digest, &state);
 
-    int verification_ok = (verify(recomputed_digest, sig->digest,
-                                  HASH_DIGEST_LENGTH) == 0);
-
-    verification_ok = verification_ok || rebuilding_seeds_went_fine;
-    return verification_ok;
+    return (verify(recomputed_digest, sig->digest,
+                   HASH_DIGEST_LENGTH) == 0);
 } /* end LESS_verify */
 

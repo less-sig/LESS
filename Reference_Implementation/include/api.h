@@ -37,9 +37,10 @@
 /*  no. of bytes of the public key */
 #define CRYPTO_PUBLICKEYBYTES (sizeof(pubkey_t))
 
-/* no. of bytes of MAXIMAL overhead in a signed message,
+/* no. of bytes of MAXIMALsignature,
  * in case of ggm tree, the actual signature size can be less.  */
 #define CRYPTO_BYTES (sizeof(sign_t))
+// #define LESS_CRYPTO_MAX_BYTES   (HASH_DIGEST_LENGTH*2 + N8*W + SEED_TREE_MAX_PUBLISHED_BYTES )
 
 /* required bytes of input randomness */
 #define  CRYPTO_RANDOMBYTES (SEED_LENGTH_BYTES)

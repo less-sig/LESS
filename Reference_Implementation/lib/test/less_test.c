@@ -138,18 +138,6 @@ void info(void){
 
 }
 
-/* returns 1 if the test is successful, 0 otherwise */
-int LESS_sign_verify_test(void){
-    pubkey_t pk = {0};
-    prikey_t sk = {0};
-    sign_t signature;
-    char message[8] = "Signme!";
-    LESS_keygen(&sk,&pk);
-    LESS_sign(&sk,message,8,&signature);
-    int is_signature_ok = LESS_verify(&pk,message,8,&signature);
-    fprintf(stderr,"Keygen-Sign-Verify: %s", is_signature_ok == 1 ? "functional\n": "not functional\n" );
-    return is_signature_ok;
-}
 
 #define NUMBER_OF_TESTS 1
 #define MLEN 160
@@ -253,27 +241,4 @@ int main(int argc, char* argv[]){
     (void)argv;
     // LESS_sign_verify_test_multiple();
     return LESS_sign_verify_test_KAT();
-
-    initialize_csprng(&platform_csprng_state,
-                      (const unsigned char *)"012345678912345",
-                      16);
-    fprintf(stderr,"LESS reference implementation functional testbench\n");
-    info();
-
-    fprintf(stderr,"Starting %d tests: \n", NUM_TEST_ITERATIONS);
-    int tests_ok = 0;
-    for (int i = 0; i < NUM_TEST_ITERATIONS; i++) {
-        fputc('.',stderr);
-       // fprintf(stderr,"test %d: ",i);
-       // inverse_mod_tester();
-       // gen_by_monom_tester();
-       // monomial_tester();
-       // rref_gen_compress_tester();
-       // gausselim_tester();
-       // rref_gen_by_monom_tester();
-       // rref_gen_byte_compress_tester();
-      tests_ok += LESS_sign_verify_test();
-    }
-    fprintf(stderr,"%d tests functional out of %d\n",tests_ok,NUM_TEST_ITERATIONS);
-    return 0;
 }

@@ -64,15 +64,15 @@ int verify(const uint8_t *a,
 
 /* Expands a digest expanding it into a fixed weight string with elements in
  * Z_{NUM_KEYPAIRS}. */
-void DigestToFixedWeight(uint8_t fixed_weight_string[T],
-                         const uint8_t digest[HASH_DIGEST_LENGTH]){
+void SampleChallenge(uint8_t fixed_weight_string[T],
+                     const uint8_t digest[HASH_DIGEST_LENGTH]) {
    SHAKE_STATE_STRUCT shake_state;
    initialize_csprng(&shake_state,
                      (const unsigned char *) digest,
                      HASH_DIGEST_LENGTH);
 
    uint16_t rnd_buf;
-   for (int i = 0; i < T-W; i++)
+   for (uint32_t i = 0; i < T-W; i++)
       fixed_weight_string[i] = 0;
 
     if (NUM_KEYPAIRS != 2) {
@@ -93,7 +93,7 @@ void DigestToFixedWeight(uint8_t fixed_weight_string[T],
         }
    }
 
-   for (int p = T-W; p < T; p++) {
+   for (uint32_t p = T-W; p < T; p++) {
       POSITION_T pos;
       uint8_t tmp;
       do {
