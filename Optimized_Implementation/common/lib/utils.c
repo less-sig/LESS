@@ -159,3 +159,4 @@ void SampleChallenge(uint8_t fixed_weight_string[T],
         fixed_weight_string[pos] = tmp;
     }
 }
+
