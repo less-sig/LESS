@@ -73,7 +73,7 @@ void welford_print(const welford_t state) {
 #define NUM_RUNS 128
 #endif
 
-#define NUM_AVG_RUNS (1u << 6u)
+#define NUM_AVG_RUNS (1u << 10u)
 
 #ifdef N_pad
 #define NN N_pad
@@ -134,6 +134,7 @@ int LESS_avg_sign_size(void) {
     int ret_val;
     uint64_t size = 0;
     for(size_t i = 0; i < NUM_AVG_RUNS; i++) {
+        init_randombytes(m, mlen);
         if ((ret_val = crypto_sign_keypair(pk, sk)) != 0) {
             return -1;
         }
@@ -142,7 +143,7 @@ int LESS_avg_sign_size(void) {
             return -1;
         }
 
-        size += smlen;
+        size += (smlen - mlen);
     }
 
     double avg = ((double) size)/((double)NUM_AVG_RUNS);
@@ -205,10 +206,9 @@ int main(int argc, char* argv[]){
     setup_cycle_counter();
     initialize_csprng(&platform_csprng_state,
                       (const unsigned char *)"0123456789012345",16);
-    fprintf(stderr,"LESS reference implementation benchmarking tool\n");
+    fprintf(stderr,"LESS implementation benchmarking tool\n");
     // microbench();
-    // monomial_distribution();
-    // LESS_sign_verify_speed();
-    LESS_avg_sign_size();
+    LESS_sign_verify_speed();
+    //LESS_avg_sign_size();
     return 0;
 }

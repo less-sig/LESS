@@ -76,7 +76,7 @@ int crypto_sign_open(unsigned char *m,
                      const unsigned char *pk)                           // in parameter
 {
     const uint8_t num_seeds_published = sm[smlen - 1u];
-    if (num_seeds_published >= MAX_PUBLISHED_SEEDS) {
+    if (num_seeds_published > MAX_PUBLISHED_SEEDS) {
         return -1;
     }
     const uint32_t sig_len = LESS_SIGNATURE_SIZE((uint32_t)num_seeds_published);

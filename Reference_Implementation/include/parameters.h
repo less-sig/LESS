@@ -79,7 +79,7 @@
 #define TREE_SUBROOTS 2
 #define TREE_LEAVES_START_INDICES {71, 11}
 #define TREE_CONSECUTIVE_LEAVES {64, 4}
-#define MAX_PUBLISHED_SEEDS 31
+#define MAX_PUBLISHED_SEEDS 26
 
 
 #elif TARGET==45
@@ -116,7 +116,7 @@
 #define TREE_SUBROOTS 3
 #define TREE_LEAVES_START_INDICES {247, 223, 123}
 #define TREE_CONSECUTIVE_LEAVES {192, 24, 4}
-#define MAX_PUBLISHED_SEEDS 120
+#define MAX_PUBLISHED_SEEDS 118
 
 #elif TARGET==102
 #define NUM_KEYPAIRS (4)
@@ -129,7 +129,7 @@
 #define TREE_SUBROOTS 3
 #define TREE_LEAVES_START_INDICES {107, 55, 29}
 #define TREE_CONSECUTIVE_LEAVES {96, 4, 2}
-#define MAX_PUBLISHED_SEEDS 49
+#define MAX_PUBLISHED_SEEDS 41
 
 #else
 #error define optimization corner in parameters.h
@@ -153,7 +153,7 @@
 #define TREE_SUBROOTS 4
 #define TREE_LEAVES_START_INDICES {433, 369, 217, 30}
 #define TREE_CONSECUTIVE_LEAVES {256, 64, 24, 1}
-#define MAX_PUBLISHED_SEEDS 170
+#define MAX_PUBLISHED_SEEDS 168
 
 #elif TARGET==137
 #define NUM_KEYPAIRS (4)
@@ -166,7 +166,7 @@
 #define TREE_SUBROOTS 3
 #define TREE_LEAVES_START_INDICES {145, 41, 6}
 #define TREE_CONSECUTIVE_LEAVES {128, 8, 1}
-#define MAX_PUBLISHED_SEEDS 65
+#define MAX_PUBLISHED_SEEDS 58
 
 #else
 #error define optimization corner in parameters.h
