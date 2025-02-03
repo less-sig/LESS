@@ -11,6 +11,35 @@
 #define NROUNDS 24
 #define ROL(a, offset) ((a << offset) ^ (a >> (64-offset)))
 
+
+
+#if  defined(USE_AVX2)// || defined(USE_NEON)
+void KeccakP1600_Permute_24rounds(uint64_t *state);
+void KeccakP1600_ExtractBytes(uint64_t *state, unsigned char *data,
+                              unsigned int offset, unsigned int length);
+void KeccakP1600_AddBytes(uint64_t *state, const unsigned char *data,
+                          unsigned int offset, unsigned int length);
+
+
+void KeccakF1600_StateExtractBytes(uint64_t *state, unsigned char *data,
+                                   unsigned int offset, unsigned int length)
+{
+   KeccakP1600_ExtractBytes(state, data, offset, length);
+}
+
+void KeccakF1600_StateXORBytes(uint64_t *state, const unsigned char *data,
+                               unsigned int offset, unsigned int length)
+{
+   KeccakP1600_AddBytes(state, data, offset, length);
+}
+
+
+
+void KeccakF1600_StatePermute(uint64_t *state) {
+    KeccakP1600_Permute_24rounds(state);
+}
+#else
+
 static const uint64_t KeccakF_RoundConstants[NROUNDS] = {
    (uint64_t)0x0000000000000001ULL,
    (uint64_t)0x0000000000008082ULL,
@@ -56,15 +85,6 @@ void KeccakF1600_StateXORBytes(uint64_t *state, const unsigned char *data,
    }
 }
 
-
-
-/// TODO lol, avx not enabled
-#if 0
-void KeccakP1600_Permute_24rounds(uint64_t *state);
-void KeccakF1600_StatePermute(uint64_t *state) {
-    KeccakP1600_Permute_24rounds(state);
-}
-#else
 void KeccakF1600_StatePermute(uint64_t *state)
 {
    int round;

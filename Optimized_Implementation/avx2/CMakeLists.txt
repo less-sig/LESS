@@ -1,8 +1,19 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.0)
 project(less_avx2)
 enable_language(C ASM)
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
+
+enable_testing()
+find_package(OpenSSL)
+
+set(default_build_type "Release")
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
+  set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
+  # Set the possible values of build type for cmake-gui
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
 
 # needed for nvim
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
@@ -11,9 +22,9 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS "-Wno-unused-function -Wno-ignored-attributes -Wno-type-limits -Wno-gnu-binary-literal")
-set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG -O0 -Wall -Wpedantic -Wextra -mavx2 -mavx ${ALLOWED_WARNINGS}")
-set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -march=native -flto -ftree-vectorize -funroll-loops -fomit-frame-pointer ${ALLOWED_WARNINGS}")
+set(ALLOWED_WARNINGS      " -Wno-type-limits")
+set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -g -Og -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi ${ALLOWED_WARNINGS}")
+set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -flto -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
 
 
 set(SOURCES
@@ -30,6 +41,7 @@ set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/sort.c
         ${PROJECT_SOURCE_DIR}/lib/transpose.c
         ${PROJECT_SOURCE_DIR}/lib/KeccakP-1600-AVX2.s
+        ${PROJECT_SOURCE_DIR}/lib/transpose_avx2.c
 )
 
 set(HEADERS
@@ -51,47 +63,37 @@ set(HEADERS
 )
 
 include_directories(include)
-foreach(category RANGE 1 5 2)
-  if(category EQUAL 1)
-    set(PARAM_TARGETS SHORT_SIG INTERMEDIATE BALANCED)
-  else()
-    set(PARAM_TARGETS SHORT_SIG BALANCED)
+foreach(category "252" "400" "548")
+  if(${category} EQUAL "252")
+    set(PARAM_TARGETS "192" "68" "45")
+  elseif(${category} EQUAL "400")
+    set(PARAM_TARGETS "220" "102")
+  elseif(${category} EQUAL "548")
+    set(PARAM_TARGETS "345" "137")
   endif()
-  foreach(optimiz_target ${PARAM_TARGETS})
+
+  foreach(optimize_target ${PARAM_TARGETS})
     # settings for benchmarking binary
-    set(TARGET_BINARY_NAME LESS_benchmark_cat_${category}_${optimiz_target})
+    set(TARGET_BINARY_NAME LESS_benchmark_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/bench/less_benchmark.c)
     target_link_libraries(${TARGET_BINARY_NAME} m)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category}=1 -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
 
     # settings for unit tests binary
-    set(TARGET_BINARY_NAME LESS_test_cat_${category}_${optimiz_target})
+    set(TARGET_BINARY_NAME LESS_test_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/test/less_test.c)
-    target_link_libraries(${TARGET_BINARY_NAME} m)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
+    target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
 
     # KATS generation
-    set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimiz_target})
+    set(TARGET_BINARY_NAME LESS_nist_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/nist/KAT_NIST_rng.c ${PROJECT_SOURCE_DIR}/lib/nist/PQCgenKAT_sign.c)
-    target_link_libraries(${TARGET_BINARY_NAME} m crypto)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
-
-    # TODO remove once everything is done
-    set(TARGET_BINARY_NAME LESS_test_cf_${category}_${optimiz_target})
-    add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/test/test_canonical.c ${SOURCES})
-    target_link_libraries(${TARGET_BINARY_NAME} m crypto)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
-
-    # TODO remove once everything is done
-    set(TARGET_BINARY_NAME LESS_bench_cf_${category}_${optimiz_target})
-    add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/bench/bench_cf.c ${SOURCES})
-    target_link_libraries(${TARGET_BINARY_NAME} m crypto)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
-
-    # TODO remove once everything is done
-    set(TARGET_BINARY_NAME LESS_test_sort_${category}_${optimiz_target})
-    add_executable(${TARGET_BINARY_NAME} ${PROJECT_SOURCE_DIR}/lib/test/sort.c ${SOURCES})
-    target_link_libraries(${TARGET_BINARY_NAME} m crypto)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY_${category} -D${optimiz_target}=1 ${KECCAK_EXTERNAL_ENABLE} ")
-  endforeach(optimiz_target)
+    target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(${TARGET_BINARY_NAME} PRIVATE OpenSSL::Crypto)
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
+  endforeach(optimize_target)
 endforeach(category)
+

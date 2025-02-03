@@ -2,10 +2,8 @@
  *
  * Optimized Implementation of LESS.
  *
- * @version 1.2 (May 2023)
- *
- * @author Duc Tri Nguyen <dnguye69@gmu.edu>
-
+ * @version 1.2 (May 2025)
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -35,31 +33,13 @@
 typedef __m256i vec256_t;
 typedef __m128i vec128_t;
 
-static void print256_num(vec256_t var, const char *string) {
-    uint8_t val[32] = {0};
-    memcpy(val, &var, sizeof(val));
-    printf("%s:\t\t%02x %02x %02x %02x | %02x %02x %02x %02x | %02x %02x %02x %02x | %02x %02x %02x %02x \n\t\t%02x %02x %02x %02x | %02x %02x %02x %02x | %02x %02x %02x %02x | %02x %02x %02x %02x \n\n", string,
-           val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7],
-           val[8], val[9], val[10], val[11], val[12], val[13], val[14], val[15],
-           val[16], val[17], val[18], val[19], val[20], val[21], val[22], val[23],
-           val[24], val[25], val[26], val[27], val[28], val[29], val[30], val[31]);
-}
 
-/// \return in[0] + in[1] + ... + in[31] % q
-static inline uint8_t vhadd8(const __m256i in) {
-    uint8_t data[32] __attribute__((aligned(64)));
-    _mm256_store_si256((__m256i *)data, in);
+/// number of Fq elements per vector register
+#define LESS_WSZ 32u
 
-    uint8_t s1 = 0, s2 = 0, s3 = 0, s4 = 0;
-    for (uint32_t i = 0; i < 8; i++) {
-        s1 = br_red(s1 + data[i +  0]);
-        s2 = br_red(s2 + data[i +  8]);
-        s3 = br_red(s3 + data[i + 16]);
-        s4 = br_red(s4 + data[i + 24]);
-    }
+// number of vector register for N bytes
+#define NW ((NEXT_MULTIPLE(N, LESS_WSZ))/LESS_WSZ)
 
-    return br_red(br_red(s1 + s2) + br_red(s3 + s4));
-}
 
 // c <- src
 #define vload256(c, src) c = _mm256_loadu_si256(src);
@@ -71,7 +51,7 @@ static inline uint8_t vhadd8(const __m256i in) {
 // #define vstore(src, c) _mm256_store_si256(src, c);
 
 // c = a + b
-#define vadd8(c, a, b) c = _mm256_add_epi8(a, b);
+#define vadd8(c, a, b)  c = _mm256_add_epi8(a, b);
 #define vadd16(c, a, b) c = _mm256_add_epi16(a, b);
 #define vadd64(c, a, b) c = _mm256_add_epi64(a, b);
 
@@ -85,6 +65,7 @@ static inline uint8_t vhadd8(const __m256i in) {
 
 // c = a >> n
 #define vsr16(c, a, n) c = _mm256_srai_epi16(a, n);
+#define vsr32(c, a, n) c = _mm256_srli_epi32(a, n);
 
 // c = a << n
 #define vsl16(c, a, n) c = _mm256_slli_epi16(a, n);
@@ -95,9 +76,12 @@ static inline uint8_t vhadd8(const __m256i in) {
 // c = a ^ b
 #define vxor(c, a, b) c = _mm256_xor_si256(a, b);
 
+// c = a | b
+#define vor(c, a, b) c = _mm256_or_si256(a, b);
+
 // c[0..16] = n
-#define vset8(c, n) c = _mm256_set1_epi8(n);
-#define vset17(c, n) c = _mm256_set1_epi16(n);
+#define vset8(c, n) c = _mm256_set1_epi8((char)n);
+#define vset17(c, n) c = _mm256_set1_epi16((short)n);
 
 // c = a == b
 #define vcmp8(c, a, b) c = _mm256_cmpeq_epi8(a, b);
@@ -164,19 +148,12 @@ static inline uint8_t vhadd8(const __m256i in) {
  * Fix width 16-bit Barrett multiplication Q = 127
  * c = (a * b) % q
  */
-#define barrett_mul_u16(c, a, b, t)        \
+#define barrett_mul_u16(c, a, b, t)          \
     vmul_lo16(a, a, b); /* lo = (a * b)  */  \
     vsr16(t, a, 7);     /* hi = (lo >> 7) */ \
     vadd16(a, a, t);    /* lo = (lo + hi) */ \
     vsl16(t, t, 7);     /* hi = (hi << 7) */ \
     vsub16(c, a, t);    /* c  = (lo - hi) */
-
-
-/// number of 8 bit elements in an avx register
-#define LESS_WSZ 32
-
-/// number of avx registers needed for a full row in a generator matrix
-#define NW ((N + LESS_WSZ - 1) / LESS_WSZ)
 
 /// original reduction formula
 #define W_RED127(x)                                                            \
@@ -199,3 +176,32 @@ static inline uint8_t vhadd8(const __m256i in) {
 extern const uint8_t shuff_low_half[32];
 
 void print256_num(vec256_t var, const char *string);
+
+/// \return in[0] + in[1] + ... + in[31] % q
+static inline uint8_t vhadd8(const __m256i in) {
+    vec256_t c01, c7f;
+    vset8(c01, 0x01);
+    vset8(c7f, 0x7F);
+
+    __m256i a = _mm256_srli_epi16(in, 8);
+    __m256i t = _mm256_add_epi8(a, in);
+    W_RED127_(t)
+
+    a = _mm256_srli_epi32(t, 16);
+    t = _mm256_add_epi8(a, t);
+    W_RED127_(t)
+
+    a = _mm256_srli_epi64(t, 32);
+    t = _mm256_add_epi8(a, t);
+    W_RED127_(t)
+
+    a = _mm256_srli_si256(t, 8);
+    t = _mm256_add_epi8(a, t);
+    W_RED127_(t)
+
+    a = _mm256_permute2x128_si256(t, t, 1);
+    t = _mm256_add_epi8(a, t);
+    W_RED127_(t)
+
+    return _mm256_extract_epi8(t, 0);
+}

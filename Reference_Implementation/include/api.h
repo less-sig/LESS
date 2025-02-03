@@ -2,10 +2,11 @@
  *
  * Reference ISO-C11 Implementation of LESS.
  *
- * @version 1.1 (March 2023)
+ * @version 1.2 (February 2025)
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -37,9 +38,10 @@
 /*  no. of bytes of the public key */
 #define CRYPTO_PUBLICKEYBYTES (sizeof(pubkey_t))
 
-// TODO this is wrong. in the case of SEED_TREE
-/* no. of bytes of overhead in a signed message */
+/* no. of bytes of MAXIMALsignature,
+ * in case of ggm tree, the actual signature size can be less.  */
 #define CRYPTO_BYTES (sizeof(sign_t))
+// #define LESS_CRYPTO_MAX_BYTES   (HASH_DIGEST_LENGTH*2 + N8*W + SEED_TREE_MAX_PUBLISHED_BYTES )
 
 /* required bytes of input randomness */
 #define  CRYPTO_RANDOMBYTES (SEED_LENGTH_BYTES)

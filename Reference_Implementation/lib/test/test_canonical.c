@@ -6,20 +6,18 @@
 #include "codes.h"
 #include "canonical.h"
 #include "test_helpers.c"
+#include "cf_test.h"
 
 #define ITERS 100
 
-// TODO write tests for cf4 and cf5, which lead to an wrong computation
 
 // just debugging test
 int test_compute_canonical_form_type3(void) {
     normalized_IS_t G;
     normalized_sf(&G);
+    uint8_t L[N] = {0};
 
-    // normalized_pretty_print(&G);
-    if (compute_canonical_form_type3(&G) == 0) return 1;
-    // normalized_pretty_print(&G);
-
+    if (compute_canonical_form_type3(&G, L) == 0) return 1;
     return 0;
 }
 
@@ -27,6 +25,7 @@ int test_compute_canonical_form_type3(void) {
 int test_compute_canonical_form_type3_v2(void) {
     normalized_IS_t G1, G2, G3;
     permutation_t P_c, P_r;
+    uint8_t L[N] = {0};
 
     for (uint32_t k = 0; k < ITERS; k++) {
         permutation_mat_rng_v2(&P_c, N-K);
@@ -39,8 +38,8 @@ int test_compute_canonical_form_type3_v2(void) {
         permutation_apply_row(&P_r, &G2);
         normalized_copy(&G3, &G2);
 
-        if (compute_canonical_form_type3(&G1) == 0) return 1;
-        if (compute_canonical_form_type3(&G2) == 0) return 1;
+        if (compute_canonical_form_type3(&G1, L) == 0) return 1;
+        if (compute_canonical_form_type3(&G2, L) == 0) return 1;
         if (compute_canonical_form_type3_ct(&G3) == 0) return 1;
 
 
@@ -69,9 +68,10 @@ int test_compute_canonical_form_type3_v2(void) {
 int test_compute_canonical_form_type4(void) {
     normalized_IS_t G;
     normalized_sf(&G);
+    uint8_t L[N] = {0};
 
     // normalized_pretty_print(&G);
-    if (compute_canonical_form_type4(&G) == 0) return 1;
+    if (compute_canonical_form_type4(&G, L) == 0) return 1;
     // normalized_pretty_print(&G);
 
     return 0;
@@ -81,8 +81,7 @@ int test_compute_canonical_form_type4_v2(void) {
     normalized_IS_t G1, G2, G3;
     permutation_t P_c, P_r;
     diagonal_t D_r;
-
-
+    uint8_t L[N] = {0};
 
     for (uint32_t k = 0; k < ITERS; k++) {
         diagonal_mat_rnd_v2(&D_r, K);
@@ -97,8 +96,8 @@ int test_compute_canonical_form_type4_v2(void) {
         permutation_apply_row(&P_r, &G2);
 
         normalized_copy(&G3, &G2);
-        const int ret1 = compute_canonical_form_type4(&G1);
-        const int ret2 = compute_canonical_form_type4(&G2);
+        const int ret1 = compute_canonical_form_type4(&G1, L);
+        const int ret2 = compute_canonical_form_type4(&G2, L);
         const int ret3 = compute_canonical_form_type4_ct(&G3);
 
         if (ret1 != ret2) {
@@ -132,17 +131,52 @@ int test_compute_canonical_form_type4_v2(void) {
 }
 
 int test_compute_canonical_form_type5(void) {
-    normalized_IS_t G;
-    normalized_sf(&G);
+    normalized_IS_t G0, G1, G2, G3;
+    for (uint32_t i = 0; i < K; i++) {
+        for (uint32_t j = 0; j < K; j++) {
+            G0.values[i][j] = cf_out[i][j];
+            G1.values[i][j] = cf_in[i][j];
+            G2.values[i][j] = cf_in[i][j];
+            G3.values[i][j] = cf_in[i][j];
+        }
+    }
 
-    // normalized_pretty_print(&G);
-    if (compute_canonical_form_type5(&G) == 0) return 1;
-    // normalized_pretty_print(&G);
+    if (compute_canonical_form_type5(&G1) == 0)        { return 1; }
+    if (compute_canonical_form_type5_popcnt(&G2) == 0) { return 1; }
+    if (compute_canonical_form_type5_tony(&G3) == 0) { return 1; }
+
+    for (uint32_t i = 0; i < K; i++) {
+        for (uint32_t j = 0; j < N-K; j++) {
+            if (G1.values[i][j] != cf_out[i][j]) {
+                normalized_pretty_print(&G0);
+                normalized_pretty_print(&G1);
+                printf("5 1\n");
+                return 1;
+            }
+            if (G2.values[i][j] != cf_out[i][j]) {
+                normalized_pretty_print(&G0);
+                normalized_pretty_print(&G2);
+                printf("5 2: %d %d\n", i, j);
+                return 1;
+            }
+            //if (G3.values[i][j] != cf_out[i][j]) {
+            //    normalized_pretty_print(&G0);
+            //    normalized_pretty_print(&G2);
+            //    printf("5 3\n");
+            //    return 1;
+            //}
+            // if (G4.values[i][j] != cf_out[i][j]) {
+            //     printf("5 4\n");
+            //     return 1;
+            // }
+        }
+    }
+
     return 0;
 }
 
 int test_compute_canonical_form_type5_v2(void) {
-    normalized_IS_t G4, G1, G2, G3;
+    normalized_IS_t G3, G1, G2;
     permutation_t P_c, P_r;
     diagonal_t D_r, D_c;
 
@@ -161,22 +195,17 @@ int test_compute_canonical_form_type5_v2(void) {
         permutation_apply_row(&P_r, &G2);
 
         normalized_copy(&G3, &G2);
-        normalized_copy(&G4, &G2);
 
-        const int ret1 = compute_canonical_form_type5_ct(&G1);
-        const int ret2 = compute_canonical_form_type5(&G2);
-        const int ret3 = compute_canonical_form_type5_popcnt(&G3);
-        const int ret4 = compute_canonical_form_type5_fastest(&G4);
+        const int ret1 = compute_canonical_form_type5(&G1);
+        const int ret2 = compute_canonical_form_type5_popcnt(&G2);
+        const int ret3 = compute_canonical_form_type5_tony(&G3);
         if (ret1 != ret2) {
-            printf("error ret cf5\n");
+            printf("error ret cf5 popcnt\n");
             return 1;
         }
+
         if (ret1 != ret3) {
-            printf("error ret cf5, popcnt\n");
-            return 1;
-        }
-        if (ret1 != ret4) {
-            printf("error ret cf5, popcnt\n");
+            printf("error ret cf5, tony\n");
             return 1;
         }
 
@@ -190,7 +219,7 @@ int test_compute_canonical_form_type5_v2(void) {
                 if (G1.values[i][j] != G2.values[i][j]) {
                     normalized_pretty_print(&G1);
                     normalized_pretty_print(&G2);
-                    printf("error cf5\n");
+                    printf("error cf5 popcnt %d %d\n", i, j);
                     return 1;
                 }
             }
@@ -198,21 +227,10 @@ int test_compute_canonical_form_type5_v2(void) {
 
         for (uint32_t i = 0; i < K; i++) {
             for (uint32_t j = 0; j < N-K; j++) {
-                if (G2.values[i][j] != G3.values[i][j]) {
+                if (G1.values[i][j] != G3.values[i][j]) {
                     normalized_pretty_print(&G1);
                     normalized_pretty_print(&G3);
-                    printf("error cf5 %d popcnt %d %d\n", k, i, j);
-                    return 1;
-                }
-            }
-        }
-
-        for (uint32_t i = 0; i < K; i++) {
-            for (uint32_t j = 0; j < N-K; j++) {
-                if (G2.values[i][j] != G4.values[i][j]) {
-                    normalized_pretty_print(&G1);
-                    normalized_pretty_print(&G4);
-                    printf("error cf5 %d fastest %d %d\n", k, i, j);
+                    printf("error cf5 %d tony %d %d\n", k, i, j);
                     return 1;
                 }
             }
@@ -224,25 +242,31 @@ int test_compute_canonical_form_type5_v2(void) {
 // tests: if CF(G) and CF(RREF(G)) are the same
 uint32_t  test_compute_canonical_form_type5_gaus(void) {
     generator_mat_t G1, G2;
-    normalized_IS_t V1, V2, V3, V4;
+    normalized_IS_t V1, V2, V3;
     for (uint32_t k = 0; k < ITERS; ++k) {
         generator_sf(&G1);
-        memcpy(&G2.values, &G1.values, sizeof(generator_mat_t));
+        memcpy(&G2, &G1, sizeof(generator_mat_t));
 
         uint8_t is_pivot_column[N] = {0};
         generator_RREF(&G2, is_pivot_column);
+        for (uint32_t i = 0; i < K; ++i) {
+            for (uint32_t j = 0; j < N; ++j) {
+                if (G2.values[i][j] >= Q) {
+                    return 2;
+                }
+            }
+        }
+
 
         generator_to_normalized(&V1, &G1);
         generator_to_normalized(&V2, &G2);
         generator_to_normalized(&V3, &G2);
-        generator_to_normalized(&V4, &G2);
 
-        const int ret1 = cf5(&V1);
-        const int ret2 = cf5_nonct(&V2);
-        const int ret3 = compute_canonical_form_type5_popcnt(&V3);
-        const int ret4 = compute_canonical_form_type5_fastest(&V4);
+        const int ret1 = compute_canonical_form_type5(&V1);
+        const int ret2 = compute_canonical_form_type5_popcnt(&V2);
+        const int ret3 = compute_canonical_form_type5_tony(&V3);
 
-        if ((ret1 != ret2) && (ret1 != ret3) && (ret1 != ret4)) {
+        if ((ret1 != ret2) && (ret1 != ret3)) {
             printf("error: cf5 gaus ret\n");
             return 1;
         }
@@ -252,19 +276,14 @@ uint32_t  test_compute_canonical_form_type5_gaus(void) {
                 if (V1.values[i][j] != V2.values[i][j]) {
                     normalized_pretty_print(&V1);
                     normalized_pretty_print(&V2);
-                    printf("error: cf5 gaus\n");
+                    printf("error: cf5 popcnt gaus %d %d\n", i, j);
                     return 1;
                 }
+
                 if (V1.values[i][j] != V3.values[i][j]) {
                     normalized_pretty_print(&V1);
                     normalized_pretty_print(&V3);
-                    printf("error: cf5 popcnt gaus \n");
-                    return 1;
-                }
-                if (V1.values[i][j] != V4.values[i][j]) {
-                    normalized_pretty_print(&V1);
-                    normalized_pretty_print(&V4);
-                    printf("error: cf5 fastest gaus \n");
+                    printf("error: cf5 tony gaus %d %d \n", i, j);
                     return 1;
                 }
             }
@@ -278,13 +297,12 @@ int main(void) {
     // generic matrices test, not really testing anything, just printing the result
     // if (test_compute_canonical_form_type3()) return 1;
     // if (test_compute_canonical_form_type4()) return 1;
-    // if (test_compute_canonical_form_type5()) return 1;
 
     // actual tests
     // if (test_compute_canonical_form_type3_v2()) return 1;
     // if (test_compute_canonical_form_type4_v2()) return 1;
+    // if (test_compute_canonical_form_type5()) return 1;
     if (test_compute_canonical_form_type5_v2()) return 1;
-
     if (test_compute_canonical_form_type5_gaus()) return 1;
 
     printf("Done, all worked\n");

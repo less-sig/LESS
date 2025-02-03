@@ -2,7 +2,6 @@
 #define M1CYCLES_H
 
 // For Apple M1: https://gist.github.com/dougallj/5bafb113492047c865c0c8cfbc930155#file-m1_robsize-c-L390
-#include <assert.h>
 #include <dlfcn.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -64,7 +63,7 @@ KPERF_LIST
 uint64_t g_counters[COUNTERS_COUNT];
 uint64_t g_config[COUNTERS_COUNT];
 
-static void configure_rdtsc()
+static void configure_rdtsc(void)
 {
     if (kpc_set_config(KPC_MASK, g_config))
     {
@@ -111,7 +110,6 @@ static void init_rdtsc(void)
     KPERF_LIST
 #undef F
 
-    // TODO: KPC_CLASS_RAWPMU_MASK
     const unsigned c1 = kpc_get_counter_count(KPC_MASK);
     if (c1 != CONFIG_COUNT)
     {

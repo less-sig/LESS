@@ -2,10 +2,11 @@
  *
  * Reference ISO-C11 Implementation of LESS.
  *
- * @version 1.1 (March 2023)
+ * @version 1.2 (February 2025)
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
+ * @author Floyd Zweydinger <zweydfg+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -26,10 +27,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "utils.h"
-#include <assert.h>
 #include <string.h>
 
+///
 #define POS_BITS BITS_TO_REPRESENT(N-1)
+
+///
 #define POS_MASK (((POSITION_T) 1 << POS_BITS) - 1)
 
 /// applies a random permutation between [0, n-1] on the
@@ -60,21 +63,34 @@ void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
 /// \param permutation[in/out]: random permutation. Must be initialized with
 ///         [0,....,n-1]
 void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state, POSITION_T permutation[N]) {
-    uint32_t rand_u32[N] = {0};
-    POSITION_T tmp;
+   uint64_t rand_u64;
+   POSITION_T tmp;
+   POSITION_T x;
+   int c;
 
-    csprng_randombytes((unsigned char *) &rand_u32, sizeof(uint32_t)*N, shake_monomial_state);
-    for (size_t i = 0; i < N - 1; ++i) {
-        rand_u32[i] = i + rand_u32[i] % (N - i);
-    }
+   csprng_randombytes((unsigned char *) &rand_u64,
+                             sizeof(rand_u64),
+                             shake_monomial_state);
+   c = 0;
 
-    for (size_t i = 0; i < N - 1; ++i) {
-        tmp = permutation[i];
-        permutation[i] = permutation[rand_u32[i]];
-        permutation[rand_u32[i]] = tmp;
-    }
+   for (int i = 0; i < N; i++) {
+      do {
+         if (c == (64/POS_BITS)-1) {
+            csprng_randombytes((unsigned char *) &rand_u64,
+                                sizeof(rand_u64),
+                                shake_monomial_state);
+            c = 0;
+         }
+         x = rand_u64 & (POS_MASK);
+         rand_u64 = rand_u64 >> POS_BITS;
+         c = c + 1;
+      } while (x >= N);
+
+      tmp = permutation[i];
+      permutation[i] = permutation[x];
+      permutation[x] = tmp;
+   } 
 }
-
 /* FY shuffle on the permutation, sampling from the global TRNG state */
 void yt_shuffle(POSITION_T permutation[N]) {
     yt_shuffle_state(&platform_csprng_state, permutation);
@@ -82,208 +98,99 @@ void yt_shuffle(POSITION_T permutation[N]) {
 
 /* expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
  * monomial matrices */
-void monomial_mat_seed_expand_salt_rnd(monomial_t *res,
-                                       const unsigned char seed[SEED_LENGTH_BYTES],
-                                       const unsigned char salt[HASH_DIGEST_LENGTH],
-                                       const uint16_t round_index)
-{
-   SHAKE_STATE_STRUCT shake_monomial_state = {0};
-   const int shake_buffer_len = SEED_LENGTH_BYTES+HASH_DIGEST_LENGTH+sizeof(uint16_t);
-   uint8_t shake_input_buffer[shake_buffer_len];
-   memcpy(shake_input_buffer,seed,SEED_LENGTH_BYTES);  
-   memcpy(shake_input_buffer+SEED_LENGTH_BYTES,
-          salt,
-          HASH_DIGEST_LENGTH);
-   memcpy(shake_input_buffer+SEED_LENGTH_BYTES+HASH_DIGEST_LENGTH,
-          &round_index,
-          sizeof(uint16_t));
-   
-   initialize_csprng(&shake_monomial_state,shake_input_buffer,shake_buffer_len);
-   fq_star_rnd_state_elements(&shake_monomial_state, res->coefficients, N);
-   for(uint32_t i = 0; i < N; i++) {
-      res->permutation[i] = i;
-   }
-
-   /* FY shuffle on the permutation */
-   yt_shuffle_state(&shake_monomial_state, res->permutation);
-} /* end monomial_mat_seed_expand */
-
-/* expands a monomial matrix, given a double length PRNG seed (used to prevent
- * multikey attacks) */
-void monomial_mat_seed_expand_prikey(monomial_t *res,
-                                     const unsigned char seed[PRIVATE_KEY_SEED_LENGTH_BYTES])
-{
-   SHAKE_STATE_STRUCT shake_monomial_state = {0};
-   initialize_csprng(&shake_monomial_state,seed,PRIVATE_KEY_SEED_LENGTH_BYTES);
-   fq_star_rnd_state_elements(&shake_monomial_state, res->coefficients, N);
-   for(uint32_t i = 0; i < N; i++) {
-      res->permutation[i] = i;
-   }
-   /* FY shuffle on the permutation */
-   yt_shuffle_state(&shake_monomial_state, res->permutation);
-} /* end monomial_mat_seed_expand */
-
-
-void monomial_mat_seed_expand_rnd(monomial_t *res,
-                                  const unsigned char seed[SEED_LENGTH_BYTES],
-                                  const uint16_t round_index) {
+void monomial_sample_salt(monomial_t *res,
+                          const unsigned char seed[SEED_LENGTH_BYTES],
+                          const unsigned char salt[HASH_DIGEST_LENGTH],
+                          const uint16_t round_index) {
     SHAKE_STATE_STRUCT shake_monomial_state = {0};
-    const int shake_buffer_len = SEED_LENGTH_BYTES+sizeof(uint16_t);
+    const int shake_buffer_len = SEED_LENGTH_BYTES + HASH_DIGEST_LENGTH + sizeof(uint16_t);
     uint8_t shake_input_buffer[shake_buffer_len];
-    memcpy(shake_input_buffer,seed,SEED_LENGTH_BYTES);
-    memcpy(shake_input_buffer+SEED_LENGTH_BYTES,
-           &round_index,
-           sizeof(uint16_t));
+    memcpy(shake_input_buffer, seed, SEED_LENGTH_BYTES);
+    memcpy(shake_input_buffer + SEED_LENGTH_BYTES, salt, HASH_DIGEST_LENGTH);
+    memcpy(shake_input_buffer + SEED_LENGTH_BYTES + HASH_DIGEST_LENGTH, &round_index, sizeof(uint16_t));
 
-    initialize_csprng(&shake_monomial_state,shake_input_buffer,shake_buffer_len);
+    initialize_csprng(&shake_monomial_state, shake_input_buffer, shake_buffer_len);
     fq_star_rnd_state_elements(&shake_monomial_state, res->coefficients, N);
-    for(uint32_t i = 0; i < N; i++) {
+    for (uint32_t i = 0; i < N; i++) {
         res->permutation[i] = i;
     }
 
     /* FY shuffle on the permutation */
     yt_shuffle_state(&shake_monomial_state, res->permutation);
+} /* end monomial_mat_seed_expand */
 
-}
-//
-// /* samples a random perm matrix */
-// void monomial_mat_rnd(monomial_t *res) {
-//    fq_star_rnd_elements(res->coefficients, N);
-//    for(uint32_t i = 0; i < N; i++) {
-//       res->permutation[i] = i;
-//    }
-//    /* FY shuffle on the permutation */
-//    yt_shuffle(res->permutation);
-// } /* end monomial_mat_rnd */
+/// expands a monomial matrix, given a double length PRNG seed (used to prevent
+/// multikey attacks)
+/// \param res[out]: the randomly sampled monomial matrix
+/// \param seed[in]: the seed
+void monomial_sample_prikey(monomial_t *res,
+                            const unsigned char seed[PRIVATE_KEY_SEED_LENGTH_BYTES]) {
+    SHAKE_STATE_STRUCT shake_monomial_state = {0};
+    initialize_csprng(&shake_monomial_state, seed, PRIVATE_KEY_SEED_LENGTH_BYTES);
+    fq_star_rnd_state_elements(&shake_monomial_state, res->coefficients, N);
+    for (uint32_t i = 0; i < N; i++) {
+        res->permutation[i] = i;
+    }
+    /* FY shuffle on the permutation */
+    yt_shuffle_state(&shake_monomial_state, res->permutation);
+} /* end monomial_mat_seed_expand */
 
-/// \param res[out] = to_invert**-1
-/// \param to_invert[in]
-void monomial_mat_inv(monomial_t *res,
-                      const monomial_t *const to_invert) {
-   for(uint32_t i = 0; i < N; i++) {
-      res->permutation[to_invert->permutation[i]] = i;
-      res->coefficients[to_invert->permutation[i]] = fq_inv(
-               to_invert->coefficients[i]);
-   }
-} /* end monomial_mat_inv */
-
-/* pretty_print for monomial matrices */
-void monomial_mat_pretty_print(const monomial_t *const to_print) {
-   fprintf(stderr,"perm = [");
-   for(uint32_t i = 0; i < N-1; i++) {
-      fprintf(stderr,"%03u, ",to_print->permutation[i]);
-   }
-   fprintf(stderr,"%03u ]\n",to_print->permutation[N-1]);
-   fprintf(stderr,"coeffs = [");
-   for(uint32_t i = 0; i < N-1; i++) {
-      fprintf(stderr,"%03u, ",to_print->coefficients[i]);
-   }
-   fprintf(stderr,"%03u ]\n",to_print->coefficients[N-1]);
-} /* end monomial_mat_pretty_print */
-
-void monomial_mat_pretty_print_name(char *name, const monomial_t *to_print)
-{
-   fprintf(stderr,"%s = [",name);
-   for(uint32_t i = 0; i < N-1; i++) {
-      fprintf(stderr,"%03u, ",to_print->permutation[i]);
-   }
-   fprintf(stderr,"%03u ]\n",to_print->permutation[N-1]);
-   fprintf(stderr,"coeffs = [");
-   for(uint32_t i = 0; i < N-1; i++) {
-      fprintf(stderr,"%03u, ",to_print->coefficients[i]);
-   }
-   fprintf(stderr,"%03u ]\n",to_print->coefficients[N-1]);
-} /* end monomial_mat_pretty_print_name */
-
-void monomial_mat_print_exp_name(char *name,const monomial_t *to_print)
-{
-   FQ_ELEM mu[N][N]= {{0}};
-
-   for(uint32_t i = 0; i < N; i++) {
-      mu[to_print->permutation[i]][i] = to_print->coefficients[i];
-   }
-
-   fprintf(stderr,"%s = Mon([",name);
-   for(uint32_t i = 0; i < N-1 ; i++ ) {
-      fprintf(stderr,"[");
-      for(uint32_t j = 0; j < N-1; j++) {
-         fprintf(stderr,"%u, ",mu[i][j]);
-      }
-      fprintf(stderr,"%u ],\n",mu[i][N-1]);
-   }
-   fprintf(stderr,"[");
-   for(uint32_t j = 0; j < N-1; j++) {
-      fprintf(stderr,"%u, ",mu[N-1][j]);
-   }
-   fprintf(stderr,"%u ] ])\n",mu[N-1][N-1]);
-} /* end monomial_mat_print_exp_name */
-
+/// \param res[out]: = to_invert**-1
+/// \param to_invert[in]:
+void monomial_inv(monomial_t *res,
+                  const monomial_t *const to_invert) {
+    for(uint32_t i = 0; i < N; i++) {
+        res->permutation[to_invert->permutation[i]] = i;
+        res->coefficients[to_invert->permutation[i]] =
+            fq_inv(to_invert->coefficients[i]);
+    }
+} /* end monomial_inv */
 
 /* composes a compactly stored action of a monomial on an IS with a regular
  * monomial.
  * NOTE: Only the permutation is computed, as this is the only thing we need
  * since the adaption of canonical forms.
  */
-void monomial_compose_action(monomial_action_IS_t* out,
-                             const monomial_t * Q_in,
-                             const monomial_action_IS_t * in){
-   /* to compose with monomial_action_IS_t, reverse the convention
-    * for Q storage: store in permutation[i] the idx of the source column landing
-    * as the i-th after the GQ product, and in coefficients[i] the coefficient
-    * by which the column is multiplied upon landing */
-   monomial_t reverse_Q;
-   for(uint32_t i = 0; i < N; i++){
-      reverse_Q.permutation[Q_in->permutation[i]] = i;
-   }
-   /* compose actions out = Q_in*in */
-   for(uint32_t i = 0; i < K; i++){
-      out->permutation[i] = reverse_Q.permutation[in->permutation[i]];
-   }
-}
-
-/// type5 compression
-/// \param compressed[out]: N bits in which K bits will be sed
-/// \param mono[in]: monomial
-void cf_compress_monomial_IS_action(uint8_t *compressed,
-                                    const monomial_action_IS_t *mono) {
-    memset(compressed, 0, N8);
+void monomial_compose_action(monomial_action_IS_t *out,
+                             const monomial_t *Q_in,
+                             const monomial_action_IS_t *in) {
+    /* to compose with monomial_action_IS_t, reverse the convention
+     * for Q storage: store in permutation[i] the idx of the source column landing
+     * as the i-th after the GQ product, and in coefficients[i] the coefficient
+     * by which the column is multiplied upon landing */
+    monomial_t reverse_Q;
+    for (uint32_t i = 0; i < N; i++) {
+        reverse_Q.permutation[Q_in->permutation[i]] = i;
+    }
+    /* compose actions out = Q_in*in */
     for (uint32_t i = 0; i < K; i++) {
-        const uint32_t limb = (mono->permutation[i])/8;
-        const uint32_t pos  = (mono->permutation[i])%8;
-        compressed[limb] ^= 1u << pos;
+        out->permutation[i] = reverse_Q.permutation[in->permutation[i]];
     }
 }
 
-/// \param mono[out]: monomial
-/// \param compressed[in]: N bits in which K bits will be sed
-void cf_expand_to_monom_action(monomial_action_IS_t *mono,
-                               const uint8_t *compressed) {
+/// cf type5 compression
+/// \param b[out]: N bits in which K bits will be sed
+/// \param Q_star[in]: canonical action matrix
+void CosetRep(uint8_t *b,
+              const monomial_action_IS_t *Q_star) {
+    memset(b, 0, N8);
     for (uint32_t i = 0; i < K; i++) {
-        mono->coefficients[i] = 1;
-    }
-    memset(mono->permutation, 0, K*sizeof(POSITION_T));
-
-    uint32_t ctr = 0;
-    for (uint32_t i = 0; i < N8; i++) {
-        uint8_t tmp = compressed[i];
-        while (tmp) {
-            const uint32_t pos = __builtin_ctz(tmp);
-            tmp ^= 1u << pos;
-
-            mono->permutation[ctr++] = i*8 + pos;
-        }
+        const uint32_t limb = (Q_star->permutation[i])/8;
+        const uint32_t pos  = (Q_star->permutation[i])%8;
+        b[limb] ^= 1u << pos;
     }
 }
 
 /// checks if the given (N+7/8) bytes are a valid
 /// canonical form action.
-/// \param mono
+/// \param b[in]: compressed canonical form output from
+///         `CosetRep`
 /// \return true: if the weight is K
 ///         false: if the weight is not K
-int is_cf_monom_action_valid(const uint8_t* const mono) {
+int CheckCanonicalAction(const uint8_t* const b) {
     uint32_t w = 0;
     for (uint32_t i = 0; i < N8; i++) {
-        w += __builtin_popcount(mono[i]);
+        w += (uint32_t)__builtin_popcount(b[i]);
     }
 
     return w == K;

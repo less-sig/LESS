@@ -22,13 +22,16 @@
  *
  **/
 
-#include <stdio.h>
 #include <math.h>
+#include <stdio.h>
 
 #include "LESS.h"
+#include "codes.h"
+#include "cycles.h"
 #include "monomial_mat.h"
 #include "rng.h"
-#include "cycles.h"
+#include "test_helpers.h"
+#include "api.h"
 
 
 typedef struct {
@@ -56,49 +59,36 @@ void welford_update(welford_t *state, long double sample) {
 }
 
 static inline
-double welch_t_statistic(const welford_t state1,
-                         const welford_t state2) {
-    long double num, den, var1, var2;
-    var1 = state1.M2/(long double)(state1.count-1);
-    var2 = state2.M2/(long double)(state2.count-1);
-
-    num = state1.mean - state2.mean;
-    den = sqrtl(var1/(long double) state1.count + var2/(long double) state2.count );
-
-    return num/den;
-}
-
-static inline
 void welford_print(const welford_t state) {
     printf("%.2Lf,%.2Lf",
            state.mean,
            sqrtl(state.M2/(long double)(state.count-1)));
 }
 
-static inline
-long double welford_stddev(const welford_t state) {
-    return sqrtl(state.M2/(long double)(state.count-1));
-}
-
-static inline
-long double welford_mean(const welford_t state) {
-    return state.mean;
-}
-
 #if defined(CATEGORY_5)
-#define NUM_RUNS 6
+#define NUM_RUNS 128
 #elif defined(CATEGORY_3)
-#define NUM_RUNS 12
+#define NUM_RUNS 128
 #else
-#define NUM_RUNS 32
-// #define NUM_RUNS 256
+#define NUM_RUNS 128
 #endif
+
+#define NUM_AVG_RUNS (1u << 10u)
 
 #ifdef N_pad
 #define NN N_pad
 #else
 #define NN N
 #endif
+
+
+/* samples a random generator matrix */
+void generator_rnd(generator_mat_t *res) {
+   for(uint32_t i = 0; i < K; i++) {
+      rand_range_q_elements(res->values[i], N);
+   }
+} /* end generator_rnd */
+
 
 void microbench(void){
     welford_t timer;
@@ -110,9 +100,9 @@ void microbench(void){
 
     uint64_t cycles;
     for(int i = 0; i <NUM_RUNS; i++) {
-        cycles = x86_64_rtdsc();
+        cycles = read_cycle_counter();
         generator_RREF(&G,is_pivot_column);
-        welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
+        welford_update(&timer,(read_cycle_counter()-cycles)/1000.0);
     }
     fprintf(stderr,"Gaussian elimination kCycles (avg,stddev):");
     welford_print(timer);
@@ -127,9 +117,43 @@ void info(void){
     fprintf(stderr,"Private key: %luB\n", sizeof(prikey_t));
     fprintf(stderr,"Public key %luB\n", sizeof(pubkey_t));
     fprintf(stderr,"Signature: %luB, %f\n", sizeof(sign_t), ((float) sizeof(sign_t))/1024);
-
 }
 
+int LESS_avg_sign_size(void) {
+    uint8_t seed[] ={0x83,0xC6,0x53,0x70,0x8F,0xAF,0x3E,0x5F,0x6F,0xBC,0x9D,0xFB,0xE6,0xFB,0x5E,0x83,0xE5,0x72,0xA7,0x68,0x86,0x45,0xD7,0x5D,0x2C,0x48,0x35,0xB2,0x86,0x95,0xDE,0xA4,0xBD,0x70,0x93,0x74,0x0D,0x0F,0xF4,0x32,0x37,0x35,0x4E,0xAD,0x1C,0x97,0x8B,0xC2};
+    initialize_csprng(&platform_csprng_state,
+                      (const unsigned char *)seed,
+                      48);
+
+    const uint32_t mlen = 80;
+    unsigned long long smlen = 0;
+    unsigned char *m = (unsigned char *)calloc(mlen+CRYPTO_BYTES, sizeof(unsigned char));
+    unsigned char *sm = (unsigned char *)calloc(mlen+CRYPTO_BYTES, sizeof(unsigned char));
+    unsigned char pk[CRYPTO_PUBLICKEYBYTES] = {0}, sk[CRYPTO_SECRETKEYBYTES] = {0};
+
+    int ret_val;
+    uint64_t size = 0;
+    for(size_t i = 0; i < NUM_AVG_RUNS; i++) {
+        init_randombytes(m, mlen);
+        if ((ret_val = crypto_sign_keypair(pk, sk)) != 0) {
+            return -1;
+        }
+        if ( (ret_val = crypto_sign(sm, &smlen, m, mlen, sk)) != 0) {
+            printf("crypto_sign returned <%d>\n", ret_val);
+            return -1;
+        }
+
+        size += (smlen - mlen);
+    }
+
+    double avg = ((double) size)/((double)NUM_AVG_RUNS);
+    printf("WORST sig size: %ld\n", CRYPTO_BYTES);
+    printf("AVG   sig size: %f\n", avg);
+
+    free(m);
+    free(sm);
+    return 0;
+}
 
 void LESS_sign_verify_speed(void){
     fprintf(stderr,"Computing number of clock cycles as the average of %d runs\n", NUM_RUNS);
@@ -143,53 +167,48 @@ void LESS_sign_verify_speed(void){
 
     printf("Timings (kcycles):\n");
     welford_init(&timer);
-    for(int i = 0; i <NUM_RUNS; i++) {
-        cycles = x86_64_rtdsc();
+    for(size_t i = 0; i <NUM_RUNS; i++) {
+        cycles = read_cycle_counter();
         LESS_keygen(&sk,&pk);
-        welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
+        welford_update(&timer,(read_cycle_counter()-cycles)/1000.0);
     }
     printf("Key generation kCycles (avg,stddev): ");
     welford_print(timer);
-    printf("\n\n");
+    printf("\n");
 
-    
+
     welford_init(&timer);
     for(int i = 0; i <NUM_RUNS; i++) {
-        cycles = x86_64_rtdsc();
+        cycles = read_cycle_counter();
         LESS_sign(&sk,message,8,&signature);
-        welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
+        welford_update(&timer,(read_cycle_counter()-cycles)/1000.0);
     }
     printf("Signature kCycles (avg,stddev): ");
     welford_print(timer);
-    printf("\n\n");
-    
-    int is_signature_ok;
+    printf("\n");
+
+    int is_signature_ok = 1;
     welford_init(&timer);
     for(int i = 0; i <NUM_RUNS; i++) {
-        cycles = x86_64_rtdsc();
+        cycles = read_cycle_counter();
         is_signature_ok = LESS_verify(&pk,message,8,&signature); // Message never changes
-        welford_update(&timer,(x86_64_rtdsc()-cycles)/1000.0);
+        welford_update(&timer,(read_cycle_counter()-cycles)/1000.0);
     }
     printf("Verification kCycles (avg,stddev):");
     welford_print(timer);
-    printf("\n\n");
+    printf("\n");
     fprintf(stderr,"Keygen-Sign-Verify: %s", is_signature_ok == 1 ? "functional\n": "not functional\n" );
 }
-
-int iteration = 0;
 
 int main(int argc, char* argv[]){
     (void)argc;
     (void)argv;
-#if defined(__APPLE__) && defined(_MAC_OS_)&&defined(_M1CYCLES_)
-    __m1_setup_rdtsc();
-#endif
-
+    setup_cycle_counter();
     initialize_csprng(&platform_csprng_state,
                       (const unsigned char *)"0123456789012345",16);
-    fprintf(stderr,"LESS reference implementation benchmarking tool\n");
+    fprintf(stderr,"LESS implementation benchmarking tool\n");
     // microbench();
-    // monomial_distribution();
     LESS_sign_verify_speed();
+    //LESS_avg_sign_size();
     return 0;
 }

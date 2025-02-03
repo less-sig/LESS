@@ -52,7 +52,7 @@ prikey_t sk;
 sign_t signature;
 char message[8] = "Signme!";
 
-void LESS_keygen_mem(){
+void LESS_keygen_mem(void){
 
     welford_init(&timer);
     for(int i = 0; i <NUM_TESTS; i++) {
@@ -65,7 +65,7 @@ void LESS_keygen_mem(){
 }
 
 
-int main(int argc, char* argv[]){
+int main(void){
     initialize_csprng(&platform_csprng_state,
                       (const unsigned char *)"0123456789012345",16);
     LESS_keygen_mem();

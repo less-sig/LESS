@@ -2,7 +2,7 @@
  *
  * Reference ISO-C11 Implementation of LESS-CF.
  *
- * @version 1.1 (March 2023)
+ * @version 1.2 (February 2025)
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
@@ -28,7 +28,7 @@
 
 #include "parameters.h"
 #include "codes.h"
-#include "sha3.h"
+#include <stddef.h>
 
 #define SWAP(a, b) { (a)^=(b); (b)^=(a); (a)^=(b); }
 #define MASKED_SWAP(a,b,m) { a^=(m&b); b^=(m&a); a^=(m&b); }
@@ -37,17 +37,8 @@ void cswap(uintptr_t *a,
            uintptr_t *b,
            uintptr_t mask);
 
-void cswap_bit(uintptr_t *a,
-               uintptr_t *b,
-               uintptr_t f);
-
-void cswap_array(uintptr_t *a,
-                 uintptr_t *b,
-                 const uintptr_t mask,
-                 const uint32_t n);
-
-void expand_digest_to_fixed_weight(uint8_t fixed_weight_string[T],
-                                   const uint8_t digest[HASH_DIGEST_LENGTH]);
+void SampleChallenge(uint8_t fixed_weight_string[T],
+                     const uint8_t digest[HASH_DIGEST_LENGTH]);
 
 int verify(const uint8_t *a,
            const uint8_t *b,

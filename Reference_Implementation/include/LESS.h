@@ -2,17 +2,17 @@
  *
  * Reference ISO-C11 Implementation of LESS.
  *
- * @version 1.1 (March 2023)
+ * @version 1.2 (February 2025)
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
- * @author Floyd Zweydinger
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ''AS IS'' AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * 
+ *
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE
  * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
@@ -28,47 +28,36 @@
 #pragma once
 
 #include "parameters.h"
-#include "monomial_mat.h"
-#include "codes.h"
-#include <stdint.h>
-
+#include <stddef.h>
 
 
 /* Public key: the first gen. matrix is shrunk to just a seed, all the
  * others are stored in RREF form  */
-// __attribute__((packed))
-typedef struct {
+typedef struct __attribute__((packed)) {
    unsigned char G_0_seed[SEED_LENGTH_BYTES];
    uint8_t SF_G [NUM_KEYPAIRS-1][RREF_MAT_PACKEDBYTES];
 } pubkey_t;
 
 /* Private key: it contains both a single seed generating all private *
- * (inverse) monomials and the seed to geneate the public code */
-// __attribute__((packed))
-typedef struct {
+ * (inverse) monomials and the seed to generate the public code */
+typedef struct __attribute__((packed)) {
    /*the private key is compressible down to a single seed*/
    unsigned char compressed_sk[PRIVATE_KEY_SEED_LENGTH_BYTES];
-   unsigned char G_0_seed[SEED_LENGTH_BYTES];
 } prikey_t;
 
 
-typedef struct sig_t {
-    uint8_t cf_monom_actions[W][N8];
+typedef struct __attribute__((packed)) sig_t {
     uint8_t digest[HASH_DIGEST_LENGTH];
-#ifdef SEED_TREE
-    uint8_t tree_salt[HASH_DIGEST_LENGTH];
-    /// we need an additional byte to store the number of published seeds
-    uint8_t seed_storage[SEED_TREE_MAX_PUBLISHED_BYTES + 1u];
-#else
-    uint8_t seed_storage[(T-W)*SEED_LENGTH_BYTES];
-#endif
+    uint8_t salt[HASH_DIGEST_LENGTH];
+    uint8_t cf_monom_actions[W][N8];
+    uint8_t seed_storage[SEED_TREE_MAX_PUBLISHED_BYTES];
 } sign_t;
 
 /* keygen cannot fail */
 void LESS_keygen(prikey_t *SK,
                  pubkey_t *PK);
 
-/* sign cannot fail */
+/* sign cannot fail, but it returns the number of opened seeds */
 size_t LESS_sign(const prikey_t *SK,
                const char *const m,
                const uint64_t mlen,
@@ -79,15 +68,3 @@ int LESS_verify(const pubkey_t *const PK,
                 const char *const m,
                 const uint64_t mlen,
                 const sign_t *const sig);
-
-/* sign cannot fail */
-uint32_t LESS_without_tree_sign(const prikey_t *SK,
-                                const char *const m,
-                                const uint64_t mlen,
-                                sign_t *sig);
-
-/* verify returns 1 if signature is ok, 0 otherwise */
-int LESS_without_tree_verify(const pubkey_t *const PK,
-                             const char *const m,
-                             const uint64_t mlen,
-                             const sign_t *const sig);

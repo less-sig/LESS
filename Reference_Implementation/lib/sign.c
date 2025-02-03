@@ -2,7 +2,7 @@
  *
  * Reference ISO-C11 Implementation of LESS.
  *
- * @version 1.1 (March 2023)
+ * @version 1.2 (February 2025)
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
@@ -25,10 +25,11 @@
  **/
 
 
-
+#include <string.h> // memcpy
 #include "api.h"
-#include <stddef.h>  //  size_t
-#include <string.h>  // memcpy
+
+#include "LESS.h"
+#include "utils.h"
 /*----------------------------------------------------------------------------*/
 
 int crypto_sign_keypair(unsigned char *pk,
@@ -45,28 +46,20 @@ int crypto_sign_keypair(unsigned char *pk,
 /*... generating a signed message sm[0],sm[1],...,sm[*smlen-1]                */
 /*... from original message m[0],m[1],...,m[mlen-1]                           */
 /*... under secret key sk[0],sk[1],...                                        */
-int crypto_sign(unsigned char *sm,
-                unsigned long long *smlen,                        // out parameter
-                const unsigned char *m, unsigned long long mlen,  // in parameter
-                const unsigned char *sk)                          // in parameter
+int crypto_sign(unsigned char *sm,          // out parameter
+                unsigned long long *smlen,  // out parameter
+                const unsigned char *m,     // in parameter
+                unsigned long long mlen,    // in parameter
+                const unsigned char *sk)    // in parameter
 {
     /* sign cannot fail */
-    memcpy((unsigned char *) sm, (const unsigned char *) m, (size_t) mlen);
+    memcpy((unsigned char *) sm, (const unsigned char *)m, (size_t)mlen);
+    const size_t leaves = LESS_sign((const prikey_t *) sk,            // in parameter
+              (const char *const) m, (const uint64_t) mlen,           // in parameter
+              (sign_t *)(sm + mlen));                                 // out parameter
 
-    /// TODO: we need to fix this somehow: But how do we do this?
-    /// The problem, iirc, is that always a different amount of seeds are opened.
-    /// So we need to keep track of them
-    /// TODO second problem: the `without tree` version does not return seeds
-    const uint32_t num_seeds_published = LESS_sign(
-            (const prikey_t *)
-                    sk,                                             // in parameter
-            (const char *const) m, (const uint64_t) mlen,           // in parameter
-            (sign_t *) (sm + mlen));                                // out parameter
-#if defined(SEED_TREE)
-    const uint32_t sig_len = LESS_CRYPTO_BYTES(num_seeds_published);
-#else
-    const uint32_t sig_len = sizeof(struct sig_t);//LESS_CRYPTO_BYTES;
-#endif
+    const uint32_t sig_len = LESS_SIGNATURE_SIZE(leaves);
+    sm[mlen + sig_len - 1u] = leaves;
 
     *smlen = mlen + sig_len;
     return 0;  // NIST convention: 0 == zero errors
@@ -82,26 +75,18 @@ int crypto_sign_open(unsigned char *m,
                      const unsigned char *sm, unsigned long long smlen, // in parameter
                      const unsigned char *pk)                           // in parameter
 {
-#if defined(SEED_TREE)
-    /// TODO, see sign for explanation
     const uint8_t num_seeds_published = sm[smlen - 1u];
-    if (num_seeds_published >= MAX_PUBLISHED_SEEDS) {
+    if (num_seeds_published > MAX_PUBLISHED_SEEDS) {
         return -1;
     }
-
-    // the size of the signature in bytes
-    const uint32_t sig_len = LESS_CRYPTO_BYTES((uint32_t)num_seeds_published);
-#else
-    const uint32_t sig_len = sizeof(struct sig_t);//LESS_CRYPTO_BYTES;
-#endif
+    const uint32_t sig_len = LESS_SIGNATURE_SIZE((uint32_t)num_seeds_published);
 
     *mlen = smlen - (unsigned long long)sig_len;
     memcpy((unsigned char *) m, (const unsigned char *) sm, (size_t) *mlen);
     /* verify returns 1 if signature is ok, 0 otherwise */
-    int ok = LESS_verify((const pubkey_t *const)
-                                 pk,                                    // in parameter
+    int ok = LESS_verify((const pubkey_t *const) pk,                    // in parameter
                          (const char *const) m, (const uint64_t) *mlen, // in parameter
-                         (const sign_t *const) (sm + *mlen));           // in parameter
+                         (const sign_t *const) (sm + *mlen));            // in parameter
 
     // NIST convention: 0 == zero errors, -1 == error condition
     return ok - 1;

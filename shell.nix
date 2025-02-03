@@ -16,13 +16,6 @@ let
   ]);
 in
   { 
-    # pkgs ? import <nixpkgs> {
-    #     localSystem = {
-    #     gcc.arch = "znver4";
-    #     gcc.tune = "znver4";
-    #     system = "x86_64-linux";
-    #   };
-    # } 
   }:
 gccStdenv.mkDerivation {
   name = "LESS";
@@ -35,11 +28,13 @@ gccStdenv.mkDerivation {
     clang-tools
     llvm
     gcc
+    pkg-config
+    openssl
+  ] ++ (lib.optionals pkgs.stdenv.isLinux ([
     gdb
     valgrind
     massif-visualizer
-    openssl
     libxslt
     linuxKernel.packages.linux_6_6.perf
-  ];
+  ]));
 }
