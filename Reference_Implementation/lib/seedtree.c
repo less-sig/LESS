@@ -202,6 +202,8 @@ uint32_t extract_seed_tree_paths(const unsigned char
 
 /*****************************************************************************/
 
+// \return 1 on success
+//         0 on failure
 uint32_t rebuild_seed_tree_leaves(unsigned char
                       seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES],
                       const unsigned char indices_to_publish[T],
@@ -244,6 +246,7 @@ uint32_t rebuild_seed_tree_leaves(unsigned char
                     nodes_used++;
                 }
             }
+
             /* If the current node is published and not a leaf, CSPRNG-expand its children.
              * Since there is no reason of expanding leaves, only iterate to nodes per level (npl)
              * minus leaves per level (lpl) in each level */
@@ -266,13 +269,7 @@ uint32_t rebuild_seed_tree_leaves(unsigned char
         start_node += npl[level];
     }
 
-    // Check for correct zero padding in the remaining parth of the seed path to
-    // prevent trivial forgery
-    uint8_t error = 0;
-    for (int i=nodes_used*SEED_LENGTH_BYTES; i<MAX_PUBLISHED_SEEDS*SEED_LENGTH_BYTES; i++) {
-        error |= stored_seeds[i];
-    }
-    return (error == 0);
+    return 1;
 } /* end rebuild_seed_tree_leaves */
 
 

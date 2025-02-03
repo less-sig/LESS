@@ -64,19 +64,20 @@ int verify(const uint8_t *a,
 
 /* Expands a digest expanding it into a fixed weight string with elements in
  * Z_{NUM_KEYPAIRS}. */
-void DigestToFixedWeight(uint8_t fixed_weight_string[T],
-                         const uint8_t digest[HASH_DIGEST_LENGTH]){
-   SHAKE_STATE_STRUCT shake_state;
-   initialize_csprng(&shake_state,
-                     (const unsigned char *) digest,
-                     HASH_DIGEST_LENGTH);
+void SampleChallenge(uint8_t fixed_weight_string[T],
+                     const uint8_t digest[HASH_DIGEST_LENGTH]) {
+    SHAKE_STATE_STRUCT shake_state;
+    initialize_csprng(&shake_state,
+                      (const unsigned char *) digest,
+                      HASH_DIGEST_LENGTH);
 
-   uint16_t rnd_buf;
-   for (int i = 0; i < T-W; i++)
-      fixed_weight_string[i] = 0;
+    uint16_t rnd_buf;
+    for (uint32_t i = 0; i < T-W; i++) {
+        fixed_weight_string[i] = 0;
+    }
 
     if (NUM_KEYPAIRS != 2) {
-        for (int i = T-W; i < T; i++) {
+        for (uint32_t i = T-W; i < T; i++) {
             uint8_t value;
             do {
                 csprng_randombytes((unsigned char *) &rnd_buf,
@@ -88,23 +89,22 @@ void DigestToFixedWeight(uint8_t fixed_weight_string[T],
           fixed_weight_string[i] = value + 1;
        }
     } else {
-        for (int i = T-W; i < T; i++) {
+        for (uint32_t i = T-W; i < T; i++) {
             fixed_weight_string[i] = 1;
         }
-   }
+    }
 
-   for (int p = T-W; p < T; p++) {
-      POSITION_T pos;
-      uint8_t tmp;
-      do {
-         csprng_randombytes((unsigned char *) &rnd_buf,
-                             sizeof(POSITION_T),
-                             &shake_state);
-
-         pos = rnd_buf & (POSITION_MASK);
-      } while (pos > p);
-      tmp = fixed_weight_string[p];
-      fixed_weight_string[p] = fixed_weight_string[pos];
-      fixed_weight_string[pos] = tmp;
-   }
+    for (uint32_t p = T - W; p < T; p++) {
+        POSITION_T pos;
+        uint8_t tmp;
+        do {
+            csprng_randombytes((unsigned char *) &rnd_buf, 
+                               sizeof(POSITION_T), 
+                               &shake_state);
+            pos = rnd_buf & (POSITION_MASK);
+        } while (pos > p);
+        tmp = fixed_weight_string[p];
+        fixed_weight_string[p] = fixed_weight_string[pos];
+        fixed_weight_string[pos] = tmp;
+    }
 } /* end parse_digest */

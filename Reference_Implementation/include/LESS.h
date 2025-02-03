@@ -46,7 +46,7 @@ typedef struct __attribute__((packed)) {
 } prikey_t;
 
 
-typedef struct sig_t {
+typedef struct __attribute__((packed)) sig_t {
     uint8_t digest[HASH_DIGEST_LENGTH];
     uint8_t salt[HASH_DIGEST_LENGTH];
     uint8_t cf_monom_actions[W][N8];
@@ -57,7 +57,7 @@ typedef struct sig_t {
 void LESS_keygen(prikey_t *SK,
                  pubkey_t *PK);
 
-/* sign cannot fail */
+/* sign cannot fail, but it returns the number of opened seeds */
 size_t LESS_sign(const prikey_t *SK,
                const char *const m,
                const uint64_t mlen,
@@ -68,15 +68,3 @@ int LESS_verify(const pubkey_t *const PK,
                 const char *const m,
                 const uint64_t mlen,
                 const sign_t *const sig);
-
-/* sign cannot fail */
-uint32_t LESS_without_tree_sign(const prikey_t *SK,
-                                const char *const m,
-                                const uint64_t mlen,
-                                sign_t *sig);
-
-/* verify returns 1 if signature is ok, 0 otherwise */
-int LESS_without_tree_verify(const pubkey_t *const PK,
-                             const char *const m,
-                             const uint64_t mlen,
-                             const sign_t *const sig);
