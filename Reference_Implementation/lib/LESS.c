@@ -95,8 +95,6 @@ size_t LESS_sign(const prikey_t *SK,
                  sign_t *sig) {
     uint8_t g0_initial_pivot_flags [N_pad];
     uint8_t is_pivot_column[N_pad];
-    /* start  by clearing signature memory, as padding must be null */
-    memset(sig,0,sizeof(sign_t));
 
     /*         Private key expansion        */
     /* expand sequence of seeds for private inverse-monomial matrices */
