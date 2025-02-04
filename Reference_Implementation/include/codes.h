@@ -78,20 +78,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                                  uint8_t was_pivot_column[N],
                                  const int pvt_reuse_limit);
 
-int prepare_digest_input(normalized_IS_t *V,
-                         monomial_action_IS_t *Q_bar_IS,
-                         const generator_mat_t *const G,
-                         const monomial_t *const Q_in,
-                         const uint32_t skip);
-
-int prepare_digest_input_pivot_reuse(normalized_IS_t *V,
-                                     monomial_action_IS_t *Q_bar_IS,
-                                     const generator_mat_t *const G,
-                                     const monomial_t *const Q_in,
-                                     const uint8_t initial_pivot_flags [N],
-                                     const int pvt_reuse_limit,
-                                     const uint32_t skip);
-
 /* extracts the last N-K columns from a generator matrix, filling
  * in the compact RREF representation*/
 void generator_rref_compact(rref_generator_mat_t *compact,

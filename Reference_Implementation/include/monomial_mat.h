@@ -83,26 +83,24 @@ void monomial_mat_mul(monomial_t *res,
 
 /* computes the inverse of the monomial matrix */
 void monomial_inv(monomial_t *res,
-                      const monomial_t *const to_invert);
+                  const monomial_t *const to_invert);
 
 /* expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
  * monomial matrices */
 void monomial_sample_salt(monomial_t *res,
-                                       const unsigned char seed[SEED_LENGTH_BYTES],
-                                       const unsigned char salt[HASH_DIGEST_LENGTH],
-                                       const uint16_t round_index);
+                          const unsigned char seed[SEED_LENGTH_BYTES],
+                          const unsigned char salt[HASH_DIGEST_LENGTH],
+                          const uint16_t round_index);
 
 /* expands a monomial matrix, given a double length PRNG seed (used to prevent
  * multikey attacks) */
 void monomial_sample_prikey(monomial_t *res,
-                                     const unsigned char seed[PRIVATE_KEY_SEED_LENGTH_BYTES]);
+                            const unsigned char seed[PRIVATE_KEY_SEED_LENGTH_BYTES]);
 
 ///
 void monomial_mat_seed_expand_rnd(monomial_t *res,
                                   const unsigned char seed[SEED_LENGTH_BYTES],
                                   const uint16_t round_index);
-/* yields the identity matrix */
-void monomial_mat_id(monomial_t *res);
 
 /* composes a compressed action on an IS with the action of a monomial
  * matrix */
@@ -110,32 +108,11 @@ void monomial_compose_action(monomial_action_IS_t * out,
                              const monomial_t * to_compose, 
                              const monomial_action_IS_t * in);
 
-/* Compress MonomialAction object to byte array */
-void compress_monom_action(uint8_t *compressed,
-                           const monomial_action_IS_t * mono);
+void CosetRep(uint8_t *b, const monomial_action_IS_t *Q_star);
 
-/* Compress MonomialAction via CF */
-void cf_compress_monom_action(uint8_t *compressed,
-                              const monomial_t *mono);
-
-void CosetRep(uint8_t *b,
-                                    const monomial_action_IS_t *Q_star);
 /* Decompress byte array to MonomialAction object */
 void expand_to_monom_action(monomial_action_IS_t *mono,
                             const uint8_t *compressed);
 
-void cf_expand_to_monom_action(monomial_action_IS_t *mono,
-                               const uint8_t *compressed);
-
 /* Validate MonomialAction object */
-int is_monom_action_valid(const monomial_action_IS_t * const mono);
 int CheckCanonicalAction(const uint8_t* const mono);
-
-/* pretty_print for monomial matrices */
-void monomial_mat_pretty_print_name(char *name, const monomial_t *to_print);
-// void comp_monomial_mat_pretty_print_name(char *name,
-//       const compressed_monomial_t *to_print);
-
-/* pretty_print for monomial matrices in their expanded form */
-void monomial_mat_print_exp_name(char *name,const monomial_t *to_print);
-
