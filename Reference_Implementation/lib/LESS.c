@@ -98,9 +98,6 @@ size_t LESS_sign(const prikey_t *SK,
     /* start  by clearing signature memory, as padding must be null */
     memset(sig,0,sizeof(sign_t));
 
-    /* start  by clearing signature memory, as padding must be null */
-    memset(sig,0,sizeof(sign_t));
-
     /*         Private key expansion        */
     /* expand sequence of seeds for private inverse-monomial matrices */
     SHAKE_STATE_STRUCT sk_shake_state;
@@ -228,7 +225,7 @@ size_t LESS_sign(const prikey_t *SK,
 
     /* Squeeze output */
     LESS_SHA3_INC_FINALIZE(sig->digest, &state);
-    // (x_0, ..., x_{t-1})
+    // (b_0, ..., b_{t-1})
     uint8_t fixed_weight_string[T] = {0};
     SampleChallenge(fixed_weight_string, sig->digest);
 
