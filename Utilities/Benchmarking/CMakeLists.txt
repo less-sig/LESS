@@ -145,6 +145,7 @@ set(SOURCES
   ${BASE_DIR}/lib/codes.c
   ${BASE_DIR}/lib/LESS.c
   ${BASE_DIR}/lib/monomial.c
+  ${BASE_DIR}/lib/canonical.c
   ${BASE_DIR}/lib/rng.c
   ${BASE_DIR}/lib/seedtree.c
   ${BASE_DIR}/lib/sign.c
