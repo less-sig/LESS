@@ -4,6 +4,11 @@
 #include "monomial_mat.h"
 
 
+void bitonic_sort_i8(FQ_ELEM *x, const long long n);
+void counting_sort_u8(FQ_ELEM *arr, const uint32_t size);
+int SortRows_internal(FQ_ELEM *ptr[K],
+                            uint32_t P[K],
+                            const uint32_t n);
 // wrapper struct around the set S_n
 typedef struct {
   /* considering the product GQ, permutation[...] stores into the cell with

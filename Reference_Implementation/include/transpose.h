@@ -26,6 +26,7 @@
 
 #if defined(USE_AVX2) || defined(USE_NEON)
 
+/// transposes a 32x32 matrix
 void matrix_transpose_32x32(uint8_t* dst_origin,
                             const uint8_t* src_origin,
                             const uint8_t* prf_origin,
@@ -34,6 +35,7 @@ void matrix_transpose_32x32(uint8_t* dst_origin,
 
 #endif
 
+/// transpose src int dst
 void matrix_transpose_opt(uint8_t *dst,
                           const uint8_t *src,
                           const uint32_t r,
