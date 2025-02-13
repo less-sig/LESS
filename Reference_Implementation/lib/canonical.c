@@ -41,7 +41,7 @@
 /// 		1 on success
 int compute_canonical_form_type3(normalized_IS_t *G,
                                  const uint8_t *L) {
-    if (SortRows(G, K, L) == 0) {
+    if (SortRows(G, 0, K, L) == 0) {
 	    return 0;
     }
     SortCols(G, K_pad);
@@ -243,6 +243,142 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
     return touched;
 }
 
+void normalized_cols_swap(normalized_IS_t *A, 
+                          const uint32_t a, 
+                          const uint32_t b) {
+    for (uint32_t i = 0; i < K; i++) {
+        const uint8_t tmp = A->values[i][a];
+        A->values[i][b] = A->values[i][a];
+        A->values[i][a] = tmp;
+    }
+}
+
+uint32_t CF_new1(normalized_IS_t *A,
+                 const uint32_t i) {
+	uint32_t J[K];
+    uint32_t z = 0;
+    for (uint32_t j = 0; j < (N-K); j++) {
+        if (A->values[i][j] != 0) {
+            const uint8_t inv = fq_inv(A->values[i][j]);
+            for (uint32_t t = 0; t < K; t++) {
+                A->values[t][j] = fq_mul(A->values[t][j], inv);
+            }
+        } else {
+            J[z++] = j;
+        }
+    }
+
+    const uint32_t w = N - K - z;
+    uint32_t ctr = 0; 
+    for (uint32_t j = z; j > 0; j--) {
+        normalized_cols_swap(A, J[z-1], N-K-ctr-1);
+    }
+    normalized_row_swap(A, 0, i);
+    return w;
+}
+
+uint32_t CF_new2(normalized_IS_t *A,
+                 const uint32_t w) {
+	uint32_t I[K];
+    uint32_t z = 0;
+    for (uint32_t i = 1; i < K; i++) {
+        uint32_t s = 0;
+        for (uint32_t t = 0; t < w; t++) {
+            s = fq_add(s, fq_inv(A->values[i][t]));
+        } 
+
+        if (s == 0) {
+            I[z++] = i;
+            continue;
+        }
+        
+        const uint8_t inv = fq_inv(s);
+        for (uint32_t t = 0; t < N-K; t++) {
+            A->values[i][t] = fq_mul(A->values[i][t], inv);
+        } 
+    }
+
+    const uint32_t h = K - z - 1;
+    
+    for (uint32_t i = z; i > 0; i--) {
+        normalized_row_swap(A, I[z-1], K - (z-i) - 1);
+    }
+
+    return h;
+}
+
+uint32_t CF_new3(normalized_IS_t *A,
+                 const uint32_t w,
+                 const uint32_t h) {
+    // TODO do check 
+    SortRows(A, 1, h, NULL);
+    SortCols(A, w);
+
+    return 1;
+}
+
+/// \return 0/1 on error/success
+uint32_t CF_new4(normalized_IS_t *A,
+                 const uint32_t w,
+                 const uint32_t h) {
+    uint32_t cflag = 1, rflag = 1;
+    for (uint32_t i = 1; i < h+1; i++) {
+        for (uint32_t j = w; j < N-K; j++) {
+            if (A->values[i][j] == 0) {
+                cflag = 0;
+                continue;
+            }
+
+            const uint8_t inv = fq_inv(A->values[i][j]);
+            for (uint32_t t = 0; t < N-K; t++) {
+                A->values[t][j] = fq_mul(A->values[t][j], inv);
+            }
+        }
+    }
+    
+    for (uint32_t j = 0; j < w; j++) {
+        for (uint32_t i = h+1; i < K; i++) {
+            if (A->values[i][j] == 0) {
+                rflag = 0;
+                continue;
+            }
+            
+            const uint8_t inv = fq_inv(A->values[i][j]);
+            for (uint32_t t = 0; t < N-K; t++) {
+                A->values[i][t] = fq_mul(A->values[i][t], inv);
+            }
+        }
+    }
+
+    if (cflag || rflag) {
+        return 0;
+    }
+
+    CF_new3(A, N-K, K);
+    return 1;
+}
+
+/// \return 0/1 on error/success
+int CF_new(normalized_IS_t *B) {
+    normalized_IS_t M, A;
+	memset(&M, Q-1, sizeof(normalized_IS_t));
+
+    for (uint32_t i = 0; i < K; i++) {
+        normalized_copy(&A, B);
+        const uint32_t w = CF_new1(&A, i);
+        const uint32_t h = CF_new2(&A, w);
+        if (CF_new3(&A, w, h) == 0) { continue; }
+        if (CF_new4(&A, w, h) == 0) { continue; }
+        if (compare_matrices(&A, &M, K) < 0) {
+		    normalized_copy(&M, &A);
+        }
+    }
+
+    return M.values[0][0] != Q-1;
+}
+
+
+
 /// samples to random monomial matrices (A, B) and comptes A*G*B
 /// \param G[in/out] non IS part of a generator matrix
 /// \param prng[in/out]:
@@ -294,5 +430,6 @@ void blind(normalized_IS_t *G,
 /// \return 0 on failure
 /// 		1 on success
 int CF(normalized_IS_t *G) {
-    return compute_canonical_form_type5_popcnt(G);
+    // return compute_canonical_form_type5_popcnt(G);
+    return CF_new(G);
 }

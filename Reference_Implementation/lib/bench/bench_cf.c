@@ -25,7 +25,7 @@ int bench_cf5(void) {
         c += read_cycle_counter();
     }
     unsigned c1 = (unsigned) (c / ITERS);
-    printf("non ct: %u cyc, ctr: %u\n\n", c1, ctr);
+    printf("pop: %u cyc, ctr: %u\n\n", c1, ctr);
 
 
     c = 0; ctr = 0;
@@ -34,13 +34,27 @@ int bench_cf5(void) {
         normalized_rng(&G1);
 
         c -= read_cycle_counter();
-        ctr += compute_canonical_form_type5_tony(&G1);
+        ctr += compute_canonical_form_type5(&G1);
         c += read_cycle_counter();
     }
 
     unsigned c2 = (unsigned) (c / ITERS);
-    printf("pop: %u cyc, ctr: %u\n", c2, ctr);
+    printf("org: %u cyc, ctr: %u\n", c2, ctr);
     printf("factor %lf\n\n", (double) c2 / (double) c1);
+
+    c = 0; ctr = 0;
+    for (unsigned i = 0; i < ITERS; i++) {
+        // normalized_copy(&G1, &G2);
+        normalized_rng(&G1);
+
+        c -= read_cycle_counter();
+        ctr += compute_canonical_form_type5(&G1);
+        c += read_cycle_counter();
+    }
+
+    unsigned c3 = (unsigned) (c / ITERS);
+    printf("new: %u cyc, ctr: %u\n", c3, ctr);
+    printf("factor %lf\n\n", (double) c3 / (double) c1);
 
     return 0;
 }

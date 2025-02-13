@@ -98,5 +98,11 @@ foreach(category "252" "400" "548")
     target_link_libraries(${TARGET_BINARY_NAME} PRIVATE OpenSSL::Crypto)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
+
+
+    set(TARGET_BINARY_NAME LESS_bench_cf_${category}_${optimize_target})
+    add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/bench/bench_cf.c)
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
   endforeach(optimize_target)
 endforeach(category)

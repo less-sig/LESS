@@ -953,7 +953,7 @@ void lex_sort_cols(normalized_IS_t *V){
 int compute_canonical_form_type3_ct(normalized_IS_t *G) {
     // NOTE: not working const int ret = row_bitonic_sort(G);
     // but this is just for testing and will be removed.
-    const int ret = SortRows(G, K, NULL);
+    const int ret = SortRows(G, 0, K, NULL);
     SortCols(G, K);
     // col_lex_quicksort(G, 0, N-K-1);
     return ret;
@@ -1070,7 +1070,7 @@ int compute_canonical_form_type3_sub(normalized_IS_t *G,
         counting_sort_u8(G->values[0], N-K);
         return 1;
     }
-    if (SortRows(G, z, NULL) == 0) { return 0; }
+    if (SortRows(G, 0, z, NULL) == 0) { return 0; }
     SortCols(G, z);
     return 1;
 }

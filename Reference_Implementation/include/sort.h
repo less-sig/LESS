@@ -40,6 +40,7 @@ int compare_rows(const FQ_ELEM *row1,
 
 /// sort the rows of V
 int SortRows(normalized_IS_t *G,
+             const uint32_t s,
              const uint32_t n,
              const uint8_t *L);
 

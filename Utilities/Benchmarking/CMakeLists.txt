@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.0)
 project(LESS)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 99)
-set(CMAKE_VERBOSE_MAKEFILE OFF)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 find_package(OpenSSL)
 

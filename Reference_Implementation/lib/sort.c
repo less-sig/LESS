@@ -203,6 +203,7 @@ int SortRows_internal(FQ_ELEM *ptr[K],
 /// \return 1 on success
 ///			0 if two rows generate the same multiset
 int SortRows(normalized_IS_t *G,
+             const uint32_t s,
              const uint32_t n,
              const uint8_t *L) {
 	// first sort each row into a tmp buffer
@@ -211,24 +212,25 @@ int SortRows(normalized_IS_t *G,
     uint32_t P[K];
 
     uint32_t max_zeros = 0;
-	for (uint32_t i = 0; i < n; ++i) {
-        sort(tmp[i], G->values[i], N-K);
-	    if (tmp[i][0] > max_zeros) {max_zeros = tmp[i][0]; }
+	for (uint32_t i = s; i < n; ++i) {
+        sort(tmp[i-s], G->values[i], N-K);
+	    // if (tmp[i-s][0] > max_zeros) {max_zeros = tmp[i][0]; }
 
-        ptr[i] = tmp[i];
-        P[i] = i;
+        ptr[i-s] = tmp[i-s];
+        P[i-s] = i-s;
 	}
 
-    if (max_zeros < L[0]) { return 0; }
+    // if (max_zeros < L[0]) { return 0; }
+    (void)L;
 
-    SortRows_internal(ptr, P, n);
+    SortRows_internal(ptr, P, n-s);
 
     // apply the permutation
-    for (uint32_t t = 0; t < n; t++) {
+    for (uint32_t t = 0; t < n-s; t++) {
         uint32_t ind = P[t];
         while(ind<t) { ind = P[ind]; }
 
-        normalized_row_swap(G, t, ind);
+        normalized_row_swap(G, t+s, ind+s);
     }
 
     return 1;
@@ -292,7 +294,7 @@ int SortCols_internal(FQ_ELEM* ptr[K],
     int32_t s = -1;
 
     // NOTE: worst case is 128
-    int32_t stack[64] __attribute__((aligned(32)));
+    int32_t stack[128] __attribute__((aligned(32)));
     stack[++s] = l;
     stack[++s] = h;
     while (s >= 0) {
@@ -327,15 +329,15 @@ void SortCols(normalized_IS_t *V,
 
     FQ_ELEM* ptr[K];
     uint32_t P[K];
-    for (uint32_t i = 0; i < K; ++i) {
+    for (uint32_t i = 0; i < z; ++i) {
         ptr[i] = VT.values[i];
         P[i] = i;
     }
 
-    SortCols_internal(ptr, P, 0, K - 1);
+    SortCols_internal(ptr, P, 0, z - 1);
 
     // apply the permutation
-    for (uint32_t t = 0; t < K; t++) {
+    for (uint32_t t = 0; t < z; t++) {
         uint32_t ind = P[t];
         while(ind<t) { ind = P[ind]; }
 
