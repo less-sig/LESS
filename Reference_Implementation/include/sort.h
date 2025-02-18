@@ -29,6 +29,8 @@
 ///                             Sorting                              ///
 ////////////////////////////////////////////////////////////////////////
 
+extern uint64_t avg_size;
+extern uint64_t avg_ctr;
 
 /// sorts a single row into `out`
 void sort(uint8_t *out,

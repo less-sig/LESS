@@ -231,6 +231,7 @@ int LESS_sign_verify_test_KAT(void) {
     free(m1);
     free(sm);
     printf("all good\n");
+    // printf("avg: %lu %lu\n", avg_ctr, avg_size);
     return 0;
 }
 

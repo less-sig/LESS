@@ -21,6 +21,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  **/
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -202,7 +203,7 @@ int SortRows_internal(FQ_ELEM *ptr[K],
 /// \param n[in] number of elements to sort
 /// \return 1 on success
 ///			0 if two rows generate the same multiset
-int SortRows(normalized_IS_t *G,
+int SortRows_org(normalized_IS_t *G,
              const uint32_t n,
              const uint8_t *L) {
 	// first sort each row into a tmp buffer
@@ -218,6 +219,63 @@ int SortRows(normalized_IS_t *G,
         ptr[i] = tmp[i];
         P[i] = i;
 	}
+
+    if (max_zeros < L[0]) { return 0; }
+
+    SortRows_internal(ptr, P, n);
+
+    // apply the permutation
+    for (uint32_t t = 0; t < n; t++) {
+        uint32_t ind = P[t];
+        while(ind<t) { ind = P[ind]; }
+
+        normalized_row_swap(G, t, ind);
+    }
+
+    return 1;
+}
+
+uint64_t avg_size = 0;
+uint64_t avg_ctr = 0;
+int SortRows(normalized_IS_t *G,
+             const uint32_t n,
+             const uint8_t *L) {
+	// first sort each row into a tmp buffer
+	FQ_ELEM tmp[K][Q_pad] __attribute__((aligned(32)));
+    FQ_ELEM* ptr[K] __attribute__((aligned(32)));
+    uint32_t P[K];
+    // memset(P, -1u, K*4);
+
+    uint32_t max_zeros = 0;
+    // uint64_t avg = 0;
+    const uint32_t middle = 45;//(Q>>1u);
+    uint32_t ctr_l = 0;
+    uint32_t ctr_h = middle;
+	for (uint32_t i = 0; i < n; ++i) {
+        sort(tmp[i], G->values[i], N-K);
+	    if (tmp[i][0] > max_zeros) {max_zeros = tmp[i][0]; }
+
+	    uint32_t pos;
+	    if (tmp[i][0] == 0) {
+            pos = ctr_l++;
+	        if (ctr_l > middle) {
+	            pos = ctr_h++;
+	        }
+	    } else {
+            pos = ctr_h++;
+	        if (ctr_h > n) {
+	            pos = ctr_l++;
+	        }
+	    }
+
+	    // const uint32_t t = (tmp[i][0] != 0) * ctr_l + (tm)
+	    // avg += tmp[i][0];
+        ptr[pos] = tmp[i];
+        P[pos] = i;
+	}
+
+    // avg_size += avg/n;
+    // avg_ctr += 1;
 
     if (max_zeros < L[0]) { return 0; }
 
