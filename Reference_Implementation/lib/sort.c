@@ -247,9 +247,7 @@ int SortRows_org(normalized_IS_t *G,
     return 1;
 }
 
-
-uint64_t avg_size = 0;
-uint64_t avg_ctr = 0;
+/// uses a presorted quicksort
 int SortRows(normalized_IS_t *G,
              const uint32_t n,
              const uint8_t *L) {
@@ -257,7 +255,7 @@ int SortRows(normalized_IS_t *G,
 	FQ_ELEM tmp[K][Q_pad] __attribute__((aligned(32)));
     FQ_ELEM* ptr[K] __attribute__((aligned(32)));
     uint32_t P[K];
-    memset(P, -1u, K*4);
+    // memset(P, -1u, K*4);
 
     uint32_t max_zeros = 0;
     // uint64_t avg = 0;
@@ -299,6 +297,47 @@ int SortRows(normalized_IS_t *G,
 
     // apply the permutation
     SortRows_swap(G, P, n);
+    return 1;
+}
+
+/// uses insertion sort
+int SortRows_insert(normalized_IS_t *G,
+                 const uint32_t n,
+                 const uint8_t *L) {
+    // first sort each row into a tmp buffer
+    FQ_ELEM tmp[K][Q_pad] __attribute__((aligned(32)));
+    FQ_ELEM* ptr[K] __attribute__((aligned(32)));
+    uint32_t P[K];
+
+    uint32_t max_zeros = 0;
+    for (uint32_t i = 0; i < n; ++i) {
+        sort(tmp[i], G->values[i], N-K);
+        if (tmp[i][0] > max_zeros) {max_zeros = tmp[i][0]; }
+
+        uint32_t pos = 0;
+        while ((pos < i) && (compare_rows(ptr[pos], tmp[i]) < 0)) { ++pos; }
+
+        if (pos != i) {
+            const uint32_t diff = i - pos;
+            memcpy(P+pos+1, P+pos, diff*sizeof(uint32_t ));
+            memcpy(ptr+pos+1, ptr+pos, diff*sizeof(FQ_ELEM*));
+        }
+        ptr[pos] = tmp[i];
+        P[pos] = i;
+    }
+
+    if (max_zeros < L[0]) { return 0; }
+
+    // SortRows_internal(ptr, P, n);
+
+    // apply the permutation
+    for (uint32_t t = 0; t < n; t++) {
+        uint32_t ind = P[t];
+        while(ind<t) { ind = P[ind]; }
+
+        normalized_row_swap(G, t, ind);
+    }
+
     return 1;
 }
 
@@ -413,3 +452,38 @@ void SortCols(normalized_IS_t *V,
 
     matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, K_pad, z);
 }
+
+/// insertion sort
+//void SortCols(normalized_IS_t *V,
+//              const uint32_t z) {
+//    normalized_IS_t VT __attribute__((aligned(32)));
+//    matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, z, K_pad);
+//
+//    FQ_ELEM* ptr[K];
+//    uint32_t P[K];
+//    for (uint32_t i = 0; i < K; ++i) {
+//        uint32_t pos = 0;
+//        while ((pos < i) && (SortCols_internal_compare(ptr, pos, VT.values[i]) < 0)) { ++pos; }
+//
+//        if (pos != i) {
+//            const uint32_t diff = i - pos;
+//            memcpy(P+pos+1, P+pos, diff*sizeof(uint32_t ));
+//            memcpy(ptr+pos+1, ptr+pos, diff*sizeof(FQ_ELEM*));
+//        }
+//        ptr[pos] = VT.values[i];
+//        P[pos] = i;
+//    }
+//
+//    // SortCols_internal(ptr, P, 0, K - 1);
+//
+//    // apply the permutation
+//    for (uint32_t t = 0; t < K; t++) {
+//        uint32_t ind = P[t];
+//        while(ind<t) { ind = P[ind]; }
+//
+//        // NOTE: this swapping can be improved if z < K
+//        normalized_row_swap(&VT, t, ind);
+//    }
+//
+//    matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, K_pad, z);
+//}
