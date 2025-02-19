@@ -197,6 +197,18 @@ int SortRows_internal(FQ_ELEM *ptr[K],
     return 1;
 }
 
+void SortRows_swap(normalized_IS_t *G,
+                  uint32_t P[K],
+                  const uint32_t n) {
+    // apply the permutation
+    for (uint32_t t = 0; t < n; t++) {
+        uint32_t ind = P[t];
+        while(ind<t) { ind = P[ind]; }
+
+        normalized_row_swap(G, t, ind);
+    }
+}
+
 /// NOTE: only operates on ptrs
 /// NOTE: not constant time
 /// \param G[in/out]: generator matrix to sort
@@ -235,6 +247,7 @@ int SortRows_org(normalized_IS_t *G,
     return 1;
 }
 
+
 uint64_t avg_size = 0;
 uint64_t avg_ctr = 0;
 int SortRows(normalized_IS_t *G,
@@ -244,28 +257,31 @@ int SortRows(normalized_IS_t *G,
 	FQ_ELEM tmp[K][Q_pad] __attribute__((aligned(32)));
     FQ_ELEM* ptr[K] __attribute__((aligned(32)));
     uint32_t P[K];
-    // memset(P, -1u, K*4);
+    memset(P, -1u, K*4);
 
     uint32_t max_zeros = 0;
     // uint64_t avg = 0;
-    const uint32_t middle = 45;//(Q>>1u);
+    const uint32_t middle = 100;//(Q>>1u);
     uint32_t ctr_l = 0;
     uint32_t ctr_h = middle;
+    uint32_t ctr_m = middle-1;
 	for (uint32_t i = 0; i < n; ++i) {
         sort(tmp[i], G->values[i], N-K);
 	    if (tmp[i][0] > max_zeros) {max_zeros = tmp[i][0]; }
 
 	    uint32_t pos;
-	    if (tmp[i][0] == 0) {
-            pos = ctr_l++;
-	        if (ctr_l > middle) {
-	            pos = ctr_h++;
-	        }
+	    if (tmp[i][0] > 0) {
+            if (ctr_l >= middle) {
+                pos = ctr_h++;
+            } else {
+                pos = ctr_l++;
+            }
 	    } else {
-            pos = ctr_h++;
-	        if (ctr_h > n) {
-	            pos = ctr_l++;
-	        }
+            if (ctr_h >= n) {
+                pos = ctr_m--;
+            } else {
+                pos = ctr_h++;
+            }
 	    }
 
 	    // const uint32_t t = (tmp[i][0] != 0) * ctr_l + (tm)
@@ -278,17 +294,11 @@ int SortRows(normalized_IS_t *G,
     // avg_ctr += 1;
 
     if (max_zeros < L[0]) { return 0; }
-
-    SortRows_internal(ptr, P, n);
+    SortRows_internal(ptr, P, ctr_l);
+    SortRows_internal(ptr+ctr_l, P+ctr_l, ctr_h-ctr_l);
 
     // apply the permutation
-    for (uint32_t t = 0; t < n; t++) {
-        uint32_t ind = P[t];
-        while(ind<t) { ind = P[ind]; }
-
-        normalized_row_swap(G, t, ind);
-    }
-
+    SortRows_swap(G, P, n);
     return 1;
 }
 
