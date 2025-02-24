@@ -172,6 +172,21 @@ typedef __m128i vec128_t;
                       x),                                                      \
       c7f);
 
+
+/// original from qruov
+inline static __m256i fq_vec_add(const __m256i a,
+                                 const __m256i b){
+  const __m256i q = _mm256_set1_epi8(Q);
+  const __m256i z = _mm256_xor_si256(q, q);
+  const __m256i c = _mm256_add_epi8(a, b);
+  const __m256i d = _mm256_cmpgt_epi8(q, c);
+  const __m256i e = _mm256_cmpgt_epi8(z, c);
+  const __m256i f = _mm256_xor_si256(d, e);
+  const __m256i g = _mm256_andnot_si256(f, q);
+  const __m256i h = _mm256_sub_epi8(c, g);
+  return h;
+}
+
 // Extend from 8-bit to 16-bit type
 extern const uint8_t shuff_low_half[32];
 

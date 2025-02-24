@@ -193,28 +193,51 @@ DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
 
 #include "macro.h"
 
+static inline
+FQ_ELEM row_acc(const FQ_ELEM *d) {
+    __m256i t;
+    __m256i c = _mm256_set1_epi16(0);
+    const __m256i one = _mm256_set1_epi8(1);
+    const __m256i m = _mm256_set1_epi32(0xFFFF);
+    for (uint32_t col = 0; col < N_K_pad; col+=32) {
+        vload256(t, (const vec256_t *)(d + col));
+        const __m256i f = _mm256_maddubs_epi16 (t, one);
+        c = _mm256_add_epi16(c, f);
+	 }
+    
+    c = _mm256_add_epi32(c&m, _mm256_srli_epi32(c, 16));
+    __m128i lo = _mm256_castsi256_si128(c) ;
+    __m128i hi = _mm256_extracti128_si256(c, 1) ;
+    __m128i s1 = _mm_hadd_epi32(lo, hi) ;
+    __m128i s2 = _mm_hadd_epi32(s1, s1) ;
+    __m128i s3 = _mm_hadd_epi32(s2, s2) ;
+    uint32_t r = _mm_extract_epi32(s3, 0);
+    r = fq_red(r);
+    return r;
+}
+
 /// NOTE: these functions are outsourced to this file, to make the
 /// optimizied implementation as easy as possible.
 /// accumulates a row
 /// \param d
 /// \return sum(d) for _ in range(N-K)
-static inline
-FQ_ELEM row_acc(const FQ_ELEM *d) {
-    vec256_t s, t, c01, c7f;
-    vset8(s, 0);
-    vset8(c01, 0x01);
-    vset8(c7f, 0x7F);
-
-    for (uint32_t col = 0; col < N_K_pad; col+=32) {
-        vload256(t, (const vec256_t *)(d + col));
-        vadd8(s, s, t);
-        //barrett_red8(s, t, c7f, c01);
-        W_RED127_(s);
-	 }
-
-    uint32_t k = vhadd8(s);
-    return fq_red(k);
-}
+//static inline
+//FQ_ELEM row_acc(const FQ_ELEM *d) {
+//    vec256_t s, t, c01, c7f;
+//    vset8(s, 0);
+//    vset8(c01, 0x01);
+//    vset8(c7f, 0x7F);
+//
+//    for (uint32_t col = 0; col < N_K_pad; col+=32) {
+//        vload256(t, (const vec256_t *)(d + col));
+//        vadd8(s, s, t);
+//        //barrett_red8(s, t, c7f, c01);
+//        W_RED127_(s);
+//	 }
+//
+//    uint32_t k = vhadd8(s);
+//    return fq_red(k);
+//}
 
 /// accumulates the inverse of a row
 /// \param d

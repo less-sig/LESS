@@ -2,7 +2,7 @@
  *
  * Reference ISO-C11 Implementation of LESS.
  *
- * @version 1.2 (May 2025)
+ * @version 1.2 (February 2025)
  *
  * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *

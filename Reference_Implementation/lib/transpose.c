@@ -4,7 +4,7 @@
  *
  * @version 1.2 (February 2025)
  *
- * @author Floyd Zweydinge <zweydfg8+github@rub.de>
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
