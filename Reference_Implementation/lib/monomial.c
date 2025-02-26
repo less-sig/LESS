@@ -29,68 +29,82 @@
 #include "utils.h"
 #include <string.h>
 
-///
-#define POS_BITS BITS_TO_REPRESENT(N-1)
-
-///
-#define POS_MASK (((POSITION_T) 1 << POS_BITS) - 1)
-
 /// applies a random permutation between [0, n-1] on the
 /// input permutation
 /// \param shake_monomial_state[in/out]:
 /// \param permutation[in/out]: random permutation. Must be initialized with
-///         [0,....,n-1]
-/// \param n <= N: number of elements in the permutation
-void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
-                            POSITION_T *permutation,
-                            const uint32_t n) {
-    uint32_t rand_u32[N] = {0};
+///         [0,....,n-k-1]
+void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state, POSITION_T *permutation) {
+#define POS_BITS BITS_TO_REPRESENT(N - K - 1)
+#define POS_MASK (((POSITION_T) 1 << POS_BITS) - 1)
+    uint64_t rand_u64;
     POSITION_T tmp;
+    POSITION_T x;
+    int c;
 
-    csprng_randombytes((unsigned char *) &rand_u32, sizeof(uint32_t)*n, shake_monomial_state);
-    for (size_t i = 0; i < n - 1; ++i) {
-        rand_u32[i] = i + rand_u32[i] % (n - i);
+    csprng_randombytes((unsigned char *) &rand_u64, sizeof(rand_u64), shake_monomial_state);
+    c = 0;
+    POSITION_T tmp_perm[N];
+    for (uint32_t i = 0; i < N-K; i++) {
+        do {
+            if (c == (64 / POS_BITS) - 1) {
+                csprng_randombytes((unsigned char *) &rand_u64, sizeof(rand_u64), shake_monomial_state);
+                c = 0;
+            }
+            x = rand_u64 & (POS_MASK);
+            rand_u64 = rand_u64 >> POS_BITS;
+            c = c + 1;
+        } while (x >= (N-K));
+        tmp_perm[i] = x;
     }
 
-    for (size_t i = 0; i < n - 1; ++i) {
+    for (uint32_t i = 0; i < N-K; i++) {
+        const uint32_t x = tmp_perm[i];
         tmp = permutation[i];
-        permutation[i] = permutation[rand_u32[i]];
-        permutation[rand_u32[i]] = tmp;
+        permutation[i] = permutation[x];
+        permutation[x] = tmp;
     }
+#undef POS_BITS
+#undef POS_MASK
 }
 
 /// \param shake_monomial_state[in/out]:
 /// \param permutation[in/out]: random permutation. Must be initialized with
 ///         [0,....,n-1]
 void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state, POSITION_T permutation[N]) {
-   uint64_t rand_u64;
-   POSITION_T tmp;
-   POSITION_T x;
-   int c;
+#define POS_BITS BITS_TO_REPRESENT(N - 1)
+#define POS_MASK (((POSITION_T) 1 << POS_BITS) - 1)
+    uint64_t rand_u64;
+    POSITION_T tmp;
+    POSITION_T x;
+    int c;
 
-   csprng_randombytes((unsigned char *) &rand_u64,
-                             sizeof(rand_u64),
-                             shake_monomial_state);
-   c = 0;
+    csprng_randombytes((unsigned char *) &rand_u64, sizeof(rand_u64), shake_monomial_state);
+    c = 0;
+    POSITION_T tmp_perm[N];
+    for (uint32_t i = 0; i < N; i++) {
+        do {
+            if (c == (64 / POS_BITS) - 1) {
+                csprng_randombytes((unsigned char *) &rand_u64, sizeof(rand_u64), shake_monomial_state);
+                c = 0;
+            }
+            x = rand_u64 & (POS_MASK);
+            rand_u64 = rand_u64 >> POS_BITS;
+            c = c + 1;
+        } while (x >= N);
+        tmp_perm[i] = x;
+    }
 
-   for (int i = 0; i < N; i++) {
-      do {
-         if (c == (64/POS_BITS)-1) {
-            csprng_randombytes((unsigned char *) &rand_u64,
-                                sizeof(rand_u64),
-                                shake_monomial_state);
-            c = 0;
-         }
-         x = rand_u64 & (POS_MASK);
-         rand_u64 = rand_u64 >> POS_BITS;
-         c = c + 1;
-      } while (x >= N);
-
-      tmp = permutation[i];
-      permutation[i] = permutation[x];
-      permutation[x] = tmp;
-   } 
+    for (uint32_t i = 0; i < N; i++) {
+        const uint32_t x = tmp_perm[i];
+        tmp = permutation[i];
+        permutation[i] = permutation[x];
+        permutation[x] = tmp;
+    }
+#undef POS_BITS
+#undef POS_MASK
 }
+
 /* FY shuffle on the permutation, sampling from the global TRNG state */
 void yt_shuffle(POSITION_T permutation[N]) {
     yt_shuffle_state(&platform_csprng_state, permutation);
@@ -117,7 +131,7 @@ void monomial_sample_salt(monomial_t *res,
 
     /* FY shuffle on the permutation */
     yt_shuffle_state(&shake_monomial_state, res->permutation);
-} /* end monomial_mat_seed_expand */
+} /* end monomial_sample */
 
 /// expands a monomial matrix, given a double length PRNG seed (used to prevent
 /// multikey attacks)
@@ -133,7 +147,17 @@ void monomial_sample_prikey(monomial_t *res,
     }
     /* FY shuffle on the permutation */
     yt_shuffle_state(&shake_monomial_state, res->permutation);
-} /* end monomial_mat_seed_expand */
+} /* end monomial_sample */
+
+/// expands a monomial matrix, given a double length PRNG seed (used to prevent
+/// multikey attacks)
+/// \param res[out]: the randomly sampled monomial matrix
+/// \param prng[in]: already initialize_csprng
+void monomial_sample(monomial_t *res,
+                     SHAKE_STATE_STRUCT *prng) {
+    fq_star_rnd_state_elements(prng, res->coefficients, N-K);
+    yt_shuffle_state_limit(prng, res->permutation);
+} /* end monomial_sample */
 
 /// \param res[out]: = to_invert**-1
 /// \param to_invert[in]:

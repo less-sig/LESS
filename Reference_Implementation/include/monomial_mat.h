@@ -70,8 +70,8 @@ typedef struct {
 } monomial_seed_t;
 
 void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
-                            POSITION_T *permutation,
-                            const uint32_t n);
+                            POSITION_T *permutation);
+
 void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state,
                       POSITION_T permutation[N]);
 void yt_shuffle(POSITION_T permutation[N]);
@@ -97,6 +97,8 @@ void monomial_sample_salt(monomial_t *res,
 void monomial_sample_prikey(monomial_t *res,
                             const unsigned char seed[PRIVATE_KEY_SEED_LENGTH_BYTES]);
 
+void monomial_sample(monomial_t *res,
+                     SHAKE_STATE_STRUCT *prng);
 ///
 void monomial_mat_seed_expand_rnd(monomial_t *res,
                                   const unsigned char seed[SEED_LENGTH_BYTES],
