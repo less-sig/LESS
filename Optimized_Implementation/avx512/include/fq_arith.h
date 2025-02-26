@@ -27,6 +27,7 @@
 
 #pragma once
 #include <stdint.h>
+#include <immintrin.h>
 
 #include "parameters.h"
 #include "rng.h"
@@ -200,19 +201,28 @@ DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
 /// \return sum(d) for _ in range(N-K)
 static inline
 FQ_ELEM row_acc(const FQ_ELEM *d) {
-    vec256_t s, t, c01, c7f;
-    vset8(s, 0);
-    vset8(c01, 0x01);
-    vset8(c7f, 0x7F);
-
+    __m512i c01, c7f, c516;
+    __m256i t;
+    vset16_512(c01, 0x01);
+    vset16_512(c7f, 0x7F);
+    vset16_512(c516, 516);
+    __m512i acc = _mm512_setzero_si512();
     for (uint32_t col = 0; col < N_K_pad; col+=32) {
         vload256(t, (const vec256_t *)(d + col));
-        vadd8(s, s, t);
-        //barrett_red8(s, t, c7f, c01);
-        W_RED127_(s);
-	 }
+        const __m512i a = _mm512_cvtepi8_epi16(t);
+        acc = _mm512_add_epi16(acc, a);
+	}
 
-    uint32_t k = vhadd8(s);
+    __m512i tmp;
+    tmp = _mm512_add_epi16(acc, c01);
+    tmp = _mm512_mulhi_epu16(tmp, c516);
+    tmp = _mm512_mullo_epi16(tmp, c7f);
+    acc = _mm512_sub_epi16(acc, tmp);
+
+    const __m256i a2 = _mm512_extracti64x4_epi64(acc, 1);
+    const __m256i a1 = _mm512_castsi512_si256(acc) ;
+    const __m256i a = _mm256_add_epi16(a1, a2);
+    const short k = _mm256_reduce_add_epi16(a);
     return fq_red(k);
 }
 
@@ -326,40 +336,24 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
 /// \param in2
 static inline
 void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
-    vec256_t shuffle, t, c7f, c01, a, a_lo, a_hi, b, b_lo, b_hi;
-    vec128_t tmp;
-
-    vload256(shuffle, (vec256_t *) shuff_low_half);
-    vset8(c7f, 127);
-    vset8(c01, 1);
+    __m512i c01, c7f, c516, tmp;
+    __m256i a, b;
+    vset16_512(c01, 0x01);
+    vset16_512(c7f, 0x7F);
+    vset16_512(c516, 516);
 
     for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
         vload256(a, (vec256_t *)(in1 + col));
         vload256(b, (vec256_t *)(in2 + col));
-
-        vget_lo(tmp, a);
-        vextend8_16(a_lo, tmp);
-        vget_hi(tmp, a);
-        vextend8_16(a_hi, tmp);
-        vget_lo(tmp, b);
-        vextend8_16(b_lo, tmp);
-        vget_hi(tmp, b);
-        vextend8_16(b_hi, tmp);
-
-        barrett_mul_u16(a_lo, a_lo, b_lo, t);
-        barrett_mul_u16(a_hi, a_hi, b_hi, t);
-
-        vshuffle8(a_lo, a_lo, shuffle);
-        vshuffle8(a_hi, a_hi, shuffle);
-
-        vpermute_4x64(a_lo, a_lo, 0xd8);
-        vpermute_4x64(a_hi, a_hi, 0xd8);
-
-        vpermute2(t, a_lo, a_hi, 0x20);
-
-        // barrett_red8(t, r, c7f, c01);
-        W_RED127_(t);
-        vstore256((vec256_t *)(out + col), t);
+        const __m512i aa = _mm512_cvtepi8_epi16(a);
+        const __m512i bb = _mm512_cvtepi8_epi16(b);
+        __m512i acc = _mm512_mullo_epi16(aa, bb);
+        tmp = _mm512_add_epi16(acc, c01);
+        tmp = _mm512_mulhi_epu16(tmp, c516);
+        tmp = _mm512_mullo_epi16(tmp, c7f);
+        acc = _mm512_sub_epi16(acc, tmp);
+        const __m256i t = _mm512_cvtepi16_epi8(acc);
+        vstore256((__m256i *)(out + col), t);
     }
 }
 
