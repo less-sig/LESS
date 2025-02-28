@@ -79,13 +79,6 @@ endif()
 
 message(STATUS "Compilation flags:" ${CMAKE_C_FLAGS})
 
-
-find_library(KECCAK_LIB keccak)
-if(NOT KECCAK_LIB)
- set(STANDALONE_KECCAK 1)
-endif()
-
-
 # selection of specialized compilation units differing between ref and opt
 # implementations. 
 if(USE_REFERENCE)
@@ -128,16 +121,6 @@ set(HEADERS
   ${BASE_DIR}/include/utils.h
 )
 
-if(STANDALONE_KECCAK)
-  set(KECCAK_EXTERNAL_LIB "")
-  set(KECCAK_EXTERNAL_ENABLE "")
-  list(APPEND COMMON_SOURCES ${BASE_DIR}/lib/keccakf1600.c)
-  list(APPEND COMMON_SOURCES ${BASE_DIR}/lib/fips202.c)
-else()
-  set(KECCAK_EXTERNAL_LIB keccak)
-  set(KECCAK_EXTERNAL_ENABLE "-DSHA_3_LIBKECCAK")
-endif()
-
 set(SOURCES
   ${COMMON_SOURCES}
   ${BASE_DIR}/lib/codes.c
@@ -151,6 +134,7 @@ set(SOURCES
   ${BASE_DIR}/lib/transpose.c
   ${BASE_DIR}/lib/canonical.c
   ${BASE_DIR}/lib/keccakf1600.c
+  ${BASE_DIR}/lib/fips202.c
 )
 
 if(USE_AVX2)
@@ -181,7 +165,7 @@ foreach(category "252" "400" "548")
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}  ${PROJECT_SOURCE_DIR}/lib/KAT_NIST_rng.c ${PROJECT_SOURCE_DIR}/lib/PQCgenKAT_sign.c)
     target_include_directories(${TARGET_BINARY_NAME} PRIVATE $OPENSSL_INCLUDE_DIR)
     target_link_libraries(${TARGET_BINARY_NAME} PRIVATE OpenSSL::Crypto)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ")
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
   endforeach(optimize_target)
 endforeach(category)

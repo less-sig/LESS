@@ -25,95 +25,6 @@
 
 #pragma once
 
-#if defined(SHA_3_LIBKECCAK)
-#include <libkeccak.a.headers/KeccakHash.h>
-
-// %%%%%%%%%%%%%%%%%% LibKeccak SHAKE Wrappers %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-#define SHAKE_STATE_STRUCT Keccak_HashInstance
-static inline
-void xof_shake_init(SHAKE_STATE_STRUCT *state, int val)
-{
-	(void)val;
-   if (val == 128)
-      /* will result in a zero-length output for Keccak_HashFinal */
-      Keccak_HashInitialize_SHAKE128(state);
-   else
-      /* will result in a zero-length output for Keccak_HashFinal */
-      Keccak_HashInitialize_SHAKE256(state);
-}
-
-static inline
-void xof_shake_update(SHAKE_STATE_STRUCT *state,
-                      const unsigned char *input,
-                      unsigned int inputByteLen)
-{
-   Keccak_HashUpdate(state,
-                     (const BitSequence *) input,
-                     (BitLength) inputByteLen*8 );
-}
-
-static inline
-void xof_shake_final(SHAKE_STATE_STRUCT *state)
-{
-   Keccak_HashFinal(state, NULL);
-}
-
-static inline
-void xof_shake_extract(SHAKE_STATE_STRUCT *state,
-                       unsigned char *output,
-                       unsigned int outputByteLen)
-{
-   Keccak_HashSqueeze(state,
-                      (BitSequence *) output,
-                      (BitLength) outputByteLen*8 );
-}
-
-// %%%%%%%%%%%%%%%%%% LibKeccak SHA-3 Wrappers %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-#define SHA3_STATE_STRUCT Keccak_HashInstance
-static inline
-void sha3_256(unsigned char *output,
-              const unsigned char *input,
-              unsigned int inputByteLen)
-{
-   SHA3_STATE_STRUCT state;
-   Keccak_HashInitialize(&state, 1088,  512, 256, 0x06);
-   Keccak_HashUpdate(&state, input, inputByteLen*8);
-   Keccak_HashFinal(&state, output);
-}
-
-/**
-  *  Function to compute SHA3-384 on the input message.
-  *  The output length is fixed to 48 bytes.
-  */
-static inline
-void sha3_384(unsigned char *output,
-              const unsigned char *input,
-              unsigned int inputByteLen)
-{
-   SHA3_STATE_STRUCT state;
-   Keccak_HashInitialize(&state, 832,  768, 384, 0x06);
-   Keccak_HashUpdate(&state, input, inputByteLen*8);
-   Keccak_HashFinal(&state, output);
-}
-
-/**
-  *  Function to compute SHA3-512 on the input message.
-  *  The output length is fixed to 64 bytes.
-  */
-static inline
-void sha3_512(unsigned char *output,
-              const unsigned char *input,
-              unsigned int inputByteLen)
-{
-   SHA3_STATE_STRUCT state;
-   Keccak_HashInitialize(&state, 576,  1024, 512, 0x06);
-   Keccak_HashUpdate(&state, input, inputByteLen*8);
-   Keccak_HashFinal(&state, output);
-}
-
-#else
 #include "fips202.h"
 #include <stddef.h>
 
@@ -193,5 +104,3 @@ void xof_shake_extract(SHAKE_STATE_STRUCT *state,
 #error digest length unsupported by SHA-3
 #endif
 
-
-#endif

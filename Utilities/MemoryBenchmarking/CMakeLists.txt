@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.0)
 project(LESS)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 99)
-set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 # Set a default build type if none was specified
 set(default_build_type "Release")
@@ -94,14 +94,6 @@ endif()
 message(STATUS "Compilation flags:" ${CMAKE_C_FLAGS})
 
 
-
-
-find_library(KECCAK_LIB keccak)
-if(NOT KECCAK_LIB)
- set(STANDALONE_KECCAK 1)
-endif()
-
-
 set(HEADERS
   ${BASE_DIR}/include/api.h
   ${BASE_DIR}/include/codes.h
@@ -117,19 +109,6 @@ set(HEADERS
   ${BASE_DIR}/include/utils.h
 )
 
-if(STANDALONE_KECCAK)
-  message(STATUS "Employing standalone SHA-3")
-  set(KECCAK_EXTERNAL_LIB "")
-  set(KECCAK_EXTERNAL_ENABLE "")
-  list(APPEND COMMON_SOURCES ${BASE_DIR}/lib/keccakf1600.c)
-  list(APPEND COMMON_SOURCES ${BASE_DIR}/lib/fips202.c)
-else()
-  message(STATUS "Employing libkeccak")
-  set(KECCAK_EXTERNAL_LIB keccak)
-  set(KECCAK_EXTERNAL_ENABLE "-DSHA_3_LIBKECCAK")
-endif()
-
-
 set(SOURCES
   ${COMMON_SOURCES}
   ${BASE_DIR}/lib/codes.c
@@ -143,6 +122,7 @@ set(SOURCES
   ${BASE_DIR}/lib/transpose.c
   ${BASE_DIR}/lib/canonical.c
   ${BASE_DIR}/lib/keccakf1600.c
+  ${BASE_DIR}/lib/fips202.c
 )
 
 if(USE_AVX2)
@@ -173,20 +153,20 @@ foreach(category "252" "400" "548")
     target_include_directories(${TARGET_BINARY_NAME} PRIVATE
                                ${BASE_DIR}/include
                                ./include)
-    target_link_libraries(${TARGET_BINARY_NAME} m ${SANITIZE} ${KECCAK_EXTERNAL_LIB})
+    target_link_libraries(${TARGET_BINARY_NAME} m ${SANITIZE})
     set_target_properties(${TARGET_BINARY_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ./bin)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY
-       COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+       COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target}")
 
    	set(TARGET_BINARY_NAME LESS_memory_${category}_${optimize_target}_sign)
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ./lib/less_sign.c)
     target_include_directories(${TARGET_BINARY_NAME} PRIVATE
                                ${BASE_DIR}/include
                                ./include)
-    target_link_libraries(${TARGET_BINARY_NAME} m ${SANITIZE} ${KECCAK_EXTERNAL_LIB})
+    target_link_libraries(${TARGET_BINARY_NAME} m ${SANITIZE})
     set_target_properties(${TARGET_BINARY_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ./bin)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY
-       COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+       COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target}")
 
    	set(TARGET_BINARY_NAME LESS_memory_${category}_${optimize_target}_verify)
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES}
@@ -194,9 +174,9 @@ foreach(category "252" "400" "548")
     target_include_directories(${TARGET_BINARY_NAME} PRIVATE
                                ${BASE_DIR}/include
                                ./include)
-    target_link_libraries(${TARGET_BINARY_NAME} m ${SANITIZE} ${KECCAK_EXTERNAL_LIB})
+    target_link_libraries(${TARGET_BINARY_NAME} m ${SANITIZE})
     set_target_properties(${TARGET_BINARY_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ./bin)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY
-       COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+       COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target}")
   endforeach(optimize_target)
 endforeach(category)
