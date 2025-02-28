@@ -105,14 +105,6 @@ endif()
 message(STATUS "Compilation flags:" ${CMAKE_C_FLAGS})
 
 
-
-
-find_library(KECCAK_LIB keccak)
-if(NOT KECCAK_LIB)
- set(STANDALONE_KECCAK 1)
-endif()
-
-
 set(HEADERS
   ${BASE_DIR}/include/api.h
   ${BASE_DIR}/include/codes.h
@@ -128,18 +120,6 @@ set(HEADERS
   ${BASE_DIR}/include/utils.h
 )
 
-if(STANDALONE_KECCAK)
-  message(STATUS "Employing standalone SHA-3")
-  set(KECCAK_EXTERNAL_LIB "")
-  set(KECCAK_EXTERNAL_ENABLE "")
-  list(APPEND COMMON_SOURCES ${BASE_DIR}/lib/fips202.c)
-else()
-  message(STATUS "Employing libkeccak")
-  set(KECCAK_EXTERNAL_LIB keccak)
-  set(KECCAK_EXTERNAL_ENABLE "-DSHA_3_LIBKECCAK")
-endif()
-
-
 set(SOURCES
   ${COMMON_SOURCES}
   ${BASE_DIR}/lib/codes.c
@@ -154,6 +134,7 @@ set(SOURCES
   ${BASE_DIR}/lib/keccakf1600.c
   ${BASE_DIR}/lib/utils.c
   ${BASE_DIR}/lib/sign.c
+  ${BASE_DIR}/lib/fips202.c
 )
 
 if(USE_AVX2)
@@ -183,7 +164,7 @@ foreach(category "252" "400" "548")
     set(TARGET_BINARY_NAME LESS_benchmark_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/less_benchmark.c)
     target_link_libraries(${TARGET_BINARY_NAME} m)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ")
     target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${OPENSSL_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
   endforeach(optimize_target)
