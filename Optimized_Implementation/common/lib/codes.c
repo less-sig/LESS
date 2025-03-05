@@ -294,20 +294,13 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                                uint8_t is_pivot_column[N],
                                uint8_t was_pivot_column[N],
                                const int pvt_reuse_limit) {
+    const uint8x16_t q = vdupq_n_u8(127);
     int i, j, pivc;
-    uint8_t tmp, sc;
+    uint8_t sc;
 
-    vec256_t *gm[K] __attribute__((aligned(32)));
-    vec256_t em[0x80][NW];
-    vec256_t *ep[0x80];
-    vec256_t c01, c7f;
-    vec256_t x, t, *rp, *rg;
-
-    vset8(c01, 0x01);
-    vset8(c7f, 0x7f);
+    uint8x16_t *gm[K] __attribute__((aligned(64)));
     int pvt_reuse_cnt = 0;
 
-    // this loop roughly takes 2.2% of the whole function runtime ()
     if (pvt_reuse_limit != 0) {
         for (int preproc_col = K - 1; preproc_col >= 0; preproc_col--) {
             if (was_pivot_column[preproc_col] == 1) {
@@ -325,7 +318,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
     }
 
     for (i = 0; i < K; i++) {
-        gm[i] = (vec256_t *) G->values[i];
+        gm[i] = (uint8x16_t *) G->values[i];
     }
 
     for (i = 0; i < K; i++) {
@@ -357,10 +350,11 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
          * we need to swap the rows */
         if (i != j) {
             was_pivot_column[j] = 0; // pivot no longer reusable - will be corrupted during reduce row
-            for (uint32_t k = 0; k < NW; k++) {
-                t = gm[i][k];
-                gm[i][k] = gm[j][k];
-                gm[j][k] = t;
+            for (uint32_t k = 0; k < (NW*2); k++) {
+                const uint8x16_t t  = vld1q_u8(gm[i] + k);
+                const uint8x16_t t2 = vld1q_u8(gm[j] + k);
+                vst1q_u8(gm[i] + k, t2);
+                vst1q_u8(gm[j] + k, t);
             }
         }
 
@@ -373,46 +367,30 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
             continue;
         }
 
-        /* Compute rescaling factor */
-        /* rescale pivot row to have pivot = 1. Values at the left of the pivot
-         * are already set to zero by previous iterations */
-
-        //  generate the em matrix
-        rg = gm[i];
-        memcpy(em[1], rg, LESS_WSZ * NW);
-
-        for (j = 2; j < 127; j++) {
-            for (uint32_t k = 0; k < NW; k++) {
-                vadd8(x, em[j - 1][k], rg[k])
-                W_RED127_(x);
-                em[j][k] = x;
-            }
+        // solve pivot row
+        sc = fq_inv(((uint8_t *) gm[i])[pivc]);
+        uint8x16x4_t table[2];
+        gf127v_scalar_compute_table(table, sc);
+        for (uint32_t k = 0; k < (NW*2); k++) {
+            const uint8x16_t a = vld1q_u8(gm[i] + k);
+            const uint8x16_t b = gf127v_scalar_table(a, table);
+            vst1q_u8(gm[i] + k, b);
         }
 
-        //  shuffle the pointers into ep
-        sc = ((uint8_t *) rg)[pivc];
-        ep[0] = em[0];
-        tmp = sc;
-        for (j = 1; j < 127; j++) {
-            ep[tmp] = em[j];
-            tmp += sc;
-            tmp = (tmp + (tmp >> 7)) & 0x7F;
-        }
-        ep[0x7F] = em[0];
-
-        //  copy back the normalized one
-        memcpy(rg, ep[1], LESS_WSZ * NW);
-
-        /* Subtract the now placed and reduced pivot rows, from the others,
-         * after rescaling it */
+        // solve
         for (j = 0; j < K; j++) {
             sc = ((uint8_t *) gm[j])[pivc];
             if (sc != 0x00 && j != i) {
-                rp = ep[127 - sc];
-                for (uint32_t k = 0; k < NW; k++) {
-                    vadd8(x, gm[j][k], rp[k])
-                    W_RED127_(x);
-                    gm[j][k] = x;
+                gf127v_scalar_compute_table(table, sc);
+                for (uint32_t k = 0; k < (NW*2); k++) {
+                    const uint8x16_t a  = vld1q_u8(gm[j] + k);
+                    const uint8x16_t ap = vld1q_u8(gm[i] + k);
+                    const uint8x16_t b  = gf127v_scalar_table(ap, table);
+                    const uint8x16_t m  = vcltq_u8(a, b);
+                    const uint8x16_t c1 = vaddq_u8(a, q);
+                    const uint8x16_t c  = vbslq_u8(m, c1, a);
+                    const uint8x16_t d  = vsubq_u8(c, b);
+                    vst1q_u8(gm[j] + k, d);
                 }
             }
         }
