@@ -29,6 +29,7 @@
 #include <immintrin.h>
 
 #include "fq_arith.h"
+#include "lookup_table.h"
 
 typedef __m256i vec256_t;
 typedef __m128i vec128_t;
@@ -185,6 +186,28 @@ typedef __m128i vec128_t;
                           _mm512_srli_epi16(_mm512_add_epi8(x, c01), 7), c01), \
                       x),                                                      \
       c7f);
+
+
+/// TODO optimize
+static inline void gf127v_scalar_u512_compute_table(__m512i *ret,
+                                                    const uint8_t a) {
+    ret[0] = _mm512_load_si512((const __m512i *)(__gf127_lookuptable + 128 * a +  0));
+    ret[1] = _mm512_load_si512((const __m512i *)(__gf127_lookuptable + 128 * a + 64));
+}
+
+static inline
+__m512i gf127v_scalar_table_u512(const __m512i a,
+                                 const __m512i table1,
+                                 const __m512i table2) {
+    const __m512i mask1 = _mm512_set1_epi8(64);
+
+    const __mmask64 m1 = _mm512_cmplt_epi8_mask(a, mask1);
+    const __mmask64 m2 = ~m1;
+    const __m512i t1 = _mm512_maskz_permutexvar_epi8(m1, a, table1);
+    const __m512i t2 = _mm512_maskz_permutexvar_epi8(m2, a, table2);
+    const __m512i t = t1 ^ t2;
+    return t;
+}
 
 // Extend from 8-bit to 16-bit type
 extern const uint8_t shuff_low_half[32];

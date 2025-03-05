@@ -128,7 +128,7 @@ void HISTEND4(uint8_t *cnt,
         _mm256_storeu_si256((__m256i *)&cnt[i], sv);
     }
 }
-}
+
 #endif
 
 /// \param out[out]: pointer to the row to sort
@@ -157,12 +157,38 @@ void sort(uint8_t *out,
     }
 #endif
 
-#ifdef USE_AVX2
+#if defined(USE_AVX2) && !defined(USE_AVX512)
     uint8_t c[4][Q_pad] __attribute__((aligned(32))) = {0};
     const uint8_t *ip = in;
     while(ip != in+(len&~(4-1))) c[0][*ip++]++, c[1][*ip++]++, c[2][*ip++]++, c[3][*ip++]++;
     while(ip != in+ len        ) c[0][*ip++]++;
     HISTEND4(out, c);
+#endif
+#ifdef USE_AVX512
+    uint32_t c[Q_pad] __attribute__((aligned(32))) = {0};
+   	const __m512i one = _mm512_set1_epi32(1u);
+
+    uint32_t i = 0;
+    for (; i+16 <= len; i+=16) {
+        const __m128i tmp = _mm_loadu_si128((__m128i *)(in + i));
+        const __m512i chunk = _mm512_cvtepi8_epi32(tmp);
+        const __m512i conflicts = _mm512_popcnt_epi32(_mm512_conflict_epi32(chunk));
+
+        const __m512i oldv = _mm512_i32gather_epi32(chunk, c, 4);
+        const __m512i newv = _mm512_add_epi32(_mm512_add_epi32(oldv, one), conflicts);
+        _mm512_i32scatter_epi32(c, chunk, newv, 4);
+    }
+
+    const __mmask16 m = -1;
+    for (uint32_t j = 0; j+32 <= len; j+=32) {
+        const __m512i a = _mm512_load_si512(c + j);
+        _mm512_mask_cvtepi32_storeu_epi8(out + j, m, a);
+    }
+
+    // tail
+	for (; i < len; ++i) {
+		out[in[i]]++;
+	}
 #endif
 #endif
 }

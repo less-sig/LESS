@@ -22,9 +22,9 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS      " -march=native -Wno-type-limits -fno-inline")
-set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -g -O0 -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -mavx512f -mavx512bw -mavx512vl ${ALLOWED_WARNINGS}")
-set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -mavx512f -mavx512bw -mavx512vl -flto -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
+set(ALLOWED_WARNINGS      " -march=native -Wno-type-limits ")
+set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -DUSE_AVX512 -g -O0 -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -mavx512f -mavx512bw -mavx512vl -mavx512vbmi -mavx512cd -mavx512vpopcntdq ${ALLOWED_WARNINGS}")
+set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -DUSE_AVX512 -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -mavx512f -mavx512bw -mavx512vl -mavx512vbmi -mavx512cd -mavx512vpopcntdq -flto -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
 
 
 set(SOURCES
