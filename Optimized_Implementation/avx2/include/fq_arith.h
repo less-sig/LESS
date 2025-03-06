@@ -77,10 +77,6 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
 
 /* GCC actually inlines and vectorizes Barrett's reduction already.
  * Backup implementation for less aggressive compilers follows */
-
-
-
-
 static inline
 FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
     // equivalent to: (x >= Q) ? (x - Q) : x
@@ -109,12 +105,12 @@ static inline
 FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
       return (x + y) % Q;
 }
+
 /*
  * Barrett multiplication for uint8_t Q = 127
  */
 static inline 
-FQ_ELEM br_mul(FQ_ELEM a, FQ_ELEM b)
-{
+FQ_ELEM br_mul(FQ_ELEM a, FQ_ELEM b) {
    FQ_DOUBLEPREC lo, hi;
    lo = a * b;
    hi = lo >> 7;
@@ -127,8 +123,7 @@ FQ_ELEM br_mul(FQ_ELEM a, FQ_ELEM b)
  * Barrett reduction for uint8_t with prime Q = 127
  */
 static inline 
-FQ_ELEM br_red(FQ_ELEM a)
-{
+FQ_ELEM br_red(FQ_ELEM a){
    FQ_ELEM t;
    t = a >> 7;
    t &= Q;
@@ -141,8 +136,7 @@ FQ_ELEM br_red(FQ_ELEM a)
  * Barrett reduction for uint16_t with prime Q = 127
  */
 static inline 
-FQ_DOUBLEPREC br_red16(FQ_DOUBLEPREC x)
-{
+FQ_DOUBLEPREC br_red16(FQ_DOUBLEPREC x) {
    FQ_DOUBLEPREC y;
    FQ_DOUBLEPREC a;
 
@@ -155,8 +149,7 @@ FQ_DOUBLEPREC br_red16(FQ_DOUBLEPREC x)
 
 
 /// NOTE: maybe dont use it for sensitive data
-static const uint8_t fq_inv_table[127] __attribute__((aligned(64))) = {
-   0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126
+static const uint32_t __fq127_inv_table[128] __attribute__((aligned(64))) = { 0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126, 0
 };
 
 
@@ -164,7 +157,7 @@ static const uint8_t fq_inv_table[127] __attribute__((aligned(64))) = {
  * unrolled for actual parameters */
 static inline
 FQ_ELEM fq_inv(FQ_ELEM x) {
-   return fq_inv_table[x];
+   return __fq127_inv_table[x];
    // FQ_ELEM xlift;
    // xlift = x;
    // FQ_ELEM accum = 1;
@@ -219,12 +212,44 @@ FQ_ELEM row_acc(const FQ_ELEM *d) {
 /// accumulates the inverse of a row
 /// \param d
 /// \return sum(d[i]**-1) for i in range(N-K)
-static inline
-FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
+static inline FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
     // NOTE: actually only the last pos need to be 0
-    static FQ_ELEM inv_data[N_K_pad] = {0}; 
+    static FQ_ELEM inv_data[N_K_pad] = {0};
     for (uint32_t col = 0; col < (N-K); col++) {
         inv_data[col] = fq_inv(d[col]);
+    }
+
+    return row_acc(inv_data);
+}
+/// accumulates the inverse of a row
+/// \param d
+/// \return sum(d[i]**-1) for i in range(N-K)
+static inline
+FQ_ELEM row_acc_inv_gather(const FQ_ELEM *d) {
+    const __m256i perm = _mm256_setr_epi32(0,1,4,5,2,3,6,7);
+    // NOTE: actually only the last pos need to be 0
+    static FQ_ELEM inv_data[N_K_pad] = {0}; 
+    for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
+        const __m128i f1 = _mm_loadu_si128((const __m128i *)(d + col +  0));
+        const __m128i f2 = _mm_loadu_si128((const __m128i *)(d + col + 16));
+        const __m256i t1 = _mm256_cvtepi8_epi32(f1);
+        const __m256i t3 = _mm256_cvtepi8_epi32(f2);
+        const __m256i t2 = _mm256_cvtepi8_epi32(_mm_bsrli_si128(f1, 8));
+        const __m256i t4 = _mm256_cvtepi8_epi32(_mm_bsrli_si128(f2, 8));
+
+        const __m256i l1 = _mm256_i32gather_epi32(__fq127_inv_table, t1, 4);
+        const __m256i l2 = _mm256_i32gather_epi32(__fq127_inv_table, t2, 4);
+        const __m256i l3 = _mm256_i32gather_epi32(__fq127_inv_table, t3, 4);
+        const __m256i l4 = _mm256_i32gather_epi32(__fq127_inv_table, t4, 4);
+
+        const __m256i a1 = _mm256_packs_epi32(l1, l2);
+        const __m256i a2 = _mm256_packs_epi32(l3, l4);
+        const __m256i a3 = _mm256_permutevar8x32_epi32(a1, perm);
+        const __m256i a4 = _mm256_permutevar8x32_epi32(a2, perm);
+
+        const __m256i b1 = _mm256_packus_epi16(a3, a4);
+        const __m256i b2 = _mm256_permute4x64_epi64(b1, 0b11011000);
+        _mm256_storeu_si256((__m256i *)(inv_data + col), b2);
 	}
 
     return row_acc(inv_data);
