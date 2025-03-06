@@ -29,6 +29,7 @@
 #include <stdint.h>
 
 #include "parameters.h"
+#include "lookup_table.h"
 #include "rng.h"
 
 #define NUM_BITS_Q (BITS_TO_REPRESENT(Q))
@@ -212,7 +213,7 @@ FQ_ELEM row_acc(const FQ_ELEM *d) {
 /// accumulates the inverse of a row
 /// \param d
 /// \return sum(d[i]**-1) for i in range(N-K)
-static inline FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
+static inline FQ_ELEM row_acc_inv2(const FQ_ELEM *d) {
     // NOTE: actually only the last pos need to be 0
     static FQ_ELEM inv_data[N_K_pad] = {0};
     for (uint32_t col = 0; col < (N-K); col++) {
@@ -221,11 +222,12 @@ static inline FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
 
     return row_acc(inv_data);
 }
+
 /// accumulates the inverse of a row
 /// \param d
 /// \return sum(d[i]**-1) for i in range(N-K)
 static inline
-FQ_ELEM row_acc_inv_gather(const FQ_ELEM *d) {
+FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
     const __m256i perm = _mm256_setr_epi32(0,1,4,5,2,3,6,7);
     // NOTE: actually only the last pos need to be 0
     static FQ_ELEM inv_data[N_K_pad] = {0}; 
@@ -298,6 +300,35 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
         W_RED127_(t);
         vstore256((vec256_t *)(row + col), t);
     }
+}
+
+
+static inline
+void row_mul_gather(FQ_ELEM *row, const FQ_ELEM s) {
+    const __m256i perm = _mm256_setr_epi32(0,1,4,5,2,3,6,7);
+    const uint32_t *ptr = __fq127_lookup_table + s*128;
+    for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
+        const __m128i f1 = _mm_loadu_si128((const __m128i *)(row + col +  0));
+        const __m128i f2 = _mm_loadu_si128((const __m128i *)(row + col + 16));
+        const __m256i t1 = _mm256_cvtepi8_epi32(f1);
+        const __m256i t3 = _mm256_cvtepi8_epi32(f2);
+        const __m256i t2 = _mm256_cvtepi8_epi32(_mm_bsrli_si128(f1, 8));
+        const __m256i t4 = _mm256_cvtepi8_epi32(_mm_bsrli_si128(f2, 8));
+
+        const __m256i l1 = _mm256_i32gather_epi32(ptr, t1, 4);
+        const __m256i l2 = _mm256_i32gather_epi32(ptr, t2, 4);
+        const __m256i l3 = _mm256_i32gather_epi32(ptr, t3, 4);
+        const __m256i l4 = _mm256_i32gather_epi32(ptr, t4, 4);
+
+        const __m256i a1 = _mm256_packs_epi32(l1, l2);
+        const __m256i a2 = _mm256_packs_epi32(l3, l4);
+        const __m256i a3 = _mm256_permutevar8x32_epi32(a1, perm);
+        const __m256i a4 = _mm256_permutevar8x32_epi32(a2, perm);
+
+        const __m256i b1 = _mm256_packus_epi16(a3, a4);
+        const __m256i b2 = _mm256_permute4x64_epi64(b1, 0b11011000);
+        _mm256_storeu_si256((__m256i *)(row + col), b2);
+	}
 }
 
 /// scalar multiplication of a row
