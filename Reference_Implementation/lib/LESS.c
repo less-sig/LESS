@@ -389,6 +389,7 @@ int LESS_verify(const pubkey_t *const PK,
     /* Squeeze output */
     LESS_SHA3_INC_FINALIZE(recomputed_digest, &state);
 
+    /// NOTE: does not have to be constant time.
     return (verify(recomputed_digest, sig->digest,
                    HASH_DIGEST_LENGTH) == 0);
 } /* end LESS_verify */
