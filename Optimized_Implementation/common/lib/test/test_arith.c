@@ -258,7 +258,7 @@ int test_transpose() {
     // normalized_ind(&A);
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < K; j++) {
-            A.values[i][j] = 2*i + j%16;
+            A.values[i][j] = i*32+j;
         }
     }
     matrix_transpose_opt((uint8_t *)B1.values, (uint8_t *)A.values, K, K_pad);
