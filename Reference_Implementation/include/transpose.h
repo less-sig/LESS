@@ -21,18 +21,25 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  **/
+
 #pragma once
 #include <stdint.h>
 
 #if defined(USE_AVX2) || defined(USE_NEON)
-
 /// transposes a 32x32 matrix
 void matrix_transpose_32x32(uint8_t* dst_origin,
                             const uint8_t* src_origin,
                             const uint8_t* prf_origin,
                             const size_t src_stride,
                             const size_t dst_stride);
+#endif
 
+#if defined(USE_AVX512)
+void matrix_transpose_64x64(uint8_t* dst_origin,
+                            const uint8_t* src_origin,
+                            const uint8_t* prf_origin,
+                            const size_t src_stride,
+                            const size_t dst_stride);
 #endif
 
 /// transpose src int dst
