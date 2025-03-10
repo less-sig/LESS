@@ -18,7 +18,11 @@ void matrix_transpose_64x64(uint8_t* dst_origin,
                             const uint8_t* prf_origin,
                             const size_t src_stride,
                             const size_t dst_stride) {
-    const __m512i m1, m2;
+    const __m512i m1 = _mm512_setr_epi64(0b0000, 0b0001, 0b1000, 0b1001, 0b0100, 0b0101, 0b1100, 0b1101);
+    const __m512i m2 = _mm512_setr_epi64(0b0010, 0b0011, 0b1010, 0b1011, 0b0110, 0b0111, 0b1110, 0b1111);
+
+    const __m512i m3 = _mm512_setr_epi64(0b0000, 0b0001, 0b0010, 0b0011, 0b1000, 0b1001, 0b1010, 0b1011);
+    const __m512i m4 = _mm512_setr_epi64(0b0100, 0b0101, 0b0110, 0b0111, 0b1100, 0b1101, 0b1110, 0b1111);
 
     (void)prf_origin;
     __m512i t[64];
@@ -102,18 +106,21 @@ void matrix_transpose_64x64(uint8_t* dst_origin,
     // swap 256 bit limbs
     #pragma unroll
     for (uint32_t i = 0; i < 32; i++) {
-        const __m512i t0 = _mm512_permutex2var_epi64(t[i+0], m1, t[i+32]);
-        const __m512i t1 = _mm512_permutex2var_epi64(t[i+0], m2, t[i+32]);
+        const __m512i t0 = _mm512_permutex2var_epi64(t[i+0], m3, t[i+32]);
+        const __m512i t1 = _mm512_permutex2var_epi64(t[i+0], m4, t[i+32]);
         t[i+ 0] = t0;
         t[i+32] = t1;
     }
 
+
     #pragma unroll
     for (uint32_t j = 0; j < 4; j++) {
         const uint32_t off = j*16;
+
+        #pragma unroll
         for (uint32_t i = 0; i < 16; i++) {
             const uint32_t pos = matrix_transpose_table[i];
-            _mm512_storeu_si512((__m512i *)(dst_origin + j+i*dst_stride), t[j+pos]);
+            _mm512_storeu_si512((__m512i *)(dst_origin + (off+i)*dst_stride), t[off+pos]);
         }
     }
 }

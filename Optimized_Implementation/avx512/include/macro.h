@@ -199,16 +199,7 @@ static inline
 __m512i gf127v_scalar_table_u512(const __m512i a,
                                  const __m512i table1,
                                  const __m512i table2) {
-    const __m512i mask1 = _mm512_set1_epi8(64);
-    // TODO maybe shifting
-    const __m512i b = _mm512_sub_epi8(a, mask1);
-
-    const __mmask64 m1 = _mm512_cmplt_epi8_mask(a, mask1);
-    const __mmask64 m2 = ~m1;
-    const __m512i t1 = _mm512_maskz_permutexvar_epi8(m1, a, table1);
-    const __m512i t2 = _mm512_maskz_permutexvar_epi8(m2, b, table2);
-    const __m512i t = t1 ^ t2;
-    return t;
+    return _mm512_permutex2var_epi8(table1, a, table2);
 }
 
 // Extend from 8-bit to 16-bit type

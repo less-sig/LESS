@@ -233,7 +233,6 @@ static inline
 FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
     const __m512i t1 = _mm512_load_si512((const __m512i *)(fq_inv_table +  0));
     const __m512i t2 = _mm512_load_si512((const __m512i *)(fq_inv_table + 64));
-    const __m512i mask1 = _mm512_set1_epi8(64);
 
     static FQ_ELEM inv_data[N_K_pad] __attribute__((aligned(64))) = {0}; 
 
@@ -241,15 +240,7 @@ FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
     // TODO currently only for CAT 1
     for (; (col+64) <= N_K_pad; col += 64) {
         const __m512i a = _mm512_loadu_si512((const __m512i *)(d + col));
-        // TODO bench and test
         const __m512i k = _mm512_permutex2var_epi8(t1, a, t2);
-
-        //const __mmask64 m1 = _mm512_cmplt_epi8_mask(a, mask1);
-        //const __mmask64 m2 = ~m1;
-        //const __m512i k1 = _mm512_maskz_permutexvar_epi8(m1, a, t1);
-        //const __m512i k2 = _mm512_maskz_permutexvar_epi8(m2, a, t2);
-        //const __m512i k = k1 ^ k2;
-        
         _mm512_store_si512((__m512i *)(inv_data + col), k);
 	}
 
@@ -302,6 +293,7 @@ void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
     vset16_512(c7f, 0x7F);
     vset16_512(c516, 516);
 
+    // TODO optimize
     for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
         vload256(a, (vec256_t *)(in1 + col));
         vload256(b, (vec256_t *)(in2 + col));
@@ -324,19 +316,13 @@ static inline
 void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
     const __m512i t1 = _mm512_load_si512((const __m512i *)(fq_inv_table +  0));
     const __m512i t2 = _mm512_load_si512((const __m512i *)(fq_inv_table + 64));
-    const __m512i mask1 = _mm512_set1_epi8(64);
 
     uint32_t col = 0;
     // TODO currently only for CAT 1
     for (; (col+64) <= N_K_pad; col += 64) {
         const __m512i a = _mm512_loadu_si512((const __m512i *)(in + col));
+        const __m512i k = _mm512_permutex2var_epi8(t1, a, t2);
 
-        const __mmask64 m1 = _mm512_cmplt_epi8_mask(a, mask1);
-        const __mmask64 m2 = ~m1;
-        const __m512i k1 = _mm512_maskz_permutexvar_epi8(m1, a, t1);
-        const __m512i k2 = _mm512_maskz_permutexvar_epi8(m2, a, t2);
-        const __m512i k = k1 ^ k2;
-        
         _mm512_storeu_si512((__m512i *)(out + col), k);
 	}
 }

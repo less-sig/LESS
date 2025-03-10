@@ -22,7 +22,7 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS      " -march=native -Wno-type-limits ")
+set(ALLOWED_WARNINGS      " -march=native -Wno-type-limits -Wno-gnu-binary-literal ")
 set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -DUSE_AVX512 -g -O0 -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -mavx512f -mavx512bw -mavx512vl -mavx512vbmi -mavx512cd -mavx512vpopcntdq ${ALLOWED_WARNINGS}")
 set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -DUSE_AVX512 -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -mavx512f -mavx512bw -mavx512vl -mavx512vbmi -mavx512cd -mavx512vpopcntdq -flto -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
 
@@ -40,8 +40,8 @@ set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/canonical.c
         ${PROJECT_SOURCE_DIR}/lib/sort.c
         ${PROJECT_SOURCE_DIR}/lib/transpose.c
+        ${PROJECT_SOURCE_DIR}/lib/transpose_avx512.c
         ${PROJECT_SOURCE_DIR}/lib/KeccakP-1600-AVX2.s
-        ${PROJECT_SOURCE_DIR}/lib/transpose_avx2.c
 )
 
 set(HEADERS
@@ -94,6 +94,12 @@ foreach(category "252" "400" "548")
     target_link_libraries(${TARGET_BINARY_NAME} PRIVATE OpenSSL::Crypto)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
+
+    set(TARGET_BINARY_NAME LESS_test_arith_${category}_${optimize_target})
+    add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/test/test_arith.c)
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
+    target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
   endforeach(optimize_target)
 endforeach(category)
 
