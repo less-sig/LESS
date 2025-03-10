@@ -241,12 +241,14 @@ FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
     // TODO currently only for CAT 1
     for (; (col+64) <= N_K_pad; col += 64) {
         const __m512i a = _mm512_loadu_si512((const __m512i *)(d + col));
+        // TODO bench and test
+        const __m512i k = _mm512_permutex2var_epi8(t1, a, t2);
 
-        const __mmask64 m1 = _mm512_cmplt_epi8_mask(a, mask1);
-        const __mmask64 m2 = ~m1;
-        const __m512i k1 = _mm512_maskz_permutexvar_epi8(m1, a, t1);
-        const __m512i k2 = _mm512_maskz_permutexvar_epi8(m2, a, t2);
-        const __m512i k = k1 ^ k2;
+        //const __mmask64 m1 = _mm512_cmplt_epi8_mask(a, mask1);
+        //const __mmask64 m2 = ~m1;
+        //const __m512i k1 = _mm512_maskz_permutexvar_epi8(m1, a, t1);
+        //const __m512i k2 = _mm512_maskz_permutexvar_epi8(m2, a, t2);
+        //const __m512i k = k1 ^ k2;
         
         _mm512_store_si512((__m512i *)(inv_data + col), k);
 	}

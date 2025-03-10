@@ -202,7 +202,7 @@ void matrix_transpose_opt(uint8_t *dst,
                   uint8_t* dst_origin = dst + (cb*dst_stride+rb)*bsize;
             const uint32_t n = src_stride;
 
-            matrix_transpose_32x32(dst_origin,                  src_origin,                  prf_origin,               n, n);
+            matrix_transpose_32x32(dst_origin, src_origin, prf_origin, n, n);
 #else
             const uint8_t *srcb_origin = src + (rb*src_stride + cb) * bsize;
                   uint8_t *dstb_origin = dst + (cb*dst_stride + rb) * bsize;
