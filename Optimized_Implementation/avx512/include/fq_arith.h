@@ -237,12 +237,19 @@ FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
     static FQ_ELEM inv_data[N_K_pad] __attribute__((aligned(64))) = {0}; 
 
     uint32_t col = 0;
-    // TODO currently only for CAT 1
     for (; (col+64) <= N_K_pad; col += 64) {
         const __m512i a = _mm512_loadu_si512((const __m512i *)(d + col));
         const __m512i k = _mm512_permutex2var_epi8(t1, a, t2);
         _mm512_store_si512((__m512i *)(inv_data + col), k);
 	}
+
+    for (; (col+32) <= N_K_pad; col += 32) {
+        const __m256i b = _mm256_loadu_si256((const __m256i *)(d + col));
+        const __m512i a = _mm512_castsi256_si512(b);
+        const __m512i c = gf127v_scalar_table_u512(a, t1, t2); 
+        const __m256i d = _mm512_castsi512_si256(c);
+        _mm256_storeu_si256((__m256i *)(inv_data + col), d);
+    }
 
     return row_acc(inv_data);
 }
@@ -262,6 +269,14 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
         const __m512i b = gf127v_scalar_table_u512(a, table[0], table[1]); 
         _mm512_storeu_si512((__m512i *)(row + col), b);
 	}
+
+    for (; (col+32) <= N_K_pad; col += 32) {
+        const __m256i b = _mm256_loadu_si256((const __m256i *)(row + col));
+        const __m512i a = _mm512_castsi256_si512(b);
+        const __m512i c = gf127v_scalar_table_u512(a, table[0], table[1]); 
+        const __m256i d = _mm512_castsi512_si256(c);
+        _mm256_storeu_si256((__m256i *)(row + col), d);
+    }
 }
 
 /// scalar multiplication of a row
@@ -278,6 +293,14 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
         const __m512i a = _mm512_loadu_si512((const __m512i *)(in + col));
         const __m512i b = gf127v_scalar_table_u512(a, table[0], table[1]); 
         _mm512_storeu_si512((__m512i *)(out + col), b);
+    }
+
+    for (; (col+32) <= N_K_pad; col += 32) {
+        const __m256i b = _mm256_loadu_si256((const __m256i *)(in + col));
+        const __m512i a = _mm512_castsi256_si512(b);
+        const __m512i c = gf127v_scalar_table_u512(a, table[0], table[1]); 
+        const __m256i d = _mm512_castsi512_si256(c);
+        _mm256_storeu_si256((__m256i *)(out + col), d);
     }
 }
 
@@ -318,13 +341,20 @@ void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
     const __m512i t2 = _mm512_load_si512((const __m512i *)(fq_inv_table + 64));
 
     uint32_t col = 0;
-    // TODO currently only for CAT 1
     for (; (col+64) <= N_K_pad; col += 64) {
         const __m512i a = _mm512_loadu_si512((const __m512i *)(in + col));
         const __m512i k = _mm512_permutex2var_epi8(t1, a, t2);
 
         _mm512_storeu_si512((__m512i *)(out + col), k);
 	}
+    
+    for (; (col+32) <= N_K_pad; col += 32) {
+        const __m256i b = _mm256_loadu_si256((const __m256i *)(in + col));
+        const __m512i a = _mm512_castsi256_si512(b);
+        const __m512i k = _mm512_permutex2var_epi8(t1, a, t2);
+        const __m256i c = _mm512_castsi512_si256(k);
+        _mm256_storeu_si256((__m256i *)(out + col), c);
+    }
 }
 
 /// NOTE: avx512 optimized version (it has a special instruction for stuff like this)
@@ -334,7 +364,7 @@ void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
 static inline
 uint32_t row_all_same(const FQ_ELEM *in) {
     vec256_t t1, t2, acc;
-    vset8(acc, -1);
+    vset8(acc, -1u);
     vset8(t2, in[0]);
 
     uint32_t col = 0;
@@ -363,12 +393,18 @@ uint32_t row_contains_zero(const FQ_ELEM *in) {
     uint32_t col = 0;
     __mmask64 acc = 0;
 
-    // TODO currently only for CAT 1
     for (; (col+64) <= N_K_pad; col += 64) {
         const __m512i a = _mm512_loadu_si512((const __m512i *)(in + col));
         const __mmask64 b = _mm512_cmpeq_epu8_mask(a, zero);
         acc |= b;
 	}
+    
+    for (; (col+32) <= N_K_pad; col += 32) {
+        const __m256i zero2 = _mm512_castsi512_si256(zero);
+        const __m256i a = _mm256_loadu_si256((const __m256i *)(in + col));
+        const __mmask64 b = _mm256_cmpeq_epu8_mask(a, zero2);
+        acc |= b;
+    }
 
     return acc != 0;
 }
