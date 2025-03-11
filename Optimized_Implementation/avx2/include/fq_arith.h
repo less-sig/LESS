@@ -232,14 +232,28 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
     for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
         vload256(a, (vec256_t *)(row + col));
 
+        /// TODO replace with cvt
         vget_lo(tmp, a);
         vextend8_16(a_lo, tmp);
         vget_hi(tmp, a);
         vextend8_16(a_hi, tmp);
 
+        __m256i c;
+        __m256i at = a_lo;
+        __m256i bt = b_lo;
+        vmul_lo16(at, at, bt); /* lo = (a * b)  */ 
+        vsr16(t, at, 7);     /* hi = (lo >> 7) */
+        c = at&c7f;
+        vadd8(at, c, t);    /* lo = (lo + hi) */
+        t = _mm256_sub_epi8(at, c7f);
+        c = _mm256_blendv_epi8(at, t, at);
+
+
+
         barrett_mul_u16(a_lo, a_lo, b_lo, t);
         barrett_mul_u16(a_hi, a_hi, b_hi, t);
 
+        // replace with _mm256_packs_epi16
         vshuffle8(a_lo, a_lo, shuffle);
         vshuffle8(a_hi, a_hi, shuffle);
 
@@ -249,7 +263,7 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
         vpermute2(t, a_lo, a_hi, 0x20);
 
         // barrett_red8(t, r, c7f, c01);
-        W_RED127_(t);
+        //W_RED127_(t);
         vstore256((vec256_t *)(row + col), t);
     }
 }

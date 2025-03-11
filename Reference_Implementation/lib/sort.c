@@ -240,7 +240,7 @@ void SortRows_swap(normalized_IS_t *G,
 /// \param n[in] number of elements to sort
 /// \return 1 on success
 ///			0 if two rows generate the same multiset
-int SortRows_org(normalized_IS_t *G,
+int SortRows(normalized_IS_t *G,
              const uint32_t n,
              const uint8_t *L) {
 	// first sort each row into a tmp buffer
@@ -274,7 +274,7 @@ int SortRows_org(normalized_IS_t *G,
 
 
 /// uses a presorted quicksort
-int SortRows(normalized_IS_t *G,
+int SortRows_opt(normalized_IS_t *G,
              const uint32_t n,
              const uint8_t *L) {
     // first sort each row into a tmp buffer

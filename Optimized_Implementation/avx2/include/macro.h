@@ -142,7 +142,6 @@ typedef __m128i vec128_t;
     t = _mm_and_si128(t, c1);             \
     a = _mm_add_epi8(a, t);               \
     a = _mm_and_si128(a, c127);
-
 /*
  * t = tmp register
  * Fix width 16-bit Barrett multiplication Q = 127
@@ -154,6 +153,18 @@ typedef __m128i vec128_t;
     vadd16(a, a, t);    /* lo = (lo + hi) */ \
     vsl16(t, t, 7);     /* hi = (hi << 7) */ \
     vsub16(c, a, t);    /* c  = (lo - hi) */
+
+ /*
+ * t = tmp register
+ * Fix width 16-bit Barrett multiplication Q = 127
+ * c = (a * b) % q
+ */
+#define barrett_mul_u16_(c, a, b, t, c01, c7f)\
+    vmul_lo16(a, a, b); /* lo = (a * b)  */  \
+    vsr16(t, a, 7);     /* hi = (lo >> 7) */ \
+    vadd16(a, a, t);    /* lo = (lo + hi) */ \
+    t = _mm256_sub_epi8(a, c7f);              \
+    c = _mm256_blendv_epi8(t, a, a);
 
 /// original reduction formula
 #define W_RED127(x)                                                            \
