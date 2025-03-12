@@ -384,11 +384,11 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
         for (j = 2; j < 127; j++) {
             for (uint32_t k = 0; k < NW; k++) {
                 vadd8(x, em[j - 1][k], rg[k])
-                W_RED127_(x);
-                em[j][k] = x;
-                //const __m256i xx = _mm256_sub_epi8(x, c7f);
-                //const __m256i tt = _mm256_blendv_epi8(xx, x, xx);
-                //em[j][k] = tt;
+                //W_RED127_(x);
+                //em[j][k] = x;
+                const __m256i xx = _mm256_sub_epi8(x, c7f);
+                const __m256i tt = _mm256_blendv_epi8(xx, x, xx);
+                em[j][k] = tt;
             }
         }
 
@@ -414,11 +414,11 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                 rp = ep[127 - sc];
                 for (uint32_t k = 0; k < NW; k++) {
                     vadd8(x, gm[j][k], rp[k]);
-                    W_RED127_(x);
-                    gm[j][k] = x;
-                    //const __m256i xx = _mm256_sub_epi8(x, c7f);
-                    //const __m256i tt = _mm256_blendv_epi8(xx, x, xx);
-                    //gm[j][k] = tt;
+                    //W_RED127_(x);
+                    //gm[j][k] = x;
+                    const __m256i xx = _mm256_sub_epi8(x, c7f);
+                    const __m256i tt = _mm256_blendv_epi8(xx, x, xx);
+                    gm[j][k] = tt;
                 }
             }
         }
@@ -510,11 +510,12 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
 //                for (uint32_t k = 0; k < N_pad; k+=32) {
 //                    const __m256i t2 = _mm256_loadu_si256((const __m256i *)(G->values[j] + k));
 //                    const __m256i t1 = avx_mul(G->values[i] + k, c);
-//                    const __m256i m1 = _mm256_cmpgt_epi8(t1, t2);
-//                    const __m256i m2 = _mm256_and_si256(m1, c7f);
+//                    // const __m256i m1 = _mm256_cmpgt_epi8(t1, t2);
+//                    // const __m256i m2 = _mm256_and_si256(m1, c7f);
 //                    const __m256i t3 = _mm256_sub_epi8(t2, t1);
-//                    const __m256i t4 = _mm256_add_epi8(t3, m2);
-//                    _mm256_storeu_si256((__m256i *)(G->values[j] + k), t4);
+//                    const __m256i t4 = _mm256_add_epi8(t3, c7f);
+//                    const __m256i t5 = _mm256_blendv_epi8(t3, t4, t3);
+//                    _mm256_storeu_si256((__m256i *)(G->values[j] + k), t5);
 //                }
 //            }
 //        }

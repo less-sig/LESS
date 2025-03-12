@@ -241,7 +241,7 @@ static inline FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
 /// \param row[in/out] *= s for _ in range(N-K)
 /// \param s
 static inline
-void row_mul_(FQ_ELEM *row, const FQ_ELEM s) {
+void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
     // precompute b
     const __m256i b = _mm256_set1_epi16(s);
     for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
@@ -255,7 +255,7 @@ void row_mul_(FQ_ELEM *row, const FQ_ELEM s) {
 /// \param row[in/out] *= s for _ in range(N-K)
 /// \param s
 static inline
-void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
+void row_mul_(FQ_ELEM *row, const FQ_ELEM s) {
     vec256_t shuffle, t, c7f, c01, b, a, a_lo, a_hi, b_lo, b_hi;
     vec128_t tmp;
 
