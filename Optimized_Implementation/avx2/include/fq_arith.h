@@ -181,6 +181,7 @@ FQ_ELEM row_acc(const FQ_ELEM *d) {
     for (uint32_t col = 0; col < N_K_pad; col+=32) {
         vload256(t, (const vec256_t *)(d + col));
         vadd8(s, s, t);
+        // TODO use better arith
         //barrett_red8(s, t, c7f, c01);
         W_RED127_(s);
 	 }
