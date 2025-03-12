@@ -139,9 +139,10 @@ int test_row_acc_inv(void) {
 
 int test_row_mul(void) {
     FQ_ELEM a[N_K_pad], b[N_K_pad];
-    FQ_ELEM s = 1;
+    FQ_ELEM s = 3;
     for (uint32_t i = 0; i < TESTS; i++) {
         rand_range_q_elements(a, K);
+        a[0] = 0x55;
         memcpy(b, a, K);
         row_mul(a,s);
         org_row_mul(b,s);
@@ -277,7 +278,7 @@ int test_transpose(void) {
 int main(void) {
     // if (test_row_acc()) return 1;
     // if (test_row_acc_inv()) return 1;
-    // if (test_row_mul()) return 1;
+    if (test_row_mul()) return 1;
     // if (test_row_mul2()) return 1;
     // if (test_row_mul3()) return 1;
     // if (test_row_inv2()) return 1;

@@ -257,7 +257,7 @@ int SortRows(normalized_IS_t *G,
         P[i] = i;
 	}
 
-    if (max_zeros < L[0]) { return 0; }
+    if ((L!=NULL) && (max_zeros < L[0])) { return 0; }
 
     SortRows_internal(ptr, P, n);
 

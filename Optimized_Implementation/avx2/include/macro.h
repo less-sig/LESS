@@ -81,7 +81,7 @@ typedef __m128i vec128_t;
 
 // c[0..16] = n
 #define vset8(c, n) c = _mm256_set1_epi8((char)n);
-#define vset17(c, n) c = _mm256_set1_epi16((short)n);
+#define vset16(c, n) c = _mm256_set1_epi16((short)n);
 
 // c = a == b
 #define vcmp8(c, a, b) c = _mm256_cmpeq_epi8(a, b);

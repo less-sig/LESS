@@ -298,6 +298,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
     int i, j, pivc;
     uint8_t sc;
 
+    /// TODO remove these pointers
     __m512i *gm[K] __attribute__((aligned(64)));
     int pvt_reuse_cnt = 0;
 

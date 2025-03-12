@@ -26,6 +26,7 @@
  **/
 
 #pragma once
+
 #include <stdint.h>
 
 #include "parameters.h"
@@ -139,6 +140,32 @@ DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
 
 #include "macro.h"
 
+/// \retuns ptr *b
+static inline __m256i avx_mul(const uint8_t *ptr, const __m256i b) {
+    vec256_t v1, v2, w1, w2;
+    const __m256i c7f = _mm256_set1_epi8((short)127);
+    const __m256i c7f2 = _mm256_set1_epi16((short)127);
+    const __m128i t1 = _mm_loadu_si128((const __m128i *)(ptr +  0));
+    const __m128i t2 = _mm_loadu_si128((const __m128i *)(ptr + 16));
+
+    __m256i a_lo = _mm256_cvtepu8_epi16(t1);
+    __m256i a_hi = _mm256_cvtepu8_epi16(t2);
+
+    vmul_lo16(a_lo, a_lo, b);
+    vmul_lo16(a_hi, a_hi, b);
+    vsr16(v1, a_lo, 7);
+    vsr16(v2, a_hi, 7);
+    w1 = _mm256_packs_epi16(a_lo&c7f2, a_hi&c7f2);
+    w2 = _mm256_packs_epi16(v1, v2);
+
+    vadd8(v1, w1, w2);
+    v2 = _mm256_permute4x64_epi64(v1, 0b11011000);
+    w1 = _mm256_sub_epi8(v2, c7f);
+    w2 = _mm256_blendv_epi8(w1, v2, w1);
+
+    return w2;
+}
+
 /// NOTE: these functions are outsourced to this file, to make the
 /// optimizied implementation as easy as possible.
 /// accumulates a row
@@ -214,6 +241,20 @@ static inline FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
 /// \param row[in/out] *= s for _ in range(N-K)
 /// \param s
 static inline
+void row_mul_(FQ_ELEM *row, const FQ_ELEM s) {
+    // precompute b
+    const __m256i b = _mm256_set1_epi16(s);
+    for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
+        const __m256i t = avx_mul(row + col, b);
+        vstore256((vec256_t *)(row + col), t);
+    }
+}
+
+/// scalar multiplication of a row
+/// NOTE: not a full reduction
+/// \param row[in/out] *= s for _ in range(N-K)
+/// \param s
+static inline
 void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
     vec256_t shuffle, t, c7f, c01, b, a, a_lo, a_hi, b_lo, b_hi;
     vec128_t tmp;
@@ -232,28 +273,14 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
     for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
         vload256(a, (vec256_t *)(row + col));
 
-        /// TODO replace with cvt
         vget_lo(tmp, a);
         vextend8_16(a_lo, tmp);
         vget_hi(tmp, a);
         vextend8_16(a_hi, tmp);
 
-        __m256i c;
-        __m256i at = a_lo;
-        __m256i bt = b_lo;
-        vmul_lo16(at, at, bt); /* lo = (a * b)  */ 
-        vsr16(t, at, 7);     /* hi = (lo >> 7) */
-        c = at&c7f;
-        vadd8(at, c, t);    /* lo = (lo + hi) */
-        t = _mm256_sub_epi8(at, c7f);
-        c = _mm256_blendv_epi8(at, t, at);
-
-
-
         barrett_mul_u16(a_lo, a_lo, b_lo, t);
         barrett_mul_u16(a_hi, a_hi, b_hi, t);
 
-        // replace with _mm256_packs_epi16
         vshuffle8(a_lo, a_lo, shuffle);
         vshuffle8(a_hi, a_hi, shuffle);
 
@@ -262,8 +289,7 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
 
         vpermute2(t, a_lo, a_hi, 0x20);
 
-        // barrett_red8(t, r, c7f, c01);
-        //W_RED127_(t);
+        W_RED127_(t);
         vstore256((vec256_t *)(row + col), t);
     }
 }
