@@ -304,6 +304,16 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
     }
 }
 
+/// scalar multiplication of a row
+/// \param out = s*in[i] for i in range(N-K)
+/// \param in
+/// \param s
+static inline
+void row_mul2_ct(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
+    // TODO
+    row_mul2(out, in, s);
+}
+
 ///
 /// \param out = in1[i]*in2[i] for i in range(N-K)
 /// \param in1

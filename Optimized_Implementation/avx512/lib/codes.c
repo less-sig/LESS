@@ -353,9 +353,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
         if (i != j) {
             was_pivot_column[j] = 0; // pivot no longer reusable - will be corrupted during reduce row
             for (uint32_t k = 0; k < (NW/2); k++) {
-                //const __m512i t = gm[i][k];
-                //gm[i][k] = gm[j][k];
-                //gm[j][k] = t;
                 const __m512i t = _mm512_loadu_si512(gm[i] + k);
                 const __m512i t2 = _mm512_loadu_si512(gm[j] + k);
                 _mm512_storeu_si512(gm[i] + k, t2);
@@ -390,14 +387,12 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                 t1 = *(__m512i *)(__gf127_lookuptable + sc * 128);
                 t2 = *(__m512i *)(__gf127_lookuptable + sc * 128 + 64);
                 for (uint32_t k = 0; k < (NW/2); k++) {
-                    //const __m512i a = gm[j][k];
                     const __m512i a = _mm512_loadu_si512(gm[j] + k);
                     const __m512i ap = _mm512_loadu_si512(gm[i] + k);
                     const __m512i b = gf127v_scalar_table_u512(ap, t1, t2);
                     const __mmask64 m = _mm512_cmplt_epu8_mask(a, b);
                     const __m512i c = _mm512_mask_adds_epu8(a,m,a,q);
                     const __m512i d = _mm512_subs_epu8(c, b);
-                    //gm[j][k] = d;
                     _mm512_storeu_si512(gm[j] + k, d);
                 }
             }

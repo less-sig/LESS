@@ -270,6 +270,7 @@ void blind(normalized_IS_t *G,
     yt_shuffle_state_limit(prng, left.permutation, N-K);
 
     // apply the right multiplication
+    // TODO apply the same technique as in 'generator_monomial_mul'
     for (uint32_t i = 0; i < K; i++) {
         const FQ_ELEM a = right.coefficients[i];
         const POSITION_T pos = right.permutation[i];

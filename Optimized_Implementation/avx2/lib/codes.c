@@ -127,46 +127,58 @@ finish:
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom) {
+    FQ_ELEM buffer[N_pad] __attribute__((aligned(32)));
 
-    FQ_ELEM buffer[N_pad];
-    // Total SIMD registers: 9 = 2 + 3 + 4
-    vec256_t shuffle, t, c8_127, c8_1;     // 2
-    vec256_t g, mono, s;                   // 3
-    vec256_t g_lo, g_hi, mono_lo, mono_hi; // 4
-    vec128_t tmp;
+    __m256i monomial[NW*2];
+    for (uint32_t i = 0; i < NW; i++) {
+        const __m128i a = _mm_loadu_si128((const __m128i *)(monom->coefficients + 32*i +  0));
+        const __m128i b = _mm_loadu_si128((const __m128i *)(monom->coefficients + 32*i + 16));
+        const __m256i t1 = _mm256_cvtepu8_epi16(a);
+        const __m256i t2 = _mm256_cvtepu8_epi16(b);
+        monomial[2*i + 0] = t1;
+        monomial[2*i + 1] = t2;
+    }
 
-    vload256(shuffle, (vec256_t *) shuff_low_half);
-    vset8(c8_127, 127);
-    vset8(c8_1, 1);
     for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
-
         const FQ_ELEM *G_pointer = G->values[row_idx];
+        uint32_t ctr = 0;
+
         for (uint32_t src_col_idx = 0; (src_col_idx+32) <= N_pad; src_col_idx += 32) {
-            vload256(g, (vec256_t *) &G_pointer[src_col_idx]);
-            vload256(mono, (vec256_t *) &(monom->coefficients[src_col_idx]));
+            const __m128i a1 = _mm_loadu_si128((const __m128i *)(G_pointer + src_col_idx +  0));
+            const __m128i a2 = _mm_loadu_si128((const __m128i *)(G_pointer + src_col_idx + 16));
 
-            vget_lo(tmp, g);
-            vextend8_16(g_lo, tmp);
-            vget_hi(tmp, g);
-            vextend8_16(g_hi, tmp);
-            vget_lo(tmp, mono);
-            vextend8_16(mono_lo, tmp);
-            vget_hi(tmp, mono);
-            vextend8_16(mono_hi, tmp);
+            const __m256i a_lo = _mm256_cvtepu8_epi16(a1);
+            const __m256i a_hi = _mm256_cvtepu8_epi16(a2);
+            const __m256i t = avx_mul_full256(a_lo, a_hi, monomial[ctr], monomial[ctr + 1]);
+            _mm256_store_si256((__m256i *)(buffer + src_col_idx), t);
+            ctr += 2;
 
-            barrett_mul_u16(g_lo, g_lo, mono_lo, s);
-            barrett_mul_u16(g_hi, g_hi, mono_hi, t);
+            //vload256(g, (vec256_t *) &G_pointer[src_col_idx]);
+            //vload256(mono, (vec256_t *) &(monom->coefficients[src_col_idx]));
 
-            vshuffle8(g_lo, g_lo, shuffle);
-            vshuffle8(g_hi, g_hi, shuffle);
+            //vget_lo(tmp, g);
+            //vextend8_16(g_lo, tmp);
+            //vget_hi(tmp, g);
+            //vextend8_16(g_hi, tmp);
+            //vget_lo(tmp, mono);
+            //vextend8_16(mono_lo, tmp);
+            //vget_hi(tmp, mono);
+            //vextend8_16(mono_hi, tmp);
 
-            vpermute_4x64(g_lo, g_lo, 0xd8);
-            vpermute_4x64(g_hi, g_hi, 0xd8);
+            //barrett_mul_u16(g_lo, g_lo, mono_lo, s);
+            //barrett_mul_u16(g_hi, g_hi, mono_hi, t);
 
-            vpermute2(s, g_lo, g_hi, 0x20);
+            //vshuffle8(g_lo, g_lo, shuffle);
+            //vshuffle8(g_hi, g_hi, shuffle);
 
-            barrett_red8(s, t, c8_127, c8_1);
-            vstore256((vec256_t *) &buffer[src_col_idx], s);
+            //vpermute_4x64(g_lo, g_lo, 0xd8);
+            //vpermute_4x64(g_hi, g_hi, 0xd8);
+
+            //vpermute2(s, g_lo, g_hi, 0x20);
+
+            ////barrett_red8(s, t, c8_127, c8_1);
+            //W_RED127_(s, t, c8_127);
+            //vstore256((vec256_t *) &buffer[src_col_idx], s);
         }
 
         for (uint32_t i = 0; i < N; i++) {
@@ -195,10 +207,9 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
     vec256_t *gm[K] __attribute__((aligned(32)));
     vec256_t em[0x80][NW];
     vec256_t *ep[0x80];
-    vec256_t c01, c7f;
+    vec256_t c7f;
     vec256_t x, t, *rp, *rg;
 
-    vset8(c01, 0x01);
     vset8(c7f, 0x7f);
 
     for (i = 0; i < K; i++) {
@@ -252,7 +263,7 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
         for (j = 2; j < 127; j++) {
             for (uint32_t k = 0; k < NW; k++) {
                 vadd8(x, em[j - 1][k], rg[k])
-                W_RED127_(x);
+                W_RED127_(x, t, c7f);
                 em[j][k] = x;
             }
         }
@@ -279,7 +290,7 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
                 rp = ep[127 - sc];
                 for (uint32_t k = 0; k < NW; k++) {
                     vadd8(x, gm[j][k], rp[k])
-                    W_RED127_(x);
+                    W_RED127_(x, t, c7f);
                     gm[j][k] = x;
                 }
             }
@@ -300,11 +311,10 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
     vec256_t *gm[K] __attribute__((aligned(32)));
     vec256_t em[0x80][NW];
     vec256_t *ep[0x80];
-    vec256_t c7f, c01;
+    vec256_t c7f;
     vec256_t x, t, *rp, *rg;
 
     vset8(c7f, 0x7f);
-    vset8(c01, 0x01);
     int pvt_reuse_cnt = 0;
 
     // this loop roughly takes 2.2% of the whole function runtime ()
@@ -384,8 +394,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
         for (j = 2; j < 127; j++) {
             for (uint32_t k = 0; k < NW; k++) {
                 vadd8(x, em[j - 1][k], rg[k])
-                //W_RED127_(x);
-                //em[j][k] = x;
                 const __m256i xx = _mm256_sub_epi8(x, c7f);
                 const __m256i tt = _mm256_blendv_epi8(xx, x, xx);
                 em[j][k] = tt;
@@ -414,8 +422,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                 rp = ep[127 - sc];
                 for (uint32_t k = 0; k < NW; k++) {
                     vadd8(x, gm[j][k], rp[k]);
-                    //W_RED127_(x);
-                    //gm[j][k] = x;
                     const __m256i xx = _mm256_sub_epi8(x, c7f);
                     const __m256i tt = _mm256_blendv_epi8(xx, x, xx);
                     gm[j][k] = tt;
