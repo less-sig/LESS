@@ -123,50 +123,66 @@ finish:
     return;
 }
 
+// TODO fix for non 64
+void normalized_monomial_right(normalized_IS_t *res,
+                               const normalized_IS_t *const G,
+                               const monomial_t *const monom) {
+    FQ_ELEM buffer[N_pad] __attribute__((aligned(64)));
+    __m512i monomial[N_K_pad / 32];
+    for (uint32_t i = 0; i < (N_K_pad / 64); i++) {
+        const __m256i a = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 64*i +  0));
+        const __m256i b = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 64*i + 32));
+        const __m512i t1 = _mm512_cvtepu8_epi16(a);
+        const __m512i t2 = _mm512_cvtepu8_epi16(b);
+        monomial[2*i + 0] = t1;
+        monomial[2*i + 1] = t2;
+    }
+
+    for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
+        const FQ_ELEM *G_pointer = G->values[row_idx];
+        uint32_t ctr = 0;
+
+        for (uint32_t src_col_idx = 0; (src_col_idx+32) <= K_pad; src_col_idx += 32) {
+            const __m256i a = _mm256_loadu_si256((const __m256i *)(G_pointer + src_col_idx));
+            const __m512i b = _mm512_cvtepi8_epi16(a);
+            const __m256i t = avx_mul_full512(b, monomial[ctr]);
+            _mm256_store_si256((__m256i *) (buffer + src_col_idx), t);
+            ctr += 1;
+        }
+
+        for (uint32_t i = 0; i < K; i++) {
+            res->values[row_idx][monom->permutation[i]] = buffer[i];
+        }
+    }
+
+}
+
 /* right-multiplies a generator by a monomial */
+// TODO fix for non 64
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom) {
+    FQ_ELEM buffer[N_pad] __attribute__((aligned(64)));
+    __m512i monomial[NW];
+    for (uint32_t i = 0; i < (NW/2); i++) {
+        const __m256i a = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 64*i +  0));
+        const __m256i b = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 64*i + 32));
+        const __m512i t1 = _mm512_cvtepu8_epi16(a);
+        const __m512i t2 = _mm512_cvtepu8_epi16(b);
+        monomial[2*i + 0] = t1;
+        monomial[2*i + 1] = t2;
+    }
 
-    FQ_ELEM buffer[N_pad];
-    // Total SIMD registers: 9 = 2 + 3 + 4
-    vec256_t shuffle, t, c8_127, c8_1;     // 2
-    vec256_t g, mono, s;                   // 3
-    vec256_t g_lo, g_hi, mono_lo, mono_hi; // 4
-    vec128_t tmp;
-
-    vload256(shuffle, (vec256_t *) shuff_low_half);
-    vset8(c8_127, 127);
-    vset8(c8_1, 1);
     for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
-
         const FQ_ELEM *G_pointer = G->values[row_idx];
+        uint32_t ctr = 0;
+
         for (uint32_t src_col_idx = 0; (src_col_idx+32) <= N_pad; src_col_idx += 32) {
-            vload256(g, (vec256_t *) &G_pointer[src_col_idx]);
-            vload256(mono, (vec256_t *) &(monom->coefficients[src_col_idx]));
-
-            vget_lo(tmp, g);
-            vextend8_16(g_lo, tmp);
-            vget_hi(tmp, g);
-            vextend8_16(g_hi, tmp);
-            vget_lo(tmp, mono);
-            vextend8_16(mono_lo, tmp);
-            vget_hi(tmp, mono);
-            vextend8_16(mono_hi, tmp);
-
-            barrett_mul_u16(g_lo, g_lo, mono_lo, s);
-            barrett_mul_u16(g_hi, g_hi, mono_hi, t);
-
-            vshuffle8(g_lo, g_lo, shuffle);
-            vshuffle8(g_hi, g_hi, shuffle);
-
-            vpermute_4x64(g_lo, g_lo, 0xd8);
-            vpermute_4x64(g_hi, g_hi, 0xd8);
-
-            vpermute2(s, g_lo, g_hi, 0x20);
-
-            barrett_red8(s, t, c8_127, c8_1);
-            vstore256((vec256_t *) &buffer[src_col_idx], s);
+            const __m256i a = _mm256_loadu_si256((const __m256i *)(G_pointer + src_col_idx));
+            const __m512i b = _mm512_cvtepi8_epi16(a);
+            const __m256i t = avx_mul_full512(b, monomial[ctr]);
+            _mm256_store_si256((__m256i *) (buffer + src_col_idx), t);
+            ctr += 1;
         }
 
         for (uint32_t i = 0; i < N; i++) {
@@ -175,9 +191,7 @@ void generator_monomial_mul(generator_mat_t *res,
     }
 } /* end generator_monomial_mul */
 
-
-
-void swap_rows(FQ_ELEM r[N_pad], 
+void swap_rows(FQ_ELEM r[N_pad],
                FQ_ELEM s[N_pad]){
     vec256_t a, b;
     for(uint32_t i=0; i<N_pad; i+=32) {

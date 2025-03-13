@@ -152,33 +152,6 @@ void generator_monomial_mul(generator_mat_t *res,
             const __m256i t = avx_mul_full256(a_lo, a_hi, monomial[ctr], monomial[ctr + 1]);
             _mm256_store_si256((__m256i *)(buffer + src_col_idx), t);
             ctr += 2;
-
-            //vload256(g, (vec256_t *) &G_pointer[src_col_idx]);
-            //vload256(mono, (vec256_t *) &(monom->coefficients[src_col_idx]));
-
-            //vget_lo(tmp, g);
-            //vextend8_16(g_lo, tmp);
-            //vget_hi(tmp, g);
-            //vextend8_16(g_hi, tmp);
-            //vget_lo(tmp, mono);
-            //vextend8_16(mono_lo, tmp);
-            //vget_hi(tmp, mono);
-            //vextend8_16(mono_hi, tmp);
-
-            //barrett_mul_u16(g_lo, g_lo, mono_lo, s);
-            //barrett_mul_u16(g_hi, g_hi, mono_hi, t);
-
-            //vshuffle8(g_lo, g_lo, shuffle);
-            //vshuffle8(g_hi, g_hi, shuffle);
-
-            //vpermute_4x64(g_lo, g_lo, 0xd8);
-            //vpermute_4x64(g_hi, g_hi, 0xd8);
-
-            //vpermute2(s, g_lo, g_hi, 0x20);
-
-            ////barrett_red8(s, t, c8_127, c8_1);
-            //W_RED127_(s, t, c8_127);
-            //vstore256((vec256_t *) &buffer[src_col_idx], s);
         }
 
         for (uint32_t i = 0; i < N; i++) {

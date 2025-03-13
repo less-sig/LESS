@@ -194,6 +194,24 @@ DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
 
 #include "macro.h"
 
+static inline __m256i avx_mul_full512(const __m512i aa,
+                                      const __m512i bb) {
+
+    __m512i c01, c7f, c516, tmp;
+    vset16_512(c01, 0x01);
+    vset16_512(c7f, 0x7F);
+    vset16_512(c516, 516);
+
+    __m512i acc = _mm512_mullo_epi16(aa, bb);
+    tmp = _mm512_add_epi16(acc, c01);
+    tmp = _mm512_mulhi_epu16(tmp, c516);
+    tmp = _mm512_mullo_epi16(tmp, c7f);
+    acc = _mm512_sub_epi16(acc, tmp);
+    const __m256i t = _mm512_cvtepi16_epi8(acc);
+    return t;
+}
+
+
 /// NOTE: these functions are outsourced to this file, to make the
 /// optimizied implementation as easy as possible.
 /// accumulates a row
