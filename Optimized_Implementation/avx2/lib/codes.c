@@ -123,6 +123,41 @@ finish:
     return;
 }
 
+void normalized_monomial_right(normalized_IS_t *res,
+                               const normalized_IS_t *const G,
+                               const monomial_t *const monom) {
+    FQ_ELEM buffer[N_pad] __attribute__((aligned(64)));
+   __m256i monomial[NW*2];
+    for (uint32_t i = 0; i < (K_pad/32); i++) {
+        const __m128i a = _mm_loadu_si128((const __m128i *)(monom->coefficients + 32*i +  0));
+        const __m128i b = _mm_loadu_si128((const __m128i *)(monom->coefficients + 32*i + 16));
+        const __m256i t1 = _mm256_cvtepu8_epi16(a);
+        const __m256i t2 = _mm256_cvtepu8_epi16(b);
+        monomial[2*i + 0] = t1;
+        monomial[2*i + 1] = t2;
+    }
+
+    for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
+        const FQ_ELEM *G_pointer = G->values[row_idx];
+        uint32_t ctr = 0;
+
+        for (uint32_t src_col_idx = 0; (src_col_idx+32) <= K_pad; src_col_idx += 32) {
+            const __m128i a1 = _mm_loadu_si128((const __m128i *)(G_pointer + src_col_idx +  0));
+            const __m128i a2 = _mm_loadu_si128((const __m128i *)(G_pointer + src_col_idx + 16));
+
+            const __m256i a_lo = _mm256_cvtepu8_epi16(a1);
+            const __m256i a_hi = _mm256_cvtepu8_epi16(a2);
+            const __m256i t = avx_mul_full256(a_lo, a_hi, monomial[ctr], monomial[ctr + 1]);
+            _mm256_store_si256((__m256i *)(buffer + src_col_idx), t);
+            ctr += 2;
+        }
+
+        for (uint32_t i = 0; i < K; i++) {
+            res->values[row_idx][monom->permutation[i]] = buffer[i];
+        }
+    }
+}
+
 /* right-multiplies a generator by a monomial */
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
