@@ -143,7 +143,7 @@ int generator_RREF(generator_mat_t *G,
 /// \param pvt_reuse_limit:[in]:
 /// \return 0 on failure
 ///         1 on success
-int generator_RREF_pivot_reuse(generator_mat_t *G,
+int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
                                uint8_t is_pivot_column[N],
                                uint8_t was_pivot_column[N],
                                const int pvt_reuse_limit) {
@@ -235,7 +235,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
 /// \param pvt_reuse_limit:[in]:
 /// \return 0 on failure
 ///         1 on success
-int generator_RREF_pivot_reuse_non_ct(generator_mat_t *G,
+int generator_RREF_pivot_reuse(generator_mat_t *G,
                                       uint8_t is_pivot_column[N],
                                       uint8_t was_pivot_column[N],
                                       const int pvt_reuse_limit) {

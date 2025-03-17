@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <immintrin.h>
 
 #include "parameters.h"
 #include "utils.h"
@@ -129,6 +130,94 @@ void HISTEND4(uint8_t *cnt,
     }
 }
 
+void histogram_less(uint8_t* histogram,
+				    const uint8_t* ptr,
+				    const size_t n) {
+    (void)n;
+    uint8_t tmp[N_pad+64] __attribute__((aligned(64)));
+    const __m512i m = _mm512_set1_epi8(16);
+    const __m512i mm = _mm512_set1_epi8(-1);
+#if CATEGORY == 248
+    const __mmask64 mask = -1ull >> 2ul;
+    const __m512i d1 = _mm512_loadu_si512((__m512i *)(ptr +  0));
+    const __m512i d2 = _mm512_mask_loadu_epi8(mm, mask, (__m512i *)(ptr + 64));
+
+    const __mmask64 m1 = _mm512_cmple_epu8_mask(d1, m);
+    const __mmask64 m2 = _mm512_cmple_epu8_mask(d2, m);
+
+    const __m512i t1 = _mm512_maskz_compress_epi8(m1, d1);
+    const __m512i t2 = _mm512_maskz_compress_epi8(m2, d2);
+    uint32_t count0 = _mm_popcnt_u64(m1);
+    _mm512_store_si512(tmp, t1);
+    _mm512_storeu_si512(tmp+count0, t2);
+    count0 += _mm_popcnt_u64(m2);
+
+#elif CATEGORY == 400
+    uint32_t c[3];
+    const __m512i d1 = _mm512_loadu_si512((__m512i *)(ptr +   0));
+    const __mmask64 m1 = _mm512_cmple_epu8_mask(d1, m);
+    const __m512i t1 = _mm512_maskz_compress_epi8(m1, d1);
+    c[0] =  _mm_popcnt_u64(m1);
+    const __m512i d2 = _mm512_loadu_si512((__m512i *)(ptr +   64));
+    const __mmask64 m2 = _mm512_cmple_epu8_mask(d2, m);
+    const __m512i t2 = _mm512_maskz_compress_epi8(m2, d2);
+    c[1] =  _mm_popcnt_u64(m2);
+    const __m512i d3 = _mm512_loadu_si512((__m512i *)(ptr +  128));
+    const __mmask64 m3 = _mm512_cmple_epu8_mask(d3, m);
+    const __m512i t3 = _mm512_maskz_compress_epi8(m3, d3);
+    c[2] =  _mm_popcnt_u64(m3);
+    //const __m512i d4 = _mm512_loadu_si512((__m512i *)(ptr +  192));
+    //const __mmask64 m4 = _mm512_cmple_epu8_mask(d4, m);
+    //const __m512i t4 = _mm512_maskz_compress_epi8(m4, d4);
+    // c[3] =  _mm_popcnt_u64(m4);
+    // const __m512i d5 = _mm512_loadu_si512((__m512i *)(ptr +  256));
+    // const __mmask64 m5 = _mm512_cmple_epu8_mask(d5, m);
+    // const __m512i t5 = _mm512_maskz_compress_epi8(m5, d5);
+    // c[4] =  _mm_popcnt_u64(m5);
+    // const __m512i d6 = _mm512_loadu_si512((__m512i *)(ptr +  320));
+    // const __mmask64 m6 = _mm512_cmple_epu8_mask(d6, m);
+    // const __m512i t6 = _mm512_maskz_compress_epi8(m6, d6);
+    // c[5] =  _mm_popcnt_u64(m6);
+    // const __m512i d7 = _mm512_mask_loadu_epi8(mm, 0xFF, (__m512i *)(ptr + 384));
+    // const __mmask64 m7 = _mm512_cmple_epu8_mask(d7, m);
+    // const __m512i t7 = _mm512_maskz_compress_epi8(m7, d7);
+    // c[6] =  _mm_popcnt_u64(m7);
+
+    _mm512_store_si512(tmp,        t1);
+    _mm512_store_si512(tmp+ 64, t2);
+    _mm512_store_si512(tmp+128, t3);
+    // _mm512_store_si512(tmp+192, t4);
+    // _mm512_store_si512(tmp+256, t5);
+    // _mm512_store_si512(tmp+320, t6);
+    // _mm512_store_si512(tmp+384, t7);
+#elif CATEGORY == 548
+#endif
+    memset(histogram, 0, 32);
+    for (uint32_t j = 0; j < 3; j++) {
+        for (uint32_t i = 0; i < c[j]; i++) {
+            const uint8_t t = tmp[j*64 + i];
+            histogram[t] += 1;
+        }
+    }
+
+    for (uint32_t i = 192; i < 200; i++) {
+        histogram[ptr[i]] += 1;
+    }
+
+    //uint8_t tmp2[128] = {0};
+    //for (uint32_t i = 0; i < n; i++) {
+    //    const uint8_t t = ptr[i];
+    //    tmp2[t] += 1;
+    //}
+
+    //for (uint32_t i = 0; i < 16; i++) {
+    //    if (tmp2[i] !=histogram[i]) {
+    //        return;
+    //    }
+    //}
+    //return;
+}
+
 #endif
 
 /// \param out[out]: pointer to the row to sort
@@ -165,30 +254,7 @@ void sort(uint8_t *out,
     HISTEND4(out, c);
 #endif
 #ifdef USE_AVX512
-    uint32_t c[Q_pad] __attribute__((aligned(32))) = {0};
-   	const __m512i one = _mm512_set1_epi32(1u);
-
-    uint32_t i = 0;
-    for (; i+16 <= len; i+=16) {
-        const __m128i tmp = _mm_loadu_si128((__m128i *)(in + i));
-        const __m512i chunk = _mm512_cvtepi8_epi32(tmp);
-        const __m512i conflicts = _mm512_popcnt_epi32(_mm512_conflict_epi32(chunk));
-
-        const __m512i oldv = _mm512_i32gather_epi32(chunk, c, 4);
-        const __m512i newv = _mm512_add_epi32(_mm512_add_epi32(oldv, one), conflicts);
-        _mm512_i32scatter_epi32(c, chunk, newv, 4);
-    }
-
-    const __mmask16 m = -1;
-    for (uint32_t j = 0; j+32 <= len; j+=32) {
-        const __m512i a = _mm512_load_si512(c + j);
-        _mm512_mask_cvtepi32_storeu_epi8(out + j, m, a);
-    }
-
-    // tail
-	for (; i < len; ++i) {
-		out[in[i]]++;
-	}
+    histogram_less(out, in, len);
 #endif
 #endif
 }
@@ -262,12 +328,7 @@ int SortRows(normalized_IS_t *G,
     SortRows_internal(ptr, P, n);
 
     // apply the permutation
-    for (uint32_t t = 0; t < n; t++) {
-        uint32_t ind = P[t];
-        while(ind<t) { ind = P[ind]; }
-
-        normalized_row_swap(G, t, ind);
-    }
+    SortRows_swap(G, P, n);
 
     return 1;
 }
@@ -309,14 +370,9 @@ int SortRows_opt(normalized_IS_t *G,
             }
         }
 
-        // const uint32_t t = (tmp[i][0] != 0) * ctr_l + (tm)
-        // avg += tmp[i][0];
         ptr[pos] = tmp[i];
         P[pos] = i;
     }
-
-    // avg_size += avg/n;
-    // avg_ctr += 1;
 
     if (max_zeros < L[0]) { return 0; }
     SortRows_internal(ptr, P, ctr_l);

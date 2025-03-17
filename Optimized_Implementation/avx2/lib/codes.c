@@ -441,102 +441,12 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
     return 1;
 } /* end generator_RREF */
 
-//int generator_RREF_pivot_reuse(generator_mat_t *G,
-//                               uint8_t is_pivot_column[N],
-//                               uint8_t was_pivot_column[N],
-//                               const int pvt_reuse_limit) {
-//    int i, j, pivc;
-//    uint8_t sc;
-//
-//    vec256_t c7f;
-//    vset8(c7f, 0x7f);
-//    int pvt_reuse_cnt = 0;
-//
-//    // this loop roughly takes 2.2% of the whole function runtime ()
-//    if (pvt_reuse_limit != 0) {
-//        for (int preproc_col = K - 1; preproc_col >= 0; preproc_col--) {
-//            if (was_pivot_column[preproc_col] == 1) {
-//                // find pivot row
-//                uint32_t pivot_el_row = 0;
-//                for (uint32_t row = 0; row < K; row = row + 1) {
-//                    if (G->values[row][preproc_col] != 0) {
-//                        pivot_el_row = row;
-//                    }
-//                }
-//
-//                swap_rows(G->values[preproc_col], G->values[pivot_el_row]);
-//            }
-//        }
-//    }
-//
-//    for (i = 0; i < K; i++) {
-//        j = i;
-//        /*start by searching the pivot in the col = row*/
-//        pivc = i;
-//
-//        while (pivc < N) {
-//            while (j < K) {
-//                sc = G->values[j][pivc];
-//                if (sc != 0) {
-//                    goto found;
-//                }
-//
-//                j++;
-//            }
-//            pivc++;     /* move to next col */
-//            j = i;      /*starting from row to red */
-//        }
-//
-//        if (pivc >= N) {
-//            return 0; /* no pivot candidates left, report failure */
-//        }
-//
-//        found:
-//        is_pivot_column[pivc] = 1; /* pivot found, mark the column*/
-//
-//        /* if we found the pivot on a row which has an index > pivot_column
-//         * we need to swap the rows */
-//        if (i != j) {
-//            was_pivot_column[j] = 0; // pivot no longer reusable - will be corrupted during reduce row
-//            swap_rows(G->values[i], G->values[j]);
-//        }
-//
-//        /// NOTE: this needs explanation. We can skip the reduction of the pivot row, because for
-//        /// the CF it doesnt matter. The only thing that is important for the CF is the number of
-//        /// zeros, and this doest change if we reduce a reused pivot row.
-//        if ((was_pivot_column[pivc] == 1) &&
-//            (pvt_reuse_cnt < pvt_reuse_limit) &&
-//            (pivc < K)) {
-//            continue;
-//        }
-//
-//        // solve pivot row
-//        sc = fq_inv(G->values[i][pivc]);
-//        const __m256i b = _mm256_set1_epi16(sc);
-//        for (uint32_t k = 0; k < N_pad; k+=32) {
-//            const __m256i tt = avx_mul(G->values[i] + k, b);
-//            _mm256_storeu_si256((__m256i *)(G->values[i] + k), tt);
-//        }
-//        for (j = 0; j < K; j++) {
-//            sc = G->values[j][pivc];
-//            if (sc != 0x00 && j != i) {
-//                const __m256i c = _mm256_set1_epi16(sc);
-//                for (uint32_t k = 0; k < N_pad; k+=32) {
-//                    const __m256i t2 = _mm256_loadu_si256((const __m256i *)(G->values[j] + k));
-//                    const __m256i t1 = avx_mul(G->values[i] + k, c);
-//                    // const __m256i m1 = _mm256_cmpgt_epi8(t1, t2);
-//                    // const __m256i m2 = _mm256_and_si256(m1, c7f);
-//                    const __m256i t3 = _mm256_sub_epi8(t2, t1);
-//                    const __m256i t4 = _mm256_add_epi8(t3, c7f);
-//                    const __m256i t5 = _mm256_blendv_epi8(t3, t4, t3);
-//                    _mm256_storeu_si256((__m256i *)(G->values[j] + k), t5);
-//                }
-//            }
-//        }
-//    }
-//
-//    return 1;
-//} /* end generator_RREF */
+int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
+                               uint8_t is_pivot_column[N],
+                               uint8_t was_pivot_column[N],
+                               const int pvt_reuse_limit) {
+    return generator_RREF_pivot_reuse(G, is_pivot_column, was_pivot_column, pvt_reuse_limit);
+}
 
 /* Compresses a generator matrix in RREF storing only non-pivot columns and
  * their position */

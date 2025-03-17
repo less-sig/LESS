@@ -29,7 +29,6 @@
 #include <immintrin.h>
 
 #include "fq_arith.h"
-#include "lookup_table.h"
 
 typedef __m256i vec256_t;
 typedef __m128i vec128_t;

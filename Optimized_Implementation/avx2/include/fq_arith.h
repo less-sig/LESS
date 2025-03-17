@@ -166,6 +166,7 @@ static inline __m256i avx_mul(const uint8_t *ptr, const __m256i b) {
     return w2;
 }
 
+/// \return TODO explain
 static inline __m256i avx_mul_full(const __m128i a1, const __m128i a2,
                                    const __m128i b1, const __m128i b2) {
     vec256_t v1, v2, w1, w2;
@@ -192,6 +193,8 @@ static inline __m256i avx_mul_full(const __m128i a1, const __m128i a2,
     return w2;
 }
 
+/// \return TODO explain
+/// NOTE assumes each FQ element is in a 16bit limb
 static inline __m256i avx_mul_full256(const __m256i a1, const __m256i a2,
                                       const __m256i b1, const __m256i b2) {
     vec256_t v1, v2, w1, w2;

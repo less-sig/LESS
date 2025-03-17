@@ -31,6 +31,7 @@
 
 #include "parameters.h"
 #include "rng.h"
+#include "lookup_table.h"
 
 #define NUM_BITS_Q (BITS_TO_REPRESENT(Q))
 
@@ -76,12 +77,8 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
    } while (1); }
 
 
-/* GCC actually inlines and vectorizes Barrett's reduction already.
- * Backup implementation for less aggressive compilers follows */
-
-
-
-
+/// \param x[i] < 256
+/// \return x mod 127
 static inline
 FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
     // equivalent to: (x >= Q) ? (x - Q) : x
@@ -91,69 +88,45 @@ FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
     return (mask & Q) + sub_q;
 }
 
+/// \param x[i] < 127**2
+/// \return x mod 127
 static inline
 FQ_ELEM fq_red(const FQ_DOUBLEPREC x) {
     return fq_cond_sub((x >> NUM_BITS_Q) + ((FQ_ELEM) x & Q));
 }
 
+/// \param x[i] < 127
+/// \param y[i] < 127
+/// \return x - y mod 127
 static inline
 FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
     return fq_cond_sub(x + Q - y);
 }
 
+/// \param x[i] < 127
+/// \param y[i] < 127
+/// \return x * y mod 127
 static inline
 FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
     return fq_red(((FQ_DOUBLEPREC)x) *(FQ_DOUBLEPREC)y);
 }
 
+/// \param x[i] < 127
+/// \param y[i] < 127
+/// \return x + y mod 127
 static inline
 FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
-      return (x + y) % Q;
-}
-/*
- * Barrett multiplication for uint8_t Q = 127
- */
-static inline 
-FQ_ELEM br_mul(FQ_ELEM a, FQ_ELEM b)
-{
-   FQ_DOUBLEPREC lo, hi;
-   lo = a * b;
-   hi = lo >> 7;
-   lo += hi;
-   hi <<= 7;
-   return lo - hi;
+    return fq_cond_sub(x + y);
 }
 
-/*
- * Barrett reduction for uint8_t with prime Q = 127
- */
-static inline 
-FQ_ELEM br_red(FQ_ELEM a)
-{
-   FQ_ELEM t;
-   t = a >> 7;
-   t &= Q;
-   a += t;
-   a &= Q;
-   return a;
+/// NOTE: non constant-time. Don't use for anything important
+/// \param x[in]: < 127
+/// \param y[in]: < 127
+/// \return x * y;
+static inline
+FQ_ELEM fq_mul_non_ct(const FQ_ELEM x, const FQ_ELEM y) {
+    return __gf127_lookuptable[x*128 + y];
 }
-
-/*
- * Barrett reduction for uint16_t with prime Q = 127
- */
-static inline 
-FQ_DOUBLEPREC br_red16(FQ_DOUBLEPREC x)
-{
-   FQ_DOUBLEPREC y;
-   FQ_DOUBLEPREC a;
-
-   a = x + 1;
-   a = (a << 7) + a;
-   y = a >> 14;
-   y = (y << 7) - y;
-   return x - y;
-}
-
 
 /// NOTE: maybe dont use it for sensitive data
 static const uint8_t fq_inv_table[128] __attribute__((aligned(64))) = {
@@ -165,20 +138,7 @@ static const uint8_t fq_inv_table[128] __attribute__((aligned(64))) = {
  * unrolled for actual parameters */
 static inline
 FQ_ELEM fq_inv(FQ_ELEM x) {
-   return fq_inv_table[x];
-   // FQ_ELEM xlift;
-   // xlift = x;
-   // FQ_ELEM accum = 1;
-   // /* No need for square and mult always, Q-2 is public*/
-   // uint32_t exp = Q-2;
-   // while(exp) {
-   //    if(exp & 1) {
-   //       accum = br_red(br_mul(accum, xlift));
-   //    }
-   //    xlift = br_red(br_mul(xlift, xlift));
-   //    exp >>= 1;
-   // }
-   // return accum;
+    return fq_inv_table[x];
 } /* end fq_inv */
 
 /* Sampling functions from the global TRNG state */
@@ -194,6 +154,9 @@ DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
 
 #include "macro.h"
 
+/// \param aa < 127 in 16 bit limb
+/// \param bb < 127 in 16 bit limb
+/// \return aa[i] * bb[i] for all i in range(32)
 static inline __m256i avx_mul_full512(const __m512i aa,
                                       const __m512i bb) {
 
@@ -213,7 +176,7 @@ static inline __m256i avx_mul_full512(const __m512i aa,
 
 
 /// NOTE: these functions are outsourced to this file, to make the
-/// optimizied implementation as easy as possible.
+/// optimized implementation as easy as possible.
 /// accumulates a row
 /// \param d
 /// \return sum(d) for _ in range(N-K)
@@ -328,8 +291,25 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
 /// \param s
 static inline
 void row_mul2_ct(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
-    // TODO
-    row_mul2(out, in, s);
+    __m512i c01, c7f, c516, tmp, bb;
+    __m256i a;
+    vset16_512(c01, 0x01);
+    vset16_512(c7f, 0x7F);
+    vset16_512(c516, 516);
+    vset16_512(bb, s);
+
+    // TODO optimize
+    for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
+        vload256(a, (vec256_t *)(in + col));
+        const __m512i aa = _mm512_cvtepi8_epi16(a);
+        __m512i acc = _mm512_mullo_epi16(aa, bb);
+        tmp = _mm512_add_epi16(acc, c01);
+        tmp = _mm512_mulhi_epu16(tmp, c516);
+        tmp = _mm512_mullo_epi16(tmp, c7f);
+        acc = _mm512_sub_epi16(acc, tmp);
+        const __m256i t = _mm512_cvtepi16_epi8(acc);
+        vstore256((__m256i *)(out + col), t);
+    }
 }
 
 ///
@@ -375,7 +355,7 @@ void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
 
         _mm512_storeu_si512((__m512i *)(out + col), k);
 	}
-    
+
     for (; (col+32) <= N_K_pad; col += 32) {
         const __m256i b = _mm256_loadu_si256((const __m256i *)(in + col));
         const __m512i a = _mm512_castsi256_si512(b);
@@ -426,7 +406,7 @@ uint32_t row_contains_zero(const FQ_ELEM *in) {
         const __mmask64 b = _mm512_cmpeq_epu8_mask(a, zero);
         acc |= b;
 	}
-    
+
     for (; (col+32) <= N_K_pad; col += 32) {
         const __m256i zero2 = _mm512_castsi512_si256(zero);
         const __m256i a = _mm256_loadu_si256((const __m256i *)(in + col));
