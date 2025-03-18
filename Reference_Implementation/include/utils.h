@@ -33,11 +33,7 @@
 #define SWAP(a, b) { (a)^=(b); (b)^=(a); (a)^=(b); }
 #define MASKED_SWAP(a,b,m) { a^=(m&b); b^=(m&a); a^=(m&b); }
 
-void cswap(uintptr_t *a,
-           uintptr_t *b,
-           uintptr_t mask);
-
-void SampleChallenge(uint8_t fixed_weight_string[T],
+void SampleChallenge(uint8_t fixed_weight_string[TT],
                      const uint8_t digest[HASH_DIGEST_LENGTH]);
 
 int verify(const uint8_t *a,

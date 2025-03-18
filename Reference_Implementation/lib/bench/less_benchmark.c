@@ -25,6 +25,7 @@
 #include <math.h>
 #include <stdio.h>
 
+#include "parameters.h"
 #include "LESS.h"
 #include "codes.h"
 #include "cycles.h"
@@ -70,22 +71,16 @@ void welford_print(const welford_t state) {
 #elif defined(CATEGORY_3)
 #define NUM_RUNS 128
 #else
-#define NUM_RUNS 128
+#define NUM_RUNS 16
 #endif
 
 #define NUM_AVG_RUNS (1u << 10u)
-
-#ifdef N_pad
-#define NN N_pad
-#else
-#define NN N
-#endif
 
 
 /* samples a random generator matrix */
 void generator_rnd(generator_mat_t *res) {
    for(uint32_t i = 0; i < K; i++) {
-      rand_range_q_elements(res->values[i], N);
+      rand_range_q_elements(res->values[i], NN);
    }
 } /* end generator_rnd */
 
@@ -111,9 +106,9 @@ void microbench(void){
 }
 
 void info(void){
-    fprintf(stderr,"Code parameters: n= %d, k= %d, q=%d\n", N,K,Q);
+    fprintf(stderr,"Code parameters: n= %d, k= %d, q=%d\n", NN,K,QQ);
     fprintf(stderr,"num. keypairs = %d\n",NUM_KEYPAIRS);
-    fprintf(stderr,"Fixed weight challenge vector: %d rounds, weight %d \n",T,W);
+    fprintf(stderr,"Fixed weight challenge vector: %d rounds, weight %d \n",TT,W);
     fprintf(stderr,"Private key: %luB\n", sizeof(prikey_t));
     fprintf(stderr,"Public key %luB\n", sizeof(pubkey_t));
     fprintf(stderr,"Signature: %luB, %f\n", sizeof(sign_t), ((float) sizeof(sign_t))/1024);
