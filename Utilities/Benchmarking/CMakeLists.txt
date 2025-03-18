@@ -113,6 +113,7 @@ endif()
 if(USE_AVX512)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_AVX2 -DUSE_AVX512 -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -mavx512f -mavx512bw -mavx512vl -mavx512vbmi -mavx512vbmi2 -mavx512bitalg -mavx512cd -mavx512vpopcntdq -mgfni ")
 endif()
+
 if(USE_NEON)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_NEON -flax-vector-conversions")
 endif()
@@ -120,9 +121,7 @@ endif()
 message(STATUS "Compilation flags:" ${CMAKE_C_FLAGS})
 
 
-
-
-find_library(KECCAK_LIB keccak)
+#find_library(KECCAK_LIB keccak)
 if(NOT KECCAK_LIB)
  set(STANDALONE_KECCAK 1)
 endif()
