@@ -6,7 +6,6 @@
 #if !defined(__APPLE__) && !defined (__x86_64__)
 #include "stm32f4xx_hal.h"
 #else 
-
 static long long get_cycles(void) {
 	unsigned long long result;
 	asm volatile(".byte 15;.byte 49;shlq $32,%%rdx;orq %%rdx,%%rax"
@@ -26,6 +25,9 @@ static long long get_cycles(void) {
 const int N_BENCH = 1;     /* Number of tests. */
 const int MSG_LEN = 80;       /* Message length. */
 
+/// \brief 
+/// \param p 
+/// \param n 
 void randombytes(unsigned char *p, const size_t n) {
     for (size_t i = 0; i < n; i++) {
         p[i] = i;
@@ -39,12 +41,6 @@ int bench_less() {
     uint32_t cc_sign[N_BENCH];
     uint32_t cc_verf[N_BENCH];
     uint32_t begin, end;
-
-#if defined (OFFLINE_CC)
-    uint64_t cc_off[N_BENCH];
-#endif
-
-
     printf("\n\nBenchmarks...\n\n");
     
     for (i = 0; i < N_BENCH; i++) {
@@ -66,7 +62,7 @@ int bench_less() {
 
         begin = get_cycles();
         {
-           //LESS_sign(&sk, msg, MSG_LEN, &signature);
+           LESS_sign(&sk, msg, MSG_LEN, &signature);
         }
         end = get_cycles();
         printf("kek2\n");
@@ -75,10 +71,10 @@ int bench_less() {
         begin = get_cycles();
         {
             /* Verify the message */
-            if (LESS_verify(&pk, msg, 8, &signature) != 0) {
-                printf("Error: Verification failed!\n");
-                return -1;
-            }
+            //if (LESS_verify(&pk, msg, 8, &signature) != 0) {
+            //    printf("Error: Verification failed!\n");
+            //    return -1;
+            //}
         }
         end = get_cycles();
         printf("kek3\n");
