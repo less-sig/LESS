@@ -22,8 +22,8 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS      " -Wno-type-limits")
-set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -g -Og -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi ${ALLOWED_WARNINGS}")
+set(ALLOWED_WARNINGS      " -Wno-type-limits -Wno-gnu-binary-literal ")
+set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -g -O0 -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi ${ALLOWED_WARNINGS}")
 set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -flto -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
 
 
@@ -94,6 +94,12 @@ foreach(category "252" "400" "548")
     target_link_libraries(${TARGET_BINARY_NAME} PRIVATE OpenSSL::Crypto)
     set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target}")
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
+
+    set(TARGET_BINARY_NAME LESS_test_arith_${category}_${optimize_target})
+    add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/test/test_arith.c)
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
+    target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
   endforeach(optimize_target)
 endforeach(category)
 

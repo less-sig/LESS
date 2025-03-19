@@ -163,7 +163,7 @@ size_t LESS_sign(const prikey_t *SK,
         for (uint32_t t = 0; t < N; t++) {
             permuted_pivot_flags[mu_tilde.permutation[t]] = g0_initial_pivot_flags[t];
         }
-        if (generator_RREF_pivot_reuse(&G0, is_pivot_column, permuted_pivot_flags, SIGN_PIVOT_REUSE_LIMIT) == 0) {
+        if (generator_RREF_pivot_reuse_ct(&G0, is_pivot_column, permuted_pivot_flags, SIGN_PIVOT_REUSE_LIMIT) == 0) {
             return 0;
         }
 #else
@@ -389,6 +389,7 @@ int LESS_verify(const pubkey_t *const PK,
     /* Squeeze output */
     LESS_SHA3_INC_FINALIZE(recomputed_digest, &state);
 
+    /// NOTE: does not have to be constant time.
     return (verify(recomputed_digest, sig->digest,
                    HASH_DIGEST_LENGTH) == 0);
 } /* end LESS_verify */

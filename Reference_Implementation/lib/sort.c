@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <immintrin.h>
 
 #include "parameters.h"
 #include "utils.h"
@@ -128,7 +129,107 @@ void HISTEND4(uint8_t *cnt,
         _mm256_storeu_si256((__m256i *)&cnt[i], sv);
     }
 }
+
+void histogram_less(uint8_t* histogram,
+				    const uint8_t* ptr,
+				    const size_t n) {
+    (void)n;
+    uint8_t tmp[K_pad+32] __attribute__((aligned(64)));
+    const __m512i m = _mm512_set1_epi8(16);
+#if CATEGORY == 252
+    uint32_t c[2];
+    const __mmask64 mask = -1ull >> 2ul;
+    const __m512i mm = _mm512_set1_epi8(-1);
+    const __m512i d1 = _mm512_loadu_si512((__m512i *)(ptr +  0));
+    const __m512i d2 = _mm512_mask_loadu_epi8(mm, mask, (__m512i *)(ptr + 64));
+
+    const __mmask64 m1 = _mm512_cmple_epu8_mask(d1, m);
+    const __mmask64 m2 = _mm512_cmple_epu8_mask(d2, m);
+
+    const __m512i t1 = _mm512_maskz_compress_epi8(m1, d1);
+    const __m512i t2 = _mm512_maskz_compress_epi8(m2, d2);
+    c[0] = _mm_popcnt_u64(m1);
+    c[1] = _mm_popcnt_u64(m2);
+    _mm512_store_si512(tmp, t1);
+    _mm512_store_si512(tmp+64, t2);
+    
+    memset(histogram, 0, 32);
+    for (uint32_t j = 0; j < 2; j++) {
+        for (uint32_t i = 0; i < c[j]; i++) {
+            const uint8_t t = tmp[j*64 + i];
+            histogram[t] += 1;
+        }
+    }
+
+#elif CATEGORY == 400
+    uint32_t c[3];
+    const __m512i mm = _mm512_set1_epi8(-1);
+    const __m512i d1 = _mm512_loadu_si512((__m512i *)(ptr +   0));
+    const __mmask64 m1 = _mm512_cmple_epu8_mask(d1, m);
+    const __m512i t1 = _mm512_maskz_compress_epi8(m1, d1);
+    c[0] =  _mm_popcnt_u64(m1);
+    const __m512i d2 = _mm512_loadu_si512((__m512i *)(ptr +   64));
+    const __mmask64 m2 = _mm512_cmple_epu8_mask(d2, m);
+    const __m512i t2 = _mm512_maskz_compress_epi8(m2, d2);
+    c[1] =  _mm_popcnt_u64(m2);
+    const __m512i d3 = _mm512_loadu_si512((__m512i *)(ptr +  128));
+    const __mmask64 m3 = _mm512_cmple_epu8_mask(d3, m);
+    const __m512i t3 = _mm512_maskz_compress_epi8(m3, d3);
+    c[2] =  _mm_popcnt_u64(m3);
+
+    _mm512_store_si512(tmp,     t1);
+    _mm512_store_si512(tmp+ 64, t2);
+    _mm512_store_si512(tmp+128, t3);
+
+    memset(histogram, 0, 32);
+    for (uint32_t j = 0; j < 3; j++) {
+        for (uint32_t i = 0; i < c[j]; i++) {
+            const uint8_t t = tmp[j*64 + i];
+            histogram[t] += 1;
+        }
+    }
+
+    for (uint32_t i = 192; i < 200; i++) {
+        histogram[ptr[i]] += 1;
+    }
+#elif CATEGORY == 548
+    uint32_t c[4];
+    const __m512i d1 = _mm512_loadu_si512((__m512i *)(ptr +   0));
+    const __mmask64 m1 = _mm512_cmple_epu8_mask(d1, m);
+    const __m512i t1 = _mm512_maskz_compress_epi8(m1, d1);
+    c[0] =  _mm_popcnt_u64(m1);
+    const __m512i d2 = _mm512_loadu_si512((__m512i *)(ptr +   64));
+    const __mmask64 m2 = _mm512_cmple_epu8_mask(d2, m);
+    const __m512i t2 = _mm512_maskz_compress_epi8(m2, d2);
+    c[1] =  _mm_popcnt_u64(m2);
+    const __m512i d3 = _mm512_loadu_si512((__m512i *)(ptr +  128));
+    const __mmask64 m3 = _mm512_cmple_epu8_mask(d3, m);
+    const __m512i t3 = _mm512_maskz_compress_epi8(m3, d3);
+    c[2] =  _mm_popcnt_u64(m3);
+    const __m512i d4 = _mm512_loadu_si512((__m512i *)(ptr +  192));
+    const __mmask64 m4 = _mm512_cmple_epu8_mask(d4, m);
+    const __m512i t4 = _mm512_maskz_compress_epi8(m4, d4);
+    c[3] =  _mm_popcnt_u64(m4);
+
+    _mm512_store_si512(tmp,        t1);
+    _mm512_store_si512(tmp+ 64, t2);
+    _mm512_store_si512(tmp+128, t3);
+    _mm512_store_si512(tmp+192, t4);
+    memset(histogram, 0, 32);
+    for (uint32_t j = 0; j < 4; j++) {
+        for (uint32_t i = 0; i < c[j]; i++) {
+            const uint8_t t = tmp[j*64 + i];
+            histogram[t] += 1;
+        }
+    }
+
+    for (uint32_t i = 256; i < n; i++) {
+        histogram[ptr[i]] += 1;
+    }
+#endif
 }
+
+
 #endif
 
 /// \param out[out]: pointer to the row to sort
@@ -157,12 +258,15 @@ void sort(uint8_t *out,
     }
 #endif
 
-#ifdef USE_AVX2
+#if defined(USE_AVX2) && !defined(USE_AVX512)
     uint8_t c[4][Q_pad] __attribute__((aligned(32))) = {0};
     const uint8_t *ip = in;
     while(ip != in+(len&~(4-1))) c[0][*ip++]++, c[1][*ip++]++, c[2][*ip++]++, c[3][*ip++]++;
     while(ip != in+ len        ) c[0][*ip++]++;
     HISTEND4(out, c);
+#endif
+#ifdef USE_AVX512
+    histogram_less(out, in, len);
 #endif
 #endif
 }
@@ -196,6 +300,18 @@ int SortRows_internal(FQ_ELEM *ptr[K],
     return 1;
 }
 
+void SortRows_swap(normalized_IS_t *G,
+                  uint32_t P[K],
+                  const uint32_t n) {
+    // apply the permutation
+    for (uint32_t t = 0; t < n; t++) {
+        uint32_t ind = P[t];
+        while(ind<t) { ind = P[ind]; }
+
+        normalized_row_swap(G, t, ind);
+    }
+}
+
 /// NOTE: only operates on ptrs
 /// NOTE: not constant time
 /// \param G[in/out]: generator matrix to sort
@@ -219,18 +335,63 @@ int SortRows(normalized_IS_t *G,
         P[i] = i;
 	}
 
-    if (max_zeros < L[0]) { return 0; }
+    if ((L!=NULL) && (max_zeros < L[0])) { return 0; }
 
     SortRows_internal(ptr, P, n);
 
     // apply the permutation
-    for (uint32_t t = 0; t < n; t++) {
-        uint32_t ind = P[t];
-        while(ind<t) { ind = P[ind]; }
+    SortRows_swap(G, P, n);
 
-        normalized_row_swap(G, t, ind);
+    return 1;
+}
+
+
+/// uses a presorted quicksort
+int SortRows_opt(normalized_IS_t *G,
+             const uint32_t n,
+             const uint8_t *L) {
+    // first sort each row into a tmp buffer
+    FQ_ELEM tmp[K][Q_pad] __attribute__((aligned(32)));
+    FQ_ELEM* ptr[K] __attribute__((aligned(32)));
+    uint32_t P[K];
+    // memset(P, -1u, K*4);
+
+    uint32_t max_zeros = 0;
+    // uint64_t avg = 0;
+    // TODO correctly choose
+    const uint32_t middle = 100;//(Q>>1u);
+    uint32_t ctr_l = 0;
+    uint32_t ctr_h = middle;
+    uint32_t ctr_m = middle-1;
+    for (uint32_t i = 0; i < n; ++i) {
+        sort(tmp[i], G->values[i], N-K);
+        if (tmp[i][0] > max_zeros) { max_zeros = tmp[i][0]; }
+
+        uint32_t pos;
+        if (tmp[i][0] > 0) {
+            if (ctr_l >= middle) {
+                pos = ctr_h++;
+            } else {
+                pos = ctr_l++;
+            }
+        } else {
+            if (ctr_h >= n) {
+                pos = ctr_m--;
+            } else {
+                pos = ctr_h++;
+            }
+        }
+
+        ptr[pos] = tmp[i];
+        P[pos] = i;
     }
 
+    if (max_zeros < L[0]) { return 0; }
+    SortRows_internal(ptr, P, ctr_l);
+    SortRows_internal(ptr+ctr_l, P+ctr_l, ctr_h-ctr_l);
+
+    // apply the permutation
+    SortRows_swap(G, P, n);
     return 1;
 }
 

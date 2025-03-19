@@ -59,6 +59,11 @@ void normalized_row_swap(normalized_IS_t *V,
                  const POSITION_T row1,
                  const POSITION_T row2);
 
+
+void normalized_monomial_right(normalized_IS_t *res,
+                               const normalized_IS_t *const G,
+                               const monomial_t *const monom);
+
 /* multiplies a monomial matrix by a generator matrix */
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
@@ -72,6 +77,11 @@ void generator_monomial_mul(generator_mat_t *res,
  **/
 int generator_RREF(generator_mat_t *G,
                    uint8_t is_pivot_column[N_pad]);
+
+int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
+                               uint8_t is_pivot_column[N],
+                               uint8_t was_pivot_column[N],
+                               const int pvt_reuse_limit);
 
 int generator_RREF_pivot_reuse(generator_mat_t *G,
                                  uint8_t is_pivot_column[N],

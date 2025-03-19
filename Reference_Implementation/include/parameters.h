@@ -268,3 +268,8 @@
 #define LESS_USE_CUSTOM_HISTOGRAM
 #endif
 #endif
+
+// NOTE made it slower
+#ifdef USE_AVX512
+#define LESS_USE_CUSTOM_HISTOGRAM
+#endif

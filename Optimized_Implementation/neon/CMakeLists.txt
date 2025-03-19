@@ -28,7 +28,7 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
 endif()
 
 set(ALLOWED_WARNINGS      "-Wno-type-limits")
-set(CMAKE_C_FLAGS_DEBUG   "-g -DUSE_NEON -Og -DDEBUG -march=native -flax-vector-conversions")
+set(CMAKE_C_FLAGS_DEBUG   "-g -DUSE_NEON -O0 -DDEBUG -march=native -flax-vector-conversions")
 set(CMAKE_C_FLAGS_RELEASE "-DUSE_NEON -O3 -DNDEBUG -Wall -Wextra -Wpedantic -fpermissive -march=native -flax-vector-conversions -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
 
 set(SOURCES

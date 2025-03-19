@@ -98,3 +98,37 @@ run without parameters. KATs will be generated in the KAT directory
 NOTE: If you are on a apple system: make sure that you use clang, by appending
     `-DCMAKE_C_COMPILER=clang`. Otherwise `LESS` will most likely not build in 
     debug mode, due to missing support for the address sanitizer.
+
+
+# Runtime Results:
+
+Ryzen7600X:
+
+AVX512 (18.03 avx512):
+build/LESS_benchmark_cat_252_192 | 0.86582 | 166.123 | 134.578
+build/LESS_benchmark_cat_252_45  | 4.44392 | 37.4373 | 35.77
+build/LESS_benchmark_cat_252_68  | 2.01583 |  58.278 | 53.103
+build/LESS_benchmark_cat_400_102 | 5.92569 | 203.962 | 183.333
+build/LESS_benchmark_cat_400_220 | 2.24789 | 442.648 | 372.883
+build/LESS_benchmark_cat_548_137 | 12.4027 | 573.668 | 529.82
+build/LESS_benchmark_cat_548_345 |  4.7713 | 1456.4  | 1218.53
+
+AVX2 (18.03 avx512):
+build/LESS_benchmark_cat_252_192 | 0.76152 | 178.855 | 169.366
+build/LESS_benchmark_cat_252_45  | 3.64251 | 40.1315 | 45.6199
+build/LESS_benchmark_cat_252_68  | 1.70032 | 62.0678 | 67.1031
+build/LESS_benchmark_cat_400_102 | 4.977   | 222.905 | 227.451
+build/LESS_benchmark_cat_400_220 | 1.94111 | 485.961 | 458.293
+build/LESS_benchmark_cat_548_137 | 10.7414 | 607.812 | 628.359
+build/LESS_benchmark_cat_548_345 | 4.18581 | 1542.57 | 1525.19
+
+
+AVX2 (18.03 main):
+build/LESS_benchmark_cat_252_192 | 0.86415 | 198.058 | 186.588
+build/LESS_benchmark_cat_252_45  | 4.44641 | 45.3128 | 48.4815
+build/LESS_benchmark_cat_252_68  | 2.01227 | 69.6692 | 71.9864
+build/LESS_benchmark_cat_400_102 | 6.07455 | 254.833 | 252.697
+build/LESS_benchmark_cat_400_220 | 2.52635 | 548.314 | 514.209
+build/LESS_benchmark_cat_548_137 | 12.5745 | 702.384 | 718.763
+build/LESS_benchmark_cat_548_345 | 4.69773 | 1751.78 | 1740.79
+
