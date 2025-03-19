@@ -107,9 +107,15 @@ int compute_canonical_form_type4_sub(normalized_IS_t *G,
     return 0;
 }
 
+/// NOTE: non-constant time
+/// \param G[in/out]: sub matrix with only z rows.
+/// \param z[in]: number of rows in G
+/// \param M[in]: the currently shortest multiset, will get globbert.
+/// \return 0: if no multiset was found < `M`
+///         1: if one of the  z rows is < `M`
 int compute_canonical_form_type4_sub_preproc(normalized_IS_t *G,
-                                     const uint32_t z,
-                                     FQ_ELEM *M) {
+                                             const uint32_t z,
+                                             FQ_ELEM *M) {
     FQ_ELEM tmp[Q_pad] __attribute__((aligned(32))) = {0};
     int ret;
 
@@ -130,10 +136,11 @@ int compute_canonical_form_type4_sub_preproc(normalized_IS_t *G,
         if (compare_rows(tmp, M) < 0) {
             ret = 1;
             // copy new smallest row
-            for (int i = 0; i < Q; i++)
+            for (uint32_t i = 0; i < Q; i++)
                 M[i] = tmp[i];
         }
     }
+
     return ret;
 }
 
@@ -269,18 +276,12 @@ int compute_canonical_form_type5_popcnt_base(normalized_IS_t *G) {
 }
 
 int compute_canonical_form_type5_popcnt_opt(normalized_IS_t *G) {
-    normalized_IS_t M;
     int ret;
-
-    // init the output matrix to some `invalid` data
-    // honestly, will be there ever a case, where more than 2 rows are compared?
-    memset(&M, Q-1, sizeof(normalized_IS_t));
 
     /// track the rows with the most zeros.
     uint32_t J[K];
     uint32_t z = 0;
-    int smallest_scaling_row;
-    smallest_scaling_row = 0;
+    int smallest_scaling_row = 0;
 
     // count zeros in each row
     uint32_t max_zeros = 0;
@@ -315,9 +316,7 @@ int compute_canonical_form_type5_popcnt_opt(normalized_IS_t *G) {
     /// NOTE: this is already "sorted"
     FQ_ELEM L[Q_pad] __attribute__((aligned(32))) = {0};
 
-    /*
-        Check smallest rows of all matricies to find smallest candidate
-    */
+    /// Check smallest rows of all matricies to find smallest candidate
     for (uint32_t row = 0; row < K; row++) {
         if (Z[row]) { continue; }
 
@@ -331,29 +330,20 @@ int compute_canonical_form_type5_popcnt_opt(normalized_IS_t *G) {
         }
     }
 
-    /*
-        Calculate CF for best candidate
-    */
+    /// Calculate CF for best candidate
     row_inv2(row_inv_data, G->values[smallest_scaling_row]);
     for (uint32_t row2 = 0; row2 < K; row2++) {
         row_mul3(B.values[row2], G->values[row2], row_inv_data);
     }
 
     ret = compute_canonical_form_type4(&B, L);
-    if (ret == 1) {
-        normalized_copy(&M, &B);
-    }
-
-    /*
-        If candidate was not valid, fall back to regular approach
-    */
+    /// If candidate was not valid, fall back to regular approach
     if (ret != 1) {
         // Best was not valid;
         return compute_canonical_form_type5_popcnt_base(G);
     }
 
-    normalized_copy(G, &M);
-    
+    normalized_copy(G, &B);
     return ret;
 }
 
