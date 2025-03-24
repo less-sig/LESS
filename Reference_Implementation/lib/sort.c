@@ -25,7 +25,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <immintrin.h>
 
 #include "parameters.h"
 #include "utils.h"
@@ -119,6 +118,8 @@ int SortRows_internal_hoare_partition(FQ_ELEM* ptr[K],
 }
 
 #if defined(LESS_USE_CUSTOM_HISTOGRAM) && defined(USE_AVX2)
+#include <immintrin.h>
+
 void HISTEND4(uint8_t *cnt,
               uint8_t c[4][128]) {
     for(uint32_t i = 0; i < Q_pad; i+=32) {

@@ -340,6 +340,7 @@ int LESS_verify(const pubkey_t *const PK,
 #endif
         } else {
             // expand_to_rref(&G0, PK->SF_G[fixed_weight_string[i] - 1], gi_initial_pivot_flags);
+            memset(gi_initial_pivot_flags, 0, N);
             const uint32_t key_pos = fixed_weight_string[i] -1;
             if (!CheckCanonicalAction(sig->cf_monom_actions[employed_monoms])) {
                 return 0;
