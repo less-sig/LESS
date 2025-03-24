@@ -27,15 +27,6 @@
 #include "utils.h"
 #include <stdlib.h>
 
-/// swaps a and b if mask == -1ull
-void cswap(uintptr_t *a,
-           uintptr_t *b,
-           const uintptr_t mask) {
-    *a ^= (mask & *b);
-    *b ^= (mask & *a);
-    *a ^= (mask & *b);
-}
-
 /// taken from the kyber impl.
 /// Description: Compare two arrays for equality in constant time.
 ///
@@ -61,11 +52,11 @@ int verify(const uint8_t *a,
 ///
 #define KEYPAIR_INDEX_MASK (((uint16_t)1u << BITS_TO_REPRESENT(MAX_KEYPAIR_INDEX)) - 1u)
 /* bitmask for rejection sampling of the position */
-#define  POSITION_MASK (( (uint16_t)1 << BITS_TO_REPRESENT(T-1))-1)
+#define  POSITION_MASK (( (uint16_t)1 << BITS_TO_REPRESENT(TT-1))-1)
 
 /* Expands a digest expanding it into a fixed weight string with elements in
  * Z_{NUM_KEYPAIRS}. */
-void SampleChallenge(uint8_t fixed_weight_string[T],
+void SampleChallenge(uint8_t fixed_weight_string[TT],
                      const uint8_t digest[HASH_DIGEST_LENGTH]) {
     SHAKE_STATE_STRUCT shake_state;
     initialize_csprng(&shake_state,
@@ -74,12 +65,12 @@ void SampleChallenge(uint8_t fixed_weight_string[T],
 
     uint64_t rnd_buf;
     uint32_t c = 0;
-    for (uint32_t i = 0; i < T-W; i++) {
+    for (uint32_t i = 0; i < TT-W; i++) {
         fixed_weight_string[i] = 0;
     }
 
     if (NUM_KEYPAIRS != 2) {
-        for (uint32_t i = T-W; i < T; i++) {
+        for (uint32_t i = TT-W; i < TT; i++) {
             uint8_t value;
             do {
                 if (c == 0) {
@@ -96,22 +87,22 @@ void SampleChallenge(uint8_t fixed_weight_string[T],
           fixed_weight_string[i] = value + 1;
        }
     } else {
-        for (uint32_t i = T-W; i < T; i++) {
+        for (uint32_t i = TT-W; i < TT; i++) {
             fixed_weight_string[i] = 1;
         }
     }
 
-    for (uint32_t p = T - W; p < T; p++) {
+    for (uint32_t p = TT - W; p < TT; p++) {
         POSITION_T pos;
         do {
             if (c == 0) {
                 csprng_randombytes((unsigned char *) &rnd_buf,
                                    sizeof(uint64_t),
                                    &shake_state);
-                c = 64u / BITS_TO_REPRESENT(T-1);
+                c = 64u / BITS_TO_REPRESENT(TT-1);
             }
             pos = rnd_buf & (POSITION_MASK);
-            rnd_buf >>= BITS_TO_REPRESENT(T-1);
+            rnd_buf >>= BITS_TO_REPRESENT(TT-1);
             c -= 1;
         } while (pos > p);
         const uint8_t tmp = fixed_weight_string[p];

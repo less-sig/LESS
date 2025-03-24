@@ -30,7 +30,7 @@
 #include "rng.h"
 #include "lookup_table.h"
 
-#define NUM_BITS_Q (BITS_TO_REPRESENT(Q))
+#define NUM_BITS_Q (BITS_TO_REPRESENT(QQ))
 
 
 #define DEF_RAND_STATE(FUNC_NAME, EL_T, MINV, MAXV) \
@@ -78,33 +78,24 @@ static inline
 FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
     // equivalent to: (x >= Q) ? (x - Q) : x
     // likely to be ~ constant-time (a "smart" compiler might turn this into conditionals though)
-    FQ_ELEM sub_q = x - Q;
+    FQ_ELEM sub_q = x - QQ;
     FQ_ELEM mask = -(sub_q >> NUM_BITS_Q);
-    return (mask & Q) + sub_q;
-}
-
-static inline
-FQ_ELEM fq_red_barrett(const FQ_DOUBLEPREC x) {
-    // Barrett reduction for Q = 127 (full reduction as long as: x < 129 * 127)
-    //    mu = ceil((1<<16) / 127) = 517
-    //    t1 = (mu * x) / (2 ^ 16)
-    // This function is likely to be ~ constant-time
-    uint16_t t1 = (((uint32_t) x << 9) + ((uint32_t) x << 2) + x) >> 16;
-    uint16_t t2 = x - t1;
-    t1 += (t2 >> 1);
-    t1 >>= 6;
-    t1 -= (t1 << 7);
-    return x + t1;
+    return (mask & QQ) + sub_q;
 }
 
 static inline
 FQ_ELEM fq_red(const FQ_DOUBLEPREC x) {
-    return fq_cond_sub((x >> NUM_BITS_Q) + ((FQ_ELEM) x & Q));
+    return fq_cond_sub((x >> NUM_BITS_Q) + ((FQ_ELEM) x & QQ));
 }
 
 static inline
 FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
-    return fq_cond_sub(x + Q - y);
+    return fq_cond_sub(x + QQ - y);
+}
+
+static inline
+FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
+    return fq_cond_sub(x + y);
 }
 
 static inline
@@ -137,33 +128,28 @@ FQ_ELEM fq_inv(const FQ_ELEM x) {
    return fq_inv_table[x];
 }
 
-
-static inline
-FQ_ELEM fq_pow(FQ_ELEM x, FQ_ELEM exp) {
-   FQ_DOUBLEPREC xlift;
-   xlift = x;
-   FQ_DOUBLEPREC accum = 1;
-   /* No need for square and mult always, Q-2 is public*/
-   while(exp) {
-      if(exp & 1) {
-         accum = fq_red(accum*xlift);
-      }
-      xlift = fq_red(xlift*xlift);
-      exp >>= 1;
-   }
-   return fq_red(accum);
-} /* end fq_pow */
-
 /* Sampling functions from the global TRNG state */
+DEF_RAND(fq_star_rnd_elements, FQ_ELEM, 1, QQ-1)
 
-DEF_RAND(fq_star_rnd_elements, FQ_ELEM, 1, Q-1)
-
-DEF_RAND(rand_range_q_elements, FQ_ELEM, 0, Q-1)
+DEF_RAND(rand_range_q_elements, FQ_ELEM, 0, QQ-1)
 
 /* Sampling functions from the taking the PRNG state as a parameter*/
-DEF_RAND_STATE(fq_star_rnd_state_elements, FQ_ELEM, 1, Q-1)
+DEF_RAND_STATE(fq_star_rnd_state_elements, FQ_ELEM, 1, QQ-1)
 
-DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
+DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, QQ-1)
+
+static inline
+uint32_t vadd(const uint32_t a, const uint32_t b) {
+    const uint32_t m1 = 0x80808080;
+    const uint32_t q = 0x7f7f7f7f;
+    const uint32_t c = a + b;
+    const uint32_t c2 = c - q;
+    const uint32_t t1 = c & m1;
+    const uint32_t t2 = (t1>>7) * 0xFF;
+
+    return t2+c2;
+}
+
 
 /// NOTE: these functions are outsourced to this file, to make the
 /// optimizied implementation as easy as possible.
@@ -173,7 +159,7 @@ DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
 static inline
 FQ_ELEM row_acc(const FQ_ELEM *d) {
     FQ_ELEM s = 0;
-    for (uint32_t col = 0; col < (N-K); col++) {
+    for (uint32_t col = 0; col < (NN-K); col++) {
         s = fq_add(s, d[col]);
 	 }
 
@@ -186,7 +172,7 @@ FQ_ELEM row_acc(const FQ_ELEM *d) {
 static inline
 FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
     FQ_ELEM s = 0;
-    for (uint32_t col = 0; col < (N-K); col++) {
+    for (uint32_t col = 0; col < (NN-K); col++) {
         s = fq_add(s, fq_inv(d[col]));
 	 }
 
@@ -198,8 +184,8 @@ FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
 /// /param s
 static inline
 void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
-    for (uint32_t col = 0; col < (N-K); col++) {
-        row[col] = fq_mul(s, row[col]);
+    for (uint32_t col = 0; col < (NN-K); col++) {
+        row[col] = fq_mul_non_ct(s, row[col]);
     }
 }
 
@@ -209,8 +195,8 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
 /// \param s
 static inline
 void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
-    for (uint32_t col = 0; col < (N-K); col++) {
-        out[col] = fq_mul(s, in[col]);
+    for (uint32_t col = 0; col < (NN-K); col++) {
+        out[col] = fq_mul_non_ct(s, in[col]);
     }
 }
 
@@ -228,8 +214,8 @@ void row_mul2_ct(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
 /// \param in2
 static inline
 void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
-    for (uint32_t col = 0; col < (N-K); col++) {
-        out[col] = fq_mul(in1[col], in2[col]);
+    for (uint32_t col = 0; col < (NN-K); col++) {
+        out[col] = fq_mul_non_ct(in1[col], in2[col]);
     }
 }
 
@@ -238,7 +224,7 @@ void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
 /// \param in[in]: vector of length N-K
 static inline
 void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
-    for (uint32_t col = 0; col < (N-K); col++) {
+    for (uint32_t col = 0; col < (NN-K); col++) {
         out[col] = fq_inv(in[col]);
     }
 }
@@ -249,7 +235,7 @@ void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
 ///         0 else
 static inline
 uint32_t row_all_same(const FQ_ELEM *in) {
-    for (uint32_t col = 1; col < N-K; col++) {
+    for (uint32_t col = 1; col < NN-K; col++) {
         if (in[col] != in[col - 1]) {
             return 0;
         }
@@ -263,7 +249,7 @@ uint32_t row_all_same(const FQ_ELEM *in) {
 ///         1 if the row contains at least a single 0
 static inline
 uint32_t row_contains_zero(const FQ_ELEM *in) {
-    for (uint32_t col = 0; col < N-K; col++) {
+    for (uint32_t col = 0; col < NN-K; col++) {
         if (in[col] == 0) {
             return 1;
         }
@@ -276,7 +262,7 @@ uint32_t row_contains_zero(const FQ_ELEM *in) {
 static inline
 uint32_t row_count_zero(const FQ_ELEM *in) {
     uint32_t r = 0;
-    for (uint32_t col = 0; col < N-K; col++) {
+    for (uint32_t col = 0; col < NN-K; col++) {
         r += (in[col] == 0);
     }
     return r;

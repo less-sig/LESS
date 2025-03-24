@@ -49,7 +49,7 @@ typedef struct {
 
 /* Calculate pivot flag array */
 void generator_get_pivot_flags (const rref_generator_mat_t *const G,
-                                uint8_t pivot_flag [N]);
+                                uint8_t pivot_flag [NN]);
 
 void column_swap(normalized_IS_t *V,
                  const POSITION_T col1,
@@ -79,20 +79,20 @@ int generator_RREF(generator_mat_t *G,
                    uint8_t is_pivot_column[N_pad]);
 
 int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
-                               uint8_t is_pivot_column[N],
-                               uint8_t was_pivot_column[N],
+                               uint8_t is_pivot_column[NN],
+                               uint8_t was_pivot_column[NN],
                                const int pvt_reuse_limit);
 
 int generator_RREF_pivot_reuse(generator_mat_t *G,
-                                 uint8_t is_pivot_column[N],
-                                 uint8_t was_pivot_column[N],
+                                 uint8_t is_pivot_column[NN],
+                                 uint8_t was_pivot_column[NN],
                                  const int pvt_reuse_limit);
 
 /* extracts the last N-K columns from a generator matrix, filling
  * in the compact RREF representation*/
 void generator_rref_compact(rref_generator_mat_t *compact,
                             const generator_mat_t *const full,
-                            const uint8_t is_pivot_column[N] );
+                            const uint8_t is_pivot_column[NN] );
 
 void generator_to_normalized(normalized_IS_t *v,
                              const generator_mat_t *const G);
@@ -104,12 +104,12 @@ void compress_columns(uint8_t *compressed,
 /* Compresses a generator matrix in RREF into a array of bytes */
 void compress_rref(uint8_t *compressed,
                    const generator_mat_t *const full,
-                   const uint8_t is_pivot_column[N]);
+                   const uint8_t is_pivot_column[NN]);
 
 /* Expands a compressed RREF generator matrix into a full one */
 void expand_to_rref(generator_mat_t *full,
                     const uint8_t *compressed,
-                    uint8_t is_pivot_column[N]);
+                    uint8_t is_pivot_column[NN]);
 
 /* Takes as input a compact RREF generator matrix, i.e. a set of N-K
  * columns and their position in the RREF and normalizes the columns themselves
@@ -138,7 +138,7 @@ void apply_cf_action_to_G(generator_mat_t* res,
 void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
                                       const generator_mat_t *G,
                                       const uint8_t *const c,
-                                      const uint8_t initial_G_col_pivot[N],
-                                      uint8_t permuted_G_col_pivot[N]);
+                                      const uint8_t initial_G_col_pivot[NN],
+                                      uint8_t permuted_G_col_pivot[NN]);
 
 void normalized_copy(normalized_IS_t *V1, const normalized_IS_t *V2);

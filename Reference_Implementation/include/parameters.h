@@ -30,11 +30,16 @@
 /* Seed tree max size is computed according to Parameter Generation Script in Utilities folder */
 
 /***************************** Common Parameters ******************************/
-#define Q (127)
-#define Qm1 (Q-1)
+#define QQ 127
+#define Qm1 (QQ-1)
 #define FQ_ELEM uint8_t
 #define FQ_DOUBLEPREC uint16_t
 #define POSITION_T uint16_t
+
+
+// M4 SPECIFIC
+#define CATEGORY 252
+#define TARGET 45
 
 
 /***************************** Toy parameters *********************************/
@@ -51,7 +56,7 @@
 
 /********************************* Category 1 *********************************/
 #elif CATEGORY == 252
-#define N (252)
+#define NN (252)
 #define K (126)
 
 #define SEED_LENGTH_BYTES (16)
@@ -59,7 +64,7 @@
 
 #if TARGET==192
 #define NUM_KEYPAIRS (2)
-#define T (192)
+#define TT (192)
 #define W (36)
 #define TREE_OFFSETS {0, 0, 0, 0, 0, 0, 0, 0, 128}
 #define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 16, 32, 64, 128, 128}
@@ -71,7 +76,7 @@
 
 #elif TARGET==68
 #define NUM_KEYPAIRS (4)
-#define T (68)
+#define TT (68)
 #define W (42)
 
 #define TREE_OFFSETS {0, 0, 0, 0, 8, 8, 8, 8}
@@ -85,7 +90,7 @@
 
 #elif TARGET==45
 #define NUM_KEYPAIRS (8)
-#define T (45)
+#define TT (45)
 #define W (34)
 #define TREE_OFFSETS {0, 0, 0, 0, 2, 2, 26}
 #define TREE_NODES_PER_LEVEL {1, 2, 4, 8, 14, 28, 32}
@@ -181,7 +186,7 @@
 
 /* number of bytes needed to store K or N bits */
 #define K8 ((K+7u)/8u)
-#define N8 ((N+7u)/8u)
+#define N8 ((NN+7u)/8u)
 
 /// rounds x to the next multiple of n
 #define NEXT_MULTIPLE(x,n) ((((x)+((n)-1u))/(n))*(n))
@@ -194,12 +199,12 @@
 #define K_pad   NEXT_MULTIPLE(K, 32)
 #else
 /// in case of the reference implementation, we do not need this behaviour.
-#define N_K_pad (N-K)
-#define N_pad   N
+#define N_K_pad (NN-K)
+#define N_pad   NN
 #define K_pad   K
 #endif
 
-#define Q_pad   NEXT_MULTIPLE(Q, 8)
+#define Q_pad   NEXT_MULTIPLE(QQ, 8)
 
 /***************** Derived parameters *****************************************/
 /*length of the output of the cryptographic hash, in bytes */
@@ -210,8 +215,8 @@
 /* length of the private key seed doubled to avoid multikey attacks */
 #define PRIVATE_KEY_SEED_LENGTH_BYTES (2*SEED_LENGTH_BYTES)
 
-#define MASK_Q ((1 << BITS_TO_REPRESENT(Q)) - 1)
-#define MASK_N ((1 << BITS_TO_REPRESENT(N)) - 1)
+#define MASK_Q ((1 << BITS_TO_REPRESENT(QQ)) - 1)
+#define MASK_N ((1 << BITS_TO_REPRESENT(NN)) - 1)
 
 
 #define IS_REPRESENTABLE_IN_D_BITS(D, N)                \
@@ -240,10 +245,10 @@
 
 #define LOG2(L) ( (BITS_TO_REPRESENT(L) > BITS_TO_REPRESENT(L-1)) ? (BITS_TO_REPRESENT(L-1)) : (BITS_TO_REPRESENT(L)) )
 
-#define NUM_LEAVES_SEED_TREE (T)
+#define NUM_LEAVES_SEED_TREE (TT)
 #define NUM_NODES_SEED_TREE ((2*NUM_LEAVES_SEED_TREE) - 1)
 
-#define RREF_MAT_PACKEDBYTES ((BITS_TO_REPRESENT(Q)*(N-K)*K + 7)/8 + (N + 7)/8)
+#define RREF_MAT_PACKEDBYTES ((BITS_TO_REPRESENT(QQ)*(NN-K)*K + 7)/8 + (NN + 7)/8)
 
 #define LESS_CRYPTO_PUBLICKEYBYTES (NUM_KEYPAIRS*RREF_MAT_PACKEDBYTES)
 #define LESS_CRYPTO_SECRETKEYBYTES ((NUM_KEYPAIRS-1)*SEED_LENGTH_BYTES + RREF_MAT_PACKEDBYTES)
