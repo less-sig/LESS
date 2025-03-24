@@ -635,7 +635,7 @@ void normalized_monomial_right(normalized_IS_t *res,
    for(uint32_t src_col_idx = 0; src_col_idx < K; src_col_idx++) {
       for(uint32_t row_idx = 0; row_idx < K; row_idx++) {
          res->values[row_idx][monom->permutation[src_col_idx]] =
-            fq_mul_non_ct(G->values[row_idx][src_col_idx], monom->coefficients[src_col_idx]);
+            fq_mul(G->values[row_idx][src_col_idx], monom->coefficients[src_col_idx]);
       }
    }
 } /* end normalized_monomial_right */
