@@ -36,6 +36,9 @@
 #include <_types/_uint64_t.h>
 #include <arm_neon.h>
 
+#include "lookup_table.h"
+
+
 #ifndef __clang__
 #include <arm_bf16.h>
 #include <arm_fp16.h>
@@ -222,6 +225,32 @@ static inline uint32_t vmovemask8(const vec256_t a) {
 	x.v[0] = vandq_u8(vaddq_u8(vandq_u8(vshrq_n_u16(vaddq_u8(x.v[0], c01.v[0]), 7), c01.v[0]), x.v[0]), c7f.v[0]); \
 	x.v[1] = vandq_u8(vaddq_u8(vandq_u8(vshrq_n_u16(vaddq_u8(x.v[1], c01.v[1]), 7), c01.v[1]), x.v[1]), c7f.v[1]);
 
+
+static inline void gf127v_scalar_compute_table(uint8x16x4_t *ret,
+											   const uint8_t a) {
+	ret[0] = vld1q_u8_x4(__gf127_lookuptable + a*128 +  0);
+	ret[1] = vld1q_u8_x4(__gf127_lookuptable + a*128 + 64);
+}
+
+static inline uint8x16_t gf127v_scalar_table(const uint8x16_t a,
+											 const uint8x16x4_t *table) {
+	const uint8x16_t zero = vdupq_n_u8(0);
+	const uint8x16_t mask = vdupq_n_u8(64);
+	const uint8x16_t b = vsubq_u8(a, mask);
+	const uint8x16_t ret1 = vqtbx4q_u8(zero, table[0], a);
+	const uint8x16_t ret2 = vqtbx4q_u8(zero, table[1], b);
+	const uint8x16_t ret = ret1 ^ ret2;
+	return ret;
+}
+
+
+static inline vec256_t gf127v_scalar_table_full(const vec256_t a,
+												const uint8x16x4_t *table) {
+	vec256_t ret;
+	ret.v[0] = gf127v_scalar_table(a.v[0], table);
+	ret.v[1] = gf127v_scalar_table(a.v[1], table);
+	return ret;
+}
 // Extend from 8-bit to 16-bit type
 extern const uint8_t shuff_low_half[32];
 

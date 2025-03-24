@@ -163,7 +163,7 @@ size_t LESS_sign(const prikey_t *SK,
         for (uint32_t t = 0; t < N; t++) {
             permuted_pivot_flags[mu_tilde.permutation[t]] = g0_initial_pivot_flags[t];
         }
-        if (generator_RREF_pivot_reuse(&G0, is_pivot_column, permuted_pivot_flags, SIGN_PIVOT_REUSE_LIMIT) == 0) {
+        if (generator_RREF_pivot_reuse_ct(&G0, is_pivot_column, permuted_pivot_flags, SIGN_PIVOT_REUSE_LIMIT) == 0) {
             return 0;
         }
 #else
@@ -300,7 +300,7 @@ int LESS_verify(const pubkey_t *const PK,
     rref_generator_mat_t G0_rref;
     generator_sample(&G0_rref, PK->G_0_seed);
 
-    generator_mat_t G0 = {0}, G0_full = {0};
+    generator_mat_t G0_full = {0};
     generator_mat_t G_prime = {0};
     monomial_t mu_tilde;
     normalized_IS_t Ai = {0};
@@ -309,6 +309,11 @@ int LESS_verify(const pubkey_t *const PK,
 
     generator_get_pivot_flags(&G0_rref, g0_initial_pivot_flags);
     generator_rref_expand(&G0_full, &G0_rref);
+
+    generator_mat_t Gs[NUM_KEYPAIRS];
+    for (uint32_t i = 0; i < NUM_KEYPAIRS-1; i++) {
+        expand_to_rref(&Gs[i], PK->SF_G[i], gi_initial_pivot_flags);
+    }
 
     for (uint32_t i = 0; i < T; i++) {
         memset(is_pivot_column, 0, N_pad);
@@ -334,14 +339,15 @@ int LESS_verify(const pubkey_t *const PK,
             }
 #endif
         } else {
-            expand_to_rref(&G0, PK->SF_G[fixed_weight_string[i] - 1], gi_initial_pivot_flags);
+            // expand_to_rref(&G0, PK->SF_G[fixed_weight_string[i] - 1], gi_initial_pivot_flags);
+            const uint32_t key_pos = fixed_weight_string[i] -1;
             if (!CheckCanonicalAction(sig->cf_monom_actions[employed_monoms])) {
                 return 0;
             }
 
 #if defined(LESS_REUSE_PIVOTS_VY)
             apply_cf_action_to_G_with_pivots(&G_prime,
-                                             &G0,
+                                             &Gs[key_pos],
                                              sig->cf_monom_actions[employed_monoms],
                                              gi_initial_pivot_flags,
                                              g0_permuted_pivot_flags);
@@ -349,7 +355,7 @@ int LESS_verify(const pubkey_t *const PK,
                                                        g0_permuted_pivot_flags,
                                                        VERIFY_PIVOT_REUSE_LIMIT);
 #else
-            apply_cf_action_to_G(&G_prime, &G0, sig->cf_monom_actions[employed_monoms]);
+            apply_cf_action_to_G(&G_prime, &Gs[key_pos]  sig->cf_monom_actions[employed_monoms]);
             const int ret = generator_RREF(&G_prime, is_pivot_column);
 #endif
             if(ret == 0) {
@@ -389,6 +395,7 @@ int LESS_verify(const pubkey_t *const PK,
     /* Squeeze output */
     LESS_SHA3_INC_FINALIZE(recomputed_digest, &state);
 
+    /// NOTE: does not have to be constant time.
     return (verify(recomputed_digest, sig->digest,
                    HASH_DIGEST_LENGTH) == 0);
 } /* end LESS_verify */

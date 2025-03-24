@@ -28,6 +28,7 @@
 
 #include "parameters.h"
 #include "rng.h"
+#include "lookup_table.h"
 
 #define NUM_BITS_Q (BITS_TO_REPRESENT(Q))
 
@@ -73,45 +74,6 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
    } while (1); }
 
 
-/* GCC actually inlines and vectorizes Barrett's reduction already.
- * Backup implementation for less aggressive compilers follows */
-#if 0
-#define BARRETT_MU  (((uint32_t)1<<(2*NUM_BITS_Q))/Q)
-#define BARRETT_MASK ( ((FQ_DOUBLEPREC)1 << (NUM_BITS_Q+3))-1 )
-
-static inline
-FQ_ELEM fq_red(FQ_DOUBLEPREC a)
-{
-   FQ_DOUBLEPREC q_1, q_2, q_3;
-   q_1 = a >> (NUM_BITS_Q);
-   q_2 = q_1 * BARRETT_MU;
-   q_3 = q_2 >> (NUM_BITS_Q);
-   FQ_DOUBLEPREC r_1;
-   r_1 = (a & BARRETT_MASK) - ( (q_3*Q) & BARRETT_MASK);
-   r_1 = r_1 & BARRETT_MASK;
-   FQ_ELEM r_2;
-   FQ_DOUBLEPREC need_to_red;
-   need_to_red = r_1 >= Q;
-   r_1 = r_1-Q*need_to_red; // not needed for 127
-   need_to_red = r_1 >= Q;
-   r_2 = r_1-Q*need_to_red;
-   return r_2;
-}
-#endif
-
-#if 0
-/* Fast Mersenne prime reduction is actually slower than Barrett's */
-static inline
-FQ_ELEM fq_red(FQ_DOUBLEPREC x)
-{
-   while (x>=Q) {
-      x = ((FQ_DOUBLEPREC) 0x7f & x) + (x>>7);
-   }
-   return x;
-}
-#endif
-
-
 static inline
 FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
     // equivalent to: (x >= Q) ? (x - Q) : x
@@ -146,14 +108,22 @@ FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
 }
 
 static inline
+FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
+    return fq_cond_sub(x + y);
+}
+
+static inline
 FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
     return fq_red((FQ_DOUBLEPREC) x * (FQ_DOUBLEPREC) y);
 }
 
+/// NOTE: non constant-time. Dont use for anything important
+/// \param x[in]: < 127
+/// \param y[in]: < 127
+/// \return x * y;
 static inline
-FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
-    return fq_cond_sub(x + y);
-    // return (x + y) % Q;
+FQ_ELEM fq_mul_non_ct(const FQ_ELEM x, const FQ_ELEM y) {
+    return __fq127_lookup_table[x*128 + y];
 }
 
 /// NOTE: maybe don't use it for sensetive data
@@ -242,6 +212,15 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
     for (uint32_t col = 0; col < (N-K); col++) {
         out[col] = fq_mul(s, in[col]);
     }
+}
+
+/// scalar multiplication of a row
+/// \param out = s*in[i] for i in range(N-K)
+/// \param in
+/// \param s
+static inline
+void row_mul2_ct(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
+    row_mul2(out, in, s);
 }
 
 /// \param out = in1[i]*in2[i] for i in range(N-K)

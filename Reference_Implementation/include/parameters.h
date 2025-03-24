@@ -257,10 +257,19 @@
 #define LESS_REUSE_PIVOTS_VY
 #define LESS_REUSE_PIVOTS_SG
 
+// if defined, enable pre-processing pass in CF pocnt function to try
+// to find the best potential candidate before calculating in full CFs
+#define CF_PREPROC_PASS_EN
+
 #ifdef USE_AVX2
 /// NOTE: only available for optimized implementations if set a custom 4 bucket 
 /// histogram implementation is used. This only speedups the implementation in CAT 5
 #if defined(CATEGORY_5)
 #define LESS_USE_CUSTOM_HISTOGRAM
 #endif
+#endif
+
+// NOTE made it slower
+#ifdef USE_AVX512
+#define LESS_USE_CUSTOM_HISTOGRAM
 #endif

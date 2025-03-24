@@ -105,10 +105,10 @@ uint32_t org_row_contains_zero(const FQ_ELEM *in) {
     return 0;
 }
 
-int test_row_acc() {
+int test_row_acc(void) {
     FQ_ELEM a[N_K_pad]={0}, b[N_K_pad]={0};
     for (uint32_t i = 0; i < TESTS; i++) {
-        rand_range_q_elements(a, N_K_pad);
+        rand_range_q_elements(a, N-K);
         memcpy(b, a, N_K_pad);
         const FQ_ELEM c1 = row_acc(a);
         const FQ_ELEM c2 = org_row_acc(b);
@@ -121,7 +121,7 @@ int test_row_acc() {
     return 0;
 }
 
-int test_row_acc_inv() {
+int test_row_acc_inv(void) {
     FQ_ELEM a[N_K_pad], b[N_K_pad];
     for (uint32_t i = 0; i < TESTS; i++) {
         rand_range_q_elements(a, K);
@@ -137,11 +137,12 @@ int test_row_acc_inv() {
     return 0;
 }
 
-int test_row_mul() {
+int test_row_mul(void) {
     FQ_ELEM a[N_K_pad], b[N_K_pad];
-    FQ_ELEM s = 1;
+    FQ_ELEM s = 3;
     for (uint32_t i = 0; i < TESTS; i++) {
         rand_range_q_elements(a, K);
+        a[0] = 0x55;
         memcpy(b, a, K);
         row_mul(a,s);
         org_row_mul(b,s);
@@ -158,7 +159,7 @@ int test_row_mul() {
     return 0;
 }
 
-int test_row_mul2() {
+int test_row_mul2(void) {
     FQ_ELEM a[N_K_pad], c1[N_K_pad], c2[N_K_pad];
     FQ_ELEM s = 1;
     for (uint32_t i = 0; i < TESTS; i++) {
@@ -178,7 +179,7 @@ int test_row_mul2() {
     return 0;
 }
 
-int test_row_mul3() {
+int test_row_mul3(void) {
     FQ_ELEM a[N_K_pad], b[N_K_pad], c1[N_K_pad], c2[N_K_pad];
     for (uint32_t i = 0; i < TESTS; i++) {
         rand_range_q_elements(a, K);
@@ -196,7 +197,7 @@ int test_row_mul3() {
     return 0;
 }
 
-int test_row_inv2() {
+int test_row_inv2(void) {
     FQ_ELEM a[N_K_pad], c1[N_K_pad], c2[N_K_pad];
     for (uint32_t i = 0; i < TESTS; i++) {
         rand_range_q_elements(a, K);
@@ -213,8 +214,8 @@ int test_row_inv2() {
     return 0;
 }
 
-int test_row_all_same() {
-    FQ_ELEM a[N_K_pad];
+int test_row_all_same(void) {
+    FQ_ELEM a[N_K_pad] = {0};
     for (uint32_t i = 0; i < TESTS; i++) {
         rand_range_q_elements(a, K);
         const uint32_t t1 = row_all_same(a);
@@ -230,8 +231,8 @@ int test_row_all_same() {
     return 0;
 }
 
-int test_row_contains_zero() {
-    FQ_ELEM a[N_K_pad];
+int test_row_contains_zero(void) {
+    FQ_ELEM a[N_K_pad] = {0};
     for (uint32_t i = 0; i < TESTS; i++) {
         rand_range_q_elements(a, K);
         const uint32_t t1 = row_contains_zero(a);
@@ -246,19 +247,19 @@ int test_row_contains_zero() {
 }
 
 void matrix_transpose_simple(normalized_IS_t *o,
-                      const normalized_IS_t *in) {
+                             const normalized_IS_t *in) {
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < K; j++) {
             o->values[j][i] = in->values[i][j];
         }
     }
 }
-int test_transpose() {
+int test_transpose(void) {
     normalized_IS_t A = {0}, B1, B2;
     // normalized_ind(&A);
     for (uint32_t i = 0; i < K; i++) {
         for (uint32_t j = 0; j < K; j++) {
-            A.values[i][j] = (i+j);
+            A.values[i][j] =i*32+j;
         }
     }
     matrix_transpose_opt((uint8_t *)B1.values, (uint8_t *)A.values, K, K_pad);
@@ -275,14 +276,14 @@ int test_transpose() {
 }
 
 int main(void) {
-    // if (test_row_acc()) return 1;
-    // if (test_row_acc_inv()) return 1;
-    // if (test_row_mul()) return 1;
-    // if (test_row_mul2()) return 1;
-    // if (test_row_mul3()) return 1;
-    // if (test_row_inv2()) return 1;
-    // if (test_row_all_same()) return 1;
-    // if (test_row_contains_zero()) return 1;
+    if (test_row_acc()) return 1;
+    if (test_row_acc_inv()) return 1;
+    if (test_row_mul()) return 1;
+    if (test_row_mul2()) return 1;
+    if (test_row_mul3()) return 1;
+    if (test_row_inv2()) return 1;
+    if (test_row_all_same()) return 1;
+    if (test_row_contains_zero()) return 1;
 
     if (test_transpose()) return 1;
 

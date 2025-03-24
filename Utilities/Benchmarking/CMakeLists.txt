@@ -29,6 +29,7 @@ option(USE_REFERENCE "Use reference implementation" OFF)
 
 # use AVX2 implementations.
 option(USE_AVX2 "Use the AVX2 Optimized Omplementation." ON)
+option(USE_AVX512 "Use the AVX512 Optimized Omplementation." OFF)
 option(USE_NEON "Use the NEON Optimized Omplementation." OFF)
 # option(USE_M4 "Use the M4 Optimized Omplementation." OFF)
 
@@ -37,23 +38,34 @@ if(USE_REFERENCE)
   message(STATUS "Using the Reference Implementation")
   set(BASE_DIR ../../Reference_Implementation)
   set(USE_AVX2 OFF)
+  set(USE_AVX512 OFF)
   set(USE_NEON OFF)
 # set(USE_M4 OFF)
 elseif(USE_NEON)
   message(STATUS "Using the NEON Implementation")
   set(BASE_DIR ../../Optimized_Implementation/neon)
   set(USE_AVX2 OFF)
+  set(USE_AVX512 OFF)
 #  set(USE_M4 OFF)
   set(USE_REFERENCE OFF)
 #elseif(USE_M4)
 #  message(STATUS "Using the M4 Implementation")
 #  set(BASE_DIR ../../Optimized_Implementation/m4)
 #  set(USE_AVX2 OFF)
+#  set(USE_AVX512 OFF)
 #  set(USE_NEON OFF)
 #  set(USE_REFERENCE OFF)
+elseif(USE_AVX512)
+  message(STATUS "Using the AVX512 Implementation")
+  set(BASE_DIR ../../Optimized_Implementation/avx512)
+  set(USE_AVX2 OFF)
+  set(USE_NEON OFF)
+#  set(USE_M4 OFF)
+  set(USE_REFERENCE OFF)
 elseif(USE_AVX2)
   message(STATUS "Using the AVX2 Implementation")
   set(BASE_DIR ../../Optimized_Implementation/avx2)
+  set(USE_AVX512 OFF)
   set(USE_NEON OFF)
 #  set(USE_M4 OFF)
   set(USE_REFERENCE OFF)
@@ -98,20 +110,15 @@ if(USE_AVX2)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_AVX2 -mavx -mavx2 -mbmi -mbmi2")
 endif()
 
+if(USE_AVX512)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_AVX2 -DUSE_AVX512 -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -mavx512f -mavx512bw -mavx512vl -mavx512vbmi -mavx512vbmi2 -mavx512bitalg -mavx512cd -mavx512vpopcntdq -mgfni ")
+endif()
+
 if(USE_NEON)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_NEON -flax-vector-conversions")
 endif()
 
 message(STATUS "Compilation flags:" ${CMAKE_C_FLAGS})
-
-
-
-
-find_library(KECCAK_LIB keccak)
-if(NOT KECCAK_LIB)
- set(STANDALONE_KECCAK 1)
-endif()
-
 
 set(HEADERS
   ${BASE_DIR}/include/api.h
@@ -128,18 +135,6 @@ set(HEADERS
   ${BASE_DIR}/include/utils.h
 )
 
-if(STANDALONE_KECCAK)
-  message(STATUS "Employing standalone SHA-3")
-  set(KECCAK_EXTERNAL_LIB "")
-  set(KECCAK_EXTERNAL_ENABLE "")
-  list(APPEND COMMON_SOURCES ${BASE_DIR}/lib/fips202.c)
-else()
-  message(STATUS "Employing libkeccak")
-  set(KECCAK_EXTERNAL_LIB keccak)
-  set(KECCAK_EXTERNAL_ENABLE "-DSHA_3_LIBKECCAK")
-endif()
-
-
 set(SOURCES
   ${COMMON_SOURCES}
   ${BASE_DIR}/lib/codes.c
@@ -154,7 +149,14 @@ set(SOURCES
   ${BASE_DIR}/lib/keccakf1600.c
   ${BASE_DIR}/lib/utils.c
   ${BASE_DIR}/lib/sign.c
+  ${BASE_DIR}/lib/fips202.c
 )
+
+if(USE_AVX512)
+	set(SOURCES ${SOURCES} ${BASE_DIR}/lib/KeccakP-1600-AVX2.s)
+	set(SOURCES ${SOURCES} ${BASE_DIR}/lib/transpose_avx2.c)
+	set(HEADERS ${HEADERS} ${BASE_DIR}/include/macro.h)
+endif()
 
 if(USE_AVX2)
 	set(SOURCES ${SOURCES} ${BASE_DIR}/lib/KeccakP-1600-AVX2.s)
@@ -183,7 +185,7 @@ foreach(category "252" "400" "548")
     set(TARGET_BINARY_NAME LESS_benchmark_cat_${category}_${optimize_target})
     add_executable(${TARGET_BINARY_NAME} ${HEADERS} ${SOURCES} ${PROJECT_SOURCE_DIR}/lib/less_benchmark.c)
     target_link_libraries(${TARGET_BINARY_NAME} m)
-    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ${KECCAK_EXTERNAL_ENABLE} ")
+    set_property(TARGET ${TARGET_BINARY_NAME} APPEND PROPERTY COMPILE_FLAGS "-DCATEGORY=${category} -DTARGET=${optimize_target} ")
     target_include_directories(${TARGET_BINARY_NAME} PRIVATE ${OPENSSL_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/lib/test)
     add_test(${TARGET_BINARY_NAME} ${TARGET_BINARY_NAME})
   endforeach(optimize_target)

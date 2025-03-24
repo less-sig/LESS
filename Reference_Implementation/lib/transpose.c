@@ -164,9 +164,12 @@ void matrix_transpose_opt(uint8_t *dst,
     // small block size
     const size_t small = 8;
 
-#if defined(USE_AVX2) || defined(USE_NEON)
-    // big block size
+#if defined(USE_AVX2) || defined(USE_NEON) || defined(USE_AVX512)
+#if defined(USE_AVX512)
     const size_t bsize = 32;
+#else
+    const size_t bsize = 32;
+#endif
 #else
     const size_t bsize = 64;
 #endif
@@ -196,13 +199,18 @@ void matrix_transpose_opt(uint8_t *dst,
     uint64_t rb = 0;
     for (; rb < c / bsize; rb++) {
         for (uint64_t cb = 0; cb < c / bsize; cb++) {
-#if defined(USE_AVX2) || defined(USE_NEON)
-            const uint8_t* prf_origin = next_block(src, rb, cb, src_stride);
+#if defined(USE_AVX2) || defined(USE_NEON) || defined(USE_AVX512)
+            const uint8_t* prf_origin = NULL;// next_block(src, rb, cb, src_stride);
             const uint8_t* src_origin = src + (rb*src_stride+cb)*bsize;
                   uint8_t* dst_origin = dst + (cb*dst_stride+rb)*bsize;
             const uint32_t n = src_stride;
 
-            matrix_transpose_32x32(dst_origin,                  src_origin,                  prf_origin,               n, n);
+#if defined(USE_AVX512)
+            // matrix_transpose_64x64(dst_origin, src_origin, prf_origin, n, n);
+            matrix_transpose_32x32(dst_origin, src_origin, prf_origin, n, n);
+#else
+            matrix_transpose_32x32(dst_origin, src_origin, prf_origin, n, n);
+#endif
 #else
             const uint8_t *srcb_origin = src + (rb*src_stride + cb) * bsize;
                   uint8_t *dstb_origin = dst + (cb*dst_stride + rb) * bsize;
