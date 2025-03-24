@@ -24,6 +24,10 @@
  *
  **/
 #include <string.h> // memcpy, memset
+#include <stdio.h>
+#include <inttypes.h>
+
+
 #include "LESS.h"
 #include "canonical.h"
 #include "seedtree.h"
@@ -32,10 +36,17 @@
 #include "fips202.h"
 #include "sha3.h"
 
+// non LESS includes
+#include "m4_utils.h"
+#include "stm32f4xx_hal.h"
+
+
 void LESS_keygen(prikey_t *SK,
                  pubkey_t *PK) {
+    uint32_t start, end;
     /* generating private key from a single seed */
-    randombytes(SK->compressed_sk, PRIVATE_KEY_SEED_LENGTH_BYTES);
+    //randombytes(SK->compressed_sk, PRIVATE_KEY_SEED_LENGTH_BYTES);
+    start = get_cycles();
 
     /* expanding it onto private seeds */
     SHAKE_STATE_STRUCT sk_shake_state;
@@ -49,7 +60,10 @@ void LESS_keygen(prikey_t *SK,
 
     generator_mat_t tmp_full_G;
     generator_rref_expand(&tmp_full_G, &G0_rref);
+    end = get_cycles();
+    printf("1: %d \n", end-start);
 
+    start = get_cycles();
     /* The first private key monomial is an ID matrix, no need for random
      * generation, hence NUM_KEYPAIRS-1 */
     unsigned char private_monomial_seeds[NUM_KEYPAIRS - 1][PRIVATE_KEY_SEED_LENGTH_BYTES];
@@ -58,10 +72,14 @@ void LESS_keygen(prikey_t *SK,
                            PRIVATE_KEY_SEED_LENGTH_BYTES,
                            &sk_shake_state);
     }
+    end = get_cycles();
+    printf("2: %d \n", end-start);
+
 
     /* note that the first "keypair" is just the public generator G_0, stored
      * as a seed and the identity matrix (not stored) */
     for (uint32_t i = 0; i < NUM_KEYPAIRS - 1; i++) {
+        start = get_cycles();
         uint8_t is_pivot_column[N_pad] = {0};
         /* expand inverse monomial from seed */
         monomial_t private_Q;
@@ -69,17 +87,32 @@ void LESS_keygen(prikey_t *SK,
         monomial_sample_prikey(&private_Q_inv, private_monomial_seeds[i]);
         monomial_inv(&private_Q, &private_Q_inv);
 
+        end = get_cycles();
+        printf("3: %d \n", end-start);
+
+        start = get_cycles();
         generator_mat_t result_G = {0};
         generator_monomial_mul(&result_G,
                                &tmp_full_G,
                                &private_Q);
-        memset(is_pivot_column, 0, sizeof(is_pivot_column));
+        end = get_cycles();
+        printf("4: %d \n", end-start);
+
+        start = get_cycles();
         generator_RREF(&result_G, is_pivot_column);
+        end = get_cycles();
+        printf("5: %d \n", end-start);
+
+        start = get_cycles();
+
         /* note that the result is stored at i-1 as the first
          * public key element is just a seed */
         compress_rref(PK->SF_G[i],
                       &result_G,
                       is_pivot_column);
+        
+        end = get_cycles();
+        printf("6: %d \n", end-start);
     }
 } /* end LESS_keygen */
 
@@ -310,10 +343,14 @@ int LESS_verify(const pubkey_t *const PK,
     generator_get_pivot_flags(&G0_rref, g0_initial_pivot_flags);
     generator_rref_expand(&G0_full, &G0_rref);
 
+#ifdef USE_M4
+    generator_mat_t G0;
+#else
     generator_mat_t Gs[NUM_KEYPAIRS];
     for (uint32_t i = 0; i < NUM_KEYPAIRS-1; i++) {
         expand_to_rref(&Gs[i], PK->SF_G[i], gi_initial_pivot_flags);
     }
+#endif
 
     for (uint32_t i = 0; i < TT; i++) {
         memset(is_pivot_column, 0, N_pad);
@@ -339,16 +376,23 @@ int LESS_verify(const pubkey_t *const PK,
             }
 #endif
         } else {
-            // expand_to_rref(&G0, PK->SF_G[fixed_weight_string[i] - 1], gi_initial_pivot_flags);
-            memset(gi_initial_pivot_flags, 0, N);
+#ifdef USE_M4
+            expand_to_rref(&G0, PK->SF_G[fixed_weight_string[i] - 1], gi_initial_pivot_flags);
+#else
+            memset(gi_initial_pivot_flags, 0, NN);
             const uint32_t key_pos = fixed_weight_string[i] -1;
+#endif
             if (!CheckCanonicalAction(sig->cf_monom_actions[employed_monoms])) {
                 return 0;
             }
 
 #if defined(LESS_REUSE_PIVOTS_VY)
             apply_cf_action_to_G_with_pivots(&G_prime,
+#ifdef USE_M4
+                                             &G0,
+#else
                                              &Gs[key_pos],
+#endif
                                              sig->cf_monom_actions[employed_monoms],
                                              gi_initial_pivot_flags,
                                              g0_permuted_pivot_flags);

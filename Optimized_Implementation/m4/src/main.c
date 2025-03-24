@@ -22,8 +22,10 @@ static long long get_cycles(void) {
 
 
 #define MAX_STACK_SIZE 132768
+#define MSG_LEN 80
+
 const int N_BENCH = 1;     /* Number of tests. */
-const int MSG_LEN = 80;       /* Message length. */
+//const int MSG_LEN = 80;       /* Message length. */
 
 /// \brief 
 /// \param p 
@@ -40,20 +42,21 @@ int bench_less() {
     uint32_t cc_keyg[N_BENCH];
     uint32_t cc_sign[N_BENCH];
     uint32_t cc_verf[N_BENCH];
-    uint32_t begin, end;
+    uint64_t begin, end;
     printf("\n\nBenchmarks...\n\n");
     
     for (i = 0; i < N_BENCH; i++) {
         pubkey_t pk;
         prikey_t sk;
         sign_t signature;
-        char msg[MSG_LEN];
+        char msg[MSG_LEN] = {0};
 
         /* Generate a random message. */
-        randombytes((unsigned char *)msg, MSG_LEN);
+        //randombytes((unsigned char *)msg, MSG_LEN);
 
-        begin = get_cycles();{
-            LESS_keygen(&sk,&pk);
+        begin = get_cycles();
+        {
+            LESS_keygen(&sk, &pk);
         }
         end = get_cycles();
         printf("kek1\n");
@@ -62,7 +65,7 @@ int bench_less() {
 
         begin = get_cycles();
         {
-           LESS_sign(&sk, msg, MSG_LEN, &signature);
+           //LESS_sign(&sk, msg, MSG_LEN, &signature);
         }
         end = get_cycles();
         printf("kek2\n");
@@ -106,14 +109,14 @@ int main(void) {
     bm_decls;
 
     while (1) {  
-        __disable_irq();
+        //__disable_irq();
         bm_start();
 
         //LED_toggle();
         bench_less();
 
         bm_end();
-        __enable_irq();
+        //__enable_irq();
 
         HAL_Delay(1000);
     }

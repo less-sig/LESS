@@ -28,7 +28,7 @@ uint32_t stack_usage_scan(void);
 #define bm_end() bm_e = DWT->CYCCNT
 #define bm_result() (bm_e - bm_s)
 
-uint32_t _get_cycles(void);
+static inline
 uint32_t get_cycles(void) {
 	return DWT->CYCCNT;
 }

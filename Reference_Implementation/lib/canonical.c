@@ -131,12 +131,12 @@ int compute_canonical_form_type4_sub_preproc(normalized_IS_t *G,
         }
 
         row_mul(G->values[i], s);
-        sort(tmp, G->values[i], N-K);
+        sort(tmp, G->values[i], NN-K);
 
         if (compare_rows(tmp, M) < 0) {
             ret = 1;
             // copy new smallest row
-            for (uint32_t i = 0; i < Q; i++)
+            for (uint32_t i = 0; i < QQ; i++)
                 M[i] = tmp[i];
         }
     }
@@ -306,7 +306,7 @@ int compute_canonical_form_type5_popcnt_opt(normalized_IS_t *G) {
     }
 
     /// NOTE: fallback solution if everything falls apart
-    if (z == (N-K)) {
+    if (z == (NN-K)) {
         return compute_canonical_form_type5(G);
     }
 

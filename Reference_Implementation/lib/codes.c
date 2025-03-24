@@ -125,19 +125,21 @@ int generator_RREF(generator_mat_t *G,
       /* rescale pivot row to have pivot = 1. Values at the left of the pivot
        * are already set to zero by previous iterations */
       for(unsigned i = pivot_column; i < NN; i++) {
-         G->values[pivot_row][i] = fq_mul(scaling_factor, G->values[pivot_row][i]);
+         G->values[pivot_row][i] = fq_mul_non_ct(scaling_factor, G->values[pivot_row][i]);
       }
 
       /* Subtract the now placed and reduced pivot rows, from the others,
        * after rescaling it */
       for(unsigned row_idx = 0; row_idx < K; row_idx++) {
          if (row_idx != pivot_row) {
-            FQ_ELEM multiplier = G->values[row_idx][pivot_column];
+            const FQ_ELEM multiplier = G->values[row_idx][pivot_column];
             /* all elements before the pivot in the pivot row are null, no need to
              * subtract them from other rows. */
             for(unsigned col_idx = 0; col_idx < NN; col_idx++) {
-               FQ_ELEM tmp = fq_mul(multiplier, G->values[pivot_row][col_idx]);
-               G->values[row_idx][col_idx] = fq_sub(G->values[row_idx][col_idx], tmp);
+                if (G->values[pivot_row][col_idx] > 0) {
+                    FQ_ELEM tmp = fq_mul_non_ct(multiplier, G->values[pivot_row][col_idx]);
+                    G->values[row_idx][col_idx] = fq_sub(G->values[row_idx][col_idx], tmp);
+                }
             }
          }
       }
@@ -643,19 +645,6 @@ void normalized_copy(normalized_IS_t *V1,
                      const normalized_IS_t *V2) {
     memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
 }
-
-
-/* right-multiplies a generator by a monomial */
-void normalized_monomial_right(normalized_IS_t *res,
-                            const normalized_IS_t *const G,
-                            const monomial_t *const monom) {
-   for(uint32_t src_col_idx = 0; src_col_idx < K; src_col_idx++) {
-      for(uint32_t row_idx = 0; row_idx < K; row_idx++) {
-         res->values[row_idx][monom->permutation[src_col_idx]] =
-            fq_mul_non_ct(G->values[row_idx][src_col_idx], monom->coefficients[src_col_idx]);
-      }
-   }
-} /* end normalized_monomial_right */
 
 /// \param V[in/out]: K \times N-K matrix in which row `row1` and
 ///                 row `row2` are swapped
