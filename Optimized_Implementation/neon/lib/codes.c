@@ -399,6 +399,14 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
     return 1;
 } /* end generator_RREF */
 
+// todo
+int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
+                               uint8_t is_pivot_column[N],
+                               uint8_t was_pivot_column[N],
+                               const int pvt_reuse_limit) {
+    return generator_RREF_pivot_reuse(G, is_pivot_column, was_pivot_column, pvt_reuse_limit);
+}
+
 /* Compresses a generator matrix in RREF storing only non-pivot columns and
  * their position */
 void generator_rref_compact(rref_generator_mat_t *compact,
@@ -618,6 +626,19 @@ void normalized_copy(normalized_IS_t *V1,
                      const normalized_IS_t *V2) {
     memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
 }
+
+// todo opt
+/* right-multiplies a generator by a monomial */
+void normalized_monomial_right(normalized_IS_t *res,
+                            const normalized_IS_t *const G,
+                            const monomial_t *const monom) {
+   for(uint32_t src_col_idx = 0; src_col_idx < K; src_col_idx++) {
+      for(uint32_t row_idx = 0; row_idx < K; row_idx++) {
+         res->values[row_idx][monom->permutation[src_col_idx]] =
+            fq_mul_non_ct(G->values[row_idx][src_col_idx], monom->coefficients[src_col_idx]);
+      }
+   }
+} /* end normalized_monomial_right */
 
 /// \param V
 /// \param row1

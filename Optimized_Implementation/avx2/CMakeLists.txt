@@ -22,8 +22,8 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
           ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
 endif()
 
-set(ALLOWED_WARNINGS      " -Wno-type-limits -Wno-gnu-binary-literal -fno-inline")
-set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -g -O0 -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi ${ALLOWED_WARNINGS}")
+set(ALLOWED_WARNINGS      " -Wno-type-limits -Wno-gnu-binary-literal ")
+set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -g -O0 -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -fsanitize=address ${ALLOWED_WARNINGS}")
 set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -flto -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
 
 
