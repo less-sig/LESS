@@ -1,4 +1,4 @@
- /**
+/**
  *
  * Reference ISO-C11 Implementation of LESS.
  *
@@ -6,7 +6,7 @@
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
- * @author Floyd Zweydinger <zweydfg8+github@rub.de>
+ * @author Patrick Karl <patrick.karl@tum.de> 
  *
  * This code is hereby placed in the public domain.
  *
@@ -22,7 +22,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- **/ 
+ **/
 #pragma once
 
 #include <stdint.h>

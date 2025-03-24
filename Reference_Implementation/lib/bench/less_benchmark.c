@@ -66,12 +66,12 @@ void welford_print(const welford_t state) {
            sqrtl(state.M2/(long double)(state.count-1)));
 }
 
-#if defined(CATEGORY_5)
+#if CATEGORY == 548
 #define NUM_RUNS 128
-#elif defined(CATEGORY_3)
-#define NUM_RUNS 128
+#elif CATEGORY==400
+#define NUM_RUNS 256
 #else
-#define NUM_RUNS 16
+#define NUM_RUNS 512
 #endif
 
 #define NUM_AVG_RUNS (1u << 10u)

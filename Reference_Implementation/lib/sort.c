@@ -97,6 +97,8 @@ int SortRows_internal_hoare_partition(FQ_ELEM* ptr[K],
 }
 
 #if defined(LESS_USE_CUSTOM_HISTOGRAM) && defined(USE_AVX2)
+#include <immintrin.h>
+
 void HISTEND4(uint8_t *cnt,
               uint8_t c[4][128]) {
     for(uint32_t i = 0; i < Q_pad; i+=32) {
@@ -296,7 +298,7 @@ void SortRows_swap(normalized_IS_t *G,
 /// \param n[in] number of elements to sort
 /// \return 1 on success
 ///			0 if two rows generate the same multiset
-int SortRows_(normalized_IS_t *G,
+int SortRows(normalized_IS_t *G,
              const uint32_t n,
              const uint8_t *L) {
 	// first sort each row into a tmp buffer
@@ -325,7 +327,8 @@ int SortRows_(normalized_IS_t *G,
 
 
 /// uses a presorted quicksort
-int SortRows(normalized_IS_t *G,
+int SortRows_opt(normalized_IS_t *G,
+
              const uint32_t n,
              const uint8_t *L) {
     // first sort each row into a tmp buffer

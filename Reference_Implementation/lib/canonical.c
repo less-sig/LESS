@@ -108,6 +108,43 @@ int compute_canonical_form_type4_sub(normalized_IS_t *G,
 }
 
 /// NOTE: non-constant time
+/// \param G[in/out]: sub matrix with only z rows.
+/// \param z[in]: number of rows in G
+/// \param M[in]: the currently shortest multiset, will get globbert.
+/// \return 0: if no multiset was found < `M`
+///         1: if one of the  z rows is < `M`
+int compute_canonical_form_type4_sub_preproc(normalized_IS_t *G,
+                                             const uint32_t z,
+                                             FQ_ELEM *M) {
+    FQ_ELEM tmp[Q_pad] __attribute__((aligned(32))) = {0};
+    int ret;
+
+    ret = 0;
+    for (uint32_t i = 0; i < z; i++) {
+        FQ_ELEM s = row_acc(G->values[i]);
+
+        if (s != 0) {
+            s = fq_inv(s);
+        } else {
+            s = row_acc_inv(G->values[i]);
+            if (s == 0) { continue; }
+        }
+
+        row_mul(G->values[i], s);
+        sort(tmp, G->values[i], N-K);
+
+        if (compare_rows(tmp, M) < 0) {
+            ret = 1;
+            // copy new smallest row
+            for (uint32_t i = 0; i < Q; i++)
+                M[i] = tmp[i];
+        }
+    }
+
+    return ret;
+}
+
+/// NOTE: non-constant time
 /// implements a total order on matrices
 /// we simply compare the columns lexicographically
 /// \param V1[in]: first matrix
@@ -168,12 +205,7 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
 	return 1;
 }
 
-/// NOTE: non-constant time
-/// NOTE: computes the result inplace
-/// \param G[in/out] non IS part of a generator matrix
-/// \return 0 on failure
-/// 		1 on success
-int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
+int compute_canonical_form_type5_popcnt_base(normalized_IS_t *G) {
 	normalized_IS_t M;
     int touched = 0;
 
@@ -241,6 +273,86 @@ int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
 
 	normalized_copy(G, &M);
     return touched;
+}
+
+int compute_canonical_form_type5_popcnt_opt(normalized_IS_t *G) {
+    int ret;
+
+    /// track the rows with the most zeros.
+    uint32_t J[K];
+    uint32_t z = 0;
+    int smallest_scaling_row = 0;
+
+    // count zeros in each row
+    uint32_t max_zeros = 0;
+    uint8_t Z[K] = {0};
+    for (uint32_t row = 0; row < K; row++) {
+        const uint32_t num_zeros = row_count_zero(G->values[row]);
+
+        if (num_zeros > 0) {
+            Z[row] = 1;
+        }
+
+        if (num_zeros > max_zeros) {
+            z = 1;
+            J[0] = row;
+            max_zeros = num_zeros;
+            continue;
+        }
+
+        if (num_zeros == max_zeros) {
+            J[z++] = row;
+        }
+    }
+
+    /// NOTE: fallback solution if everything falls apart
+    if (z == (N-K)) {
+        return compute_canonical_form_type5(G);
+    }
+
+    static normalized_IS_t B __attribute__((aligned(32))) = {0};
+    FQ_ELEM row_inv_data[N_K_pad] = {0};
+
+    /// NOTE: this is already "sorted"
+    FQ_ELEM L[Q_pad] __attribute__((aligned(32))) = {0};
+
+    /// Check smallest rows of all matricies to find smallest candidate
+    for (uint32_t row = 0; row < K; row++) {
+        if (Z[row]) { continue; }
+
+        row_inv2(row_inv_data, G->values[row]);
+        for (uint32_t row2 = 0; row2 < z; row2++) {
+            row_mul3(B.values[row2], G->values[J[row2]], row_inv_data);
+        }
+
+        if (compute_canonical_form_type4_sub_preproc(&B, z, L)) {
+            smallest_scaling_row = row;
+        }
+    }
+
+    /// Calculate CF for best candidate
+    row_inv2(row_inv_data, G->values[smallest_scaling_row]);
+    for (uint32_t row2 = 0; row2 < K; row2++) {
+        row_mul3(B.values[row2], G->values[row2], row_inv_data);
+    }
+
+    ret = compute_canonical_form_type4(&B, L);
+    /// If candidate was not valid, fall back to regular approach
+    if (ret != 1) {
+        // Best was not valid;
+        return compute_canonical_form_type5_popcnt_base(G);
+    }
+
+    normalized_copy(G, &B);
+    return ret;
+}
+
+int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
+#if defined(CF_PREPROC_PASS_EN)
+    return compute_canonical_form_type5_popcnt_opt(G);
+#else
+    return compute_canonical_form_type5_popcnt_base(G);
+#endif
 }
 
 /// samples to random monomial matrices (A, B) and comptes A*G*B

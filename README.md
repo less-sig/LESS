@@ -5,16 +5,8 @@ The submission for LESS contains the following:
 A reference implementation of the signature LESS as a C99 library. The 
 reference implementation library does not provide a main() function, and is
 intended to be compiled and linked to a binary. The required NIST API is 
-present in Reference_Implementation/include/api.h,
-
-The implementation may either use libkeccak, if installed and available in 
-system-wide searched paths (e.g., `/usr/local/include` for the headerfiles and
-`/usr/local/lib` for the static library), or employ the provided fallback 
-implementation for systems where libkeccak is not  available. 
-
-If the library is not compiled via the supplied CMake flow, defining 
-SHA_3_LIBKECCAK during compilation enables compilation of the codebase against 
-an available libkeccak installation.
+present in `Reference_Implementation/include/api.h`. The implementation employ 
+a provided generic keccak implementation.
 
 • Optimized_Implementation
 
