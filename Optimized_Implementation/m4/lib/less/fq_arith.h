@@ -111,15 +111,61 @@ inline static uint32_t fq_red_u32(uint32_t Z) {
     return Z + (C >> 7u) - C ;
 }
 
+inline static uint64_t fq_red_u64(uint64_t Z) {
+    const uint64_t mask = 0x7F7F7F7F7F7F7F7F;
+    const uint64_t one  = 0x0101010101010101;
+    Z = (Z & mask) + ((Z & ~mask) >> 7u);
+    uint64_t C  = ((Z+one) & ~mask) ;
+    return Z + (C >> 7u) - C ;
+}
+
 inline static uint32_t fq_sub_u32(const uint32_t a,
                                   const uint32_t b) {
     return fq_red_u32(a - b + 0x7F7F7F7F);
+}
+
+inline static uint64_t fq_sub_u64(const uint64_t a,
+                                  const uint64_t b) {
+    return fq_red_u64(a - b + 0x7F7F7F7F7F7F7F7F);
 }
 
 inline static uint32_t fq_add_u32(const uint32_t a,
                                   const uint32_t b) {
     return fq_red_u32(a + b);
 }
+
+#ifdef USE_M4
+#include <arm_acle.h>
+
+/// @brief  
+/// @param a 
+/// @param b 
+/// @return a-b*c
+inline static uint32_t fq_scalar_sub_u32(const uint32_t a,
+                                         const uint32_t b,
+                                         const uint8_t c) {
+    const uint32_t mask  = 0x7F7F7F7F;
+    const uint32_t one   = 0x01010101;
+    const uint32_t mask1 = 0x00FF00FF;
+    const uint32_t mask3 = 0x007F007F;
+    uint8x4_t t = ((uint8x4_t)a) * ((uint8x4_t)b);
+
+
+    const uint32_t t1 = (b&mask1) * c;
+    const uint32_t t2 = ((b >> 8)&mask1) * c;
+
+    const uint32_t v1 = ((t1 >> 7) + (t1 & mask3)) & mask1;
+    const uint32_t v2 = ((t2 >> 7) + (t2 & mask3)) & mask1;
+
+    uint32_t Z = v1 ^ (v2<<8);
+    uint8x4_t t3 = __usub8(mask, Z);
+    uint8x4_t t4 = __uadd8(a, t3);
+    uint8x4_t t5 = __usub8(mask, Z); // TODO not correct
+    uint8x4_t t6 = __sel(t5, Z);
+    return t6;
+}
+
+#else
 
 /// @brief  
 /// @param a 
@@ -131,17 +177,15 @@ inline static uint32_t fq_scalar_sub_u32(const uint32_t a,
     const uint32_t mask  = 0x7F7F7F7F;
     const uint32_t one   = 0x01010101;
     const uint32_t mask1 = 0x00FF00FF;
-    const uint32_t mask2 = 0xFF00FF00;
     const uint32_t mask3 = 0x007F007F;
-    const uint32_t mask4 = 0x7F007F00;
 
     const uint32_t t1 = (b&mask1) * c;
-    const uint64_t t2 = ((uint64_t)b&mask2) * c;
+    const uint32_t t2 = ((b >> 8)&mask1) * c;
 
     const uint32_t v1 = ((t1 >> 7) + (t1 & mask3)) & mask1;
-    const uint32_t v2 = ((t2 >> 7) + (t2 & mask4)) & mask2;
+    const uint32_t v2 = ((t2 >> 7) + (t2 & mask3)) & mask1;
 
-    uint32_t Z = v1 ^ v2;
+    uint32_t Z = v1 ^ (v2 << 8);
     Z = (Z & mask) + ((Z & ~mask) >> 7);
     Z = mask - Z;
     Z = Z + a;
@@ -150,6 +194,33 @@ inline static uint32_t fq_scalar_sub_u32(const uint32_t a,
     uint32_t C  = ((Z+one) & ~mask) ;
     return Z + (C>>7) - C ;
 }
+#endif
+
+#ifndef USE_M4
+inline static uint64_t fq_scalar_sub_u64(const uint64_t a,
+                                         const uint64_t b,
+                                         const uint8_t c) {
+    const uint64_t mask  = 0x7F7F7F7F7F7F7F7F;
+    const uint64_t one   = 0x0101010101010101;
+    const uint64_t mask1 = 0x00FF00FF00FF00FF;
+    const uint64_t mask3 = 0x007F007F007F007F;
+
+    const uint64_t t1 = (b&mask1) * c;
+    const uint64_t t2 = ((b>>8)&mask1) * c;
+
+    const uint64_t v1 = ((t1 >> 7) + (t1 & mask3)) & mask1;
+    const uint64_t v2 = ((t2 >> 7) + (t2 & mask3)) & mask1;
+
+    uint64_t Z = v1 ^ (v2 << 8);
+    Z = (Z & mask) + ((Z & ~mask) >> 7);
+    Z = mask - Z;
+    Z = Z + a;
+
+    Z = (Z & mask) + ((Z & ~mask) >> 7);
+    uint64_t C  = ((Z+one) & ~mask) ;
+    return Z + (C>>7) - C ;
+}
+#endif
 
 
 /// NOTE: non constant-time. Dont use for anything important

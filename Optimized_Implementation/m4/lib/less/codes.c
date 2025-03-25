@@ -240,6 +240,13 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
                 /* all elements before the pivot in the pivot row are null, no need to
                  * subtract them from other rows. */
                 unsigned col_idx = 0;
+#ifndef USE_M4
+                for(; (col_idx + 8) <= NN; col_idx+=8) {
+                    const uint64_t a = *((uint64_t *)(G->values[row_idx] + col_idx));
+                    const uint64_t b = *((uint64_t *)(G->values[pivot_row] + col_idx));
+                    *((uint64_t *)(G->values[row_idx] + col_idx)) = fq_scalar_sub_u64(a, b, multiplier);
+                }
+#endif
                 for(; (col_idx + 4) <= NN; col_idx+=4) {
                     const uint32_t a = *((uint32_t *)(G->values[row_idx] + col_idx));
                     const uint32_t b = *((uint32_t *)(G->values[pivot_row] + col_idx));

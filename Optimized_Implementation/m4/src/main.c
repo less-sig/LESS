@@ -30,16 +30,6 @@ static long long get_cycles(void) {
 const int N_BENCH = 20;     /* Number of tests. */
 //const int MSG_LEN = 80;       /* Message length. */
 
-#ifdef USE_M4
-/// \brief 
-/// \param p 
-/// \param n 
-void randombytes(unsigned char *p, const size_t n) {
-    for (size_t i = 0; i < n; i++) {
-        p[i] = i;
-    }
-}
-#endif
 
 /* This goes outside of 'main' to avoid stack overflows. */
 int bench_less() {
