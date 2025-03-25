@@ -234,7 +234,9 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
          * after rescaling it */
         for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
             if (row_idx != pivot_row) {
-                FQ_ELEM multiplier = G->values[row_idx][pivot_column];
+                const FQ_ELEM multiplier = G->values[row_idx][pivot_column];
+                if (multiplier == 0) { continue; }
+
                 /* all elements before the pivot in the pivot row are null, no need to
                  * subtract them from other rows. */
                 unsigned col_idx = 0;

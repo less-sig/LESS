@@ -38,8 +38,8 @@
 
 
 // M4 SPECIFIC
-#define CATEGORY 252
-#define TARGET 192
+// #define CATEGORY 252
+// #define TARGET 45
 
 
 /***************************** Toy parameters *********************************/

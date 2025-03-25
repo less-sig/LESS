@@ -24,10 +24,6 @@
  *
  **/
 #include <string.h> // memcpy, memset
-#include <stdio.h>
-#include <inttypes.h>
-
-
 #include "LESS.h"
 #include "canonical.h"
 #include "seedtree.h"
@@ -77,8 +73,8 @@ void LESS_keygen(prikey_t *SK,
         generator_monomial_mul(&result_G,
                                &tmp_full_G,
                                &private_Q);
+        memset(is_pivot_column, 0, sizeof(is_pivot_column));
         generator_RREF(&result_G, is_pivot_column);
-
         /* note that the result is stored at i-1 as the first
          * public key element is just a seed */
         compress_rref(PK->SF_G[i],
@@ -314,14 +310,10 @@ int LESS_verify(const pubkey_t *const PK,
     generator_get_pivot_flags(&G0_rref, g0_initial_pivot_flags);
     generator_rref_expand(&G0_full, &G0_rref);
 
-#ifdef USE_M4
-    generator_mat_t G0;
-#else
     generator_mat_t Gs[NUM_KEYPAIRS];
     for (uint32_t i = 0; i < NUM_KEYPAIRS-1; i++) {
         expand_to_rref(&Gs[i], PK->SF_G[i], gi_initial_pivot_flags);
     }
-#endif
 
     for (uint32_t i = 0; i < TT; i++) {
         memset(is_pivot_column, 0, N_pad);
@@ -347,23 +339,16 @@ int LESS_verify(const pubkey_t *const PK,
             }
 #endif
         } else {
-#ifdef USE_M4
-            expand_to_rref(&G0, PK->SF_G[fixed_weight_string[i] - 1], gi_initial_pivot_flags);
-#else
+            // expand_to_rref(&G0, PK->SF_G[fixed_weight_string[i] - 1], gi_initial_pivot_flags);
             memset(gi_initial_pivot_flags, 0, NN);
             const uint32_t key_pos = fixed_weight_string[i] -1;
-#endif
             if (!CheckCanonicalAction(sig->cf_monom_actions[employed_monoms])) {
                 return 0;
             }
 
 #if defined(LESS_REUSE_PIVOTS_VY)
             apply_cf_action_to_G_with_pivots(&G_prime,
-#ifdef USE_M4
-                                             &G0,
-#else
                                              &Gs[key_pos],
-#endif
                                              sig->cf_monom_actions[employed_monoms],
                                              gi_initial_pivot_flags,
                                              g0_permuted_pivot_flags);

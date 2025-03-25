@@ -27,7 +27,7 @@ static long long get_cycles(void) {
 #define MAX_STACK_SIZE 132768
 #define MSG_LEN 80
 
-const int N_BENCH = 1;     /* Number of tests. */
+const int N_BENCH = 20;     /* Number of tests. */
 //const int MSG_LEN = 80;       /* Message length. */
 
 #ifdef USE_M4
@@ -57,14 +57,13 @@ int bench_less() {
         char msg[MSG_LEN] = {0};
 
         /* Generate a random message. */
-        //randombytes((unsigned char *)msg, MSG_LEN);
+        randombytes((unsigned char *)msg, MSG_LEN);
 
         begin = get_cycles();
         {
             LESS_keygen(&sk, &pk);
         }
         end = get_cycles();
-        printf("kek1\n");
         cc_keyg[i] = end - begin;
         
 
@@ -73,19 +72,17 @@ int bench_less() {
            LESS_sign(&sk, msg, MSG_LEN, &signature);
         }
         end = get_cycles();
-        printf("kek2\n");
         cc_sign[i] = end - begin;
 
         begin = get_cycles();
         {
             /* Verify the message */
-            //if (LESS_verify(&pk, msg, 8, &signature) != 0) {
-            //    printf("Error: Verification failed!\n");
-            //    return -1;
-            //}
+            if (LESS_verify(&pk, msg, 8, &signature) != 0) {
+                printf("Error: Verification failed!\n");
+                return -1;
+            }
         }
         end = get_cycles();
-        printf("kek3\n");
         cc_verf[i] = end - begin;
     }
 
@@ -160,8 +157,8 @@ int main(void) {
         HAL_Delay(1000);
     }
 #else
-    //bench_less();
-    test();
+    bench_less();
+    //test();
 #endif
 
 }

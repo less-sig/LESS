@@ -191,10 +191,10 @@ DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, QQ-1)
 static inline
 FQ_ELEM row_acc(const FQ_ELEM *d) {
     uint32_t s = 0;
-    
+
     uint32_t col = 0;
     for (; (col + 4) <= (NN-K); col+=4) {
-        s = fq_add(s, *((uint32_t *)(d + col)));
+        s = fq_add_u32(s, *((uint32_t *)(d + col)));
 	}
 
     uint8_t tmp[4];
@@ -202,7 +202,7 @@ FQ_ELEM row_acc(const FQ_ELEM *d) {
 
     uint8_t ss = tmp[0];
     for (uint32_t i = 1; i < 4; i++) {
-        ss += tmp[i];
+        ss = fq_add(ss, tmp[i]);
     }
     for (; col < (NN-K); col++) {
         ss = fq_add(ss, d[col]);
