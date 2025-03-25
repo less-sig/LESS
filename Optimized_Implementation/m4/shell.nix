@@ -23,6 +23,9 @@ in
       vscode 
       clang 
       zstd
+      cmake
+      openssl
+      pkg-config
     ]);
   })
 .env

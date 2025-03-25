@@ -39,7 +39,7 @@
 // non LESS includes
 #include "m4_utils.h"
 #include "stm32f4xx_hal.h"
-
+//uint32_t get_cycles() { return  0; }
 
 void LESS_keygen(prikey_t *SK,
                  pubkey_t *PK) {
@@ -232,7 +232,7 @@ size_t LESS_sign(const prikey_t *SK,
             }
         }
 
-        blind(&A_i, &cf_shake_state);
+        //blind(&A_i, &cf_shake_state);
         const int t = CF(&A_i);
 
         if (t == 0) {
@@ -249,6 +249,8 @@ size_t LESS_sign(const prikey_t *SK,
             LESS_SHA3_INC_ABSORB(&state, (uint8_t *)&A_i, sizeof(normalized_IS_t));
 #endif
         }
+
+        return 0;
     }
 
     LESS_SHA3_INC_ABSORB(&state, (const uint8_t *)m, mlen);

@@ -1,0 +1,114 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Release-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6
+					]
+				}
+			],
+			"name" : "Release",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "mirith",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3,
+						4,
+						5,
+						6
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_benchmark_252_192::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_benchmark_252_192-Release-7feb6cef224350c5e6fd.json",
+					"name" : "LESS_benchmark_252_192",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_benchmark_252_45::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_benchmark_252_45-Release-2962cfe55cfa01220e79.json",
+					"name" : "LESS_benchmark_252_45",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_benchmark_252_68::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_benchmark_252_68-Release-5fa49b425023bd7ee77d.json",
+					"name" : "LESS_benchmark_252_68",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_benchmark_400_102::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_benchmark_400_102-Release-73ede96aeac97cfab401.json",
+					"name" : "LESS_benchmark_400_102",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_benchmark_400_220::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_benchmark_400_220-Release-29d238ea7be37534339f.json",
+					"name" : "LESS_benchmark_400_220",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_benchmark_548_137::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_benchmark_548_137-Release-6d62905e162d7489a96e.json",
+					"name" : "LESS_benchmark_548_137",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "LESS_benchmark_548_345::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-LESS_benchmark_548_345-Release-5a4c8661f933ca6dcd99.json",
+					"name" : "LESS_benchmark_548_345",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/duda/Downloads/crypto/schemes/LESS/Optimized_Implementation/m4/cmake-build-release",
+		"source" : "/home/duda/Downloads/crypto/schemes/LESS/Optimized_Implementation/m4"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 7
+	}
+}

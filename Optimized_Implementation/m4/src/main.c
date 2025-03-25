@@ -5,7 +5,8 @@
 
 #if !defined(__APPLE__) && !defined (__x86_64__)
 #include "stm32f4xx_hal.h"
-#else 
+#include "m4_utils.h"
+#else
 static long long get_cycles(void) {
 	unsigned long long result;
 	asm volatile(".byte 15;.byte 49;shlq $32,%%rdx;orq %%rdx,%%rax"
@@ -14,11 +15,13 @@ static long long get_cycles(void) {
 }
 #endif
 
-// non LESS includes
-#include "m4_utils.h"
 
 // LESS includes
+#include "codes.h"
 #include "LESS.h"
+#include "rng.h"
+#include "api.h"
+
 
 
 #define MAX_STACK_SIZE 132768
@@ -27,6 +30,7 @@ static long long get_cycles(void) {
 const int N_BENCH = 1;     /* Number of tests. */
 //const int MSG_LEN = 80;       /* Message length. */
 
+#ifdef USE_M4
 /// \brief 
 /// \param p 
 /// \param n 
@@ -35,6 +39,7 @@ void randombytes(unsigned char *p, const size_t n) {
         p[i] = i;
     }
 }
+#endif
 
 /* This goes outside of 'main' to avoid stack overflows. */
 int bench_less() {
@@ -65,7 +70,7 @@ int bench_less() {
 
         begin = get_cycles();
         {
-           //LESS_sign(&sk, msg, MSG_LEN, &signature);
+           LESS_sign(&sk, msg, MSG_LEN, &signature);
         }
         end = get_cycles();
         printf("kek2\n");
@@ -103,6 +108,40 @@ int bench_less() {
     return 0;
 }
 
+int test() {
+    uint8_t seed[48] = {0};
+    uint8_t m[48] = {0};
+    // init_randombytes(seed, 48);
+    initialize_csprng(&platform_csprng_state,
+                      (const unsigned char *)seed,
+                      48);
+
+    const uint32_t mlen = sizeof(m);
+    unsigned long long smlen = 0, mlen1;
+    unsigned char *m1 = (unsigned char *)calloc(mlen+CRYPTO_BYTES, sizeof(unsigned char));
+    unsigned char *sm = (unsigned char *)calloc(mlen+CRYPTO_BYTES, sizeof(unsigned char));
+    unsigned char pk[CRYPTO_PUBLICKEYBYTES] = {0}, sk[CRYPTO_SECRETKEYBYTES] = {0};
+
+    int ret_val;
+    if ((ret_val = crypto_sign_keypair(pk, sk)) != 0) {
+        printf("crypto_sign_keypair returned <%d>\n", ret_val);
+        return -1;
+    }
+    if ( (ret_val = crypto_sign(sm, &smlen, m, mlen, sk)) != 0) {
+        printf("crypto_sign returned <%d>\n", ret_val);
+        return -1;
+    }
+    if ( (ret_val = crypto_sign_open(m1, &mlen1, sm, smlen, pk)) != 0) {
+        printf("crypto_sign_open returned <%d>\n", ret_val);
+        return -1;
+    }
+
+    free(m1);
+    free(sm);
+    printf("all good\n");
+    return 0;
+}
+
 int main(void) {
 #if !defined(__APPLE__) && !defined (__x86_64__)
     utils_init();
@@ -121,7 +160,8 @@ int main(void) {
         HAL_Delay(1000);
     }
 #else
-    bench_less();
+    //bench_less();
+    test();
 #endif
 
 }

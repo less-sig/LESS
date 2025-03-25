@@ -103,6 +103,50 @@ FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
     return fq_red((FQ_DOUBLEPREC) x * (FQ_DOUBLEPREC) y);
 }
 
+inline static uint32_t fq_red_u32(uint32_t Z) {
+    const uint32_t mask = 0x7F7F7F7F;
+    const uint32_t one = 0x01010101;
+    Z = (Z & mask) + ((Z & ~mask) >> 7u);
+    uint32_t C  = ((Z+one) & ~mask) ;
+    return Z + (C >> 7u) - C ;
+}
+
+inline static uint32_t fq_sub_u32(const uint32_t a,
+                                  const uint32_t b) {
+    return fq_red_u32(a - b + 0x7F7F7F7F);
+}
+
+/// @brief  
+/// @param a 
+/// @param b 
+/// @return a-b*c
+inline static uint32_t fq_scalar_sub_u32(const uint32_t a,
+                                             const uint32_t b,
+                                             const uint8_t c) {
+    const uint32_t mask  = 0x7F7F7F7F;
+    const uint32_t one   = 0x01010101;
+    const uint32_t mask1 = 0x00FF00FF;
+    const uint32_t mask2 = 0xFF00FF00;
+    const uint32_t mask3 = 0x007F007F;
+    const uint32_t mask4 = 0x7F007F00;
+
+    const uint32_t t1 = (b&mask1) * c;
+    const uint64_t t2 = ((uint64_t)b&mask2) * c;
+
+    const uint32_t v1 = ((t1 >> 7) + (t1 & mask3)) & mask1;
+    const uint32_t v2 = ((t2 >> 7) + (t2 & mask4)) & mask2;
+
+    uint32_t Z = v1 ^ v2;
+    Z = (Z & mask) + ((Z & ~mask) >> 7);
+    Z = mask - Z;
+    Z = Z + a;
+
+    Z = (Z & mask) + ((Z & ~mask) >> 7);
+    uint32_t C  = ((Z+one) & ~mask) ;
+    return Z + (C>>7) - C ;
+}
+
+
 /// NOTE: non constant-time. Dont use for anything important
 /// \param x[in]: < 127
 /// \param y[in]: < 127

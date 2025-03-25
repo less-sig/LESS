@@ -1,1 +1,493 @@
-../../../../Reference_Implementation/lib/sort.c
+/**
+ *
+ * Reference ISO-C11 Implementation of LESS.
+ *
+ * @version 1.2 (February 2025)
+ *
+ * @author Floyd Zweydinge <zweydfg8+github@rub.de>
+ *
+ * This code is hereby placed in the public domain.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ''AS IS'' AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ **/
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#if defined(USE_AVX512) || defined(USE_AVX2)
+#include <immintrin.h>
+#endif
+
+#include "parameters.h"
+#include "utils.h"
+#include "fq_arith.h"
+#include "codes.h"
+#include "transpose.h"
+
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+
+/// NOTE: only needed for `compute_canonical_form_type4_sub`
+/// \input row1[in]:
+/// \input row2[in]:
+/// \return: 0 if multiset(row1) == multiset(row2)
+///          x if row1 > row2
+///         -x if row1 < row2
+int compare_rows(const FQ_ELEM *row1,
+                 const FQ_ELEM *row2) {
+    uint32_t i=0;
+    while((i < (QQ-1)) && (row1[i] == row2[i])) {
+        i += 1;
+    }
+    return (((int)(row2[i]))-((int)(row1[i])));
+}
+
+/// lexicographic comparison between a row with the pivot row
+/// \input: ptr[in/out]: K x (N-K) matrix
+/// \input: row_idx[in]: position of the row to compare in `ptr`
+/// \input: pivot[in]: pivot row
+/// \returns   1 if the pivot is greater,
+/// 	      -1 if it is smaller,
+/// 		   0 if it matches
+///
+int SortRows_internal_compare(uint8_t *ptr[QQ],
+                              const uint32_t row_idx,
+                              const uint8_t pivot[QQ]){
+    uint32_t i=0;
+    while((i<(QQ-1)) && (ptr[row_idx][i]-pivot[i] == 0)){
+        i++;
+    }
+    return ((int)ptr[row_idx][i]-(int)pivot[i]);
+}
+
+/// NOTE: only used in `rowsort_internal`
+int SortRows_internal_hoare_partition(FQ_ELEM* ptr[K],
+                                     uint32_t P[K],
+                                     const int32_t l,
+                                     const int32_t h) {
+    int32_t i = l - 1;
+    for (int32_t j = l; j <= h - 1; j++) {
+        if (compare_rows(ptr[j], ptr[h]) < 0) {
+            i++;
+            if (i == j) { continue; }
+            SWAP(P[i], P[j]);
+            uint8_t *p = ptr[i];
+            ptr[i] = ptr[j];
+            ptr[j] = p;
+        }
+    }
+    if (i+1 != h) {
+        SWAP(P[i+1], P[h]);
+        uint8_t *p = ptr[i+1];
+        ptr[i+1] = ptr[h];
+        ptr[h] = p;
+    }
+    return i+1;
+}
+
+#if defined(LESS_USE_CUSTOM_HISTOGRAM) && defined(USE_AVX2)
+#include <immintrin.h>
+
+void HISTEND4(uint8_t *cnt,
+              uint8_t c[4][128]) {
+    for(uint32_t i = 0; i < Q_pad; i+=32) {
+        __m256i sv =                  _mm256_load_si256((const __m256i *)&c[0][i]);
+                sv = _mm256_add_epi8(_mm256_load_si256((const __m256i *)&c[1][i]), sv);
+                sv = _mm256_add_epi8(_mm256_load_si256((const __m256i *)&c[2][i]), sv);
+                sv = _mm256_add_epi8(_mm256_load_si256((const __m256i *)&c[3][i]), sv);
+        _mm256_storeu_si256((__m256i *)&cnt[i], sv);
+    }
+}
+
+void histogram_less(uint8_t* histogram,
+				    const uint8_t* ptr,
+				    const size_t n) {
+    (void)n;
+    uint8_t tmp[K_pad+32] __attribute__((aligned(64)));
+    const __m512i m = _mm512_set1_epi8(16);
+#if CATEGORY == 252
+    uint32_t c[2];
+    const __mmask64 mask = -1ull >> 2ul;
+    const __m512i mm = _mm512_set1_epi8(-1);
+    const __m512i d1 = _mm512_loadu_si512((__m512i *)(ptr +  0));
+    const __m512i d2 = _mm512_mask_loadu_epi8(mm, mask, (__m512i *)(ptr + 64));
+
+    const __mmask64 m1 = _mm512_cmple_epu8_mask(d1, m);
+    const __mmask64 m2 = _mm512_cmple_epu8_mask(d2, m);
+
+    const __m512i t1 = _mm512_maskz_compress_epi8(m1, d1);
+    const __m512i t2 = _mm512_maskz_compress_epi8(m2, d2);
+    c[0] = _mm_popcnt_u64(m1);
+    c[1] = _mm_popcnt_u64(m2);
+    _mm512_store_si512(tmp, t1);
+    _mm512_store_si512(tmp+64, t2);
+    
+    memset(histogram, 0, 32);
+    for (uint32_t j = 0; j < 2; j++) {
+        for (uint32_t i = 0; i < c[j]; i++) {
+            const uint8_t t = tmp[j*64 + i];
+            histogram[t] += 1;
+        }
+    }
+
+#elif CATEGORY == 400
+    uint32_t c[3];
+    const __m512i mm = _mm512_set1_epi8(-1);
+    const __m512i d1 = _mm512_loadu_si512((__m512i *)(ptr +   0));
+    const __mmask64 m1 = _mm512_cmple_epu8_mask(d1, m);
+    const __m512i t1 = _mm512_maskz_compress_epi8(m1, d1);
+    c[0] =  _mm_popcnt_u64(m1);
+    const __m512i d2 = _mm512_loadu_si512((__m512i *)(ptr +   64));
+    const __mmask64 m2 = _mm512_cmple_epu8_mask(d2, m);
+    const __m512i t2 = _mm512_maskz_compress_epi8(m2, d2);
+    c[1] =  _mm_popcnt_u64(m2);
+    const __m512i d3 = _mm512_loadu_si512((__m512i *)(ptr +  128));
+    const __mmask64 m3 = _mm512_cmple_epu8_mask(d3, m);
+    const __m512i t3 = _mm512_maskz_compress_epi8(m3, d3);
+    c[2] =  _mm_popcnt_u64(m3);
+
+    _mm512_store_si512(tmp,     t1);
+    _mm512_store_si512(tmp+ 64, t2);
+    _mm512_store_si512(tmp+128, t3);
+
+    memset(histogram, 0, 32);
+    for (uint32_t j = 0; j < 3; j++) {
+        for (uint32_t i = 0; i < c[j]; i++) {
+            const uint8_t t = tmp[j*64 + i];
+            histogram[t] += 1;
+        }
+    }
+
+    for (uint32_t i = 192; i < 200; i++) {
+        histogram[ptr[i]] += 1;
+    }
+#elif CATEGORY == 548
+    uint32_t c[4];
+    const __m512i d1 = _mm512_loadu_si512((__m512i *)(ptr +   0));
+    const __mmask64 m1 = _mm512_cmple_epu8_mask(d1, m);
+    const __m512i t1 = _mm512_maskz_compress_epi8(m1, d1);
+    c[0] =  _mm_popcnt_u64(m1);
+    const __m512i d2 = _mm512_loadu_si512((__m512i *)(ptr +   64));
+    const __mmask64 m2 = _mm512_cmple_epu8_mask(d2, m);
+    const __m512i t2 = _mm512_maskz_compress_epi8(m2, d2);
+    c[1] =  _mm_popcnt_u64(m2);
+    const __m512i d3 = _mm512_loadu_si512((__m512i *)(ptr +  128));
+    const __mmask64 m3 = _mm512_cmple_epu8_mask(d3, m);
+    const __m512i t3 = _mm512_maskz_compress_epi8(m3, d3);
+    c[2] =  _mm_popcnt_u64(m3);
+    const __m512i d4 = _mm512_loadu_si512((__m512i *)(ptr +  192));
+    const __mmask64 m4 = _mm512_cmple_epu8_mask(d4, m);
+    const __m512i t4 = _mm512_maskz_compress_epi8(m4, d4);
+    c[3] =  _mm_popcnt_u64(m4);
+
+    _mm512_store_si512(tmp,        t1);
+    _mm512_store_si512(tmp+ 64, t2);
+    _mm512_store_si512(tmp+128, t3);
+    _mm512_store_si512(tmp+192, t4);
+    memset(histogram, 0, 32);
+    for (uint32_t j = 0; j < 4; j++) {
+        for (uint32_t i = 0; i < c[j]; i++) {
+            const uint8_t t = tmp[j*64 + i];
+            histogram[t] += 1;
+        }
+    }
+
+    for (uint32_t i = 256; i < n; i++) {
+        histogram[ptr[i]] += 1;
+    }
+#endif
+}
+
+
+#endif
+
+/// \param out[out]: pointer to the row to sort
+/// \param in[in]: pointer to the row to sort
+/// \param len[in]: length of the row
+void sort(uint8_t *out,
+          const uint8_t *in,
+          const uint32_t len) {
+#ifndef LESS_USE_CUSTOM_HISTOGRAM
+    memset(out, 0, Q_pad);
+	for (uint32_t i = 0 ; i < len; ++i) {
+	    const uint32_t t = in[i];
+		out[t]++;
+	}
+#else
+#ifdef USE_NEON
+    uint8_t c[4][Q_pad] __attribute__((aligned(32))) = {0};
+    const uint8_t *ip = in;
+    while(ip != in+(len&~(4-1))) c[0][*ip++]++, c[1][*ip++]++, c[2][*ip++]++, c[3][*ip++]++;
+    while(ip != in+ len        ) c[0][*ip++]++;
+    for (uint32_t i = 0; i < Q_pad; i++){
+        out[i] = c[0][i]
+               + c[1][i]
+               + c[2][i]
+               + c[3][i];
+    }
+#endif
+
+#if defined(USE_AVX2) && !defined(USE_AVX512)
+    uint8_t c[4][Q_pad] __attribute__((aligned(32))) = {0};
+    const uint8_t *ip = in;
+    while(ip != in+(len&~(4-1))) c[0][*ip++]++, c[1][*ip++]++, c[2][*ip++]++, c[3][*ip++]++;
+    while(ip != in+ len        ) c[0][*ip++]++;
+    HISTEND4(out, c);
+#endif
+#ifdef USE_AVX512
+    histogram_less(out, in, len);
+#endif
+#endif
+}
+
+/// internal sorting function for `SortRows`
+int SortRows_internal(FQ_ELEM *ptr[K],
+                     uint32_t P[K],
+                     const uint32_t n) {
+    int32_t l = 0, h = (int32_t)n-1;
+    int32_t s = -1;
+
+    // NOTE: worst case is 128
+    int32_t stack[128] __attribute__((aligned(32)));
+    stack[++s] = l;
+    stack[++s] = h;
+    while (s >= 0) {
+        h = stack[s--];
+        l = stack[s--];
+
+        const int32_t p = SortRows_internal_hoare_partition(ptr, P, l, h);
+        if (p - 1 > l) {
+            stack[++s] = l;
+            stack[++s] = p - 1;
+        }
+        if (p + 1 < h) {
+            stack[++s] = p + 1;
+            stack[++s] = h;
+        }
+    }
+
+    return 1;
+}
+
+void SortRows_swap(normalized_IS_t *G,
+                   const uint32_t P[K],
+                   const uint32_t n) {
+    // apply the permutation
+    for (uint32_t t = 0; t < n; t++) {
+        uint32_t ind = P[t];
+        while(ind<t) { ind = P[ind]; }
+
+        normalized_row_swap(G, t, ind);
+    }
+}
+
+/// NOTE: only operates on ptrs
+/// NOTE: not constant time
+/// \param G[in/out]: generator matrix to sort
+/// \param n[in] number of elements to sort
+/// \return 1 on success
+///			0 if two rows generate the same multiset
+int SortRows(normalized_IS_t *G,
+             const uint32_t n,
+             const uint8_t *L) {
+	// first sort each row into a tmp buffer
+	FQ_ELEM tmp[K][Q_pad] __attribute__((aligned(32)));
+    FQ_ELEM* ptr[K] __attribute__((aligned(32)));
+    uint32_t P[K];
+
+    uint32_t max_zeros = 0;
+	for (uint32_t i = 0; i < n; ++i) {
+        sort(tmp[i], G->values[i], NN-K);
+	    if (tmp[i][0] > max_zeros) {max_zeros = tmp[i][0]; }
+
+        ptr[i] = tmp[i];
+        P[i] = i;
+	}
+
+    if ((L!=NULL) && (max_zeros < L[0])) { return 0; }
+
+    SortRows_internal(ptr, P, n);
+
+    // apply the permutation
+    SortRows_swap(G, P, n);
+
+    return 1;
+}
+
+
+/// uses a presorted quicksort
+int SortRows_opt(normalized_IS_t *G,
+
+             const uint32_t n,
+             const uint8_t *L) {
+    // first sort each row into a tmp buffer
+    FQ_ELEM tmp[K][Q_pad] __attribute__((aligned(32)));
+    FQ_ELEM* ptr[K] __attribute__((aligned(32)));
+    uint32_t P[K];
+    // memset(P, -1u, K*4);
+
+    uint32_t max_zeros = 0;
+    // uint64_t avg = 0;
+    // TODO correctly choose
+    const uint32_t middle = 100;//(Q>>1u);
+    uint32_t ctr_l = 0;
+    uint32_t ctr_h = middle;
+    uint32_t ctr_m = middle-1;
+    for (uint32_t i = 0; i < n; ++i) {
+        sort(tmp[i], G->values[i], NN-K);
+        if (tmp[i][0] > max_zeros) { max_zeros = tmp[i][0]; }
+
+        uint32_t pos;
+        if (tmp[i][0] > 0) {
+            if (ctr_l >= middle) {
+                pos = ctr_h++;
+            } else {
+                pos = ctr_l++;
+            }
+        } else {
+            if (ctr_h >= n) {
+                pos = ctr_m--;
+            } else {
+                pos = ctr_h++;
+            }
+        }
+
+        ptr[pos] = tmp[i];
+        P[pos] = i;
+    }
+
+    if (max_zeros < L[0]) { return 0; }
+    SortRows_internal(ptr, P, ctr_l);
+    SortRows_internal(ptr+ctr_l, P+ctr_l, ctr_h-ctr_l);
+
+    // apply the permutation
+    SortRows_swap(G, P, n);
+    return 1;
+}
+
+/// lexicographic comparison between a row with the pivot row
+/// \input: ptr[in/out]: K x (N-K) matrix
+/// \input: row_idx[in]: position of the row to compare in `ptr`
+/// \input: pivot[in]: pivot row
+/// \returns   1 if the pivot is greater,
+/// 	      -1 if it is smaller,
+/// 		   0 if it matches
+int SortCols_internal_compare(uint8_t *ptr[K],
+                              const POSITION_T row_idx,
+                              const uint8_t pivot[K]){
+    uint32_t i=0;
+    while((i < (NN-K-1)) && (ptr[row_idx][i]-pivot[i] == 0)){
+        i++;
+    }
+    return -(((int)(ptr[row_idx][i]))-((int)(pivot[i])));
+}
+
+/// NOTE: only used in `SortCols_internal`
+int SortCols_internal_hoare_partition(FQ_ELEM* ptr[K],
+                                            uint32_t P[K],
+                                            const int32_t l,
+                                            const int32_t h) {
+    FQ_ELEM pivot_row[N_K_pad];
+    for(uint32_t i = 0; i < NN-K; i++){
+       pivot_row[i] = ptr[h][i];
+    }
+
+    int32_t i = l - 1;
+    for (int32_t j = l; j <= h - 1; j++) {
+        if (SortCols_internal_compare(ptr, j, pivot_row) > 0) {
+            i++;
+            if (i == j) { continue; }
+            SWAP(P[i], P[j]);
+            uint8_t *p = ptr[i];
+            ptr[i] = ptr[j];
+            ptr[j] = p;
+        }
+    }
+    if (i+1 != h) {
+        SWAP(P[i+1], P[h]);
+        uint8_t *p = ptr[i+1];
+        ptr[i+1] = ptr[h];
+        ptr[h] = p;
+    }
+    return i+1;
+}
+
+/// NOTE: even though this is named `SortCols`, it actually sorts
+/// rows, which where previously transposed
+/// \param ptr[in/out]:
+/// \param P[in/out]: a permutation to keep track of the sorting
+/// \param l[in]: inclusive
+/// \param h[in]: inclusive
+/// \return 1 on success
+///			0 if two rows generate the same multi set
+int SortCols_internal(FQ_ELEM* ptr[K],
+                      uint32_t P[K],
+                      int32_t l,
+                      int32_t h) {
+    int32_t s = -1;
+
+    // NOTE: worst case is 128
+    int32_t stack[64] __attribute__((aligned(32)));
+    stack[++s] = l;
+    stack[++s] = h;
+    while (s >= 0) {
+        h = stack[s--];
+        l = stack[s--];
+
+        const int32_t p = SortCols_internal_hoare_partition(ptr, P, l, h);
+        if (p - 1 > l) {
+            stack[++s] = l;
+            stack[++s] = p - 1;
+        }
+        if (p + 1 < h) {
+            stack[++s] = p + 1;
+            stack[++s] = h;
+        }
+    }
+
+	return 1;
+}
+
+/// NOTE: non-constant time
+/// NOTE: implements quick sort
+/// Sorts the columns of the input matrix, via first transposing
+/// the matrix, subsequent sorting rows, and finally transposing
+/// it back.
+/// \param V[in/out]: non IS-part of a generator matrix
+/// \param z[in]: number of rows within each col to sort
+void SortCols(normalized_IS_t *V,
+              const uint32_t z) {
+    normalized_IS_t VT __attribute__((aligned(32)));
+    matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, z, K_pad);
+
+    FQ_ELEM* ptr[K];
+    uint32_t P[K];
+    for (uint32_t i = 0; i < K; ++i) {
+        ptr[i] = VT.values[i];
+        P[i] = i;
+    }
+
+    SortCols_internal(ptr, P, 0, K - 1);
+
+    // apply the permutation
+    for (uint32_t t = 0; t < K; t++) {
+        uint32_t ind = P[t];
+        while(ind<t) { ind = P[ind]; }
+
+        // NOTE: this swapping can be improved if z < K
+        normalized_row_swap(&VT, t, ind);
+    }
+
+    matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, K_pad, z);
+}

@@ -133,9 +133,18 @@ int generator_RREF(generator_mat_t *G,
       for(unsigned row_idx = 0; row_idx < K; row_idx++) {
          if (row_idx != pivot_row) {
             const FQ_ELEM multiplier = G->values[row_idx][pivot_column];
+            //uint32_t *ptr1 = (uint32_t *)G->values[pivot_row];
+            //uint32_t *ptr2 = (uint32_t *)G->values[row_idx];
+
             /* all elements before the pivot in the pivot row are null, no need to
              * subtract them from other rows. */
-            for(unsigned col_idx = 0; col_idx < NN; col_idx++) {
+             unsigned col_idx = 0;
+            for(; (col_idx + 4) <= NN; col_idx+=4) {
+                const uint32_t a = *((uint32_t *)(G->values[row_idx] + col_idx));
+                const uint32_t b = *((uint32_t *)(G->values[pivot_row] + col_idx));
+                *((uint32_t *)(G->values[row_idx] + col_idx)) = fq_scalar_sub_u32(a, b, multiplier);
+            }
+            for(; col_idx < NN; col_idx+=1) {
                 if (G->values[pivot_row][col_idx] > 0) {
                     FQ_ELEM tmp = fq_mul_non_ct(multiplier, G->values[pivot_row][col_idx]);
                     G->values[row_idx][col_idx] = fq_sub(G->values[row_idx][col_idx], tmp);
@@ -162,7 +171,8 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
                                const int pvt_reuse_limit) {
    int pvt_reuse_cnt = 0;
 
-    // row swap pre-process - swap previous pivot elements to corresponding row to reduce likelihood of corruption
+    // row swap pre-process - swap previous pivot elements to corresponding
+    // row to reduce likelihood of corruption
     if (pvt_reuse_limit != 0) {
         for (int preproc_col = K - 1; preproc_col >= 0; preproc_col--) {
             if (was_pivot_column[preproc_col] == 1) {
@@ -228,9 +238,17 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
                 FQ_ELEM multiplier = G->values[row_idx][pivot_column];
                 /* all elements before the pivot in the pivot row are null, no need to
                  * subtract them from other rows. */
-                for (int col_idx = 0; col_idx < NN; col_idx++) {
-                    FQ_ELEM tmp = fq_mul(multiplier, G->values[pivot_row][col_idx]);
-                    G->values[row_idx][col_idx] = fq_sub(G->values[row_idx][col_idx], tmp);
+                unsigned col_idx = 0;
+                for(; (col_idx + 4) <= NN; col_idx+=4) {
+                    const uint32_t a = *((uint32_t *)(G->values[row_idx] + col_idx));
+                    const uint32_t b = *((uint32_t *)(G->values[pivot_row] + col_idx));
+                    *((uint32_t *)(G->values[row_idx] + col_idx)) = fq_scalar_sub_u32(a, b, multiplier);
+                }
+                for(; col_idx < NN; col_idx+=1) {
+                    if (G->values[pivot_row][col_idx] > 0) {
+                        FQ_ELEM tmp = fq_mul_non_ct(multiplier, G->values[pivot_row][col_idx]);
+                        G->values[row_idx][col_idx] = fq_sub(G->values[row_idx][col_idx], tmp);
+                    }
                 }
             }
         }
@@ -252,89 +270,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                                       uint8_t is_pivot_column[NN],
                                       uint8_t was_pivot_column[NN],
                                       const int pvt_reuse_limit) {
-   int pvt_reuse_cnt = 0;
-
-    // row swap pre-process - swap previous pivot elements to corresponding row
-    // to reduce likelihood of corruption
-    if (pvt_reuse_limit != 0) {
-        for (int preproc_col = K - 1; preproc_col >= 0; preproc_col--) {
-            if (was_pivot_column[preproc_col] == 1) {
-                // find pivot row
-                uint32_t pivot_el_row = -1;
-                for (uint32_t row = 0; row < K; row = row + 1) {
-                    if (G->values[row][preproc_col] != 0) {
-                        pivot_el_row = row;
-                    }
-                }
-                swap_rows(G->values[preproc_col], G->values[pivot_el_row]);
-            }
-        }
-    }
-
-    for (uint32_t row_to_reduce = 0; row_to_reduce < K; row_to_reduce++) {
-        uint32_t pivot_row = row_to_reduce;
-        /*start by searching the pivot in the col = row*/
-        uint32_t pivot_column = row_to_reduce;
-        while ((pivot_column < NN) && (G->values[pivot_row][pivot_column] == 0)) {
-            while ((pivot_row < K) && (G->values[pivot_row][pivot_column] == 0)) {
-                pivot_row++;
-            }
-            
-            // entire column tail swept
-            if (pivot_row >= K) { 
-                pivot_column++; /* move to next col */
-                pivot_row = row_to_reduce; /*starting from row to red */
-            }
-        }
-        /* no pivot candidates left, report failure */
-        if (pivot_column >= NN) {
-            return 0;
-        }
-        is_pivot_column[pivot_column] = 1; /* pivot found, mark the column*/
-
-        /* if we found the pivot on a row which has an index > pivot_column
-         * we need to swap the rows */
-        if (row_to_reduce != pivot_row) {
-            was_pivot_column[pivot_row] = 0; // pivot no longer reusable - will be corrupted during reduce row
-            swap_rows(G->values[row_to_reduce], G->values[pivot_row]);
-        }
-        pivot_row = row_to_reduce; /* row with pivot now in place */
-
-        /// NOTE: this needs explenation. We can skip the reduction of the pivot row, because for
-        /// the CF it doesnt matter. The only thing that is important for the CF is the number of
-        /// zeros, and this doest change if we reduce a reused pivot row.
-        if (((was_pivot_column[pivot_column] == 1) && 
-            (pvt_reuse_cnt < pvt_reuse_limit) && 
-            (pivot_column < K))) {
-            pvt_reuse_cnt++;
-            continue;
-        }
-
-        /* Compute rescaling factor */
-        const FQ_ELEM scaling_factor = fq_inv(G->values[pivot_row][pivot_column]);
-
-        /* rescale pivot row to have pivot = 1. Values at the left of the pivot
-         * are already set to zero by previous iterations */
-        for (uint32_t i = pivot_column; i < NN; i++) {
-            G->values[pivot_row][i] = fq_mul_non_ct(scaling_factor, G->values[pivot_row][i]);
-        }
-
-        /* Subtract the now placed and reduced pivot rows, from the others,
-         * after rescaling it */
-        for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
-            if (row_idx != pivot_row) {
-                FQ_ELEM multiplier = G->values[row_idx][pivot_column];
-                /* all elements before the pivot in the pivot row are null, no need to
-                 * subtract them from other rows. */
-                for (uint32_t col_idx = 0; col_idx < NN; col_idx++) {
-                    FQ_ELEM tmp = fq_mul_non_ct(multiplier, G->values[pivot_row][col_idx]);
-                    G->values[row_idx][col_idx] = fq_sub(G->values[row_idx][col_idx], tmp);
-                }
-            }
-        }
-    }
-
-    return 1;
+    return generator_RREF_pivot_reuse_ct(G, is_pivot_column, was_pivot_column, pvt_reuse_limit);
 } /* end generator_RREF_pivot_reuse */
 
 /// NOTE: not constant time

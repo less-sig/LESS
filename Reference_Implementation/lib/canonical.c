@@ -255,7 +255,7 @@ int compute_canonical_form_type5_popcnt_base(normalized_IS_t *G) {
 		row_inv2(row_inv_data, G->values[row]);
 		for (uint32_t row2 = 0; row2 < z; row2++) {
 			row_mul3(B.values[row2], G->values[J[row2]], row_inv_data);
-		}
+
 
         if (compute_canonical_form_type4_sub(&B, z, L)) {
             for (uint32_t row2 = 0; row2 < K; row2++) {
