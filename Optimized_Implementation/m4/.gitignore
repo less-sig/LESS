@@ -1,4 +1,6 @@
 build/
-.cache/ 
-.pio/
-.vscode/
+cmake-build-debug/
+cmake-build-release/
+*.o 
+.idea/
+.cache/
