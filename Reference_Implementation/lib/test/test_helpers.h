@@ -15,13 +15,13 @@ typedef struct {
    * index 0, the position of the DESTINATION of column 0 in G after the
    * computation of GQ.
    */
-  POSITION_T permutation[NN];
+  POSITION_T permutation[N];
 } permutation_t;
 
 // wrapper struct around D_n
 typedef struct {
   /* coefficients listed in order of appearance column-wise */
-  FQ_ELEM coefficients[NN];
+  FQ_ELEM coefficients[N];
 } diagonal_t;
 
 

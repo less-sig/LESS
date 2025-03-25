@@ -50,12 +50,12 @@
 
 typedef struct {
    /* coefficients listed in order of appearance column-wise */
-   FQ_ELEM coefficients[NN];
+   FQ_ELEM coefficients[N];
    /* considering the product GQ, permutation[...] stores into the cell with
     * index 0, the position of the DESTINATION of column 0 in G after the
     * computation of GQ.
     */
-   POSITION_T permutation[NN];
+   POSITION_T permutation[N];
 } monomial_t;
 
 typedef struct {
@@ -73,8 +73,8 @@ void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
                             POSITION_T *permutation,
                             const uint32_t n);
 void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state,
-                      POSITION_T permutation[NN]);
-void yt_shuffle(POSITION_T permutation[NN]);
+                      POSITION_T permutation[N]);
+void yt_shuffle(POSITION_T permutation[N]);
 
 /* multiplies two monomial matrices */
 void monomial_mat_mul(monomial_t *res,

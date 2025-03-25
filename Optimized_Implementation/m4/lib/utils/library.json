@@ -1,7 +1,0 @@
-{
-    "name": "m4_utils",
-    "version": "0.0.0",
-    "build": {
-        "extraScript": "../../use_clang.py"
-    }
-}

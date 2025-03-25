@@ -134,7 +134,7 @@ size_t LESS_sign(const prikey_t *SK,
     unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES] = {0};
     BuildGGM(seed_tree, ephem_monomials_seed, sig->salt);
 
-    unsigned char linearized_rounds_seeds[TT*SEED_LENGTH_BYTES] = {0};
+    unsigned char linearized_rounds_seeds[T*SEED_LENGTH_BYTES] = {0};
     seed_leaves(linearized_rounds_seeds,seed_tree);
 
     /*         Public G_0 expansion                  */
@@ -145,13 +145,13 @@ size_t LESS_sign(const prikey_t *SK,
     generator_rref_expand(&full_G0, &G0_rref);
 
     monomial_t mu_tilde;
-    monomial_action_IS_t pi_tilde[TT];
+    monomial_action_IS_t pi_tilde[T];
     normalized_IS_t A_i = {0};
 
     LESS_SHA3_INC_CTX state;
     LESS_SHA3_INC_INIT(&state);
 
-    for (uint32_t i = 0; i < TT; i++) {
+    for (uint32_t i = 0; i < T; i++) {
         monomial_sample_salt(&mu_tilde,
                              linearized_rounds_seeds + i * SEED_LENGTH_BYTES,
                              sig->salt,
@@ -160,7 +160,7 @@ size_t LESS_sign(const prikey_t *SK,
         memset(is_pivot_column, 0, N_pad);
 #if defined(LESS_REUSE_PIVOTS_SG)
         uint8_t permuted_pivot_flags[N_pad];
-        for (uint32_t t = 0; t < NN; t++) {
+        for (uint32_t t = 0; t < N; t++) {
             permuted_pivot_flags[mu_tilde.permutation[t]] = g0_initial_pivot_flags[t];
         }
         if (generator_RREF_pivot_reuse_ct(&G0, is_pivot_column, permuted_pivot_flags, SIGN_PIVOT_REUSE_LIMIT) == 0) {
@@ -173,7 +173,7 @@ size_t LESS_sign(const prikey_t *SK,
 #endif
         // just copy the non IS
         uint32_t ctr = 0;
-        for(uint32_t j = 0; j < NN-K; j++) {
+        for(uint32_t j = 0; j < N-K; j++) {
             while (is_pivot_column[ctr]) {
                 ctr += 1;
             }
@@ -185,9 +185,9 @@ size_t LESS_sign(const prikey_t *SK,
         }
 
         POSITION_T piv_idx = 0;
-        for(uint32_t col_idx = 0; col_idx < NN; col_idx++) {
+        for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
             POSITION_T row_idx = 0;
-            for(uint32_t t = 0; t < NN; t++) {
+            for(uint32_t t = 0; t < N; t++) {
                if (mu_tilde.permutation[t] == col_idx) {
                    row_idx = t;
                    break;
@@ -224,11 +224,11 @@ size_t LESS_sign(const prikey_t *SK,
     /* Squeeze output */
     LESS_SHA3_INC_FINALIZE(sig->digest, &state);
     // (b_0, ..., b_{t-1})
-    uint8_t fixed_weight_string[TT] = {0};
+    uint8_t fixed_weight_string[T] = {0};
     SampleChallenge(fixed_weight_string, sig->digest);
 
-    uint8_t indices_to_publish[TT];
-    for (uint32_t i = 0; i < TT; i++) {
+    uint8_t indices_to_publish[T];
+    for (uint32_t i = 0; i < T; i++) {
         indices_to_publish[i] = !!(fixed_weight_string[i]);
     }
 
@@ -241,7 +241,7 @@ size_t LESS_sign(const prikey_t *SK,
                            (unsigned char *) &sig->seed_storage);
 
     monomial_action_IS_t mono_action;
-    for (uint32_t i = 0; i < TT; i++) {
+    for (uint32_t i = 0; i < T; i++) {
         monomial_t Q_to_multiply;
         if (fixed_weight_string[i] != 0) {
             const int sk_monom_seed_to_expand_idx = fixed_weight_string[i];
@@ -268,17 +268,17 @@ int LESS_verify(const pubkey_t *const PK,
                 const char *const m,
                 const uint64_t mlen,
                 const sign_t *const sig) {
-    uint8_t fixed_weight_string[TT] = {0};
+    uint8_t fixed_weight_string[T] = {0};
     uint8_t is_pivot_column[N_pad];
-    uint8_t g0_initial_pivot_flags[NN];
-    uint8_t gi_initial_pivot_flags[NN];
+    uint8_t g0_initial_pivot_flags[N];
+    uint8_t gi_initial_pivot_flags[N];
 #ifdef LESS_REUSE_PIVOTS_VY
-    uint8_t g0_permuted_pivot_flags[NN];
+    uint8_t g0_permuted_pivot_flags[N];
 #endif
     SampleChallenge(fixed_weight_string, sig->digest);
 
-    uint8_t published_seed_indexes[TT];
-    for (uint32_t i = 0; i < TT; i++) {
+    uint8_t published_seed_indexes[T];
+    for (uint32_t i = 0; i < T; i++) {
         published_seed_indexes[i] = !!(fixed_weight_string[i]);
     }
 
@@ -292,7 +292,7 @@ int LESS_verify(const pubkey_t *const PK,
         return 0;
     }
 
-    unsigned char linearized_rounds_seeds[TT*SEED_LENGTH_BYTES] = {0};
+    unsigned char linearized_rounds_seeds[T*SEED_LENGTH_BYTES] = {0};
     seed_leaves(linearized_rounds_seeds,seed_tree);
 
     int employed_monoms = 0;
@@ -315,7 +315,7 @@ int LESS_verify(const pubkey_t *const PK,
         expand_to_rref(&Gs[i], PK->SF_G[i], gi_initial_pivot_flags);
     }
 
-    for (uint32_t i = 0; i < TT; i++) {
+    for (uint32_t i = 0; i < T; i++) {
         memset(is_pivot_column, 0, N_pad);
         if (fixed_weight_string[i] == 0) {
             monomial_sample_salt(&mu_tilde,
@@ -327,7 +327,7 @@ int LESS_verify(const pubkey_t *const PK,
 #if defined(LESS_REUSE_PIVOTS_VY)
             uint8_t permuted_pivot_flags[N_pad] = {0};
 
-            for (uint32_t t = 0; t < NN; t++) {
+            for (uint32_t t = 0; t < N; t++) {
                 permuted_pivot_flags[mu_tilde.permutation[t]] = g0_initial_pivot_flags[t];
             }
             if (generator_RREF_pivot_reuse(&G_prime,is_pivot_column, permuted_pivot_flags, VERIFY_PIVOT_REUSE_LIMIT) == 0) {
@@ -367,7 +367,7 @@ int LESS_verify(const pubkey_t *const PK,
         }
         // just copy the non IS
         uint32_t ctr = 0;
-        for(uint32_t j = 0; j < NN-K; j++) {
+        for(uint32_t j = 0; j < N-K; j++) {
             while (is_pivot_column[ctr]) {
                 ctr += 1;
             }

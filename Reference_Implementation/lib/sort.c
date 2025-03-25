@@ -26,10 +26,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(USE_AVX512) || defined(USE_AVX2)
-#include <immintrin.h>
-#endif
-
 #include "parameters.h"
 #include "utils.h"
 #include "fq_arith.h"
@@ -37,6 +33,35 @@
 #include "transpose.h"
 
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+
+/// NOTE: specialised counting sort for Fq. Thus,
+/// this implementation assumes that every input element
+/// is reduced mod 127
+/// \param arr[in/out] input array
+/// \param size[in] length of the input array
+void counting_sort_u8(FQ_ELEM *arr,
+                      const uint32_t size) {
+	/// NOTE: the type `uint32_t` is not completly arbitrary choosen.
+	/// Floyd did a quick benchmark between `uint16_t`, `uint32_t`, `uint64_t`
+	/// and `uint32_t` seemed to be the fastest. But thats only true
+	/// on a Ryzen7600X. On your machine thats maybe different.
+	/// NOTE: `uint8_t` is not possible as there could be 256 times
+	/// the same field element. Unlikely but possible.
+	uint32_t cnt[128] __attribute__((aligned(32))) = { 0 };
+
+    /// compute the histogram
+	for (uint32_t i = 0 ; i < size ; ++i) {
+		cnt[arr[i]]++;
+	}
+
+    /// compute the prefixsum
+	uint32_t i = 0;
+	for (size_t a = 0 ; a < Q; ++a) {
+		while (cnt[a]--) {
+			arr[i++] = a;
+		}
+	}
+}
 
 /// NOTE: only needed for `compute_canonical_form_type4_sub`
 /// \input row1[in]:
@@ -47,7 +72,7 @@
 int compare_rows(const FQ_ELEM *row1,
                  const FQ_ELEM *row2) {
     uint32_t i=0;
-    while((i < (QQ-1)) && (row1[i] == row2[i])) {
+    while((i < (Q-1)) && (row1[i] == row2[i])) {
         i += 1;
     }
     return (((int)(row2[i]))-((int)(row1[i])));
@@ -61,11 +86,11 @@ int compare_rows(const FQ_ELEM *row1,
 /// 	      -1 if it is smaller,
 /// 		   0 if it matches
 ///
-int SortRows_internal_compare(uint8_t *ptr[QQ],
+int SortRows_internal_compare(uint8_t *ptr[Q],
                               const uint32_t row_idx,
-                              const uint8_t pivot[QQ]){
+                              const uint8_t pivot[Q]){
     uint32_t i=0;
-    while((i<(QQ-1)) && (ptr[row_idx][i]-pivot[i] == 0)){
+    while((i<(Q-1)) && (ptr[row_idx][i]-pivot[i] == 0)){
         i++;
     }
     return ((int)ptr[row_idx][i]-(int)pivot[i]);
@@ -82,16 +107,12 @@ int SortRows_internal_hoare_partition(FQ_ELEM* ptr[K],
             i++;
             if (i == j) { continue; }
             SWAP(P[i], P[j]);
-            uint8_t *p = ptr[i];
-            ptr[i] = ptr[j];
-            ptr[j] = p;
+            cswap((uintptr_t *)(&ptr[i]), (uintptr_t *)(&ptr[j]), -1ull);
         }
     }
     if (i+1 != h) {
         SWAP(P[i+1], P[h]);
-        uint8_t *p = ptr[i+1];
-        ptr[i+1] = ptr[h];
-        ptr[h] = p;
+        cswap((uintptr_t *)(&ptr[i+1]), (uintptr_t *)(&ptr[h]), -1ull);
     }
     return i+1;
 }
@@ -281,8 +302,8 @@ int SortRows_internal(FQ_ELEM *ptr[K],
 }
 
 void SortRows_swap(normalized_IS_t *G,
-                   const uint32_t P[K],
-                   const uint32_t n) {
+                  uint32_t P[K],
+                  const uint32_t n) {
     // apply the permutation
     for (uint32_t t = 0; t < n; t++) {
         uint32_t ind = P[t];
@@ -308,7 +329,7 @@ int SortRows(normalized_IS_t *G,
 
     uint32_t max_zeros = 0;
 	for (uint32_t i = 0; i < n; ++i) {
-        sort(tmp[i], G->values[i], NN-K);
+        sort(tmp[i], G->values[i], N-K);
 	    if (tmp[i][0] > max_zeros) {max_zeros = tmp[i][0]; }
 
         ptr[i] = tmp[i];
@@ -328,7 +349,6 @@ int SortRows(normalized_IS_t *G,
 
 /// uses a presorted quicksort
 int SortRows_opt(normalized_IS_t *G,
-
              const uint32_t n,
              const uint8_t *L) {
     // first sort each row into a tmp buffer
@@ -345,7 +365,7 @@ int SortRows_opt(normalized_IS_t *G,
     uint32_t ctr_h = middle;
     uint32_t ctr_m = middle-1;
     for (uint32_t i = 0; i < n; ++i) {
-        sort(tmp[i], G->values[i], NN-K);
+        sort(tmp[i], G->values[i], N-K);
         if (tmp[i][0] > max_zeros) { max_zeros = tmp[i][0]; }
 
         uint32_t pos;
@@ -387,7 +407,7 @@ int SortCols_internal_compare(uint8_t *ptr[K],
                               const POSITION_T row_idx,
                               const uint8_t pivot[K]){
     uint32_t i=0;
-    while((i < (NN-K-1)) && (ptr[row_idx][i]-pivot[i] == 0)){
+    while((i < (N-K-1)) && (ptr[row_idx][i]-pivot[i] == 0)){
         i++;
     }
     return -(((int)(ptr[row_idx][i]))-((int)(pivot[i])));
@@ -399,7 +419,7 @@ int SortCols_internal_hoare_partition(FQ_ELEM* ptr[K],
                                             const int32_t l,
                                             const int32_t h) {
     FQ_ELEM pivot_row[N_K_pad];
-    for(uint32_t i = 0; i < NN-K; i++){
+    for(uint32_t i = 0; i < N-K; i++){
        pivot_row[i] = ptr[h][i];
     }
 
@@ -409,16 +429,12 @@ int SortCols_internal_hoare_partition(FQ_ELEM* ptr[K],
             i++;
             if (i == j) { continue; }
             SWAP(P[i], P[j]);
-            uint8_t *p = ptr[i];
-            ptr[i] = ptr[j];
-            ptr[j] = p;
+            cswap((uintptr_t *)(&ptr[i]), (uintptr_t *)(&ptr[j]), -1ull);
         }
     }
     if (i+1 != h) {
         SWAP(P[i+1], P[h]);
-        uint8_t *p = ptr[i+1];
-        ptr[i+1] = ptr[h];
-        ptr[h] = p;
+        cswap((uintptr_t *)(&ptr[i+1]), (uintptr_t *)(&ptr[h]), -1ull);
     }
     return i+1;
 }

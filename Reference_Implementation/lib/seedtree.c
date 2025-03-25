@@ -74,15 +74,15 @@ void BuildGGM(unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES],
      * npl contains the number of nodes per level.
      * lpl contains the number of leaves per level
      * */
-    const uint16_t off[LOG2(TT)+1] = TREE_OFFSETS;
-    const uint16_t npl[LOG2(TT)+1] = TREE_NODES_PER_LEVEL;
-    const uint16_t lpl[LOG2(TT)+1] = TREE_LEAVES_PER_LEVEL;
+    const uint16_t off[LOG2(T)+1] = TREE_OFFSETS;
+    const uint16_t npl[LOG2(T)+1] = TREE_NODES_PER_LEVEL;
+    const uint16_t lpl[LOG2(T)+1] = TREE_LEAVES_PER_LEVEL;
 
     /* Generate the log_2(t) layers from the root, each iteration generates a tree
      * level; iterate on nodes of the parent level; the leaf nodes on each level
      * don't need to be expanded, thus only iterate to npl[level]-lpl[level] */
     int start_node = 0;
-    for (int level = 0; level < LOG2(TT); level++){
+    for (int level = 0; level < LOG2(T); level++){
         for (int node_in_level = 0; node_in_level < npl[level]-lpl[level]; node_in_level++ ) {
             uint16_t father_node = start_node + node_in_level;
             uint16_t left_child_node = LEFT_CHILD(father_node) - off[level];
@@ -132,7 +132,7 @@ void BuildGGM(unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES],
 
 static
 void label_leaves(unsigned char flag_tree[NUM_NODES_SEED_TREE],
-                     const unsigned char indices_to_publish[TT])
+                     const unsigned char indices_to_publish[T])
 {
     const uint16_t cons_leaves[TREE_SUBROOTS] = TREE_CONSECUTIVE_LEAVES;
     const uint16_t leaves_start_indices[TREE_SUBROOTS] = TREE_LEAVES_START_INDICES;
@@ -152,19 +152,19 @@ static void compute_seeds_to_publish(
     unsigned char flags_tree_to_publish[NUM_NODES_SEED_TREE],
     /* Boolean Array indicating which of the T seeds must be
      * released convention as per the above defines */
-    const unsigned char indices_to_publish[TT]) {
+    const unsigned char indices_to_publish[T]) {
     /* the indices to publish may be less than the full leaves, copy them
      * into the linearized tree leaves */
     label_leaves(flags_tree_to_publish, indices_to_publish);
 
-    const uint16_t off[LOG2(TT)+1] = TREE_OFFSETS;
-    const uint16_t npl[LOG2(TT)+1] = TREE_NODES_PER_LEVEL;
+    const uint16_t off[LOG2(T)+1] = TREE_OFFSETS;
+    const uint16_t npl[LOG2(T)+1] = TREE_NODES_PER_LEVEL;
     const uint16_t leaves_start_indices[TREE_SUBROOTS] = TREE_LEAVES_START_INDICES;
 
     /* compute the value for the internal nodes of the tree starting from
      * the leaves, right to left */
     unsigned int start_node = leaves_start_indices[0];
-    for (int level=LOG2(TT); level>0; level--) {
+    for (int level=LOG2(T); level>0; level--) {
         for (int i=npl[level]-2; i>=0; i-=2) {
             uint16_t current_node = start_node + i;
             uint16_t parent_node = PARENT(current_node) + (off[level-1] >> 1);
@@ -186,7 +186,7 @@ uint32_t GGMPath(const unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_B
                  //        which in turn denotes if the seed of the node with the same index
                  //        must be released (i.e., cell == 0) or not (i.e., cell == 1).
                  //        Indeed, the seed will be stored in the sequence computed as a result into the out[...] array.
-                 const unsigned char indices_to_publish[TT], // INPUT: binary array denoting which node has to be released (cell == 0) or not
+                 const unsigned char indices_to_publish[T], // INPUT: binary array denoting which node has to be released (cell == 0) or not
                  unsigned char *seed_storage)             // OUTPUT: sequence of seeds to be released
 {
     /* complete linearized binary tree containing boolean values determining
@@ -195,14 +195,14 @@ uint32_t GGMPath(const unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_B
     unsigned char flags_tree_to_publish[NUM_NODES_SEED_TREE] = {NOT_TO_PUBLISH};
     compute_seeds_to_publish(flags_tree_to_publish, indices_to_publish);
 
-    const uint16_t off[LOG2(TT)+1] = TREE_OFFSETS;
-    const uint16_t npl[LOG2(TT)+1] = TREE_NODES_PER_LEVEL;
+    const uint16_t off[LOG2(T)+1] = TREE_OFFSETS;
+    const uint16_t npl[LOG2(T)+1] = TREE_NODES_PER_LEVEL;
 
     /* no sense in trying to publish the root node, start examining from level 1 */
     int start_node = 1;
     int num_seeds_published = 0;
 
-    for (int level = 1; level <= LOG2(TT); level++){
+    for (int level = 1; level <= LOG2(T); level++){
         for (int node_in_level = 0; node_in_level < npl[level]; node_in_level++ ) {
             uint16_t current_node = start_node + node_in_level;
             uint16_t father_node = PARENT(current_node) + (off[level-1] >> 1);
@@ -227,7 +227,7 @@ uint32_t GGMPath(const unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_B
 // \return 1 on success
 //         0 on failure
 uint32_t RebuildGGM(unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES],
-                    const unsigned char indices_to_publish[TT],
+                    const unsigned char indices_to_publish[T],
                     const unsigned char *stored_seeds,
                     const unsigned char salt[HASH_DIGEST_LENGTH]) {
    /* complete linearized binary tree containing boolean values determining
@@ -241,9 +241,9 @@ uint32_t RebuildGGM(unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTE
     unsigned char csprng_input[csprng_input_len];
     SHAKE_STATE_STRUCT tree_csprng_state;
 
-    const uint16_t off[LOG2(TT)+1] = TREE_OFFSETS;
-    const uint16_t npl[LOG2(TT)+1] = TREE_NODES_PER_LEVEL;
-    const uint16_t lpl[LOG2(TT)+1] = TREE_LEAVES_PER_LEVEL;
+    const uint16_t off[LOG2(T)+1] = TREE_OFFSETS;
+    const uint16_t npl[LOG2(T)+1] = TREE_NODES_PER_LEVEL;
+    const uint16_t lpl[LOG2(T)+1] = TREE_LEAVES_PER_LEVEL;
 
     memcpy(csprng_input + SEED_LENGTH_BYTES, salt, SALT_LENGTH_BYTES);
 
@@ -251,7 +251,7 @@ uint32_t RebuildGGM(unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTE
      * disclosed */
     int nodes_used = 0;
     int start_node = 1;
-    for (int level = 1; level <= LOG2(TT); level++){
+    for (int level = 1; level <= LOG2(T); level++){
         for (int node_in_level = 0; node_in_level < npl[level]; node_in_level++ ) {
             uint16_t current_node = start_node + node_in_level;
             uint16_t father_node = PARENT(current_node) + (off[level-1] >> 1);
@@ -295,7 +295,7 @@ uint32_t RebuildGGM(unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTE
 
 
 /*****************************************************************************/
-void seed_leaves(unsigned char rounds_seeds[TT*SEED_LENGTH_BYTES],
+void seed_leaves(unsigned char rounds_seeds[T*SEED_LENGTH_BYTES],
                  unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES])
 {
     const uint16_t cons_leaves[TREE_SUBROOTS] = TREE_CONSECUTIVE_LEAVES;

@@ -98,7 +98,7 @@ int compute_canonical_form_type4_sub(normalized_IS_t *G,
 		}
 
 		row_mul(G->values[i], s);
-        sort(tmp, G->values[i], NN-K);
+        sort(tmp, G->values[i], N-K);
         if (compare_rows(tmp, M) < 0) {
             return 1;
         }
@@ -158,7 +158,7 @@ int compare_matrices(const normalized_IS_t *__restrict__ V1,
                      const uint32_t z) {
 	for (uint32_t row = 0; row < z; row++) {
         uint32_t i=0;
-        while((i < NN-K) &&
+        while((i < N-K) &&
              ((V1->values[row][i] - V2->values[row][i]) == 0)) {
             i++;
         }
@@ -182,7 +182,7 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
     int touched = 0;
 
 	// init the output matrix to some `invalid` data
-	memset(&M.values, QQ-1, sizeof(normalized_IS_t));
+	memset(&M.values, Q-1, sizeof(normalized_IS_t));
 
 	static FQ_ELEM row_inv_data[N_K_pad] = {0};
 	for (uint32_t row = 0; row < K; row++) {
@@ -211,7 +211,7 @@ int compute_canonical_form_type5_popcnt_base(normalized_IS_t *G) {
 
 	// init the output matrix to some `invalid` data
     // honestly, will be there ever a case, where more than 2 rows are compared?
-	memset(&M, QQ-1, sizeof(normalized_IS_t));
+	memset(&M, Q-1, sizeof(normalized_IS_t));
 
     /// track the rows with the most zeros.
 	uint32_t J[K];
@@ -240,7 +240,7 @@ int compute_canonical_form_type5_popcnt_base(normalized_IS_t *G) {
     }
 
     /// NOTE: fallback solution if everything falls apart
-    if (z == (NN-K)) {
+    if (z == (N-K)) {
 	    return compute_canonical_form_type5(G);
     }
 
@@ -264,7 +264,7 @@ int compute_canonical_form_type5_popcnt_base(normalized_IS_t *G) {
 
 		    const int ret = compute_canonical_form_type4(&B, L);
 		    if ((ret == 1) && (compare_matrices(&B, &M, K) < 0)) {
-                sort(L, B.values[0], NN-K);
+                sort(L, B.values[0], N-K);
 		    	touched = 1;
 		    	normalized_copy(&M, &B);
 		    }
@@ -368,18 +368,18 @@ void blind(normalized_IS_t *G,
     // are never used/initialized.
     static normalized_IS_t B = {0};
 
-    for(uint32_t i = 0; i < NN-K; i++) {
+    for(uint32_t i = 0; i < N-K; i++) {
         left.permutation[i] = i;
         right.permutation[i] = i;
     }
 
     // We compute the following matrix multiplication G = left * G * right
     // where `left` and `right` are randomly sampled monomials
-    fq_star_rnd_state_elements(prng, right.coefficients, NN-K);
-    yt_shuffle_state_limit(prng, right.permutation, NN-K);
+    fq_star_rnd_state_elements(prng, right.coefficients, N-K);
+    yt_shuffle_state_limit(prng, right.permutation, N-K);
 
-    fq_star_rnd_state_elements(prng, left.coefficients, NN-K);
-    yt_shuffle_state_limit(prng, left.permutation, NN-K);
+    fq_star_rnd_state_elements(prng, left.coefficients, N-K);
+    yt_shuffle_state_limit(prng, left.permutation, N-K);
 
     // apply the right multiplication
     normalized_monomial_right(&B, G, &right);

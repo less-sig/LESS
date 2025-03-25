@@ -1,1 +1,0 @@
-../../../../Reference_Implementation/include/keccakf1600.h
