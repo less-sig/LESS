@@ -4,8 +4,18 @@
 #include <stdio.h>
 
 #if !defined(__APPLE__) && !defined (__x86_64__)
-#include "stm32f4xx_hal.h"
-#include "m4_utils.h"
+// #include "stm32f4xx_hal.h"
+// #include "m4_utils.h"
+static long long get_cycles(void) {
+	return 0;
+}
+void utils_init(void){}
+void LED_toggle(void){}
+#define bm_decls
+void bm_start(void){}
+void bm_end(void){}
+void HAL_Delay(int){}
+
 #else
 static long long get_cycles(void) {
 	unsigned long long result;
