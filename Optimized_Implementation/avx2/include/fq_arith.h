@@ -161,8 +161,8 @@ static inline __m256i avx_mul(const uint8_t *ptr, const __m256i b) {
     vadd8(v1, w1, w2);
     v2 = _mm256_permute4x64_epi64(v1, 0b11011000);
     w1 = _mm256_sub_epi8(v2, c7f);
-    w2 = _mm256_blendv_epi8(w1, v2, w1);
-
+    //w2 = _mm256_blendv_epi8(w1, v2, w1);
+    w2 = _mm256_min_epu8(v2, w1);
     return w2;
 }
 
@@ -188,7 +188,8 @@ static inline __m256i avx_mul_full(const __m128i a1, const __m128i a2,
     vadd8(v1, w1, w2);
     v2 = _mm256_permute4x64_epi64(v1, 0b11011000);
     w1 = _mm256_sub_epi8(v2, c7f);
-    w2 = _mm256_blendv_epi8(w1, v2, w1);
+    //w2 = _mm256_blendv_epi8(w1, v2, w1);
+    w2 = _mm256_min_epu8(v2, w1);
 
     return w2;
 }
@@ -216,8 +217,8 @@ static inline __m256i avx_mul_full256(const __m256i a1, const __m256i a2,
     vadd8(v1, w1, w2);
     v2 = _mm256_permute4x64_epi64(v1, 0b11011000);
     w1 = _mm256_sub_epi8(v2, c7f);
-    w2 = _mm256_blendv_epi8(w1, v2, w1);
-
+    // w2 = _mm256_blendv_epi8(w1, v2, w1);
+    w2 = _mm256_min_epu8(v2, w1);
     return w2;
 }
 

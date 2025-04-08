@@ -431,7 +431,8 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                 for (uint32_t k = 0; k < NW; k++) {
                     vadd8(x, gm[j][k], rp[k]);
                     const __m256i xx = _mm256_sub_epi8(x, c7f);
-                    const __m256i tt = _mm256_blendv_epi8(xx, x, xx);
+                    // const __m256i tt = _mm256_blendv_epi8(xx, x, xx);
+                    const __m256i tt = _mm256_min_epu8(xx, x);
                     gm[j][k] = tt;
                 }
             }
