@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 project(less_avx512)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 99)
-set(CMAKE_VERBOSE_MAKEFILE OFF)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 enable_testing()
 find_package(OpenSSL)
@@ -24,7 +24,7 @@ endif()
 
 set(ALLOWED_WARNINGS      " -march=native -Wno-type-limits -Wno-gnu-binary-literal")
 set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -DUSE_AVX512 -g -O0 -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -mavx512f -mavx512bw -mavx512vl -mavx512vbmi -mavx512vbmi2 -mavx512bitalg -mavx512cd -mavx512vpopcntdq -mgfni -fsanitize=address ${ALLOWED_WARNINGS}")
-set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -DUSE_AVX512 -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -mavx512f -mavx512bw -mavx512vl -mavx512vbmi -mavx512vbmi2 -mavx512bitalg -mavx512cd -mavx512vpopcntdq -mgfni -flto -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
+set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -DUSE_AVX512 -g -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -mavx512f -mavx512bw -mavx512vl -mavx512vbmi -mavx512vbmi2 -mavx512bitalg -mavx512cd -mavx512vpopcntdq -mgfni -flto -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
 
 set(SOURCES
         ${PROJECT_SOURCE_DIR}/lib/codes.c

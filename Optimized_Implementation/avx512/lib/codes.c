@@ -193,7 +193,7 @@ void generator_monomial_mul(generator_mat_t *res,
             const __m256i a = _mm256_loadu_si256((const __m256i *)(G_pointer + src_col_idx));
             const __m512i b = _mm512_cvtepi8_epi16(a);
             const __m256i t = avx_mul_full512(b, monomial[ctr]);
-            _mm256_store_si256((__m256i *) (buffer + src_col_idx), t);
+            _mm256_storeu_si256((__m256i *) (buffer + src_col_idx), t);
             ctr += 1;
         }
 
@@ -323,13 +323,13 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
     int i, j, pivc;
     uint8_t tmp, sc;
 
-    vec256_t *gm[K] __attribute__((aligned(32)));
-    vec256_t em[0x80][NW];
-    vec256_t *ep[0x80];
-    vec256_t c7f;
-    vec256_t x, t, *rp, *rg;
+    __m512i *gm[K] __attribute__((aligned(64)));
+    __m512i em[0x80][NW/2] __attribute__((aligned(64)));
+    __m512i *ep[0x80];
+    __m512i x, t, *rp, *rg;
+    
 
-    vset8(c7f, 0x7f);
+    const __m512i c7f = _mm512_set1_epi8(0x7f);
     int pvt_reuse_cnt = 0;
 
     // this loop roughly takes 2.2% of the whole function runtime ()
@@ -350,7 +350,7 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
     }
 
     for (i = 0; i < K; i++) {
-        gm[i] = (vec256_t *) G->values[i];
+        gm[i] = (__m512i *) G->values[i];
     }
 
     for (i = 0; i < K; i++) {
@@ -382,11 +382,24 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
          * we need to swap the rows */
         if (i != j) {
             was_pivot_column[j] = 0; // pivot no longer reusable - will be corrupted during reduce row
-            for (uint32_t k = 0; k < NW; k++) {
-                t = gm[i][k];
-                gm[i][k] = gm[j][k];
-                gm[j][k] = t;
+            // for (uint32_t k = 0; k < (NW/2); k++) {
+            //     t = gm[i][k];
+            //     gm[i][k] = gm[j][k];
+            //     gm[j][k] = t;
+            // }
+            uint32_t k = 0;
+            for (; k < (NW/2); k+=1) {
+                const __m512i t  = _mm512_loadu_si512((__m512i *)&(gm[i][k]));
+                const __m512i t2 = _mm512_loadu_si512((__m512i *)&(gm[j][k]));
+                _mm512_storeu_si512((__m512i *)&(gm[i][k]), t2);
+                _mm512_storeu_si512((__m512i *)&(gm[j][k]), t);
             }
+            // for (; k < NW; k++) {
+            //     const __m256i t  = _mm256_loadu_si256((__m256i *)(gm[i] + k*32));
+            //     const __m256i t2 = _mm256_loadu_si256((__m256i *)(gm[j] + k*32));
+            //     _mm256_storeu_si256((__m256i *)(gm[i] + k*32), t2);
+            //     _mm256_storeu_si256((__m256i *)(gm[j] + k*32), t);
+            // }
         }
 
         /// NOTE: this needs explenation. We can skip the reduction of the pivot row, because for
@@ -407,11 +420,18 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
         memcpy(em[1], rg, LESS_WSZ * NW);
 
         for (j = 2; j < 127; j++) {
-            for (uint32_t k = 0; k < NW; k++) {
-                vadd8(x, em[j - 1][k], rg[k])
-                const __m256i xx = _mm256_sub_epi8(x, c7f);
-                const __m256i tt = _mm256_blendv_epi8(xx, x, xx);
+            for (uint32_t k = 0; k < (NW/2); k++) {
+                //vadd8(x, em[j - 1][k], rg[k])
+                //const __m256i xx = _mm256_sub_epi8(x, c7f);
+                //const __m256i tt = _mm256_blendv_epi8(xx, x, xx);
+                //em[j][k] = tt;
+
+                //x = _mm512_add_epi8(em[j - 1][k], rg[k]);
+                x = _mm512_add_epi8(_mm512_loadu_si512(&em[j - 1][k]), _mm512_loadu_si512(&rg[k]));
+                const __m512i xx = _mm512_sub_epi8(x, c7f);
+                const __m512i tt = _mm512_min_epu8(x, xx);
                 em[j][k] = tt;
+
             }
         }
 
@@ -435,11 +455,18 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
             sc = ((uint8_t *) gm[j])[pivc];
             if (sc != 0x00 && j != i) {
                 rp = ep[127 - sc];
-                for (uint32_t k = 0; k < NW; k++) {
-                    vadd8(x, gm[j][k], rp[k]);
-                    const __m256i xx = _mm256_sub_epi8(x, c7f);
-                    const __m256i tt = _mm256_blendv_epi8(xx, x, xx);
-                    gm[j][k] = tt;
+                for (uint32_t k = 0; k < (NW/2); k++) {
+                    //vadd8(x, gm[j][k], rp[k]);
+                    //const __m256i xx = _mm256_sub_epi8(x, c7f);
+                    //const __m256i tt = _mm256_blendv_epi8(xx, x, xx);
+                    //gm[j][k] = tt;
+
+                    //x = _mm512_add_epi8(gm[j][k], rp[k]);
+                    x = _mm512_add_epi8(_mm512_loadu_si512(&gm[j][k]), _mm512_loadu_si512(&rp[k]));
+                    const __m512i xx = _mm512_sub_epi8(x, c7f);
+                    const __m512i tt = _mm512_min_epu8(x, xx);
+                    // gm[j][k] = tt;
+                    _mm512_storeu_si512((__m512i *)&(gm[j][k]), tt);
                 }
             }
         }
@@ -556,9 +583,13 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                     const __m512i a  = _mm512_loadu_si512(G->values[j] + k*32);
                     const __m512i ap = _mm512_loadu_si512(G->values[i] + k*32);
                     const __m512i b = gf127v_scalar_table_u512(ap, t1, t2);
-                    const __mmask64 m = _mm512_cmplt_epu8_mask(a, b);
-                    const __m512i c = _mm512_mask_adds_epu8(a,m,a,q);
-                    const __m512i d = _mm512_subs_epu8(c, b);
+                    const __m512i c1 = _mm512_sub_epi8(a, b);
+                    const __m512i c2 = _mm512_add_epi8(c1, q);
+                    const __m512i d  = _mm512_min_epu8(c2, c1);
+
+                    //const __mmask64 m = _mm512_cmplt_epu8_mask(a, b);
+                    //const __m512i c = _mm512_mask_adds_epu8(a,m,a,q);
+                    //const __m512i d = _mm512_subs_epu8(c, b);
                     _mm512_storeu_si512(G->values[j] + k*32, d);
                 }
 
@@ -566,9 +597,13 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                     const __m512i a  = _mm512_castsi256_si512(_mm256_loadu_si256((const __m256i *)(G->values[j] + k*32)));
                     const __m512i ap = _mm512_castsi256_si512(_mm256_loadu_si256((const __m256i *)(G->values[i] + k*32)));
                     const __m512i b = gf127v_scalar_table_u512(ap, t1, t2);
-                    const __mmask64 m = _mm512_cmplt_epu8_mask(a, b);
-                    const __m512i c = _mm512_mask_adds_epu8(a,m,a,q);
-                    const __m512i d = _mm512_subs_epu8(c, b);
+                    const __m512i c1 = _mm512_sub_epi8(a, b);
+                    const __m512i c2 = _mm512_add_epi8(c1, q);
+                    const __m512i d  = _mm512_min_epu8(c2, c1);
+
+                    //const __mmask64 m = _mm512_cmplt_epu8_mask(a, b);
+                    //const __m512i c = _mm512_mask_adds_epu8(a,m,a,q);
+                    //const __m512i d = _mm512_subs_epu8(c, b);
                     _mm256_storeu_si256((__m256i *)(G->values[j] + k*32), _mm512_castsi512_si256(d));
                 }
             }

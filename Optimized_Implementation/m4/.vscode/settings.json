@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "arm_neon.h": "c",
+        "arm_acle.h": "c"
+    }
+}
