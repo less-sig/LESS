@@ -137,21 +137,18 @@ inline static uint32_t fq_add_u32(const uint32_t a,
 #ifdef USE_M4
 #include <arm_acle.h>
 
-/// @brief  
-/// @param a 
-/// @param b 
-/// @return a-b*c
+/// \brief  
+/// \param a 
+/// \param b 
+/// \return a-b*c
 inline static uint32_t fq_scalar_sub_u32(const uint32_t a,
                                          const uint32_t b,
                                          const uint8_t c) {
     const uint32_t mask  = 0x7F7F7F7F;
-    const uint32_t one   = 0x01010101;
     const uint32_t mask1 = 0x00FF00FF;
     const uint32_t mask3 = 0x007F007F;
-    uint8x4_t t = ((uint8x4_t)a) * ((uint8x4_t)b);
 
-
-    const uint32_t t1 = (b&mask1) * c;
+    const uint32_t t1 = ( b      &mask1) * c;
     const uint32_t t2 = ((b >> 8)&mask1) * c;
 
     const uint32_t v1 = ((t1 >> 7) + (t1 & mask3)) & mask1;
@@ -160,10 +157,11 @@ inline static uint32_t fq_scalar_sub_u32(const uint32_t a,
     uint32_t Z = v1 ^ (v2<<8);
     uint8x4_t t3 = __usub8(mask, Z);
     uint8x4_t t4 = __uadd8(a, t3);
-    uint8x4_t t5 = __usub8(mask, Z); // TODO not correct
-    uint8x4_t t6 = __sel(t5, Z);
+    uint8x4_t t5 = __usub8(t4, mask);
+    uint8x4_t t6 = __sel(t5, t4);
     return t6;
 }
+
 
 #else
 

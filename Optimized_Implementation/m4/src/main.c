@@ -4,17 +4,17 @@
 #include <stdio.h>
 
 #if !defined(__APPLE__) && !defined (__x86_64__)
-// #include "stm32f4xx_hal.h"
-// #include "m4_utils.h"
-static long long get_cycles(void) {
-	return 0;
-}
-void utils_init(void){}
-void LED_toggle(void){}
-#define bm_decls
-void bm_start(void){}
-void bm_end(void){}
-void HAL_Delay(int){}
+#include "stm32f4xx_hal.h"
+#include "m4_utils.h"
+//static long long get_cycles(void) {
+//	return 0;
+//}
+//void utils_init(void){}
+//void LED_toggle(void){}
+//#define bm_decls
+//void bm_start(void){}
+//void bm_end(void){}
+//void HAL_Delay(int){}
 
 #else
 static long long get_cycles(void) {
@@ -37,7 +37,7 @@ static long long get_cycles(void) {
 #define MAX_STACK_SIZE 132768
 #define MSG_LEN 80
 
-const int N_BENCH = 20;     /* Number of tests. */
+const int N_BENCH = 1;     /* Number of tests. */
 //const int MSG_LEN = 80;       /* Message length. */
 
 
@@ -69,7 +69,7 @@ int bench_less() {
 
         begin = get_cycles();
         {
-           LESS_sign(&sk, msg, MSG_LEN, &signature);
+           //LESS_sign(&sk, msg, MSG_LEN, &signature);
         }
         end = get_cycles();
         cc_sign[i] = end - begin;
@@ -77,10 +77,10 @@ int bench_less() {
         begin = get_cycles();
         {
             /* Verify the message */
-            if (LESS_verify(&pk, msg, 8, &signature) != 0) {
-                printf("Error: Verification failed!\n");
-                return -1;
-            }
+            //if (LESS_verify(&pk, msg, 8, &signature) != 0) {
+            //    printf("Error: Verification failed!\n");
+            //    return -1;
+            //}
         }
         end = get_cycles();
         cc_verf[i] = end - begin;

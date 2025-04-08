@@ -138,7 +138,12 @@ int generator_RREF(generator_mat_t *G,
 
             /* all elements before the pivot in the pivot row are null, no need to
              * subtract them from other rows. */
-             unsigned col_idx = 0;
+            unsigned col_idx = 0;
+            //for(; (col_idx + 8) <= NN; col_idx+=8) {
+            //    const uint8x8_t a = *((uint8x8_t *)(G->values[row_idx] + col_idx));
+            //    const uint8x8_t b = *((uint8x8_t *)(G->values[pivot_row] + col_idx));
+            //    *((uint8x8_t *)(G->values[row_idx] + col_idx)) = fq_scalar_sub_u64(a, b, multiplier);
+            //}
             for(; (col_idx + 4) <= NN; col_idx+=4) {
                 const uint32_t a = *((uint32_t *)(G->values[row_idx] + col_idx));
                 const uint32_t b = *((uint32_t *)(G->values[pivot_row] + col_idx));
