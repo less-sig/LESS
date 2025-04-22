@@ -1,12 +1,14 @@
 with import <nixpkgs> {};
 let 
+
+  unstable_pkgs = import <nixos-unstable> {};
   bInputs = [ 
     # just for cargo 
     clang 
     llvm 
     lldb
-    cargo
-    rustc
+    unstable_pkgs.cargo
+    unstable_pkgs.rustc
   ] ++ (lib.optionals pkgs.stdenv.isLinux ([
   ]));
 in
