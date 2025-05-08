@@ -47,7 +47,6 @@
  * In the example we have g_0 -> 0, g_1 -> 2, g_2 -> 1 hence we obtain [0 2 1]
  *
  */
-
 typedef struct {
    /* coefficients listed in order of appearance column-wise */
    FQ_ELEM coefficients[N];

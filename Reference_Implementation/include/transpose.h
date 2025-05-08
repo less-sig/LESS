@@ -27,22 +27,33 @@
 
 #if defined(USE_AVX2) || defined(USE_NEON)
 /// transposes a 32x32 matrix
+/// \param dst_origin[out]: pointer to the out buffer
+/// \param src_origin[in]: pointer to the src buffer
+/// \param src_stride[in]: number of bytes between two rows.
+/// \param dst_stride[in]: number of bytes between two cols.
 void matrix_transpose_32x32(uint8_t* dst_origin,
                             const uint8_t* src_origin,
-                            const uint8_t* prf_origin,
                             const size_t src_stride,
                             const size_t dst_stride);
 #endif
 
 #if defined(USE_AVX512)
+/// transposes a 64x64 matrix
+/// \param dst_origin[out]: pointer to the out buffer
+/// \param src_origin[in]: pointer to the src buffer
+/// \param src_stride[in]: number of bytes between two rows.
+/// \param dst_stride[in]: number of bytes between two cols.
 void matrix_transpose_64x64(uint8_t* dst_origin,
                             const uint8_t* src_origin,
-                            const uint8_t* prf_origin,
                             const size_t src_stride,
                             const size_t dst_stride);
 #endif
 
-/// transpose src int dst
+/// transpose `src` int `dst`
+/// \param dst[out]: pointer to the output matrix
+/// \param src[in]: pointer to the input matrix
+/// \param r[in]: number of rows in `src`
+/// \param c[in]: number of cols in `src`
 void matrix_transpose_opt(uint8_t *dst,
                           const uint8_t *src,
                           const uint32_t r,

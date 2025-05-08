@@ -29,7 +29,10 @@
 #include "sha3.h"
 #include <stddef.h>
 
-/* initializes a CSPRNG, given the seed and a state pointer */
+/// initializes a CSPRNG, given the seed and a state pointer
+/// \param shake_state[out]: pointer to a uninitialized state
+/// \param seed[in]: seed passed to the prng
+/// \param seed_len_bytes[in]: number of bytes of the seed
 void initialize_csprng(SHAKE_STATE_STRUCT *shake_state,
                        const unsigned char *seed,
                        const uint32_t seed_len_bytes);
@@ -42,31 +45,37 @@ void initialize_csprng_ds(SHAKE_STATE_STRUCT *shake_state,
                        const uint16_t domain_sep_constant );
 
 
-/* extracts xlen bytes from the CSPRNG, given the state */
+/// extracts xlen bytes from the CSPRNG, given the state
+/// \param shake_state[out] uninitialized shake structure
+/// \param seed[in]: seed which is feed into the prng
+/// \param seed_len_bytes[in]: length of the seed
+/// \param domain_sep_constant[in]: domain seperator as defined in the spec, 
+///         which is fed into the prng after the seed
 static inline
 void csprng_randombytes(unsigned char *x,
                         unsigned long long xlen,
-                        SHAKE_STATE_STRUCT *shake_state)
-{
-   xof_shake_extract(shake_state, x, xlen);
+                        SHAKE_STATE_STRUCT *shake_state) {
+    xof_shake_extract(shake_state, x, xlen);
 }
 
-/* global csprng state employed to have a deterministic randombytes for testing */
+/// global csprng state employed to have a deterministic randombytes for testing
 extern SHAKE_STATE_STRUCT platform_csprng_state;
 
-/* extracts xlen bytes from the global CSPRNG */
+/// extracts xlen bytes from the global CSPRNG 
+/// \param x[out]: output buffer 
+/// \param xlen[in]: length of the bytes to extract
 static inline
-void randombytes(unsigned char *x,
-                 unsigned long long xlen)
-{
-   xof_shake_extract(&platform_csprng_state, x, xlen);
+void randombytes(uint8_t *x,
+                 const size_t xlen) {
+    xof_shake_extract(&platform_csprng_state, x, xlen);
 }
 
 /// maybe unused
+/// \param seed[in]: seed passed to the global prng
+/// \param seed_len_bytes[in]: number of bytes of the seed
 __attribute__((unused))
-static
-void init_randombytes(const unsigned char *seed,
-                       const size_t seed_len_bytes)
-{
-   initialize_csprng(&platform_csprng_state, seed, seed_len_bytes);
+static inline
+void init_randombytes(const uint8_t *seed,
+                      const size_t seed_len_bytes) {
+    initialize_csprng(&platform_csprng_state, seed, seed_len_bytes);
 }

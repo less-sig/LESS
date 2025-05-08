@@ -34,41 +34,12 @@
 
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
-/// NOTE: specialised counting sort for Fq. Thus,
-/// this implementation assumes that every input element
-/// is reduced mod 127
-/// \param arr[in/out] input array
-/// \param size[in] length of the input array
-void counting_sort_u8(FQ_ELEM *arr,
-                      const uint32_t size) {
-	/// NOTE: the type `uint32_t` is not completly arbitrary choosen.
-	/// Floyd did a quick benchmark between `uint16_t`, `uint32_t`, `uint64_t`
-	/// and `uint32_t` seemed to be the fastest. But thats only true
-	/// on a Ryzen7600X. On your machine thats maybe different.
-	/// NOTE: `uint8_t` is not possible as there could be 256 times
-	/// the same field element. Unlikely but possible.
-	uint32_t cnt[128] __attribute__((aligned(32))) = { 0 };
-
-    /// compute the histogram
-	for (uint32_t i = 0 ; i < size ; ++i) {
-		cnt[arr[i]]++;
-	}
-
-    /// compute the prefixsum
-	uint32_t i = 0;
-	for (size_t a = 0 ; a < Q; ++a) {
-		while (cnt[a]--) {
-			arr[i++] = a;
-		}
-	}
-}
-
 /// NOTE: only needed for `compute_canonical_form_type4_sub`
 /// \input row1[in]:
 /// \input row2[in]:
 /// \return: 0 if multiset(row1) == multiset(row2)
-///          x if row1 > row2
-///         -x if row1 < row2
+///          x if multiset(row1) > multiset(row2)
+///         -x if multiset(row1) < multiset(row2)
 int compare_rows(const FQ_ELEM *row1,
                  const FQ_ELEM *row2) {
     uint32_t i=0;
@@ -85,7 +56,6 @@ int compare_rows(const FQ_ELEM *row1,
 /// \returns   1 if the pivot is greater,
 /// 	      -1 if it is smaller,
 /// 		   0 if it matches
-///
 int SortRows_internal_compare(uint8_t *ptr[Q],
                               const uint32_t row_idx,
                               const uint8_t pivot[Q]){
@@ -317,6 +287,7 @@ void SortRows_swap(normalized_IS_t *G,
 /// NOTE: not constant time
 /// \param G[in/out]: generator matrix to sort
 /// \param n[in] number of elements to sort
+/// \param L[in]: pointer to the currently shortest row
 /// \return 1 on success
 ///			0 if two rows generate the same multiset
 int SortRows(normalized_IS_t *G,
