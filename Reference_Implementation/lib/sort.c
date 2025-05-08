@@ -28,11 +28,16 @@
 
 #include "parameters.h"
 #include "utils.h"
-#include "fq_arith.h"
 #include "codes.h"
 #include "transpose.h"
 
-#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+/// \param a[in/out]: first pointer to swap
+/// \param b[in/out]: second pointer to swap
+static inline 
+void pointer_swap(FQ_ELEM **a,
+                  FQ_ELEM **b) {
+    FQ_ELEM *c = *a; *a = *b; *b = c;
+}
 
 /// NOTE: only needed for `compute_canonical_form_type4_sub`
 /// \input row1[in]:
@@ -56,6 +61,7 @@ int compare_rows(const FQ_ELEM *row1,
 /// \returns   1 if the pivot is greater,
 /// 	      -1 if it is smaller,
 /// 		   0 if it matches
+static
 int SortRows_internal_compare(uint8_t *ptr[Q],
                               const uint32_t row_idx,
                               const uint8_t pivot[Q]){
@@ -67,6 +73,12 @@ int SortRows_internal_compare(uint8_t *ptr[Q],
 }
 
 /// NOTE: only used in `rowsort_internal`
+/// \param ptr[in/out]: list of arrays, containing the histograms of the input 
+///     matrix.
+/// \param P[in/out]: permutation to keep track of the applied permutation
+/// \param l[in]: lower bound
+/// \param h[in]: upper bound
+static
 int SortRows_internal_hoare_partition(FQ_ELEM* ptr[K],
                                      uint32_t P[K],
                                      const int32_t l,
@@ -77,12 +89,12 @@ int SortRows_internal_hoare_partition(FQ_ELEM* ptr[K],
             i++;
             if (i == j) { continue; }
             SWAP(P[i], P[j]);
-            cswap((uintptr_t *)(&ptr[i]), (uintptr_t *)(&ptr[j]), -1ull);
+            pointer_swap(&ptr[i], &ptr[j]);
         }
     }
     if (i+1 != h) {
         SWAP(P[i+1], P[h]);
-        cswap((uintptr_t *)(&ptr[i+1]), (uintptr_t *)(&ptr[h]), -1ull);
+        pointer_swap(&ptr[i+1], &ptr[h]);
     }
     return i+1;
 }
@@ -90,8 +102,12 @@ int SortRows_internal_hoare_partition(FQ_ELEM* ptr[K],
 #if defined(LESS_USE_CUSTOM_HISTOGRAM) && defined(USE_AVX2)
 #include <immintrin.h>
 
+/// only for avx2
+/// \param cnt[out]: output histogram 
+/// \param c[out]: four buckets which will be summed up
+static 
 void HISTEND4(uint8_t *cnt,
-              uint8_t c[4][128]) {
+              const uint8_t c[4][128]) {
     for(uint32_t i = 0; i < Q_pad; i+=32) {
         __m256i sv =                  _mm256_load_si256((const __m256i *)&c[0][i]);
                 sv = _mm256_add_epi8(_mm256_load_si256((const __m256i *)&c[1][i]), sv);
@@ -101,6 +117,12 @@ void HISTEND4(uint8_t *cnt,
     }
 }
 
+#if defined(USE_AVX512)
+/// only for avx512
+/// \param histogram[out]: output historgram
+/// \param ptr[in]: pointer to the row to compute the histogram on
+/// \param n[in]: length of the row
+static 
 void histogram_less(uint8_t* histogram,
 				    const uint8_t* ptr,
 				    const size_t n) {
@@ -121,7 +143,7 @@ void histogram_less(uint8_t* histogram,
     const __m512i t2 = _mm512_maskz_compress_epi8(m2, d2);
     c[0] = _mm_popcnt_u64(m1);
     c[1] = _mm_popcnt_u64(m2);
-    _mm512_store_si512(tmp, t1);
+    _mm512_store_si512(tmp+ 0, t1);
     _mm512_store_si512(tmp+64, t2);
     
     memset(histogram, 0, 32);
@@ -148,7 +170,7 @@ void histogram_less(uint8_t* histogram,
     const __m512i t3 = _mm512_maskz_compress_epi8(m3, d3);
     c[2] =  _mm_popcnt_u64(m3);
 
-    _mm512_store_si512(tmp,     t1);
+    _mm512_store_si512(tmp+  0, t1);
     _mm512_store_si512(tmp+ 64, t2);
     _mm512_store_si512(tmp+128, t3);
 
@@ -182,7 +204,7 @@ void histogram_less(uint8_t* histogram,
     const __m512i t4 = _mm512_maskz_compress_epi8(m4, d4);
     c[3] =  _mm_popcnt_u64(m4);
 
-    _mm512_store_si512(tmp,        t1);
+    _mm512_store_si512(tmp+  0, t1);
     _mm512_store_si512(tmp+ 64, t2);
     _mm512_store_si512(tmp+128, t3);
     _mm512_store_si512(tmp+192, t4);
@@ -197,11 +219,10 @@ void histogram_less(uint8_t* histogram,
     for (uint32_t i = 256; i < n; i++) {
         histogram[ptr[i]] += 1;
     }
-#endif
+#endif // end CATEGORY
 }
-
-
-#endif
+#endif // end USE_AVX512
+#endif // end LESS_USE_CUSTOM_HISTOGRAM && USE_AVX2
 
 /// \param out[out]: pointer to the row to sort
 /// \param in[in]: pointer to the row to sort
@@ -216,6 +237,7 @@ void sort(uint8_t *out,
 		out[t]++;
 	}
 #else
+
 #ifdef USE_NEON
     uint8_t c[4][Q_pad] __attribute__((aligned(32))) = {0};
     const uint8_t *ip = in;
@@ -227,7 +249,7 @@ void sort(uint8_t *out,
                + c[2][i]
                + c[3][i];
     }
-#endif
+#endif // end USE_NEON
 
 #if defined(USE_AVX2) && !defined(USE_AVX512)
     uint8_t c[4][Q_pad] __attribute__((aligned(32))) = {0};
@@ -235,14 +257,21 @@ void sort(uint8_t *out,
     while(ip != in+(len&~(4-1))) c[0][*ip++]++, c[1][*ip++]++, c[2][*ip++]++, c[3][*ip++]++;
     while(ip != in+ len        ) c[0][*ip++]++;
     HISTEND4(out, c);
-#endif
+#endif // end USE_AVX2
+
 #ifdef USE_AVX512
     histogram_less(out, in, len);
-#endif
-#endif
+#endif // end USE_AVX512
+
+#endif // end LESS_USE_CUSTOM_HISTOGRAM
 }
 
 /// internal sorting function for `SortRows`
+/// \param ptr[in/out]: list of arrays, containing the histograms of the input 
+///     matrix.
+/// \param P[in/out]: permutation to keep track of the applied permutation
+/// \param n[in]: number of rows <=> K
+static
 int SortRows_internal(FQ_ELEM *ptr[K],
                      uint32_t P[K],
                      const uint32_t n) {
@@ -271,9 +300,14 @@ int SortRows_internal(FQ_ELEM *ptr[K],
     return 1;
 }
 
+/// applies the a permutation to the rows of the generator matrix
+/// \param G[out/in]: generator matrix (non IS part)
+/// \param P[in]: permutation to apply
+/// \param n[in]: number of rows <=> K
+static
 void SortRows_swap(normalized_IS_t *G,
-                  uint32_t P[K],
-                  const uint32_t n) {
+                   const uint32_t P[K],
+                   const uint32_t n) {
     // apply the permutation
     for (uint32_t t = 0; t < n; t++) {
         uint32_t ind = P[t];
@@ -317,56 +351,6 @@ int SortRows(normalized_IS_t *G,
     return 1;
 }
 
-
-/// uses a presorted quicksort
-int SortRows_opt(normalized_IS_t *G,
-             const uint32_t n,
-             const uint8_t *L) {
-    // first sort each row into a tmp buffer
-    FQ_ELEM tmp[K][Q_pad] __attribute__((aligned(32)));
-    FQ_ELEM* ptr[K] __attribute__((aligned(32)));
-    uint32_t P[K];
-    // memset(P, -1u, K*4);
-
-    uint32_t max_zeros = 0;
-    // uint64_t avg = 0;
-    // TODO correctly choose
-    const uint32_t middle = 100;//(Q>>1u);
-    uint32_t ctr_l = 0;
-    uint32_t ctr_h = middle;
-    uint32_t ctr_m = middle-1;
-    for (uint32_t i = 0; i < n; ++i) {
-        sort(tmp[i], G->values[i], N-K);
-        if (tmp[i][0] > max_zeros) { max_zeros = tmp[i][0]; }
-
-        uint32_t pos;
-        if (tmp[i][0] > 0) {
-            if (ctr_l >= middle) {
-                pos = ctr_h++;
-            } else {
-                pos = ctr_l++;
-            }
-        } else {
-            if (ctr_h >= n) {
-                pos = ctr_m--;
-            } else {
-                pos = ctr_h++;
-            }
-        }
-
-        ptr[pos] = tmp[i];
-        P[pos] = i;
-    }
-
-    if (max_zeros < L[0]) { return 0; }
-    SortRows_internal(ptr, P, ctr_l);
-    SortRows_internal(ptr+ctr_l, P+ctr_l, ctr_h-ctr_l);
-
-    // apply the permutation
-    SortRows_swap(G, P, n);
-    return 1;
-}
-
 /// lexicographic comparison between a row with the pivot row
 /// \input: ptr[in/out]: K x (N-K) matrix
 /// \input: row_idx[in]: position of the row to compare in `ptr`
@@ -374,6 +358,7 @@ int SortRows_opt(normalized_IS_t *G,
 /// \returns   1 if the pivot is greater,
 /// 	      -1 if it is smaller,
 /// 		   0 if it matches
+static
 int SortCols_internal_compare(uint8_t *ptr[K],
                               const POSITION_T row_idx,
                               const uint8_t pivot[K]){
@@ -385,10 +370,15 @@ int SortCols_internal_compare(uint8_t *ptr[K],
 }
 
 /// NOTE: only used in `SortCols_internal`
+/// \param ptr[in/out]: list of columns (transposed so actually rows)
+/// \param P[in/out]: permutation to keep track of the applied permutation
+/// \param l[in]: lower bound
+/// \param h[in]: upper bound
+static
 int SortCols_internal_hoare_partition(FQ_ELEM* ptr[K],
-                                            uint32_t P[K],
-                                            const int32_t l,
-                                            const int32_t h) {
+                                      uint32_t P[K],
+                                      const int32_t l,
+                                      const int32_t h) {
     FQ_ELEM pivot_row[N_K_pad];
     for(uint32_t i = 0; i < N-K; i++){
        pivot_row[i] = ptr[h][i];
@@ -400,12 +390,12 @@ int SortCols_internal_hoare_partition(FQ_ELEM* ptr[K],
             i++;
             if (i == j) { continue; }
             SWAP(P[i], P[j]);
-            cswap((uintptr_t *)(&ptr[i]), (uintptr_t *)(&ptr[j]), -1ull);
+            pointer_swap(&ptr[i], &ptr[j]);
         }
     }
     if (i+1 != h) {
         SWAP(P[i+1], P[h]);
-        cswap((uintptr_t *)(&ptr[i+1]), (uintptr_t *)(&ptr[h]), -1ull);
+        pointer_swap(&ptr[i+1], &ptr[h]);
     }
     return i+1;
 }
@@ -418,6 +408,7 @@ int SortCols_internal_hoare_partition(FQ_ELEM* ptr[K],
 /// \param h[in]: inclusive
 /// \return 1 on success
 ///			0 if two rows generate the same multi set
+static
 int SortCols_internal(FQ_ELEM* ptr[K],
                       uint32_t P[K],
                       int32_t l,

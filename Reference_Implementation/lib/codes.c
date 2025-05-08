@@ -25,17 +25,16 @@
  **/
 
 #include <string.h>
-#include <stdio.h>
 
-#include "utils.h"
 #include "codes.h"
 #include "fq_arith.h"
 #include "parameters.h"
 #include <assert.h>
 
 /// swap N bytes in r and s.
-/// \param r[in/out]
-/// \param s[in/out]
+/// \param r[in/out] first row
+/// \param s[in/out] second row
+static
 void swap_rows(FQ_ELEM r[N],
                FQ_ELEM s[N]) {
     FQ_ELEM tmp[N];

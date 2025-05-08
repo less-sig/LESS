@@ -23,16 +23,15 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  **/
-#include "monomial_mat.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include "utils.h"
+
 #include <string.h>
 
-///
+#include "monomial_mat.h"
+
+/// number of bits needed to store N-1
 #define POS_BITS BITS_TO_REPRESENT(N-1)
 
-///
+/// bit mask for N-1
 #define POS_MASK (((POSITION_T) 1 << POS_BITS) - 1)
 
 /// applies a random permutation between [0, n-1] on the
@@ -57,9 +56,9 @@ void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
         permutation[i] = permutation[rand_u32[i]];
         permutation[rand_u32[i]] = tmp;
     }
-}
+} /* end yt_shuffle_state_limit */
 
-/// \param shake_monomial_state[in/out]:
+/// \param shake_monomial_state[in/out]: pointer to an initialized prng state
 /// \param permutation[in/out]: random permutation. Must be initialized with
 ///         [0,....,n-1]
 void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state, POSITION_T permutation[N]) {
@@ -90,11 +89,12 @@ void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state, POSITION_T permu
       permutation[i] = permutation[x];
       permutation[x] = tmp;
    } 
-}
-/* FY shuffle on the permutation, sampling from the global TRNG state */
+} /* end yt_shuffle_state */
+
+/// FY shuffle on the permutation, sampling from the global TRNG state
 void yt_shuffle(POSITION_T permutation[N]) {
     yt_shuffle_state(&platform_csprng_state, permutation);
-}
+} /* end yt_shuffle */
 
 /* expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
  * monomial matrices */
@@ -117,7 +117,7 @@ void monomial_sample_salt(monomial_t *res,
 
     /* FY shuffle on the permutation */
     yt_shuffle_state(&shake_monomial_state, res->permutation);
-} /* end monomial_mat_seed_expand */
+} /* end monomial_sample_salt */
 
 /// expands a monomial matrix, given a double length PRNG seed (used to prevent
 /// multikey attacks)
@@ -133,7 +133,7 @@ void monomial_sample_prikey(monomial_t *res,
     }
     /* FY shuffle on the permutation */
     yt_shuffle_state(&shake_monomial_state, res->permutation);
-} /* end monomial_mat_seed_expand */
+} /* end monomial_sample_prikey */
 
 /// \param res[out]: = to_invert**-1
 /// \param to_invert[in]:
@@ -146,11 +146,10 @@ void monomial_inv(monomial_t *res,
     }
 } /* end monomial_inv */
 
-/* composes a compactly stored action of a monomial on an IS with a regular
- * monomial.
- * NOTE: Only the permutation is computed, as this is the only thing we need
- * since the adaption of canonical forms.
- */
+/// composes a compactly stored action of a monomial on an IS with a regular
+/// monomial.
+/// NOTE: Only the permutation is computed, as this is the only thing we need
+/// since the adaption of canonical forms.
 void monomial_compose_action(monomial_action_IS_t *out,
                              const monomial_t *Q_in,
                              const monomial_action_IS_t *in) {
@@ -166,9 +165,9 @@ void monomial_compose_action(monomial_action_IS_t *out,
     for (uint32_t i = 0; i < K; i++) {
         out->permutation[i] = reverse_Q.permutation[in->permutation[i]];
     }
-}
+} /* end monomial_compose_action */
 
-/// cf type5 compression
+/// canonical form compression
 /// \param b[out]: N bits in which K bits will be sed
 /// \param Q_star[in]: canonical action matrix
 void CosetRep(uint8_t *b,
@@ -179,7 +178,7 @@ void CosetRep(uint8_t *b,
         const uint32_t pos  = (Q_star->permutation[i])%8;
         b[limb] ^= 1u << pos;
     }
-}
+} /* end CosetRep */
 
 /// checks if the given (N+7/8) bytes are a valid
 /// canonical form action.
@@ -194,4 +193,4 @@ int CheckCanonicalAction(const uint8_t* const b) {
     }
 
     return w == K;
-}
+} /* end CheckCanonicalAction */
