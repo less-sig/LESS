@@ -205,8 +205,8 @@ void matrix_transpose_opt(uint8_t *dst,
             const uint32_t n = src_stride;
 
 #if defined(USE_AVX512)
-            // matrix_transpose_64x64(dst_origin, src_origin, prf_origin, n, n);
-            matrix_transpose_32x32(dst_origin, src_origin, prf_origin, n, n);
+            // matrix_transpose_64x64(dst_origin, src_origin, n, n);
+            matrix_transpose_32x32(dst_origin, src_origin, n, n);
 #else
             matrix_transpose_32x32(dst_origin, src_origin, n, n);
 #endif

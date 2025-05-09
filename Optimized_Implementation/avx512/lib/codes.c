@@ -26,6 +26,7 @@
  **/
 
 #include <stdint.h>
+#include <string.h>
 
 #include "codes.h"
 #include "fq_arith.h"
@@ -116,10 +117,8 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
     vec256_t *gm[K] __attribute__((aligned(32)));
     vec256_t em[0x80][NW];
     vec256_t *ep[0x80];
-    vec256_t c01, c7f;
+    vec256_t c7f;
     vec256_t x, t, *rp, *rg;
-
-    vset8(c01, 0x01);
     vset8(c7f, 0x7f);
 
     for (i = 0; i < K; i++) {
@@ -173,7 +172,7 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
         for (j = 2; j < 127; j++) {
             for (uint32_t k = 0; k < NW; k++) {
                 vadd8(x, em[j - 1][k], rg[k])
-                W_RED127_(x);
+                vred8(x, t, c7f); // TODO
                 em[j][k] = x;
             }
         }
@@ -225,14 +224,13 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
                                   const int pvt_reuse_limit) {
     int i, j, pivc;
     uint8_t tmp, sc;
-
-    __m512i *gm[K] __attribute__((aligned(64)));
-    __m512i em[0x80][NW/2] __attribute__((aligned(64)));
-    __m512i *ep[0x80];
-    __m512i x, t, *rp, *rg;
+    __m256i em[0x80][NW] __attribute__((aligned(64)));
+    __m256i *ep[0x80];
+    __m256i *rp, *rg;
     
 
     const __m512i c7f = _mm512_set1_epi8(0x7f);
+    const __m256i c7f_= _mm256_set1_epi8(0x7f);
     int pvt_reuse_cnt = 0;
 
     // this loop roughly takes 2.2% of the whole function runtime ()
@@ -250,10 +248,6 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
                 swap_rows(G->values[preproc_col], G->values[pivot_el_row]);
             }
         }
-    }
-
-    for (i = 0; i < K; i++) {
-        gm[i] = (__m512i *) G->values[i];
     }
 
     for (i = 0; i < K; i++) {
@@ -291,18 +285,18 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
             //     gm[j][k] = t;
             // }
             uint32_t k = 0;
-            for (; k < (NW/2); k+=1) {
-                const __m512i t  = _mm512_loadu_si512((__m512i *)&(gm[i][k]));
-                const __m512i t2 = _mm512_loadu_si512((__m512i *)&(gm[j][k]));
-                _mm512_storeu_si512((__m512i *)&(gm[i][k]), t2);
-                _mm512_storeu_si512((__m512i *)&(gm[j][k]), t);
+            for (; (k + 2) <= NW; k+=2) {
+                const __m512i t1 = _mm512_loadu_si512((__m512i *)(G->values[i] + k*32));
+                const __m512i t2 = _mm512_loadu_si512((__m512i *)(G->values[j] + k*32));
+                _mm512_storeu_si512((__m512i *)(G->values[i] + k*32), t2);
+                _mm512_storeu_si512((__m512i *)(G->values[j] + k*32), t1);
             }
-            // for (; k < NW; k++) {
-            //     const __m256i t  = _mm256_loadu_si256((__m256i *)(gm[i] + k*32));
-            //     const __m256i t2 = _mm256_loadu_si256((__m256i *)(gm[j] + k*32));
-            //     _mm256_storeu_si256((__m256i *)(gm[i] + k*32), t2);
-            //     _mm256_storeu_si256((__m256i *)(gm[j] + k*32), t);
-            // }
+            for (; k < NW; k++) {
+                const __m256i t1 = _mm256_loadu_si256((__m256i *)(G->values[i] + k*32));
+                const __m256i t2 = _mm256_loadu_si256((__m256i *)(G->values[j] + k*32));
+                _mm256_storeu_si256((__m256i *)(G->values[i] + k*32), t2);
+                _mm256_storeu_si256((__m256i *)(G->values[j] + k*32), t1);
+            }
         }
 
         /// NOTE: this needs explenation. We can skip the reduction of the pivot row, because for
@@ -319,16 +313,26 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
          * are already set to zero by previous iterations */
 
         //  generate the em matrix
-        rg = gm[i];
+        rg = (__m256i *)(G->values[i]);
         memcpy(em[1], rg, LESS_WSZ * NW);
 
         for (j = 2; j < 127; j++) {
-            for (uint32_t k = 0; k < (NW/2); k++) {
-                x = _mm512_add_epi8(_mm512_loadu_si512(&em[j - 1][k]), _mm512_loadu_si512(&rg[k]));
+            uint32_t k = 0;
+            for (; (k+2) <= NW; k+=2) {
+                const __m512i t1 = _mm512_loadu_si512((__m512i *)(em[j-1] + k));
+                const __m512i t2 = _mm512_loadu_si512((__m512i *)(rg + k));
+                const __m512i x  = _mm512_add_epi8(t1, t2);
                 const __m512i xx = _mm512_sub_epi8(x, c7f);
                 const __m512i tt = _mm512_min_epu8(x, xx);
-                em[j][k] = tt;
-
+                _mm512_storeu_si512((__m512i *)(em[j] + k), tt);
+            }
+            for (; k < NW; k++) {
+                const __m256i t1 = _mm256_loadu_si256((__m256i *)(em[j-1] + k));
+                const __m256i t2 = _mm256_loadu_si256((__m256i *)(rg + k));
+                const __m256i x = _mm256_add_epi8(t1, t2);
+                const __m256i xx = _mm256_sub_epi8(x, c7f_);
+                const __m256i tt = _mm256_min_epu8(x, xx);
+                _mm256_storeu_si256((__m256i *)(em[j] + k), tt);
             }
         }
 
@@ -349,14 +353,27 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
         /* Subtract the now placed and reduced pivot rows, from the others,
          * after rescaling it */
         for (j = 0; j < K; j++) {
-            sc = ((uint8_t *) gm[j])[pivc];
+            sc = G->values[j][pivc];
             if (sc != 0x00 && j != i) {
                 rp = ep[127 - sc];
-                for (uint32_t k = 0; k < (NW/2); k++) {
-                    x = _mm512_add_epi8(_mm512_loadu_si512(&gm[j][k]), _mm512_loadu_si512(&rp[k]));
+
+                uint32_t k = 0;
+                for (; k+2 <= NW; k+=2) {
+                    const __m512i t1 = _mm512_loadu_si512((__m512i *)(G->values[j] + k*32));
+                    const __m512i t2 = _mm512_loadu_si512((__m512i *)(rp + k));
+                    const __m512i x = _mm512_add_epi8(t1, t2);
                     const __m512i xx = _mm512_sub_epi8(x, c7f);
                     const __m512i tt = _mm512_min_epu8(x, xx);
-                    _mm512_storeu_si512((__m512i *)&(gm[j][k]), tt);
+                    _mm512_storeu_si512((__m512i *)(G->values[j] + k*32), tt);
+                }
+
+                for (; k < NW; k++) {
+                    const __m256i t1 = _mm256_loadu_si256((__m256i *)(G->values[j] + k*32));
+                    const __m256i t2 = _mm256_loadu_si256((__m256i *)(rp + k));
+                    const __m256i x  = _mm256_add_epi8(t1, t2);
+                    const __m256i xx = _mm256_sub_epi8(x, c7f_);
+                    const __m256i tt = _mm256_min_epu8(x, xx);
+                    _mm256_storeu_si256((__m256i *)(G->values[j] + k*32), tt);
                 }
             }
         }
@@ -431,16 +448,16 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
             was_pivot_column[j] = 0;
             uint32_t k = 0;
             for (; (k + 2) <= NW; k+=2) {
-                const __m512i t  = _mm512_loadu_si512((__m512i *)(G->values[i] + k*32));
+                const __m512i t1 = _mm512_loadu_si512((__m512i *)(G->values[i] + k*32));
                 const __m512i t2 = _mm512_loadu_si512((__m512i *)(G->values[j] + k*32));
                 _mm512_storeu_si512((__m512i *)(G->values[i] + k*32), t2);
-                _mm512_storeu_si512((__m512i *)(G->values[j] + k*32), t);
+                _mm512_storeu_si512((__m512i *)(G->values[j] + k*32), t1);
             }
             for (; k < NW; k++) {
-                const __m256i t  = _mm256_loadu_si256((__m256i *)(G->values[i] + k*32));
+                const __m256i t1 = _mm256_loadu_si256((__m256i *)(G->values[i] + k*32));
                 const __m256i t2 = _mm256_loadu_si256((__m256i *)(G->values[j] + k*32));
                 _mm256_storeu_si256((__m256i *)(G->values[i] + k*32), t2);
-                _mm256_storeu_si256((__m256i *)(G->values[j] + k*32), t);
+                _mm256_storeu_si256((__m256i *)(G->values[j] + k*32), t1);
             }
         }
 
@@ -459,7 +476,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
         __m512i t1 = *(__m512i *)(__gf127_lookuptable + sc * 128);
         __m512i t2 = *(__m512i *)(__gf127_lookuptable + sc * 128 + 64);
         uint32_t k = 0;
-        for (; (k+2) < NW; k+=2) {
+        for (; (k+2) <= NW; k+=2) {
             const __m512i a = _mm512_loadu_si512(G->values[i] + k*32);
             const __m512i b = gf127v_scalar_table_u512(a, t1, t2);
             _mm512_storeu_si512(G->values[i] + k*32, b);
