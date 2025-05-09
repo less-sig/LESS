@@ -30,7 +30,6 @@
 #include "codes.h"
 #include "fq_arith.h"
 #include "macro.h"
-#include "utils.h"
 #include "parameters.h"
 
 /// swap N_pad bytes in r and s
@@ -48,7 +47,10 @@ void swap_rows(FQ_ELEM r[N_pad],
     }
 } /* end swap_rows */
 
-/* Calculate pivot flag array */
+/// Calculate pivot flag array
+/// \param G[in]: generator matrix in compress formatj
+/// \param pivot_flag[out]: array denoting the pivot columns via a 1, everything
+///     else is 0
 void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t pivot_flag [N]) {
     for (int i = 0; i < N; i = i + 1) {
         pivot_flag[i] = 1;
@@ -57,50 +59,12 @@ void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t piv
     for (int i = 0; i < K; i = i + 1) {
         pivot_flag[G->column_pos[i]] = 0;
     }
-}
+} /* end generator_get_pivot_flags */
 
-
-void normalized_monomial_right(normalized_IS_t *res,
-                               const normalized_IS_t *const G,
-                               const monomial_t *const monom) {
-    FQ_ELEM buffer[K_pad] __attribute__((aligned(64)));
-    __m512i monomial[K_pad / 32];
-    uint32_t k = 0;
-    for (; k+2 <= (K_pad/32); k+=2) {
-        const __m256i a = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k +  0));
-        const __m256i b = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k + 32));
-        const __m512i t1 = _mm512_cvtepu8_epi16(a);
-        const __m512i t2 = _mm512_cvtepu8_epi16(b);
-        monomial[k + 0] = t1;
-        monomial[k + 1] = t2;
-    }
-
-    for (; k < (K_pad/32); k++) {
-        const __m256i a = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k +  0));
-        const __m512i t1 = _mm512_cvtepu8_epi16(a);
-        monomial[k + 0] = t1;
-    }
-
-    for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
-        const FQ_ELEM *G_pointer = G->values[row_idx];
-        uint32_t ctr = 0;
-
-        for (uint32_t src_col_idx = 0; (src_col_idx+32) <= K_pad; src_col_idx += 32) {
-            const __m256i a = _mm256_loadu_si256((const __m256i *)(G_pointer + src_col_idx));
-            const __m512i b = _mm512_cvtepi8_epi16(a);
-            const __m256i t = avx_mul_full512(b, monomial[ctr]);
-            _mm256_store_si256((__m256i *) (buffer + src_col_idx), t);
-            ctr += 1;
-        }
-
-        for (uint32_t i = 0; i < K; i++) {
-            res->values[row_idx][monom->permutation[i]] = buffer[i];
-        }
-    }
-
-}
-
-/* right-multiplies a generator by a monomial */
+/// right-multiplies a generator by a monomial
+/// \param res[out]: pointer to an uninitialized generator matrix
+/// \param G[in]: full (K \times N) generator matrix
+/// \param monom[in]: (random) monomial matrix
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom) {
@@ -140,7 +104,11 @@ void generator_monomial_mul(generator_mat_t *res,
     }
 } /* end generator_monomial_mul */
 
-///
+/// \param G[in/out]: generator matrix
+/// \param is_pivot_column[out]: N bytes, set to 1 if this column is a pivot 
+/// column. NOTE: the length is `N_pad`, but the upper N_pad-N are unused.
+/// \return 0 on failure
+///         1 on success
 int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
     int i, j, pivc;
     uint8_t tmp, sc;
@@ -232,21 +200,29 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
                 rp = ep[127 - sc];
                 for (uint32_t k = 0; k < NW; k++) {
                     vadd8(x, gm[j][k], rp[k])
-                    W_RED127_(x);
+                    // TODO replace with avx512 code
+                    vred8(x, t, c7f);
                     gm[j][k] = x;
                 }
             }
         }
-
     }
 
     return 1;
 } /* end generator_RREF */
 
+/// \param G[in/out]: generator matrix K \times N
+/// \param is_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \param was_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \param pvt_reuse_limit:[in]:
+/// \return 0 on failure
+///         1 on success
 int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
-                               uint8_t is_pivot_column[N],
-                               uint8_t was_pivot_column[N],
-                               const int pvt_reuse_limit) {
+                                  uint8_t is_pivot_column[N],
+                                  uint8_t was_pivot_column[N],
+                                  const int pvt_reuse_limit) {
     int i, j, pivc;
     uint8_t tmp, sc;
 
@@ -348,12 +324,6 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
 
         for (j = 2; j < 127; j++) {
             for (uint32_t k = 0; k < (NW/2); k++) {
-                //vadd8(x, em[j - 1][k], rg[k])
-                //const __m256i xx = _mm256_sub_epi8(x, c7f);
-                //const __m256i tt = _mm256_blendv_epi8(xx, x, xx);
-                //em[j][k] = tt;
-
-                //x = _mm512_add_epi8(em[j - 1][k], rg[k]);
                 x = _mm512_add_epi8(_mm512_loadu_si512(&em[j - 1][k]), _mm512_loadu_si512(&rg[k]));
                 const __m512i xx = _mm512_sub_epi8(x, c7f);
                 const __m512i tt = _mm512_min_epu8(x, xx);
@@ -383,16 +353,9 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
             if (sc != 0x00 && j != i) {
                 rp = ep[127 - sc];
                 for (uint32_t k = 0; k < (NW/2); k++) {
-                    //vadd8(x, gm[j][k], rp[k]);
-                    //const __m256i xx = _mm256_sub_epi8(x, c7f);
-                    //const __m256i tt = _mm256_blendv_epi8(xx, x, xx);
-                    //gm[j][k] = tt;
-
-                    //x = _mm512_add_epi8(gm[j][k], rp[k]);
                     x = _mm512_add_epi8(_mm512_loadu_si512(&gm[j][k]), _mm512_loadu_si512(&rp[k]));
                     const __m512i xx = _mm512_sub_epi8(x, c7f);
                     const __m512i tt = _mm512_min_epu8(x, xx);
-                    // gm[j][k] = tt;
                     _mm512_storeu_si512((__m512i *)&(gm[j][k]), tt);
                 }
             }
@@ -402,6 +365,14 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
     return 1;
 } /* end generator_RREF */
 
+/// \param G[in/out]: generator matrix K \times N
+/// \param is_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \param was_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \param pvt_reuse_limit:[in]:
+/// \return 0 on failure
+///         1 on success
 int generator_RREF_pivot_reuse(generator_mat_t *G,
                                uint8_t is_pivot_column[N],
                                uint8_t was_pivot_column[N],
@@ -513,10 +484,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                     const __m512i c1 = _mm512_sub_epi8(a, b);
                     const __m512i c2 = _mm512_add_epi8(c1, q);
                     const __m512i d  = _mm512_min_epu8(c2, c1);
-
-                    //const __mmask64 m = _mm512_cmplt_epu8_mask(a, b);
-                    //const __m512i c = _mm512_mask_adds_epu8(a,m,a,q);
-                    //const __m512i d = _mm512_subs_epu8(c, b);
                     _mm512_storeu_si512(G->values[j] + k*32, d);
                 }
 
@@ -527,10 +494,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                     const __m512i c1 = _mm512_sub_epi8(a, b);
                     const __m512i c2 = _mm512_add_epi8(c1, q);
                     const __m512i d  = _mm512_min_epu8(c2, c1);
-
-                    //const __mmask64 m = _mm512_cmplt_epu8_mask(a, b);
-                    //const __m512i c = _mm512_mask_adds_epu8(a,m,a,q);
-                    //const __m512i d = _mm512_subs_epu8(c, b);
                     _mm256_storeu_si256((__m256i *)(G->values[j] + k*32), _mm512_castsi512_si256(d));
                 }
             }
@@ -540,8 +503,13 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
     return 1;
 } /* end generator_RREF */
 
-/* Compresses a generator matrix in RREF into a array of bytes */
-void compress_rref(uint8_t *compressed, const generator_mat_t *const full,
+/// Compresses a generator matrix in RREF into a array of bytes
+/// \param compressed[out] byte array of length RREF_MAT_PACKEDBYTES
+/// \param full[in]: full generator matrix (K \times N)
+/// \param is_pivot_column[in]: array of length N in which K fields are 1, the 
+///     rest must be zero. Indicating the positions of the pivot columns.
+void compress_rref(uint8_t *compressed, 
+                   const generator_mat_t *const full,
                    const uint8_t is_pivot_column[N]) {
     // Compress pivot flags
     for (uint32_t col_byte = 0; col_byte < N / 8; col_byte++) {
@@ -628,7 +596,11 @@ void compress_rref(uint8_t *compressed, const generator_mat_t *const full,
     } /* end compress_rref */
 }
 
-/* Expands a compressed RREF generator matrix into a full one */
+/// Expands a compressed RREF generator matrix into a full one
+/// \param full[out]: output full matrix (K \times N)
+/// \param compressed[in]: bytestream containing the compressed maitrx
+/// \param is_pivot_column[out]: N bytes will be initialized with zeros. And 
+///     only 1 will be written at the column position which is a pivot column.
 void expand_to_rref(generator_mat_t *full,
                     const uint8_t *compressed,
                     uint8_t is_pivot_column[N]) {
@@ -735,28 +707,9 @@ void expand_to_rref(generator_mat_t *full,
 
 } /* end expand_to_rref */
 
-
-// V1 =V2
-void normalized_copy(normalized_IS_t *V1,
-                     const normalized_IS_t *V2) {
-    memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
-} /* end normalized_copy */
-
-/// \param V
-/// \param row1
-/// \param row2
-void normalized_row_swap(normalized_IS_t *V,
-              const POSITION_T row1,
-              const POSITION_T row2) {
-    for(uint32_t i = 0; i < N-K; i++){
-        POSITION_T tmp;
-        tmp = V->values[row1][i];
-        V->values[row1][i] = V->values[row2][i];
-        V->values[row2][i] = tmp;
-    }
-} /* end normalized_row_swap */
-
-/* Expands a compressed RREF generator matrix into a full one */
+/// Expands a compressed RREF generator matrix into a full one
+/// \param full[out]: output generator matrix (K \times N) 
+/// \param compact[out]: input compressed generator matrix (K \times N-K) 
 void generator_rref_expand(generator_mat_t *full,
                            const rref_generator_mat_t *const compact) {
    uint32_t placed_dense_cols = 0;
@@ -777,6 +730,10 @@ void generator_rref_expand(generator_mat_t *full,
    }
 } /* end generator_rref_expand */
 
+/// expands a systematic form generator from a seed randomly drawing only
+/// non-identity portion
+/// \param res[out]: full rank generator matrix K \times N-K
+/// \param seed[int] seed for the prng
 void generator_sample(rref_generator_mat_t *res,
                       const unsigned char seed[SEED_LENGTH_BYTES]) {
    SHAKE_STATE_STRUCT csprng_state;
@@ -787,14 +744,14 @@ void generator_sample(rref_generator_mat_t *res,
    for(uint32_t i = 0; i < N-K ; i++) {
       res->column_pos[i]=i+K;
    }
-
-
 } /* end generator_sample */
 
 /// NOTE: not constant time
-/// \param res
-/// \param G
-/// \param c
+/// \param res[out]: G*c a generator matrix: K \times N-K
+/// \param G[in]: current generator matrix: K \times N-K
+/// \param c[in]: compressed cf action
+/// \param initial_G_col_pivot[in]: input IS
+/// \param permuted_G_col_pivot[out]: output IS, to keep track of the pivot cols
 void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
                                       const generator_mat_t *G,
                                       const uint8_t *const c,
@@ -826,3 +783,70 @@ void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
 finish:
     return;
 } /* end apply_cf_action_to_G_with_pivots */
+
+/// V1 =V2
+/// \param V1[out]: pointer to generator matrix (non IS part)
+/// \param V2[in]: pointer to generator matrix (non IS part)
+void normalized_copy(normalized_IS_t *V1,
+                     const normalized_IS_t *V2) {
+    memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
+} /* end normalized_copy */
+
+/// \param V[in/out]: K \times N-K matrix in which row `row1` and
+///     row `row2` are swapped
+/// \param row1[in]: first row
+/// \param row2[in]: second row
+void normalized_row_swap(normalized_IS_t *V,
+                         const POSITION_T row1,
+                         const POSITION_T row2) {
+    for(uint32_t i = 0; i < N-K; i++){
+        POSITION_T tmp;
+        tmp = V->values[row1][i];
+        V->values[row1][i] = V->values[row2][i];
+        V->values[row2][i] = tmp;
+    }
+} /* end normalized_row_swap */
+
+/// right-multiplies a generator by a monomial: res = G*monom
+/// \param res[out] pointer to an uninitialized generator matrix (non IS part)
+/// \param G[in]: pointer to an initialized generator matrix (non IS part)
+/// \param monom[in]: pointer to an initialized monomial matrix
+void normalized_monomial_right(normalized_IS_t *res,
+                               const normalized_IS_t *const G,
+                               const monomial_t *const monom) {
+    FQ_ELEM buffer[K_pad] __attribute__((aligned(64)));
+    __m512i monomial[K_pad / 32];
+    uint32_t k = 0;
+    for (; k+2 <= (K_pad/32); k+=2) {
+        const __m256i a = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k +  0));
+        const __m256i b = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k + 32));
+        const __m512i t1 = _mm512_cvtepu8_epi16(a);
+        const __m512i t2 = _mm512_cvtepu8_epi16(b);
+        monomial[k + 0] = t1;
+        monomial[k + 1] = t2;
+    }
+
+    for (; k < (K_pad/32); k++) {
+        const __m256i a = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k +  0));
+        const __m512i t1 = _mm512_cvtepu8_epi16(a);
+        monomial[k + 0] = t1;
+    }
+
+    for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
+        const FQ_ELEM *G_pointer = G->values[row_idx];
+        uint32_t ctr = 0;
+
+        for (uint32_t src_col_idx = 0; (src_col_idx+32) <= K_pad; src_col_idx += 32) {
+            const __m256i a = _mm256_loadu_si256((const __m256i *)(G_pointer + src_col_idx));
+            const __m512i b = _mm512_cvtepi8_epi16(a);
+            const __m256i t = avx_mul_full512(b, monomial[ctr]);
+            _mm256_store_si256((__m256i *) (buffer + src_col_idx), t);
+            ctr += 1;
+        }
+
+        for (uint32_t i = 0; i < K; i++) {
+            res->values[row_idx][monom->permutation[i]] = buffer[i];
+        }
+    }
+
+}

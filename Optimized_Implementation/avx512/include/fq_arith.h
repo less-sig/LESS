@@ -78,7 +78,7 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
 
 
 /// constant itme implementation
-/// \param x[i] < 256
+/// \param x[in] < 256
 /// \return x mod 127
 static inline
 FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
@@ -90,7 +90,7 @@ FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
 } /* end fq_cond_sub */
 
 /// constant itme implementation
-/// \param x[i] < 127**2
+/// \param x[in] < 127**2
 /// \return x mod 127
 static inline
 FQ_ELEM fq_red(const FQ_DOUBLEPREC x) {
@@ -98,8 +98,8 @@ FQ_ELEM fq_red(const FQ_DOUBLEPREC x) {
 } /* end fq_red */
 
 /// constant itme implementation
-/// \param x[i] < 127
-/// \param y[i] < 127
+/// \param x[in] < 127
+/// \param y[in] < 127
 /// \return x - y mod 127
 static inline
 FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
@@ -107,8 +107,8 @@ FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
 } /* end fq_sub */
 
 /// constant itme implementation
-/// \param x[i] < 127
-/// \param y[i] < 127
+/// \param x[in] < 127
+/// \param y[in] < 127
 /// \return x * y mod 127
 static inline
 FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
@@ -116,8 +116,8 @@ FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
 } /* end fq_mul */
 
 /// constant itme implementation
-/// \param x[i] < 127
-/// \param y[i] < 127
+/// \param x[in] < 127
+/// \param y[in] < 127
 /// \return x + y mod 127
 static inline
 FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
@@ -161,30 +161,35 @@ DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
 #include "macro.h"
 
 
-/// TODO erklären
-/// \param ret[out]:
-/// \param a[in]:
+/// \param ret[out]: two __m512i register, which will contain a lookup table.
+///     This table can be efficently processed via `_mm512_permutex2var_epi8`, 
+///     which will then contain the result of the scalar multiplication of each 
+///     input with the scalar `a`.
+/// \param a[in]: input scalar
 static inline void gf127v_scalar_u512_compute_table(__m512i *ret,
                                                     const uint8_t a) {
     ret[0] = _mm512_load_si512((const __m512i *)(__gf127_lookuptable + 128 * a +  0));
     ret[1] = _mm512_load_si512((const __m512i *)(__gf127_lookuptable + 128 * a + 64));
 }
 
-/// TODO erklären
-/// \param a[in]:
-/// \param table1[in]:
-/// \param table2[in]:
+/// \param in[in]: input register: containing 64 Fq elements:
+///     [in_0, ..., in_63]
+/// \param table1[in]: lower 64 byte of the lookup table computed by `gf127v_scalar_u512_compute_table`
+/// \param table2[in]: upper 64 byte of the lookup table computed by `gf127v_scalar_u512_compute_table`
+/// \return in*a = [in_0*a, ..., in_63*a], where `a` is the scalar input of 
+///     `gf127v_scalar_u512_compute_table`
 static inline
-__m512i gf127v_scalar_table_u512(const __m512i a,
+__m512i gf127v_scalar_table_u512(const __m512i in,
                                  const __m512i table1,
                                  const __m512i table2) {
-    return _mm512_permutex2var_epi8(table1, a, table2);
+    return _mm512_permutex2var_epi8(table1, in, table2);
 }
 
 /// \param in[in]: avx2 register
-/// \return in[0] + in[1] + ... + in[31] % q
+/// \return (in[0] + in[1] + ... + in[31]) % q
 static inline 
 uint8_t vhadd8(const __m256i in) {
+    // TODO replace  with: _mm256_reduce_add_epi16
     vec256_t c7f, tmp;
     vset8(c7f, 0x7F);
 
@@ -211,9 +216,8 @@ uint8_t vhadd8(const __m256i in) {
     return _mm256_extract_epi8(t, 0);
 } /* end vhadd8 */
 
-/// TODO use
-/// \param in[in]: avx2 register
-/// \return in[0] + in[1] + ... + in[31] % q
+/// \param in[in]: avx512 register
+/// \return (in[0] + in[1] + ... + in[63]) % q
 static inline 
 uint8_t vhadd8_512(const __m512i in) {
     vec256_t x, t, c7f;
@@ -225,9 +229,8 @@ uint8_t vhadd8_512(const __m512i in) {
     return vhadd8(x);
 } /* end vhadd8_512 */
 
-
-/// \param aa < 127 in 16 bit limb
-/// \param bb < 127 in 16 bit limb
+/// \param aa[in]: aa[i] < 127 in 16 bit limb for i in range(32)
+/// \param bb[in]: bb[i] < 127 in 16 bit limb for i in range(32)
 /// \return aa[i] * bb[i] for all i in range(32)
 static inline __m256i avx_mul_full512(const __m512i aa,
                                       const __m512i bb) {
@@ -246,14 +249,11 @@ static inline __m256i avx_mul_full512(const __m512i aa,
     return t;
 }
 
-
-/// NOTE: these functions are outsourced to this file, to make the
-/// optimized implementation as easy as possible.
 /// accumulates a row
-/// \param d
-/// \return sum(d) for _ in range(N-K)
+/// \param row[in]: pointer to a row with ROUND_UP(N-K, 32) elements
+/// \return sum(d[i]) for i in range(N-K)
 static inline
-FQ_ELEM row_acc(const FQ_ELEM *d) {
+FQ_ELEM row_acc(const FQ_ELEM *row) {
     __m512i c01, c7f, c516;
     __m256i t;
     vset16_512(c01, 0x01);
@@ -261,7 +261,7 @@ FQ_ELEM row_acc(const FQ_ELEM *d) {
     vset16_512(c516, 516);
     __m512i acc = _mm512_setzero_si512();
     for (uint32_t col = 0; col < N_K_pad; col+=32) {
-        vload256(t, (const vec256_t *)(d + col));
+        vload256(t, (const vec256_t *)(row + col));
         const __m512i a = _mm512_cvtepi8_epi16(t);
         acc = _mm512_add_epi16(acc, a);
 	}
@@ -280,10 +280,10 @@ FQ_ELEM row_acc(const FQ_ELEM *d) {
 }
 
 /// accumulates the inverse of a row
-/// \param d
+/// \param row[in]: pointer to a row with ROUND_UP(N-K, 32) elements
 /// \return sum(d[i]**-1) for i in range(N-K)
 static inline
-FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
+FQ_ELEM row_acc_inv(const FQ_ELEM *row) {
     const __m512i t1 = _mm512_load_si512((const __m512i *)(fq_inv_table +  0));
     const __m512i t2 = _mm512_load_si512((const __m512i *)(fq_inv_table + 64));
 
@@ -291,13 +291,14 @@ FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
 
     uint32_t col = 0;
     for (; (col+64) <= N_K_pad; col += 64) {
-        const __m512i a = _mm512_loadu_si512((const __m512i *)(d + col));
+        const __m512i a = _mm512_loadu_si512((const __m512i *)(row + col));
         const __m512i k = _mm512_permutex2var_epi8(t1, a, t2);
         _mm512_store_si512((__m512i *)(inv_data + col), k);
 	}
 
+    // tail mngt...
     for (; (col+32) <= N_K_pad; col += 32) {
-        const __m256i b = _mm256_loadu_si256((const __m256i *)(d + col));
+        const __m256i b = _mm256_loadu_si256((const __m256i *)(row + col));
         const __m512i a = _mm512_castsi256_si512(b);
         const __m512i c = gf127v_scalar_table_u512(a, t1, t2); 
         const __m256i d = _mm512_castsi512_si256(c);
@@ -308,11 +309,11 @@ FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
 }
 
 /// scalar multiplication of a row
-/// NOTE: not a full reduction
 /// \param row[in/out] *= s for _ in range(N-K)
-/// \param s
+/// \param s[in]: input scalar
 static inline
-void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
+void row_mul(FQ_ELEM *row,
+             const FQ_ELEM s) {
     __m512i table[2];
     gf127v_scalar_u512_compute_table(table, s);
 
@@ -334,10 +335,12 @@ void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
 
 /// scalar multiplication of a row
 /// \param out = s*in[i] for i in range(N-K)
-/// \param in
-/// \param s
+/// \param in[in]: input row with ROUND_UP(N-K, 32) elements
+/// \param s[in]: input scalar
 static inline
-void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
+void row_mul2(FQ_ELEM *__restrict__ out,
+              const FQ_ELEM *__restrict__ in,
+              const FQ_ELEM s) {
     __m512i table[2];
     gf127v_scalar_u512_compute_table(table, s);
 
@@ -359,10 +362,12 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
 
 /// scalar multiplication of a row
 /// \param out = s*in[i] for i in range(N-K)
-/// \param in
-/// \param s
+/// \param in[in]: input row with ROUND_UP(N-K, 32) elements
+/// \param s[in]: input scalar
 static inline
-void row_mul2_ct(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
+void row_mul2_ct(FQ_ELEM *__restrict__ out,
+                 const FQ_ELEM *__restrict__ in, 
+                 const FQ_ELEM s) {
     __m512i c01, c7f, c516, tmp, bb;
     __m256i a;
     vset16_512(c01, 0x01);
@@ -384,12 +389,13 @@ void row_mul2_ct(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
     }
 }
 
-///
 /// \param out = in1[i]*in2[i] for i in range(N-K)
-/// \param in1
-/// \param in2
+/// \param in1[in]: input row with ROUND_UP(N-K, 32) elements
+/// \param in2[in]: input row with ROUND_UP(N-K, 32) elements
 static inline
-void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
+void row_mul3(FQ_ELEM *__restrict__ out,
+              const FQ_ELEM *__restrict__ in1,
+              const FQ_ELEM *__restrict__ in2) {
     __m512i c01, c7f, c516, tmp;
     __m256i a, b;
     vset16_512(c01, 0x01);
@@ -414,9 +420,10 @@ void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
 
 /// invert a row
 /// \param out[out]: in[i]**-1 for i in range(N-K)
-/// \param in [in]
+/// \param in[in]: input row with ROUND_UP(N-K, 32) elements
 static inline
-void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
+void row_inv2(FQ_ELEM *__restrict__ out,
+              const FQ_ELEM *__restrict__ in) {
     const __m512i t1 = _mm512_load_si512((const __m512i *)(fq_inv_table +  0));
     const __m512i t2 = _mm512_load_si512((const __m512i *)(fq_inv_table + 64));
 
@@ -437,7 +444,6 @@ void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
     }
 }
 
-/// NOTE: avx512 optimized version (it has a special instruction for stuff like this)
 /// \param in[in]: vector of length N-K
 /// \return 1 if all elements are the same
 ///         0 else
@@ -447,6 +453,7 @@ uint32_t row_all_same(const FQ_ELEM *in) {
     vset8(acc, -1u);
     vset8(t2, in[0]);
 
+    // TODO make 64 byte wide
     uint32_t col = 0;
     for (; col < N_K_pad-32; col += 32) {
         vload256(t1, (vec256_t *)(in + col));
@@ -464,7 +471,7 @@ uint32_t row_all_same(const FQ_ELEM *in) {
     return t3 == -1u;
 }
 
-/// \param in[in] row
+/// \param in[in]: row of length N-K
 /// \return 1 if a zero was found
 ///         0 else
 static inline
@@ -489,7 +496,7 @@ uint32_t row_contains_zero(const FQ_ELEM *in) {
     return acc != 0;
 }
 
-/// \param in[in]: vector of length N-K
+/// \param in[in]: row of length N-K
 /// \return the number of zeros in the input vector
 static inline
 uint32_t row_count_zero(const FQ_ELEM *in) {
