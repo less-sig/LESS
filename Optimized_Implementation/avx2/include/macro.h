@@ -23,12 +23,7 @@
 
 #pragma once
 
-#include <stdint.h>
-#include <string.h>
-#include <stdio.h>
 #include <immintrin.h>
-
-#include "fq_arith.h"
 
 typedef __m256i vec256_t;
 typedef __m128i vec128_t;
@@ -117,52 +112,13 @@ typedef __m128i vec128_t;
 
 #define vpermute_4x64(c, a, b) c = _mm256_permute4x64_epi64(a, b);
 
-/*
- * t = tmp register
- * Fix width 16-bit Barrett multiplication Q = 127
- * c = (a * b) % q
- */
-#define barrett_mul_u16(c, a, b, t)          \
-    vmul_lo16(a, a, b); /* lo = (a * b)  */  \
-    vsr16(t, a, 7);     /* hi = (lo >> 7) */ \
-    vadd16(a, a, t);    /* lo = (lo + hi) */ \
-    vsl16(t, t, 7);     /* hi = (hi << 7) */ \
-    vsub16(c, a, t);    /* c  = (lo - hi) */
-
 /// new reduction formula
-#define W_RED127_(x,xx,c7f)             \
+#if defined(LESS_USE_BLEND_IN_ARITH)
+#define vred8(x,xx,c7f)                 \
     xx = _mm256_sub_epi8(x, c7f);       \
-    x = _mm256_blendv_epi8(xx, x, xx);  \
-
-// Extend from 8-bit to 16-bit type
-extern const uint8_t shuff_low_half[32];
-
-void print256_num(vec256_t var, const char *string);
-
-/// \return in[0] + in[1] + ... + in[31] % q
-static inline uint8_t vhadd8(const __m256i in) {
-    vec256_t c7f, tmp;
-    vset8(c7f, 0x7F);
-
-    __m256i a = _mm256_srli_epi16(in, 8);
-    __m256i t = _mm256_add_epi8(a, in);
-    W_RED127_(t,tmp,c7f)
-
-    a = _mm256_srli_epi32(t, 16);
-    t = _mm256_add_epi8(a, t);
-    W_RED127_(t,tmp,c7f)
-
-    a = _mm256_srli_epi64(t, 32);
-    t = _mm256_add_epi8(a, t);
-    W_RED127_(t,tmp,c7f)
-
-    a = _mm256_srli_si256(t, 8);
-    t = _mm256_add_epi8(a, t);
-    W_RED127_(t,tmp,c7f)
-
-    a = _mm256_permute2x128_si256(t, t, 1);
-    t = _mm256_add_epi8(a, t);
-    W_RED127_(t,tmp,c7f)
-
-    return _mm256_extract_epi8(t, 0);
-}
+    x = _mm256_blendv_epi8(xx, x, xx);
+#else
+#define vred8(x,xx,c7f)                 \
+    xx = _mm256_sub_epi8(x, c7f);       \
+    x = _mm256_min_epu8(xx, x);
+#endif

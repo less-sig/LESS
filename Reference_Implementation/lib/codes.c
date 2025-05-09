@@ -43,7 +43,10 @@ void swap_rows(FQ_ELEM r[N],
     memcpy(s, tmp, sizeof(FQ_ELEM) * N);
 } /* end swap_rows */
 
-/* Calculate pivot flag array */
+/// Calculate pivot flag array
+/// \param G[in]: generator matrix in compress formatj
+/// \param pivot_flag[out]: array denoting the pivot columns via a 1, everything
+///     else is 0
 void generator_get_pivot_flags(const rref_generator_mat_t *const G,
                                uint8_t pivot_flag [N]) {
     for (uint32_t i = 0; i < N; i = i + 1) {
@@ -53,9 +56,12 @@ void generator_get_pivot_flags(const rref_generator_mat_t *const G,
     for (uint32_t i = 0; i < K; i = i + 1) {
         pivot_flag[G->column_pos[i]] = 0;
     }
-}
+} /* end generator_get_pivot_flags */
 
-/* right-multiplies a generator by a monomial */
+/// right-multiplies a generator by a monomial
+/// \param res[out]: pointer to an uninitialized generator matrix
+/// \param G[in]: full (K \times N) generator matrix
+/// \param monom[in]: (random) monomial matrix
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom) {
@@ -68,8 +74,7 @@ void generator_monomial_mul(generator_mat_t *res,
 } /* end generator_monomial_mul */
 
 /// \param G[in/out]: generator matrix
-/// \param is_pivot_column[out]: N bytes, set to 1 if this column
-///                 is a pivot column
+/// \param is_pivot_column[out]: N bytes, set to 1 if this column is a pivot column
 /// \return 0 on failure
 ///         1 on success
 int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N]) {
@@ -409,8 +414,8 @@ void compress_rref(uint8_t *compressed,
                 }
             }
         }
-    } /* end compress_rref */
-}
+    }
+} /* end compress_rref */
 
 /// Expands a compressed RREF generator matrix into a full one
 /// \param full[out]: output full matrix (K \times N)
@@ -522,7 +527,6 @@ void expand_to_rref(generator_mat_t *full,
     }
 } /* end expand_to_rref */
 
-
 /// Expands a compressed RREF generator matrix into a full one
 /// \param full[out]: output generator matrix (K \times N) 
 /// \param compact[out]: input compressed generator matrix (K \times N-K) 
@@ -545,7 +549,6 @@ void generator_rref_expand(generator_mat_t *full,
     }
 } /* end generator_rref_expand */
 
-
 /// expands a systematic form generator from a seed randomly drawing only
 /// non-identity portion
 /// \param res[out]: full rank generator matrix K \times N-K
@@ -561,7 +564,6 @@ void generator_sample(rref_generator_mat_t *res,
         res->column_pos[i] = i + K;
     }
 } /* end generator_sample */
-
 
 /// NOTE: not constant time
 /// \param res[out]: G*c a generator matrix: K \times N-K
@@ -610,16 +612,16 @@ void normalized_copy(normalized_IS_t *V1,
     memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
 } /* end normalized_copy */
 
-
 /// \param V[in/out]: K \times N-K matrix in which row `row1` and
 ///     row `row2` are swapped
 /// \param row1[in]: first row
 /// \param row2[in]: second row
-void normalized_row_swap(normalized_IS_t *V,
-                         const POSITION_T row1,
-                         const POSITION_T row2) {
-    if (row1 == row2) { return; }
-    for(uint32_t i = 0; i < N-K; i++){
+void normalized_row_swap(normalized_IS_t *V, const POSITION_T row1, const POSITION_T row2) {
+    if (row1 == row2) {
+        return;
+    }
+
+    for (uint32_t i = 0; i < N - K; i++) {
         POSITION_T tmp = V->values[row1][i];
         V->values[row1][i] = V->values[row2][i];
         V->values[row2][i] = tmp;
@@ -630,13 +632,11 @@ void normalized_row_swap(normalized_IS_t *V,
 /// \param res[out] pointer to an uninitialized generator matrix (non IS part)
 /// \param G[in]: pointer to an initialized generator matrix (non IS part)
 /// \param monom[in]: pointer to an initialized monomial matrix
-void normalized_monomial_right(normalized_IS_t *res,
-                               const normalized_IS_t *const G,
-                               const monomial_t *const monom) {
-   for(uint32_t src_col_idx = 0; src_col_idx < K; src_col_idx++) {
-      for(uint32_t row_idx = 0; row_idx < K; row_idx++) {
-         res->values[row_idx][monom->permutation[src_col_idx]] =
-            fq_mul_non_ct(G->values[row_idx][src_col_idx], monom->coefficients[src_col_idx]);
-      }
-   }
+void normalized_monomial_right(normalized_IS_t *res, const normalized_IS_t *const G, const monomial_t *const monom) {
+    for (uint32_t src_col_idx = 0; src_col_idx < K; src_col_idx++) {
+        for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
+            res->values[row_idx][monom->permutation[src_col_idx]] =
+                    fq_mul_non_ct(G->values[row_idx][src_col_idx], monom->coefficients[src_col_idx]);
+        }
+    }
 } /* end normalized_monomial_right */

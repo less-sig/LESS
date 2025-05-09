@@ -77,6 +77,7 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
    } while (1); }
 
 
+/// constant itme implementation
 /// \param x[i] < 256
 /// \return x mod 127
 static inline
@@ -86,38 +87,43 @@ FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
     FQ_ELEM sub_q = x - Q;
     FQ_ELEM mask = -(sub_q >> NUM_BITS_Q);
     return (mask & Q) + sub_q;
-}
+} /* end fq_cond_sub */
 
+/// constant itme implementation
 /// \param x[i] < 127**2
 /// \return x mod 127
 static inline
 FQ_ELEM fq_red(const FQ_DOUBLEPREC x) {
     return fq_cond_sub((x >> NUM_BITS_Q) + ((FQ_ELEM) x & Q));
-}
+} /* end fq_red */
 
+/// constant itme implementation
 /// \param x[i] < 127
 /// \param y[i] < 127
 /// \return x - y mod 127
 static inline
 FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
     return fq_cond_sub(x + Q - y);
-}
+} /* end fq_sub */
 
+/// constant itme implementation
 /// \param x[i] < 127
 /// \param y[i] < 127
 /// \return x * y mod 127
 static inline
 FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
     return fq_red(((FQ_DOUBLEPREC)x) *(FQ_DOUBLEPREC)y);
-}
+} /* end fq_mul */
 
+/// constant itme implementation
 /// \param x[i] < 127
 /// \param y[i] < 127
 /// \return x + y mod 127
 static inline
 FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
     return fq_cond_sub(x + y);
-}
+
+} /* end fq_add */
 
 /// NOTE: non constant-time. Don't use for anything important
 /// \param x[in]: < 127
@@ -126,7 +132,7 @@ FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
 static inline
 FQ_ELEM fq_mul_non_ct(const FQ_ELEM x, const FQ_ELEM y) {
     return __gf127_lookuptable[x*128 + y];
-}
+} /* end fq_mul_non_ct */
 
 /// NOTE: maybe dont use it for sensitive data
 static const uint8_t fq_inv_table[128] __attribute__((aligned(64))) = {
@@ -134,25 +140,91 @@ static const uint8_t fq_inv_table[128] __attribute__((aligned(64))) = {
 };
 
 
-/* Fermat's method for inversion employing r-t-l square and multiply,
- * unrolled for actual parameters */
+/// NOTE: non constant-time. Dont use for anything important.
+/// NOTE: input must be reduced.
+/// \param x[in]: input value < 127
+/// \return x^{-1} mod 127
 static inline
 FQ_ELEM fq_inv(FQ_ELEM x) {
     return fq_inv_table[x];
 } /* end fq_inv */
 
-/* Sampling functions from the global TRNG state */
-
+/// Sampling functions from the global TRNG state
 DEF_RAND(fq_star_rnd_elements, FQ_ELEM, 1, Q-1)
-
 DEF_RAND(rand_range_q_elements, FQ_ELEM, 0, Q-1)
 
-/* Sampling functions from the taking the PRNG state as a parameter*/
+// Sampling functions from the taking the PRNG state as a parameter
 DEF_RAND_STATE(fq_star_rnd_state_elements, FQ_ELEM, 1, Q-1)
-
 DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
 
+// load avx2 and avx512 macros
 #include "macro.h"
+
+
+/// TODO erklären
+/// \param ret[out]:
+/// \param a[in]:
+static inline void gf127v_scalar_u512_compute_table(__m512i *ret,
+                                                    const uint8_t a) {
+    ret[0] = _mm512_load_si512((const __m512i *)(__gf127_lookuptable + 128 * a +  0));
+    ret[1] = _mm512_load_si512((const __m512i *)(__gf127_lookuptable + 128 * a + 64));
+}
+
+/// TODO erklären
+/// \param a[in]:
+/// \param table1[in]:
+/// \param table2[in]:
+static inline
+__m512i gf127v_scalar_table_u512(const __m512i a,
+                                 const __m512i table1,
+                                 const __m512i table2) {
+    return _mm512_permutex2var_epi8(table1, a, table2);
+}
+
+/// \param in[in]: avx2 register
+/// \return in[0] + in[1] + ... + in[31] % q
+static inline 
+uint8_t vhadd8(const __m256i in) {
+    vec256_t c7f, tmp;
+    vset8(c7f, 0x7F);
+
+    __m256i a = _mm256_srli_epi16(in, 8);
+    __m256i t = _mm256_add_epi8(a, in);
+    vred8(t,tmp,c7f)
+
+    a = _mm256_srli_epi32(t, 16);
+    t = _mm256_add_epi8(a, t);
+    vred8(t,tmp,c7f)
+
+    a = _mm256_srli_epi64(t, 32);
+    t = _mm256_add_epi8(a, t);
+    vred8(t,tmp,c7f)
+
+    a = _mm256_srli_si256(t, 8);
+    t = _mm256_add_epi8(a, t);
+    vred8(t,tmp,c7f)
+
+    a = _mm256_permute2x128_si256(t, t, 1);
+    t = _mm256_add_epi8(a, t);
+    vred8(t,tmp,c7f)
+
+    return _mm256_extract_epi8(t, 0);
+} /* end vhadd8 */
+
+/// TODO use
+/// \param in[in]: avx2 register
+/// \return in[0] + in[1] + ... + in[31] % q
+static inline 
+uint8_t vhadd8_512(const __m512i in) {
+    vec256_t x, t, c7f;
+    vset8(c7f, 0x7F);
+    const __m256i low  = _mm512_castsi512_si256   (in);
+    const __m256i high = _mm512_extracti32x8_epi32(in, 1);
+    vadd8(x, low, high);
+    vred8(x, t, c7f);
+    return vhadd8(x);
+} /* end vhadd8_512 */
+
 
 /// \param aa < 127 in 16 bit limb
 /// \param bb < 127 in 16 bit limb
@@ -447,6 +519,7 @@ uint32_t row_count_zero(const FQ_ELEM *in) {
     return a;
 }
 
+// TODO use this function and catch the case that +=32
 // static inline
 // uint32_t row_count_zero(const FQ_ELEM *in) {
 //     const __m512i mask = _mm512_set1_epi8(1);

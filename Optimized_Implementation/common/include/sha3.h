@@ -38,8 +38,7 @@
 // %%%%%%%%%%%%%%%%%% Self-contained SHAKE Wrappers %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 static inline
-void xof_shake_init(SHAKE_STATE_STRUCT *state, int val) {
-	(void)val;
+void xof_shake_init(SHAKE_STATE_STRUCT *state) {
 #if CATEGORY == 252
    shake128_inc_init(state);
 #else

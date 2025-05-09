@@ -23,6 +23,7 @@
  **/
 
 #pragma once
+#include <stdlib.h>
 #include <stdint.h>
 
 #if defined(USE_AVX2) || defined(USE_NEON)

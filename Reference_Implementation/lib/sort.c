@@ -54,24 +54,6 @@ int compare_rows(const FQ_ELEM *row1,
     return (((int)(row2[i]))-((int)(row1[i])));
 }
 
-/// lexicographic comparison between a row with the pivot row
-/// \input: ptr[in/out]: K x (N-K) matrix
-/// \input: row_idx[in]: position of the row to compare in `ptr`
-/// \input: pivot[in]: pivot row
-/// \returns   1 if the pivot is greater,
-/// 	      -1 if it is smaller,
-/// 		   0 if it matches
-static
-int SortRows_internal_compare(uint8_t *ptr[Q],
-                              const uint32_t row_idx,
-                              const uint8_t pivot[Q]){
-    uint32_t i=0;
-    while((i<(Q-1)) && (ptr[row_idx][i]-pivot[i] == 0)){
-        i++;
-    }
-    return ((int)ptr[row_idx][i]-(int)pivot[i]);
-}
-
 /// NOTE: only used in `rowsort_internal`
 /// \param ptr[in/out]: list of arrays, containing the histograms of the input 
 ///     matrix.

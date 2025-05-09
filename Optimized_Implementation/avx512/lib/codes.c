@@ -25,8 +25,6 @@
  *
  **/
 
-#include <string.h>
-#include <stdio.h>
 #include <stdint.h>
 
 #include "codes.h"
@@ -35,13 +33,20 @@
 #include "utils.h"
 #include "parameters.h"
 
-// Select low 8-bit, skip the high 8-bit in 16 bit type
-const uint8_t shuff_low_half[32] = {
-        0x0, 0x2, 0x4, 0x6, 0x8, 0xa, 0xc, 0xe,
-        0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
-        0x0, 0x2, 0x4, 0x6, 0x8, 0xa, 0xc, 0xe,
-        0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
-};
+/// swap N_pad bytes in r and s
+/// \param r[in]: pointer to the first row
+/// \param s[in]: pointer to the second row
+static
+void swap_rows(FQ_ELEM r[N_pad],
+               FQ_ELEM s[N_pad]){
+    vec256_t a, b;
+    for(uint32_t i=0; i<N_pad; i+=32) {
+         vload256(a, (const vec256_t *)(r + i));
+         vload256(b, (const vec256_t *)(s + i));
+         vstore256((vec256_t *)(r + i), b);
+         vstore256((vec256_t *)(s + i), a);
+    }
+} /* end swap_rows */
 
 /* Calculate pivot flag array */
 void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t pivot_flag [N]) {
@@ -54,74 +59,6 @@ void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t piv
     }
 }
 
-/// NOTE: not constant time
-/// \param res
-/// \param G
-/// \param c
-void apply_cf_action_to_G(generator_mat_t* res,
-                          const generator_mat_t *G,
-                          const uint8_t *const c) {
-    uint32_t l = 0, r = 0;
-    for (uint32_t i = 0; i < N8; i++) {
-        for (uint32_t j = 0; j < 8; j++) {
-            if ((i*8 + j) >= N) { goto finish; }
-
-            const uint8_t bit = (c[i] >> j) & 1u;
-            uint32_t pos;
-            if (bit) {
-                pos = l;
-                l += 1;
-            } else {
-                pos = K + r;
-                r += 1;
-            }
-
-            // copy the column
-            for (uint32_t k = 0; k < K; k++) {
-                res->values[k][pos] = G->values[k][i*8 + j];
-            }
-        }
-    }
-finish:
-    return;
-}
-
-
-/// NOTE: not constant time
-/// \param res
-/// \param G
-/// \param c
-void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
-                                      const generator_mat_t *G,
-                                      const uint8_t *const c,
-                                      const uint8_t initial_G_col_pivot[N],
-                                      uint8_t permuted_G_col_pivot[N]) {
-    uint32_t l = 0, r = 0;
-    for (uint32_t i = 0; i < N8; i++) {
-        for (uint32_t j = 0; j < 8; j++) {
-            if ((i*8 + j) >= N) { goto finish; }
-
-            const uint8_t bit = (c[i] >> j) & 1u;
-            uint32_t pos;
-            if (bit) {
-                pos = l;
-                l += 1;
-            } else {
-                pos = K + r;
-                r += 1;
-            }
-
-            permuted_G_col_pivot[pos] = initial_G_col_pivot[i*8+j];
-
-            // copy the column
-            for (uint32_t k = 0; k < K; k++) {
-                res->values[k][pos] = G->values[k][i*8 + j];
-            }
-        }
-    }
-finish:
-    return;
-}
 
 void normalized_monomial_right(normalized_IS_t *res,
                                const normalized_IS_t *const G,
@@ -203,17 +140,7 @@ void generator_monomial_mul(generator_mat_t *res,
     }
 } /* end generator_monomial_mul */
 
-void swap_rows(FQ_ELEM r[N_pad],
-               FQ_ELEM s[N_pad]){
-    vec256_t a, b;
-    for(uint32_t i=0; i<N_pad; i+=32) {
-         vload256(a, (const vec256_t *)(r + i));
-         vload256(b, (const vec256_t *)(s + i));
-         vstore256((vec256_t *)(r + i), b);
-         vstore256((vec256_t *)(s + i), a);
-    }
-} /* end swap_rows */
-
+///
 int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
     int i, j, pivc;
     uint8_t tmp, sc;
@@ -613,24 +540,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
     return 1;
 } /* end generator_RREF */
 
-/* Compresses a generator matrix in RREF storing only non-pivot columns and
- * their position */
-void generator_rref_compact(rref_generator_mat_t *compact,
-                            const generator_mat_t *const full,
-                            const uint8_t is_pivot_column[N] )
-{
-   int dst_col_idx = 0;
-   for (uint32_t src_col_idx = 0; src_col_idx < N; src_col_idx++) {
-      if(!is_pivot_column[src_col_idx]) {
-         for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
-            compact->values[row_idx][dst_col_idx] = full->values[row_idx][src_col_idx];
-         }
-         compact->column_pos[dst_col_idx] = src_col_idx;
-         dst_col_idx++;
-      }
-   }
-} /* end generator_rref_compact */
-
 /* Compresses a generator matrix in RREF into a array of bytes */
 void compress_rref(uint8_t *compressed, const generator_mat_t *const full,
                    const uint8_t is_pivot_column[N]) {
@@ -831,7 +740,7 @@ void expand_to_rref(generator_mat_t *full,
 void normalized_copy(normalized_IS_t *V1,
                      const normalized_IS_t *V2) {
     memcpy(V1->values, V2->values, sizeof(normalized_IS_t));
-}
+} /* end normalized_copy */
 
 /// \param V
 /// \param row1
@@ -845,7 +754,7 @@ void normalized_row_swap(normalized_IS_t *V,
         V->values[row1][i] = V->values[row2][i];
         V->values[row2][i] = tmp;
     }
-}
+} /* end normalized_row_swap */
 
 /* Expands a compressed RREF generator matrix into a full one */
 void generator_rref_expand(generator_mat_t *full,
@@ -880,4 +789,40 @@ void generator_sample(rref_generator_mat_t *res,
    }
 
 
-} /* end generator_seed_expand */
+} /* end generator_sample */
+
+/// NOTE: not constant time
+/// \param res
+/// \param G
+/// \param c
+void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
+                                      const generator_mat_t *G,
+                                      const uint8_t *const c,
+                                      const uint8_t initial_G_col_pivot[N],
+                                      uint8_t permuted_G_col_pivot[N]) {
+    uint32_t l = 0, r = 0;
+    for (uint32_t i = 0; i < N8; i++) {
+        for (uint32_t j = 0; j < 8; j++) {
+            if ((i*8 + j) >= N) { goto finish; }
+
+            const uint8_t bit = (c[i] >> j) & 1u;
+            uint32_t pos;
+            if (bit) {
+                pos = l;
+                l += 1;
+            } else {
+                pos = K + r;
+                r += 1;
+            }
+
+            permuted_G_col_pivot[pos] = initial_G_col_pivot[i*8+j];
+
+            // copy the column
+            for (uint32_t k = 0; k < K; k++) {
+                res->values[k][pos] = G->values[k][i*8 + j];
+            }
+        }
+    }
+finish:
+    return;
+} /* end apply_cf_action_to_G_with_pivots */

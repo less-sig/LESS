@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
+
 #include "fq_arith.h"
-#include "monomial_mat.h"
 #include "codes.h"
 #include "LESS.h"
 #include "rng.h"

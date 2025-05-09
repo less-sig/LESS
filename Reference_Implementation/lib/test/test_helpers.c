@@ -833,36 +833,6 @@ int compute_canonical_form_type4_sub_v2(normalized_IS_t *G,
     return 1;
 }
 
-int compute_canonical_form_type5_single_row_v2(normalized_IS_t *M,
-                                               normalized_IS_t *G,
-                                               const uint32_t row) {
-    FQ_ELEM coeffs[N_K_pad] = {0};
-    row_inv2(coeffs, G->values[row]);
-    for (uint32_t row2 = 0; row2 < K; row2++) {
-        row_mul3(M->values[row2], G->values[row2], coeffs);
-    }
-
-    return compute_canonical_form_type4(M, NULL);
-}
-
-/// NOTE: non-constant time
-/// NOTE: computes the result inplace
-/// scales a single row `row` and computes cf5 for it
-/// \param G[in/out] non IS part of a generator matrix
-/// \param row[in]:
-/// \return 0 on failure
-/// 		1 on success
-int compute_canonical_form_type5_single_row(normalized_IS_t *G,
-                                           const uint32_t row) {
-    FQ_ELEM coeffs[N_K_pad] = {0};
-    row_inv2(coeffs, G->values[row]);
-    for (uint32_t row2 = 0; row2 < K; row2++) {
-        row_mul3(G->values[row2], G->values[row2], coeffs);
-    }
-
-    return compute_canonical_form_type4(G, NULL);
-}
-
 
 /****************************** Pretty Printers ******************************/
 #include <stdio.h>

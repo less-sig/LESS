@@ -6,16 +6,12 @@ static const uint32_t matrix_transpose_table[] __attribute__((aligned(32))) = {
     0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15
 };
 
-
-
 /// \param dst_origin[out]: output matrix
 /// \param src_origin[in]: input matrix
-/// \param prf_origin[in]: lookahead pointer to prefetch it
-/// \param src_stride[in]:
-/// \param dst_stride[in]:
+/// \param src_stride[in]: number of bytes between two rows
+/// \param dst_stride[in]: number of bytes between two cols
 void matrix_transpose_64x64(uint8_t* dst_origin,
                             const uint8_t* src_origin,
-                            const uint8_t* prf_origin,
                             const size_t src_stride,
                             const size_t dst_stride) {
     const __m512i m1 = _mm512_setr_epi64(0b0000, 0b0001, 0b1000, 0b1001, 0b0100, 0b0101, 0b1100, 0b1101);
@@ -24,7 +20,6 @@ void matrix_transpose_64x64(uint8_t* dst_origin,
     const __m512i m3 = _mm512_setr_epi64(0b0000, 0b0001, 0b0010, 0b0011, 0b1000, 0b1001, 0b1010, 0b1011);
     const __m512i m4 = _mm512_setr_epi64(0b0100, 0b0101, 0b0110, 0b0111, 0b1100, 0b1101, 0b1110, 0b1111);
 
-    (void)prf_origin;
     __m512i t[64];
     for (uint32_t i = 0; i < 64; i++) {
         t[i] = _mm512_loadu_si512((const __m512i *)(src_origin + i*src_stride));

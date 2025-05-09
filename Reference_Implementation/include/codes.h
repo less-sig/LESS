@@ -27,7 +27,6 @@
 #pragma once
 
 #include <stdint.h>
-#include <wchar.h>
 
 #include "parameters.h"
 #include "monomial_mat.h"
@@ -58,7 +57,10 @@ typedef struct {
 void generator_get_pivot_flags(const rref_generator_mat_t *const G,
                                uint8_t pivot_flag [N]);
 
-/* multiplies a monomial matrix by a generator matrix */
+/// multiplies a monomial matrix by a generator matrix
+/// \param res[out]: pointer to an uninitialized generator matrix
+/// \param G[in]: full (K \times N) generator matrix
+/// \param monom[in]: (random) monomial matrix
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom);
@@ -83,9 +85,9 @@ int generator_RREF(generator_mat_t *G,
 /// \return 0 on failure
 ///         1 on success
 int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
-                               uint8_t is_pivot_column[N],
-                               uint8_t was_pivot_column[N],
-                               const int pvt_reuse_limit);
+                                  uint8_t is_pivot_column[N],
+                                  uint8_t was_pivot_column[N],
+                                  const int pvt_reuse_limit);
 
 /// NOTE: not constant time
 /// \param G[in/out]: generator matrix K \times N
@@ -97,9 +99,9 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
 /// \return 0 on failure
 ///         1 on success
 int generator_RREF_pivot_reuse(generator_mat_t *G,
-                                 uint8_t is_pivot_column[N],
-                                 uint8_t was_pivot_column[N],
-                                 const int pvt_reuse_limit);
+                               uint8_t is_pivot_column[N],
+                               uint8_t was_pivot_column[N],
+                               const int pvt_reuse_limit);
 
 /// Compresses a generator matrix in RREF into a array of bytes
 /// \param compressed[out] byte array of length RREF_MAT_PACKEDBYTES
@@ -154,8 +156,8 @@ void normalized_copy(normalized_IS_t *V1,
 /// \param row1[in]: first row
 /// \param row2[in]: second row
 void normalized_row_swap(normalized_IS_t *V,
-                 const POSITION_T row1,
-                 const POSITION_T row2);
+                         const POSITION_T row1,
+                         const POSITION_T row2);
 
 /// right-multiplies a generator by a monomial: res = G*monom
 /// \param res[out] pointer to an uninitialized generator matrix (non IS part)
@@ -164,6 +166,3 @@ void normalized_row_swap(normalized_IS_t *V,
 void normalized_monomial_right(normalized_IS_t *res,
                                const normalized_IS_t *const G,
                                const monomial_t *const monom);
-
-
-

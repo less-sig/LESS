@@ -23,10 +23,11 @@
  *
  **/
 
-#include "utils.h"
 #include <string.h>
 #include <stdlib.h>
 
+#include "utils.h"
+#include "rng.h"
 
 /// swaps a and b if
 void cswap(uintptr_t *a,
