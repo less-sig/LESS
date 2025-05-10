@@ -33,6 +33,7 @@
 #include "lookup_table.h"
 #include "rng.h"
 
+// number of needed to represent q = 7
 #define NUM_BITS_Q (BITS_TO_REPRESENT(Q))
 
 
@@ -299,7 +300,7 @@ static inline __m256i avx_mul_full256(const __m256i a1, const __m256i a2,
 /// implementation as easy as possible 
 /// NOTE: the length of all input rows must be multiple of 32.
 /// accumulates the input row
-/// \param d[in]: pointer to a row of length ROUND_UP(N-K, 32)
+/// \param row[in]: pointer to a row of length ROUND_UP(N-K, 32)
 /// \return sum(d[i]) for i in range(N-K)
 static inline
 FQ_ELEM row_acc(const FQ_ELEM *row) {
@@ -331,7 +332,6 @@ static inline FQ_ELEM row_acc_inv(const FQ_ELEM *row) {
 } /* end row_acc_inv */
 
 /// scalar multiplication of a row
-/// NOTE: not a full reduction
 /// \param row[in/out] *= s for _ in range(N-K), pointer to a row of length ROUND_UP(N-K, 32)
 /// \param s[in]: scalar value
 static inline
@@ -478,4 +478,3 @@ uint32_t row_count_zero(const FQ_ELEM *in) {
     }
     return a;
 } /* end row_count_zero */
-
