@@ -103,11 +103,8 @@ int generator_RREF(generator_mat_t *G,
     vec256_t *gm[K] __attribute__((aligned(32)));
     vec256_t em[0x80][NW];
     vec256_t *ep[0x80];
-    vec256_t c01, c7f;
     vec256_t x, t, *rp, *rg;
-
-    vset8(c01, 0x01);
-    vset8(c7f, 0x7f);
+	const uint8x16_t c7f = vdupq_n_u8(0x7F);
 
     for (i = 0; i < K; i++) {
         gm[i] = (vec256_t *) G->values[i];
@@ -160,7 +157,7 @@ int generator_RREF(generator_mat_t *G,
         for (j = 2; j < 127; j++) {
             for (uint32_t k = 0; k < NW; k++) {
                 vadd8(x, em[j - 1][k], rg[k])
-                W_RED127_(x);
+                vred8(x, t, c7f);
                 em[j][k] = x;
             }
         }
@@ -187,12 +184,11 @@ int generator_RREF(generator_mat_t *G,
                 rp = ep[127 - sc];
                 for (uint32_t k = 0; k < NW; k++) {
                     vadd8(x, gm[j][k], rp[k])
-                    W_RED127_(x);
+                    vred8(x, t, c7f);
                     gm[j][k] = x;
                 }
             }
         }
-
     }
 
     return 1;
@@ -296,10 +292,9 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                     const uint8x16_t a  = vld1q_u8(G->values[j] + k);
                     const uint8x16_t ap = vld1q_u8(G->values[i] + k);
                     const uint8x16_t b  = gf127v_scalar_table(ap, table);
-                    const uint8x16_t m  = vcltq_u8(a, b);
-                    const uint8x16_t c1 = vaddq_u8(a, q);
-                    const uint8x16_t c  = vbslq_u8(m, c1, a);
-                    const uint8x16_t d  = vsubq_u8(c, b);
+                    const uint8x16_t c  = vsubq_u8(a, b);
+                    const uint8x16_t e  = vaddq_u8(c, q);
+                    const uint8x16_t d  = vminq_u8(c, e);
                     vst1q_u8(G->values[j] + k, d);
                 }
             }
@@ -635,10 +630,25 @@ void normalized_row_swap(normalized_IS_t *V,
 void normalized_monomial_right(normalized_IS_t *res,
                             const normalized_IS_t *const G,
                             const monomial_t *const monom) {
-   for(uint32_t src_col_idx = 0; src_col_idx < K; src_col_idx++) {
-      for(uint32_t row_idx = 0; row_idx < K; row_idx++) {
-         res->values[row_idx][monom->permutation[src_col_idx]] =
-            fq_mul(G->values[row_idx][src_col_idx], monom->coefficients[src_col_idx]);
-      }
-   }
+    FQ_ELEM buffer[N_pad];
+    uint8x16_t monomial[NW*2];
+    for (uint32_t i = 0; i < (NW*2); i++) {
+        monomial[i] = vld1q_u8(monom->coefficients + i*16);
+    }
+
+    for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
+        const FQ_ELEM *G_pointer = G->values[row_idx];
+        uint32_t ctr = 0;
+
+        for (uint32_t src_col_idx = 0; (src_col_idx+16) <= K_pad; src_col_idx += 16) {
+            const uint8x16_t a = vld1q_u8(G_pointer + src_col_idx);
+            const uint8x16_t t = gf127v_mul_u128(a, monomial[ctr]);
+            vst1q_u8(buffer + src_col_idx, t);
+            ctr += 1;
+        }
+
+        for (uint32_t i = 0; i < K; i++) {
+            res->values[row_idx][monom->permutation[i]] = buffer[i];
+        }
+    }
 } /* end normalized_monomial_right */

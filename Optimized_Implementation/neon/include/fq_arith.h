@@ -102,7 +102,8 @@ FQ_ELEM fq_red(const FQ_DOUBLEPREC x) {
 /// \param y[in]: subtrahend < 127
 /// \return difference x-y mod 127
 static inline
-FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
+FQ_ELEM fq_sub(const FQ_ELEM x,
+			   const FQ_ELEM y) {
     return fq_cond_sub(x + Q - y);
 } /* end fq_sub */
 
@@ -111,7 +112,8 @@ FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
 /// \param y[in]: second summand < 127
 /// \return sum x+y mod 127
 static inline
-FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
+FQ_ELEM fq_mul(const FQ_ELEM x,
+			   const FQ_ELEM y) {
     return fq_red(((FQ_DOUBLEPREC)x) *(FQ_DOUBLEPREC)y);
 } /* end fq_mul */
 
@@ -120,7 +122,8 @@ FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
 /// \param y[in]: second factor < 127
 /// \return product x*y mod 127
 static inline
-FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
+FQ_ELEM fq_add(const FQ_ELEM x,
+			   const FQ_ELEM y) {
       return (x + y) % Q;
 } /* end fq_add */
 
@@ -205,7 +208,6 @@ static inline uint8x16_t gf127v_scalar_table(const uint8x16_t b,
 	const uint8x16_t c = vsubq_u8(b, mask);
 	const uint8x16_t ret1 = vqtbx4q_u8(zero, table[0], b);
 	const uint8x16_t ret2 = vqtbx4q_u8(ret1, table[1], c);
-	//const uint8x16_t ret = ret1 ^ ret2;
 	return ret2;
 } /* end gf127v_scalar_table */
 
@@ -219,7 +221,7 @@ vec256_t gf127v_mul_u256(const vec256_t a,
 	ret.v[0] = gf127v_mul_u128(a.v[0], b.v[0]);
 	ret.v[1] = gf127v_mul_u128(a.v[1], b.v[1]);
 	return ret;
-}
+} /* end gf127v_mul_u256 */
 
 /// \param b[in]: vector register container 32 Fq elements: [b_0, ..., b_31]
 /// \param table[in]: output of `gf127v_scalar_compute_table` 
@@ -252,15 +254,14 @@ static inline uint8_t vhadd8(const vec256_t t) {
 /// \return sum(d[i]) for i in range(N-K)
 static inline
 FQ_ELEM row_acc(const FQ_ELEM *row) {
-    vec256_t s, t, c01, c7f;
+    vec256_t s, t;
+	uint8x16_t c7f = vdupq_n_u8(0x7F);
     vset8(s, 0);
-    vset8(c01, 0x01);
-    vset8(c7f, 0x7F);
 
     for (uint32_t col = 0; col < N_K_pad; col+=32) {
         vload256(t, (const vec256_t *)(row + col));
         vadd8(s, s, t);
-        W_RED127_(s);
+        vred8(s, t, c7f);
 	 }
 
     uint32_t k = vhadd8(s);
@@ -339,7 +340,9 @@ void row_mul2(FQ_ELEM *__restrict__ out,
 /// \param in1[in]: pointer to a row of length ROUND_UP(N-K, 32)
 /// \param in2[in]: pointer to a row of length ROUND_UP(N-K, 32)
 static inline
-void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
+void row_mul3(FQ_ELEM *__restrict__ out,
+			  const FQ_ELEM *__restrict__ in1,
+			  const FQ_ELEM *__restrict__ in2) {
     for (uint32_t col = 0; (col+16) <= N_K_pad; col+=16) {
         const uint8x16_t a = vld1q_u8((uint8_t *)(in1 + col));
         const uint8x16_t b = vld1q_u8((uint8_t *)(in2 + col));
@@ -428,9 +431,9 @@ uint32_t row_contains_zero(const FQ_ELEM *in) {
         }
     }
     return 0;
-} /*end row_contains_zero */
+} /* end row_contains_zero */
 
-/// NOTE: eventhough the input vectors are of length ROUND_UP(N-K, 32), only 
+/// NOTE: even though the input vectors are of length ROUND_UP(N-K, 32), only
 /// N-K bytes are read. As the remaining alignment bytes are zero, which would  
 /// alter the result.
 /// \param in[in]: vector of length N-K

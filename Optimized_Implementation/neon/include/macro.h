@@ -161,15 +161,6 @@ static inline uint32_t vmovemask8(const vec256_t a) {
 /// number of avx registers needed for a full row in a generator matrix
 #define NW ((N + LESS_WSZ - 1) / LESS_WSZ)
 
-/// original reduction formula
-#define W_RED127(x)     \
-	vsr16(t, x, 7)		\
-	vand(t, t, c01)		\
-	vadd8(x, x, t)		\
-	vand(x, x, c7f)
-
-
-/// new reduction formula, catches the case where input is q=127
-#define W_RED127_(x)     \
-	x.v[0] = vandq_u8(vaddq_u8(vandq_u8(vshrq_n_u16(vaddq_u8(x.v[0], c01.v[0]), 7), c01.v[0]), x.v[0]), c7f.v[0]); \
-	x.v[1] = vandq_u8(vaddq_u8(vandq_u8(vshrq_n_u16(vaddq_u8(x.v[1], c01.v[1]), 7), c01.v[1]), x.v[1]), c7f.v[1]);
+#define vred8(x,xx,c7f)														\
+	xx.v[0] = vsubq_u8(x.v[0], c7f); xx.v[1] = vsubq_u8(x.v[1], c7f);		\
+	x.v[0] = vminq_u8(xx.v[0], x.v[0]); x.v[1] = vminq_u8(xx.v[1], x.v[1]);
