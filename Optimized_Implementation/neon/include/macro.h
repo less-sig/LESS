@@ -62,6 +62,7 @@ typedef __attribute__((neon_vector_type(1))) uint64_t __uint64x1_t;
 typedef __attribute__((neon_vector_type(2))) uint64_t __uint64x2_t;
 #endif
 
+/// helper definition, to bundle two registers into a single type
 typedef union {
 	uint8_t  v8 [32];
 	uint16_t v16[16];
@@ -153,58 +154,6 @@ static inline uint32_t vmovemask8(const vec256_t a) {
 
 // Set vector to 0
 #define vzero(c) c.v[0] = 0; v.v[1] = 0;
-
-// Shuffle vector a according to vector b
-#define vshuffle8(c, a, b) c.v[0] = vqtbl1q_s8(a.v[0], b.v[0]); c.v[1] = vqtbl1q_s8(a.v[1], b.v[1]);
-
-// Permute 128-bit, combine 2 128-bit low from
-// a and b to c
-// c = a[0..127] | b[0..127]
-#define vpermute(c, a, b) c.v[0] = a.v[0]; c.v[1] = b.v[0];
-#define vpermute2(c, a, b, d) 							\
-	if (d & (1u << 3u)) {								\
-		c.v[0] = vdupq_n_u8(0);							\
-	} else { 											\
-		c.v[0] = (d&3u) <= 1u ? a.v[d&1u] : b.v[(d>>2u)&1u];		\
-	}													\
-	if (d & (1u << 7u)) {								\
-		c.v[1] = vdupq_n_u8(0);							\
-	} else { 											\
-		c.v[1] = ((d>>4)&3u) <= 1 ? a.v[d>>4u] : b.v[d>>6u];\
-	}
-
-#define vpermute_4x64(c, a, b) 												\
-	{																		\
-		vec256_t vpermute_4x64_tmp;											\
-		for (uint32_t ijk = 0; ijk < 4; ijk++) {							\
-			vpermute_4x64_tmp.v64[ijk] = a.v64[(b >> (2*ijk)) & 0x3];		\
-		}																	\
-		c.v[0] = vpermute_4x64_tmp.v[0];									\
-		c.v[1] = vpermute_4x64_tmp.v[1];									\
-	}
-
-/*
- * Fix width 8-bit Barrett modulo reduction Q = 127
- * c = a % q
- */
-#define barrett_red8(a, t, c127, c1) 	\
-	vsr16(t, a, 7)						\
-	vand(t, t, c1)						\
-	vadd8(a, a, t)						\
-	vand(a, a, c127)
-
-
-
-/*
- * Fix width 16-bit Barrett multiplication Q = 127
- * c = (a * b) % q
- */
-#define barrett_mul_u16(c, a, b, t)        \
-    vmul_lo16(a, a, b); /* lo = (a * b)  */  \
-    vsr16(t, a, 7);     /* hi = (lo >> 7) */ \
-    vadd16(a, a, t);    /* lo = (lo + hi) */ \
-    vsl16(t, t, 7);     /* hi = (hi << 7) */ \
-    vsub16(c, a, t);    /* c  = (lo - hi) */
 
 /// number of 8 bit elements in an avx register
 #define LESS_WSZ 32

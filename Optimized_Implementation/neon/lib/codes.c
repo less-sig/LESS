@@ -35,15 +35,6 @@
 #include "utils.h"
 #include "parameters.h"
 
-// Select low 8-bit, skip the high 8-bit in 16 bit type
-const uint8_t shuff_low_half[32] = {
-        0x0, 0x2, 0x4, 0x6, 0x8, 0xa, 0xc, 0xe,
-        0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
-        0x0, 0x2, 0x4, 0x6, 0x8, 0xa, 0xc, 0xe,
-        0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
-};
-
-
 /// swap N_pad bytes in r and s
 /// \param r[in]: pointer to the first row
 /// \param s[in]: pointer to the second row
@@ -59,7 +50,7 @@ void swap_rows(FQ_ELEM r[N_pad],
 } /* end swap_rows */
 
 /// Calculate pivot flag array
-/// \param G[in]: generator matrix in compress formatj
+/// \param G[in]: generator matrix in compress format
 /// \param pivot_flag[out]: array denoting the pivot columns via a 1, everything
 ///     else is 0
 void generator_get_pivot_flags(const rref_generator_mat_t *const G,
@@ -80,45 +71,16 @@ void generator_get_pivot_flags(const rref_generator_mat_t *const G,
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom) {
-
     FQ_ELEM buffer[N_pad];
-    // Total SIMD registers: 9 = 2 + 3 + 4
-    vec256_t shuffle, t, c8_127, c8_1;     // 2
-    vec256_t g, mono, s;                   // 3
-    vec256_t g_lo, g_hi, mono_lo, mono_hi; // 4
-    vec128_t tmp;
+    vec256_t g, mono, s;
 
-    vload256(shuffle, (vec256_t *) shuff_low_half);
-    vset8(c8_127, 127);
-    vset8(c8_1, 1);
     for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
-
         const FQ_ELEM *G_pointer = G->values[row_idx];
+
         for (uint32_t src_col_idx = 0; (src_col_idx+32) <= N_pad; src_col_idx += 32) {
             vload256(g, (vec256_t *) &G_pointer[src_col_idx]);
             vload256(mono, (vec256_t *) &(monom->coefficients[src_col_idx]));
-
-            vget_lo(tmp, g);
-            vextend8_16(g_lo, tmp);
-            vget_hi(tmp, g);
-            vextend8_16(g_hi, tmp);
-            vget_lo(tmp, mono);
-            vextend8_16(mono_lo, tmp);
-            vget_hi(tmp, mono);
-            vextend8_16(mono_hi, tmp);
-
-            barrett_mul_u16(g_lo, g_lo, mono_lo, s);
-            barrett_mul_u16(g_hi, g_hi, mono_hi, t);
-
-            vshuffle8(g_lo, g_lo, shuffle);
-            vshuffle8(g_hi, g_hi, shuffle);
-
-            vpermute_4x64(g_lo, g_lo, 0xd8);
-            vpermute_4x64(g_hi, g_hi, 0xd8);
-
-            vpermute2(s, g_lo, g_hi, 0x20);
-
-            barrett_red8(s, t, c8_127, c8_1);
+            s = gf127v_mul_u256(g, mono);
             vstore256((vec256_t *) &buffer[src_col_idx], s);
         }
 
@@ -605,9 +567,11 @@ void generator_sample(rref_generator_mat_t *res,
 } /* end generator_sample */
 
 /// NOTE: not constant time
-/// \param res
-/// \param G
-/// \param c
+/// \param res[out]: G*c a generator matrix: K \times N-K
+/// \param G[in]: current generator matrix: K \times N-K
+/// \param c[in]: compressed cf action
+/// \param initial_G_col_pivot[in]: input IS
+/// \param permuted_G_col_pivot[out]: output IS, to keep track of the pivot cols
 void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
                                       const generator_mat_t *G,
                                       const uint8_t *const c,

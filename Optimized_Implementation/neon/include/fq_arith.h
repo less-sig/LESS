@@ -77,7 +77,7 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
 
 
 
-/// constant itme implementation
+/// constant time implementation
 /// \param x[in]: input number < 2*127
 /// \return x mod 127
 static inline
@@ -89,7 +89,7 @@ FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
     return (mask & Q) + sub_q;
 } /* end fq_cond_sub */
 
-/// constant itme implementation
+/// constant time implementation
 /// \param x[in]: input number < 127**2
 /// \return x mod 127
 static inline
@@ -97,7 +97,7 @@ FQ_ELEM fq_red(const FQ_DOUBLEPREC x) {
     return fq_cond_sub((x >> NUM_BITS_Q) + ((FQ_ELEM) x & Q));
 } /* end fq_red */
 
-/// constant itme implementation
+/// constant time implementation
 /// \param x[in]: minuend < 127
 /// \param y[in]: subtrahend < 127
 /// \return difference x-y mod 127
@@ -106,16 +106,16 @@ FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
     return fq_cond_sub(x + Q - y);
 } /* end fq_sub */
 
-/// constant itme implementation
+/// constant time implementation
 /// \param x[in]: first summand < 127
-/// \param y[in]: secondsummand < 127
+/// \param y[in]: second summand < 127
 /// \return sum x+y mod 127
 static inline
 FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
     return fq_red(((FQ_DOUBLEPREC)x) *(FQ_DOUBLEPREC)y);
 } /* end fq_mul */
 
-/// constant itme implementation
+/// constant time implementation
 /// \param x[in]: first factor < 127
 /// \param y[in]: second factor < 127
 /// \return product x*y mod 127
@@ -129,7 +129,7 @@ static const uint8_t fq_inv_table[128] __attribute__((aligned(64))) = {
    0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126, 0
 };
 
-/// NOTE: non constant-time. Dont use for anything important.
+/// NOTE: non constant-time. Don't use for anything important.
 /// NOTE: input must be reduced.
 /// \param x[in]: input value < 127
 /// \return x^{-1} mod 127
@@ -150,9 +150,9 @@ DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
 #include "macro.h"
 
   
-/// @param a
-/// @param b
-/// @return
+/// \param a[in]: [a_0 mod 127, ..., a_15 mod 127]
+/// \param b[in]: [b_0 mod 127, ..., b_15 mod 127]
+/// \return [a_0 * b_0 mod 127, ..., a_15 * b_15 mod 127]
 static inline
 uint8x16_t gf127v_mul_u128(const uint8x16_t a,
                            const uint8x16_t b) {
@@ -185,10 +185,10 @@ uint8x16_t gf127v_mul_u128(const uint8x16_t a,
     const uint8x16_t m   = vshrq_n_s8(c, 7);
     const uint8x16_t r   = vbslq_u8(m, t, c);
     return r;
-}
+} /* end gf127v_mul_u128 */
 
 /// \param ret[out]: pointer to two uint8x16x4_t which will contain the table
-/// \param a[in]: scalar to which the table should ne loaded
+/// \param a[in]: scalar to which the table should be loaded
 static inline void gf127v_scalar_compute_table(uint8x16x4_t *ret,
 											   const uint8_t a) {
 	ret[0] = vld1q_u8_x4(__gf127_lookuptable + a*128 +  0);
@@ -197,31 +197,43 @@ static inline void gf127v_scalar_compute_table(uint8x16x4_t *ret,
 
 /// \param b[in]: vector register container 16 Fq elements: [b_0, ..., b_15]
 /// \param table[in]: output of `gf127v_scalar_compute_table` 
-/// \return [b_0 * a, ..., b_15 * a], where a is the input to gf127v_scalar_compute_table``
+/// \return [b_0 * a, ..., b_15 * a], where `a` is the input to `gf127v_scalar_compute_table`
 static inline uint8x16_t gf127v_scalar_table(const uint8x16_t b,
 											 const uint8x16x4_t *table) {
 	const uint8x16_t zero = vdupq_n_u8(0);
 	const uint8x16_t mask = vdupq_n_u8(64);
-	const uint8x16_t a = vsubq_u8(b, mask);
+	const uint8x16_t c = vsubq_u8(b, mask);
 	const uint8x16_t ret1 = vqtbx4q_u8(zero, table[0], b);
-	const uint8x16_t ret2 = vqtbx4q_u8(zero, table[1], c);
-	const uint8x16_t ret = ret1 ^ ret2;
-	return ret;
+	const uint8x16_t ret2 = vqtbx4q_u8(ret1, table[1], c);
+	//const uint8x16_t ret = ret1 ^ ret2;
+	return ret2;
 } /* end gf127v_scalar_table */
+
+/// \param a[in]: [a_0 mod 127, ..., a_31 mod 127]
+/// \param b[in]: [b_0 mod 127, ..., b_31 mod 127]
+/// \return [a_0 * b_0 mod 127, ..., a_31 * b_31 mod 127]
+static inline
+vec256_t gf127v_mul_u256(const vec256_t a,
+						 const vec256_t b) {
+	vec256_t ret;
+	ret.v[0] = gf127v_mul_u128(a.v[0], b.v[0]);
+	ret.v[1] = gf127v_mul_u128(a.v[1], b.v[1]);
+	return ret;
+}
 
 /// \param b[in]: vector register container 32 Fq elements: [b_0, ..., b_31]
 /// \param table[in]: output of `gf127v_scalar_compute_table` 
-/// \return [b_0 * a, ..., b_31 * a], where a is the input to gf127v_scalar_compute_table``
-static inline vec256_t gf127v_scalar_table_full(const vec256_t a,
+/// \return [b_0 * a, ..., b_31 * a], where `a` is the input to `gf127v_scalar_compute_table`
+static inline vec256_t gf127v_scalar_table_full(const vec256_t b,
 												const uint8x16x4_t *table) {
 	vec256_t ret;
-	ret.v[0] = gf127v_scalar_table(a.v[0], table);
-	ret.v[1] = gf127v_scalar_table(a.v[1], table);
+	ret.v[0] = gf127v_scalar_table(b.v[0], table);
+	ret.v[1] = gf127v_scalar_table(b.v[1], table);
 	return ret;
 } /* end gf127v_scalar_table_full */
 
-/// \param in[in]: avx2 register
-/// \return in[0] + in[1] + ... + in[31] % q
+/// \param t[in]: two neon registers: [t_0, ..., t_31]
+/// \return t_0 + t_1 + ... + t_3§ mod 127
 static inline uint8_t vhadd8(const vec256_t t) {
 	vec128_t v;
 	v.v = vaddq_u8(t.v[0], t.v[1]);
