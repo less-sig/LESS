@@ -193,6 +193,44 @@ DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
 
 #include "macro.h"
 
+///
+/// @param a
+/// @param b
+/// @return
+static inline
+uint8x16_t gf127v_mul_u128(const uint8x16_t a,
+                           const uint8x16_t b) {
+    union {
+        uint8x16_t  x1;
+        uint8x8x2_t x2;
+    } tmp;
+    const uint8x16_t q  = vdupq_n_u8(0x7f);
+    const uint16x8_t q2 = vdupq_n_u16(0x007f);
+
+    const uint8x8_t la = vget_low_u8(a);
+    const uint8x8_t lb = vget_low_u8(b);
+    const uint8x8_t ha = vget_high_u8(a);
+    const uint8x8_t hb = vget_high_u8(b);
+
+    const uint16x8_t lc = vmull_u8(la, lb);
+    const uint16x8_t hc = vmull_u8(ha, hb);
+
+    const uint16x8_t lt1 = vshrq_n_u16(lc, 7);
+    const uint16x8_t ht1 = vshrq_n_u16(hc, 7);
+    const uint16x8_t lt2 = vaddq_u16(lt1, vandq_u16(lc, q2));
+    const uint16x8_t ht2 = vaddq_u16(ht1, vandq_u16(hc, q2));
+    const uint8x8_t tl = vmovn_u16(lt2);
+    const uint8x8_t th = vmovn_u16(ht2);
+    tmp.x2.val[0] = tl;
+    tmp.x2.val[1] = th;
+    const uint8x16_t c = tmp.x1;
+
+    const uint8x16_t t   = vsubq_u8(c, q);
+    const uint8x16_t m   = vshrq_n_s8(c, 7);
+    const uint8x16_t r   = vbslq_u8(m, t, c);
+    return r;
+}
+
 /// NOTE: these functions are outsourced to this file, to make the
 /// optimizied implementation as easy as possible.
 /// accumulates a row
@@ -316,40 +354,11 @@ void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
 /// \param in2
 static inline
 void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
-    vec256_t shuffle, t, c7f, c01, a, a_lo, a_hi, b, b_lo, b_hi;
-    vec128_t tmp;
-
-    vload256(shuffle, (vec256_t *) shuff_low_half);
-    vset8(c7f, 127);
-    vset8(c01, 1);
-
-    for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
-        vload256(a, (vec256_t *)(in1 + col));
-        vload256(b, (vec256_t *)(in2 + col));
-
-        vget_lo(tmp, a);
-        vextend8_16(a_lo, tmp);
-        vget_hi(tmp, a);
-        vextend8_16(a_hi, tmp);
-        vget_lo(tmp, b);
-        vextend8_16(b_lo, tmp);
-        vget_hi(tmp, b);
-        vextend8_16(b_hi, tmp);
-
-        barrett_mul_u16(a_lo, a_lo, b_lo, t);
-        barrett_mul_u16(a_hi, a_hi, b_hi, t);
-
-        vshuffle8(a_lo, a_lo, shuffle);
-        vshuffle8(a_hi, a_hi, shuffle);
-
-        vpermute_4x64(a_lo, a_lo, 0xd8);
-        vpermute_4x64(a_hi, a_hi, 0xd8);
-
-        vpermute2(t, a_lo, a_hi, 0x20);
-
-        // barrett_red8(t, r, c7f, c01);
-        W_RED127_(t);
-        vstore256((vec256_t *)(out + col), t);
+    for (uint32_t col = 0; (col+16) <= N_K_pad; col+=16) {
+        const uint8x16_t a = vld1q_u8((uint8_t *)(in1 + col));
+        const uint8x16_t b = vld1q_u8((uint8_t *)(in2 + col));
+        const uint8x16_t c = gf127v_mul_u128(a, b);
+        vst1q_u8((uint8_t *)(out + col), c);
     }
 }
 
