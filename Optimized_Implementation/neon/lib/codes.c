@@ -251,8 +251,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
     const uint8x16_t q = vdupq_n_u8(127);
     int i, j, pivc;
     uint8_t sc;
-
-    uint8x16_t *gm[K] __attribute__((aligned(64)));
     int pvt_reuse_cnt = 0;
 
     if (pvt_reuse_limit != 0) {
@@ -269,10 +267,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                 swap_rows(G->values[preproc_col], G->values[pivot_el_row]);
             }
         }
-    }
-
-    for (i = 0; i < K; i++) {
-        gm[i] = (uint8x16_t *) G->values[i];
     }
 
     for (i = 0; i < K; i++) {
@@ -304,11 +298,11 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
          * we need to swap the rows */
         if (i != j) {
             was_pivot_column[j] = 0; // pivot no longer reusable - will be corrupted during reduce row
-            for (uint32_t k = 0; k < (NW*2); k++) {
-                const uint8x16_t t  = vld1q_u8(gm[i] + k);
-                const uint8x16_t t2 = vld1q_u8(gm[j] + k);
-                vst1q_u8(gm[i] + k, t2);
-                vst1q_u8(gm[j] + k, t);
+            for (uint32_t k = 0; k < N; k+=16) {
+                const uint8x16_t t  = vld1q_u8(G->values[i] + k);
+                const uint8x16_t t2 = vld1q_u8(G->values[j] + k);
+                vst1q_u8(G->values[i] + k, t2);
+                vst1q_u8(G->values[j] + k, t);
             }
         }
 
@@ -322,29 +316,29 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
         }
 
         // solve pivot row
-        sc = fq_inv(((uint8_t *) gm[i])[pivc]);
+        sc = fq_inv(G->values[i][pivc]);
         uint8x16x4_t table[2];
         gf127v_scalar_compute_table(table, sc);
-        for (uint32_t k = 0; k < (NW*2); k++) {
-            const uint8x16_t a = vld1q_u8(gm[i] + k);
+        for (uint32_t k = 0; k < N; k += 16) {
+            const uint8x16_t a = vld1q_u8(G->values[i] + k);
             const uint8x16_t b = gf127v_scalar_table(a, table);
-            vst1q_u8(gm[i] + k, b);
+            vst1q_u8(G->values[i] + k, b);
         }
 
         // solve
         for (j = 0; j < K; j++) {
-            sc = ((uint8_t *) gm[j])[pivc];
+            sc = G->values[j][pivc];
             if (sc != 0x00 && j != i) {
                 gf127v_scalar_compute_table(table, sc);
-                for (uint32_t k = 0; k < (NW*2); k++) {
-                    const uint8x16_t a  = vld1q_u8(gm[j] + k);
-                    const uint8x16_t ap = vld1q_u8(gm[i] + k);
+                for (uint32_t k = 0; k < N; k+=16) {
+                    const uint8x16_t a  = vld1q_u8(G->values[j] + k);
+                    const uint8x16_t ap = vld1q_u8(G->values[i] + k);
                     const uint8x16_t b  = gf127v_scalar_table(ap, table);
                     const uint8x16_t m  = vcltq_u8(a, b);
                     const uint8x16_t c1 = vaddq_u8(a, q);
                     const uint8x16_t c  = vbslq_u8(m, c1, a);
                     const uint8x16_t d  = vsubq_u8(c, b);
-                    vst1q_u8(gm[j] + k, d);
+                    vst1q_u8(G->values[j] + k, d);
                 }
             }
         }
