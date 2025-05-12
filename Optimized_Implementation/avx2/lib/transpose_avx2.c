@@ -31,15 +31,12 @@ static const uint32_t matrix_transpose_table[] __attribute__((aligned(32))) = {
 
 /// \param dst_origin[out]: output matrix
 /// \param src_origin[in]: input matrix
-/// \param prf_origin[in]: lookahead pointer to prefetch it
-/// \param src_stride[in]:
-/// \param dst_stride[in]:
+/// \param src_stride[in]: number of bytes between two input rows
+/// \param dst_stride[in]: number of bytes between two input cols
 void matrix_transpose_32x32(uint8_t* dst_origin,
                             const uint8_t* src_origin,
-                            const uint8_t* prf_origin,
                             const size_t src_stride,
                             const size_t dst_stride) {
-    (void)prf_origin;
     __m256i t[32];
     for (uint32_t i = 0; i < 32; i++) {
         t[i] = _mm256_loadu_si256((const __m256i *)(src_origin + i*src_stride));
@@ -111,6 +108,7 @@ void matrix_transpose_32x32(uint8_t* dst_origin,
         _mm256_storeu_si256((__m256i *)(dst_origin + i*dst_stride), t[pos]);
     }
 
+    #pragma unroll
     for (uint32_t i = 0; i < 16; i++) {
         const uint32_t pos = matrix_transpose_table[i];
         _mm256_storeu_si256((__m256i *)(dst_origin + (i+16)*dst_stride), t[pos+16]);

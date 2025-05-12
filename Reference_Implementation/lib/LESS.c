@@ -330,7 +330,7 @@ int LESS_verify(const pubkey_t *const PK,
             for (uint32_t t = 0; t < N; t++) {
                 permuted_pivot_flags[mu_tilde.permutation[t]] = g0_initial_pivot_flags[t];
             }
-            if (generator_RREF_pivot_reuse(&G_prime,is_pivot_column, permuted_pivot_flags, VERIFY_PIVOT_REUSE_LIMIT) == 0) {
+            if (generator_RREF_pivot_reuse(&G_prime,is_pivot_column, permuted_pivot_flags, LESS_VERIFY_PIVOT_REUSE_LIMIT) == 0) {
                 return 0;
             }
 #else
@@ -354,7 +354,7 @@ int LESS_verify(const pubkey_t *const PK,
                                              g0_permuted_pivot_flags);
             const int ret = generator_RREF_pivot_reuse(&G_prime, is_pivot_column,
                                                        g0_permuted_pivot_flags,
-                                                       VERIFY_PIVOT_REUSE_LIMIT);
+                                                       LESS_VERIFY_PIVOT_REUSE_LIMIT);
 #else
             apply_cf_action_to_G(&G_prime, &Gs[key_pos]  sig->cf_monom_actions[employed_monoms]);
             const int ret = generator_RREF(&G_prime, is_pivot_column);

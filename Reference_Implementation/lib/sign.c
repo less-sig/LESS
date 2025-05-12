@@ -29,9 +29,9 @@
 #include "api.h"
 
 #include "LESS.h"
-#include "utils.h"
-/*----------------------------------------------------------------------------*/
 
+/// \param pk[out]: pointer to an unitialized public key
+/// \param sk[out]: pointer to an unitialized secret key
 int crypto_sign_keypair(unsigned char *pk,
                         unsigned char *sk) {
     /* keygen cannot fail */
@@ -41,11 +41,9 @@ int crypto_sign_keypair(unsigned char *pk,
     return 0; // NIST convention: 0 == zero errors
 } // end crypto_sign_keypair
 
-/*----------------------------------------------------------------------------*/
-/*                                                                            */
-/*... generating a signed message sm[0],sm[1],...,sm[*smlen-1]                */
-/*... from original message m[0],m[1],...,m[mlen-1]                           */
-/*... under secret key sk[0],sk[1],...                                        */
+/// generating a signed message sm[0],sm[1],...,sm[*smlen-1]
+/// from original message m[0],m[1],...,m[mlen-1]
+/// under secret key sk[0],sk[1],..
 int crypto_sign(unsigned char *sm,          // out parameter
                 unsigned long long *smlen,  // out parameter
                 const unsigned char *m,     // in parameter
@@ -65,11 +63,9 @@ int crypto_sign(unsigned char *sm,          // out parameter
     return 0;  // NIST convention: 0 == zero errors
 } // end crypto_sign
 
-/*----------------------------------------------------------------------------*/
-/*                                                                            */
-/*.  ... verifying a signed message sm[0],sm[1],...,sm[smlen-1]               */
-/*.  ... under public key pk[0],pk[1],...                                     */
-/*.  ... and producing original message m[0],m[1],...,m[*mlen-1]              */
+/// verifying a signed message sm[0],sm[1],...,sm[smlen-1]
+/// under public key pk[0],pk[1],...
+/// and producing original message m[0],m[1],...,m[*mlen-1]
 int crypto_sign_open(unsigned char *m,
                      unsigned long long *mlen,        // out parameter
                      const unsigned char *sm, unsigned long long smlen, // in parameter
@@ -91,5 +87,3 @@ int crypto_sign_open(unsigned char *m,
     // NIST convention: 0 == zero errors, -1 == error condition
     return ok - 1;
 } // end crypto_sign_open
-
-/*----------------------------------------------------------------------------*/

@@ -23,13 +23,10 @@
 
 #pragma once
 
-#include <stdint.h>
-#include <string.h>
-#include <stdio.h>
 #include <immintrin.h>
 
-#include "fq_arith.h"
 
+typedef __m512i vec512_t;
 typedef __m256i vec256_t;
 typedef __m128i vec128_t;
 
@@ -42,13 +39,14 @@ typedef __m128i vec128_t;
 
 
 // c <- src
+#define vload512(c, src) c = _mm512_loadu_si512(src);
 #define vload256(c, src) c = _mm256_loadu_si256(src);
 #define vload128(c, src) c = _mm_loadu_si128(src);
 
 // src <- c
+#define vstore512(src, c) _mm512_storeu_si512(src, c);
 #define vstore256(src, c) _mm256_storeu_si256(src, c);
 #define vstore128(src, c) _mm_storeu_si128(src, c);
-// #define vstore(src, c) _mm256_store_si256(src, c);
 
 // c = a + b
 #define vadd8(c, a, b)  c = _mm256_add_epi8(a, b);
@@ -80,10 +78,10 @@ typedef __m128i vec128_t;
 #define vor(c, a, b) c = _mm256_or_si256(a, b);
 
 // c[0..16] = n
-#define vset8(c, n) c = _mm256_set1_epi8((char)n);
-#define vset8_512(c, n) c = _mm512_set1_epi8((char)n);
-#define vset16_512(c, n) c = _mm512_set1_epi16((short)n);
-#define vset17(c, n) c = _mm256_set1_epi16((short)n);
+#define vset8(c, n)         c = _mm256_set1_epi8((char)n);
+#define vset8_512(c, n)     c = _mm512_set1_epi8((char)n);
+#define vset16_512(c, n)    c = _mm512_set1_epi16((short)n);
+#define vset17(c, n)        c = _mm256_set1_epi16((short)n);
 
 // c = a == b
 #define vcmp8(c, a, b) c = _mm256_cmpeq_epi8(a, b);
@@ -119,118 +117,19 @@ typedef __m128i vec128_t;
 
 #define vpermute_4x64(c, a, b) c = _mm256_permute4x64_epi64(a, b);
 
-/*
- * Fix width 16-bit Barrett modulo reduction Q = 127
- * c = a % q
- */
-#define barrett_red16(c, a, t, c127, c516, c1)                 \
-    t = _mm256_add_epi16(a, c1);     /* t = (a + 1) */         \
-    t = _mm256_mulhi_epu16(t, c516); /* t = (a * 516) >> 16 */ \
-    t = _mm256_mullo_epi16(t, c127); /* t = (t * Q) */         \
-    a = _mm256_sub_epi16(a, t);      /* a = (a - t)*/
-
-#define barrett_red16_512(a, t, c127, c516, c1)                 \
-    t = _mm512_add_epi16(a, c1);     /* t = (a + 1) */         \
-    t = _mm512_mulhi_epu16(t, c516); /* t = (a * 516) >> 16 */ \
-    t = _mm512_mullo_epi16(t, c127); /* t = (t * Q) */         \
-    a = _mm512_sub_epi16(a, t);      /* a = (a - t)*/
-/*
- * Fix width 8-bit Barrett modulo reduction Q = 127
- * c = a % q
- */
-#define barrett_red8(a, t, c127, c1) \
-    t = _mm256_srli_epi16(a, 7);     \
-    t = _mm256_and_si256(t, c1);     \
-    a = _mm256_add_epi8(a, t);       \
-    a = _mm256_and_si256(a, c127);
-
-#define barrett_red8_half(a, t, c127, c1) \
-    t = _mm_srli_epi16(a, 7);             \
-    t = _mm_and_si128(t, c1);             \
-    a = _mm_add_epi8(a, t);               \
-    a = _mm_and_si128(a, c127);
-
-/*
- * t = tmp register
- * Fix width 16-bit Barrett multiplication Q = 127
- * c = (a * b) % q
- */
-#define barrett_mul_u16(c, a, b, t)          \
-    vmul_lo16(a, a, b); /* lo = (a * b)  */  \
-    vsr16(t, a, 7);     /* hi = (lo >> 7) */ \
-    vadd16(a, a, t);    /* lo = (lo + hi) */ \
-    vsl16(t, t, 7);     /* hi = (hi << 7) */ \
-    vsub16(c, a, t);    /* c  = (lo - hi) */
-
-/// original reduction formula
-#define W_RED127(x)                                                            \
-  {                                                                            \
-    t = _mm256_srli_epi16(x, 7);                                               \
-    t = _mm256_and_si256(t, c01);                                              \
-    x = _mm256_add_epi8(x, t);                                                 \
-    x = _mm256_and_si256(x, c7f);                                              \
-  }
-
-/// new reduction formula, catches the case where input is q=127
-#define W_RED127_(x)                                                           \
-  x = _mm256_and_si256(                                                        \
-      _mm256_add_epi8(_mm256_and_si256(                                        \
-                          _mm256_srli_epi16(_mm256_add_epi8(x, c01), 7), c01), \
-                      x),                                                      \
-      c7f);
-
-#define W_RED127_512(x)                                                           \
-  x = _mm512_and_si512(                                                        \
-      _mm512_add_epi8(_mm512_and_si512(                                        \
-                          _mm512_srli_epi16(_mm512_add_epi8(x, c01), 7), c01), \
-                      x),                                                      \
-      c7f);
-
-
-/// TODO optimize
-static inline void gf127v_scalar_u512_compute_table(__m512i *ret,
-                                                    const uint8_t a) {
-    ret[0] = _mm512_load_si512((const __m512i *)(__gf127_lookuptable + 128 * a +  0));
-    ret[1] = _mm512_load_si512((const __m512i *)(__gf127_lookuptable + 128 * a + 64));
-}
-
-static inline
-__m512i gf127v_scalar_table_u512(const __m512i a,
-                                 const __m512i table1,
-                                 const __m512i table2) {
-    return _mm512_permutex2var_epi8(table1, a, table2);
-}
-
-// Extend from 8-bit to 16-bit type
-extern const uint8_t shuff_low_half[32];
-
-void print256_num(vec256_t var, const char *string);
-
-/// \return in[0] + in[1] + ... + in[31] % q
-static inline uint8_t vhadd8(const __m256i in) {
-    vec256_t c01, c7f;
-    vset8(c01, 0x01);
-    vset8(c7f, 0x7F);
-
-    __m256i a = _mm256_srli_epi16(in, 8);
-    __m256i t = _mm256_add_epi8(a, in);
-    W_RED127_(t)
-
-    a = _mm256_srli_epi32(t, 16);
-    t = _mm256_add_epi8(a, t);
-    W_RED127_(t)
-
-    a = _mm256_srli_epi64(t, 32);
-    t = _mm256_add_epi8(a, t);
-    W_RED127_(t)
-
-    a = _mm256_srli_si256(t, 8);
-    t = _mm256_add_epi8(a, t);
-    W_RED127_(t)
-
-    a = _mm256_permute2x128_si256(t, t, 1);
-    t = _mm256_add_epi8(a, t);
-    W_RED127_(t)
-
-    return _mm256_extract_epi8(t, 0);
-}
+/// new reduction formula
+#if defined(LESS_USE_BLEND_IN_ARITH)
+#define vred8(x,xx,c7f)                 \
+    xx = _mm256_sub_epi8(x, c7f);       \
+    x = _mm256_blendv_epi8(xx, x, xx);
+#define vred8_512(x,xx,c7f)             \
+    xx = _mm512_sub_epi8(x, c7f);       \
+    x = _mm512_min_epu8(xx, x);
+#else
+#define vred8(x,xx,c7f)                 \
+    xx = _mm256_sub_epi8(x, c7f);       \
+    x = _mm256_min_epu8(xx, x);
+#define vred8_512(x,xx,c7f)             \
+    xx = _mm512_sub_epi8(x, c7f);       \
+    x = _mm512_min_epu8(xx, x);
+#endif

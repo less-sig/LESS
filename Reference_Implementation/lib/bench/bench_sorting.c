@@ -18,19 +18,7 @@ int bench_sorting(void) {
     FQ_ELEM *d1 = (FQ_ELEM *) malloc(sizeof(FQ_ELEM) * s);
     FQ_ELEM *d2 = (FQ_ELEM *) malloc(sizeof(FQ_ELEM) * s);
 
-    unsigned c = 0, c1;
-    for (unsigned i = 0; i < ITERS; i++) {
-        for (unsigned j = 0; j < s; j++) { d1[j] = fq_red(j+s-1-i); }
-
-        c -= read_cycle_counter();
-        counting_sort_u8(d1, s);
-        c += read_cycle_counter();
-        ctr += d1[7];
-    }
-    c1 = c / ITERS;
-    printf("counting_sort: %u cyc %d\n", c1, ctr);
-
-
+    unsigned c = 0, c1 = 0;
     c=0; ctr=0;
     for (unsigned i = 0; i < ITERS; i++) {
         for (unsigned j = 0; j < s; j++) { d1[j] = fq_red(j+s-1-i); }

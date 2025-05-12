@@ -296,7 +296,7 @@ uint32_t RebuildGGM(unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTE
 
 /*****************************************************************************/
 void seed_leaves(unsigned char rounds_seeds[T*SEED_LENGTH_BYTES],
-                 unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES])
+                 const unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES])
 {
     const uint16_t cons_leaves[TREE_SUBROOTS] = TREE_CONSECUTIVE_LEAVES;
     const uint16_t leaves_start_indices[TREE_SUBROOTS] = TREE_LEAVES_START_INDICES;

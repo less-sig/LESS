@@ -28,27 +28,34 @@
 #include <stdint.h>
 #include "parameters.h"
 
-/******************************************************************************/
-
+/// \param seed_tree[out]: full seed tree
+/// \param root_seed[in]: main seed fed into the prng
+/// \param salt[in]: additionally fed into the prng
 void BuildGGM(unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES],
               const unsigned char root_seed[SEED_LENGTH_BYTES],
               const unsigned char salt[HASH_DIGEST_LENGTH]) ;
 
-/******************************************************************************/
-
-/* returns the number of seeds which have been published */
+/// \param seed_tree[in]: full seed tree
+/// \param indices_to_publish[in]: binary array denoting if node has to be 
+///     released (cell == 0) or not.
+/// \param seed_storage[out]: byte array: sequence of seeds to be published
+/// \returns the number of seeds which have been published 
 uint32_t GGMPath(const unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES],
-                // binary array denoting if node has to be released (cell == 0) or not
-                const unsigned char indices_to_publish[T],
-                unsigned char *seed_storage);
+                 const unsigned char indices_to_publish[T],
+                 unsigned char *seed_storage);
 
-/******************************************************************************/
-
-/* returns the number of seeds which have been used to regenerate the tree */
+/// \param seed_tree[out]: full seed tree
+/// \param root_seed[in]: main seed fed into the prng
+/// \param indices_to_publish[in]: binary array denoting if node has to be 
+///     released (cell == 0) or not.
+/// \param salt[in]: additional salt fed into the prng
+/// \returns 1 on success, 0 on failure
 uint32_t RebuildGGM(unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES],
                     const unsigned char indices_to_publish[T],
                     const unsigned char *stored_seeds,
-                    const unsigned char salt[HASH_DIGEST_LENGTH]);   // input
+                    const unsigned char salt[HASH_DIGEST_LENGTH]);
 
+/// \param rounds_seeds[out]: output parameter
+/// \param seed_tree[in]: full seed tree
 void seed_leaves(unsigned char rounds_seeds[T*SEED_LENGTH_BYTES],
-                 unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES]);
+                 const unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES]);

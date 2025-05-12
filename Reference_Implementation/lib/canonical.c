@@ -27,7 +27,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "utils.h"
 #include "codes.h"
 #include "fq_arith.h"
 #include "parameters.h"
@@ -39,14 +38,15 @@
 /// first sort the rows, then the columns
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
-int compute_canonical_form_type3(normalized_IS_t *G,
-                                 const uint8_t *L) {
+static
+int SortCF(normalized_IS_t *__restrict__ G,
+           const uint8_t *__restrict__ L) {
     if (SortRows(G, K, L) == 0) {
 	    return 0;
     }
     SortCols(G, K_pad);
     return 1;
-}
+} /* end SortCF */
 
 /// NOTE: non-constant time
 /// NOTE: computes the result inplace
@@ -54,8 +54,9 @@ int compute_canonical_form_type3(normalized_IS_t *G,
 /// 			- compute_power_column fails.
 /// 			- identical rows, which create the same multiset
 /// 		1 on success
-int compute_canonical_form_type4(normalized_IS_t *G,
-                                 const uint8_t *L) {
+static
+int ScaleCF(normalized_IS_t *__restrict__ G,
+            const uint8_t *__restrict__ L) {
 	for (uint32_t row = 0; row < K; row++) {
 		if (row_all_same(G->values[row])) { continue; }
 		FQ_ELEM s = row_acc(G->values[row]);
@@ -72,20 +73,25 @@ int compute_canonical_form_type4(normalized_IS_t *G,
 		row_mul(G->values[row], s);
 	}
 
-	return compute_canonical_form_type3(G, L);
-}
+	return SortCF(G, L);
+} /* end ScaleCF */
 
 /// NOTE: non-constant time
+/// This is the `ScaleCFSubPreprocess` function for `ImprovedCFBase`. 
+/// The idea is to enumerate the rows of the small z \times N-K matrix G to 
+/// find a shorter row than `M`. NOTE: only the fact that a shorter row was 
+/// found, is returned. Not the shortest row itself.
 /// \param G[in/out]: sub matrix with only z rows.
-///     Nothing really is returned in the matrix, but it still
-///     gets clobbered.
+///     Nothing really is returned in the matrix, but it still gets clobbered.
+///     The rows are not in histogram from.
 /// \param z[in]: number of rows in G
-/// \param M[in]: the currently shortest multiset
+/// \param M[in]: the currently shortest multiset, in histogram form
 /// \return 0: if no multiset was found < `M`
 ///         1: if one of the  z rows is < `M`
-int compute_canonical_form_type4_sub(normalized_IS_t *G,
-                                     const uint32_t z,
-                                     const FQ_ELEM *M) {
+static
+int ScaleCFSubPreprocessBase(normalized_IS_t *__restrict__ G,
+                             const uint32_t z,
+                             const FQ_ELEM *__restrict__ M) {
     FQ_ELEM tmp[Q_pad] __attribute__((aligned(32))) = {0};
     for (uint32_t i = 0; i < z; i++) {
 		FQ_ELEM s = row_acc(G->values[i]);
@@ -98,24 +104,31 @@ int compute_canonical_form_type4_sub(normalized_IS_t *G,
 		}
 
 		row_mul(G->values[i], s);
+        // compute the histogram
         sort(tmp, G->values[i], N-K);
+
         if (compare_rows(tmp, M) < 0) {
             return 1;
         }
     }
 
     return 0;
-}
+} /* ScaleCFSubPreprocessBase */
 
 /// NOTE: non-constant time
+/// This is the `ScaleCFSubPreprocess` function for `ImprovedCF`.
+/// The idea is to enumerate the rows of the small z \times N-K matrix G to 
+/// find a shorter row than `M`. NOTE: this function returns the shortest row
 /// \param G[in/out]: sub matrix with only z rows.
 /// \param z[in]: number of rows in G
-/// \param M[in]: the currently shortest multiset, will get globbert.
+/// \param M[in]: the currently shortest multiset, will get overwritten with 
+///     a shorter row, if found.
 /// \return 0: if no multiset was found < `M`
 ///         1: if one of the  z rows is < `M`
-int compute_canonical_form_type4_sub_preproc(normalized_IS_t *G,
-                                             const uint32_t z,
-                                             FQ_ELEM *M) {
+static
+int ScaleCFSubPreprocess(normalized_IS_t *__restrict__ G,
+                         const uint32_t z,
+                         FQ_ELEM *__restrict__ M) {
     FQ_ELEM tmp[Q_pad] __attribute__((aligned(32))) = {0};
     int ret;
 
@@ -131,18 +144,20 @@ int compute_canonical_form_type4_sub_preproc(normalized_IS_t *G,
         }
 
         row_mul(G->values[i], s);
+        // compute the histogram
         sort(tmp, G->values[i], N-K);
 
         if (compare_rows(tmp, M) < 0) {
             ret = 1;
             // copy new smallest row
-            for (uint32_t i = 0; i < Q; i++)
+            for (uint32_t i = 0; i < Q; i++) {
                 M[i] = tmp[i];
+            }
         }
     }
 
     return ret;
-}
+} /* end ScaleCFSubPreprocess */
 
 /// NOTE: non-constant time
 /// implements a total order on matrices
@@ -152,7 +167,7 @@ int compute_canonical_form_type4_sub_preproc(normalized_IS_t *G,
 /// \param z[in]: number of rows within both matrices
 /// \return -x if V2 > V1
 ///			 0 if V2 == V1
-///			+x
+///			+x if V2 < V1
 int compare_matrices(const normalized_IS_t *__restrict__ V1,
                      const normalized_IS_t *__restrict__ V2,
                      const uint32_t z) {
@@ -170,14 +185,18 @@ int compare_matrices(const normalized_IS_t *__restrict__ V1,
 	
 	// if we are here the two matrices are equal
 	return 0;
-}
+} /* compare_matrices */
 
 /// NOTE: non-constant time
 /// NOTE: computes the result inplace
+/// Original slowest canonical form function. This is the function we check 
+/// correctnes against. Also its the backup implementation which is called by 
+/// all other implementation if any failure happens.
 /// \param G[in/out] non IS part of a generator matrix
 /// \return 0 on failure
 /// 		1 on success
-int compute_canonical_form_type5(normalized_IS_t *G) {
+static
+int CFOriginal(normalized_IS_t *G) {
 	normalized_IS_t A __attribute__((aligned(32))) = {0}, M;
     int touched = 0;
 
@@ -193,7 +212,7 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
 			row_mul3(A.values[row2], G->values[row2], row_inv_data);
 		}
 
-		const int ret = compute_canonical_form_type4(&A, NULL);
+		const int ret = ScaleCF(&A, NULL);
 		if ((ret == 1) && (compare_matrices(&A, &M, K) < 0)) {
 			touched = 1;
 			normalized_copy(&M, &A);
@@ -203,9 +222,16 @@ int compute_canonical_form_type5(normalized_IS_t *G) {
     if (!touched) { return 0; }
 	normalized_copy(G, &M);
 	return 1;
-}
+} /* CFOriginal */
 
-int compute_canonical_form_type5_popcnt_base(normalized_IS_t *G) {
+/// NOTE: non-constant time
+/// NOTE: computes the result inplace
+/// This is the second fastest implementation of the canonical form function.
+/// \param G[in/out] non IS part of a generator matrix
+/// \return 0 on failure
+/// 		1 on success
+static
+int ImprovedCFBase(normalized_IS_t *G) {
 	normalized_IS_t M;
     int touched = 0;
 
@@ -241,7 +267,7 @@ int compute_canonical_form_type5_popcnt_base(normalized_IS_t *G) {
 
     /// NOTE: fallback solution if everything falls apart
     if (z == (N-K)) {
-	    return compute_canonical_form_type5(G);
+	    return CFOriginal(G);
     }
 
     static normalized_IS_t B __attribute__((aligned(32))) = {0};
@@ -257,12 +283,12 @@ int compute_canonical_form_type5_popcnt_base(normalized_IS_t *G) {
 			row_mul3(B.values[row2], G->values[J[row2]], row_inv_data);
 		}
 
-        if (compute_canonical_form_type4_sub(&B, z, L)) {
+        if (ScaleCFSubPreprocessBase(&B, z, L)) {
             for (uint32_t row2 = 0; row2 < K; row2++) {
                 row_mul3(B.values[row2], G->values[row2], row_inv_data);
             }
 
-		    const int ret = compute_canonical_form_type4(&B, L);
+		    const int ret = ScaleCF(&B, L);
 		    if ((ret == 1) && (compare_matrices(&B, &M, K) < 0)) {
                 sort(L, B.values[0], N-K);
 		    	touched = 1;
@@ -273,9 +299,16 @@ int compute_canonical_form_type5_popcnt_base(normalized_IS_t *G) {
 
 	normalized_copy(G, &M);
     return touched;
-}
+} /* ImprovedCFBase */
 
-int compute_canonical_form_type5_popcnt_opt(normalized_IS_t *G) {
+/// NOTE: non-constant time
+/// NOTE: computes the result inplace
+/// This is the second fastest implementation of the canonical form function.
+/// \param G[in/out] non IS part of a generator matrix
+/// \return 0 on failure
+/// 		1 on success
+static
+int ImprovedCF(normalized_IS_t *G) {
     int ret;
 
     /// track the rows with the most zeros.
@@ -307,7 +340,7 @@ int compute_canonical_form_type5_popcnt_opt(normalized_IS_t *G) {
 
     /// NOTE: fallback solution if everything falls apart
     if (z == (N-K)) {
-        return compute_canonical_form_type5(G);
+        return CFOriginal(G);
     }
 
     static normalized_IS_t B __attribute__((aligned(32))) = {0};
@@ -325,7 +358,7 @@ int compute_canonical_form_type5_popcnt_opt(normalized_IS_t *G) {
             row_mul3(B.values[row2], G->values[J[row2]], row_inv_data);
         }
 
-        if (compute_canonical_form_type4_sub_preproc(&B, z, L)) {
+        if (ScaleCFSubPreprocess(&B, z, L)) {
             smallest_scaling_row = row;
         }
     }
@@ -336,24 +369,16 @@ int compute_canonical_form_type5_popcnt_opt(normalized_IS_t *G) {
         row_mul3(B.values[row2], G->values[row2], row_inv_data);
     }
 
-    ret = compute_canonical_form_type4(&B, L);
+    ret = ScaleCF(&B, L);
     /// If candidate was not valid, fall back to regular approach
     if (ret != 1) {
         // Best was not valid;
-        return compute_canonical_form_type5_popcnt_base(G);
+        return ImprovedCFBase(G);
     }
 
     normalized_copy(G, &B);
     return ret;
-}
-
-int compute_canonical_form_type5_popcnt(normalized_IS_t *G) {
-#if defined(CF_PREPROC_PASS_EN)
-    return compute_canonical_form_type5_popcnt_opt(G);
-#else
-    return compute_canonical_form_type5_popcnt_base(G);
-#endif
-}
+} /* ImprovedCF */
 
 /// samples to random monomial matrices (A, B) and comptes A*G*B
 /// \param G[in/out] non IS part of a generator matrix
@@ -383,6 +408,7 @@ void blind(normalized_IS_t *G,
 
     // apply the right multiplication
     normalized_monomial_right(&B, G, &right);
+
     // apply the left multiplication
     for (uint32_t i = 0; i < K; i++) {
         const FQ_ELEM a = left.coefficients[i];
@@ -390,12 +416,16 @@ void blind(normalized_IS_t *G,
 
 		row_mul2(G->values[i], B.values[pos], a);
     }
-}
+} /* end blind */
 
 /// NOTE: non-constant time implementation
 /// \param G[in/out] non IS part of a generator matrix
 /// \return 0 on failure
 /// 		1 on success
 int CF(normalized_IS_t *G) {
-    return compute_canonical_form_type5_popcnt(G);
-}
+#if defined(LESS_CF_PREPROC_PASS_EN)
+    return ImprovedCF(G);
+#else
+    return ImprovedCFBase(G);
+#endif
+} /* end CF */
