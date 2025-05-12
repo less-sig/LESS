@@ -91,7 +91,7 @@ void LESS_keygen(prikey_t *SK,
 /// \return: x: number of leaves opened by the algorithm
 size_t LESS_sign(const prikey_t *SK,
                  const char *const m,
-                 const uint64_t mlen,
+                 const size_t mlen,
                  sign_t *sig) {
     uint8_t g0_initial_pivot_flags [N_pad];
     uint8_t is_pivot_column[N_pad];
@@ -266,7 +266,7 @@ size_t LESS_sign(const prikey_t *SK,
 ///         1: on success
 int LESS_verify(const pubkey_t *const PK,
                 const char *const m,
-                const uint64_t mlen,
+                const size_t mlen,
                 const sign_t *const sig) {
     uint8_t fixed_weight_string[T] = {0};
     uint8_t is_pivot_column[N_pad];

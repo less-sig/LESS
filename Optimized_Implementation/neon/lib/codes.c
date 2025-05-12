@@ -35,15 +35,6 @@
 #include "utils.h"
 #include "parameters.h"
 
-// Select low 8-bit, skip the high 8-bit in 16 bit type
-const uint8_t shuff_low_half[32] = {
-        0x0, 0x2, 0x4, 0x6, 0x8, 0xa, 0xc, 0xe,
-        0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
-        0x0, 0x2, 0x4, 0x6, 0x8, 0xa, 0xc, 0xe,
-        0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
-};
-
-
 /// swap N_pad bytes in r and s
 /// \param r[in]: pointer to the first row
 /// \param s[in]: pointer to the second row
@@ -59,7 +50,7 @@ void swap_rows(FQ_ELEM r[N_pad],
 } /* end swap_rows */
 
 /// Calculate pivot flag array
-/// \param G[in]: generator matrix in compress formatj
+/// \param G[in]: generator matrix in compress format
 /// \param pivot_flag[out]: array denoting the pivot columns via a 1, everything
 ///     else is 0
 void generator_get_pivot_flags(const rref_generator_mat_t *const G,
@@ -80,45 +71,16 @@ void generator_get_pivot_flags(const rref_generator_mat_t *const G,
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom) {
-
     FQ_ELEM buffer[N_pad];
-    // Total SIMD registers: 9 = 2 + 3 + 4
-    vec256_t shuffle, t, c8_127, c8_1;     // 2
-    vec256_t g, mono, s;                   // 3
-    vec256_t g_lo, g_hi, mono_lo, mono_hi; // 4
-    vec128_t tmp;
+    vec256_t g, mono, s;
 
-    vload256(shuffle, (vec256_t *) shuff_low_half);
-    vset8(c8_127, 127);
-    vset8(c8_1, 1);
     for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
-
         const FQ_ELEM *G_pointer = G->values[row_idx];
+
         for (uint32_t src_col_idx = 0; (src_col_idx+32) <= N_pad; src_col_idx += 32) {
             vload256(g, (vec256_t *) &G_pointer[src_col_idx]);
             vload256(mono, (vec256_t *) &(monom->coefficients[src_col_idx]));
-
-            vget_lo(tmp, g);
-            vextend8_16(g_lo, tmp);
-            vget_hi(tmp, g);
-            vextend8_16(g_hi, tmp);
-            vget_lo(tmp, mono);
-            vextend8_16(mono_lo, tmp);
-            vget_hi(tmp, mono);
-            vextend8_16(mono_hi, tmp);
-
-            barrett_mul_u16(g_lo, g_lo, mono_lo, s);
-            barrett_mul_u16(g_hi, g_hi, mono_hi, t);
-
-            vshuffle8(g_lo, g_lo, shuffle);
-            vshuffle8(g_hi, g_hi, shuffle);
-
-            vpermute_4x64(g_lo, g_lo, 0xd8);
-            vpermute_4x64(g_hi, g_hi, 0xd8);
-
-            vpermute2(s, g_lo, g_hi, 0x20);
-
-            barrett_red8(s, t, c8_127, c8_1);
+            s = gf127v_mul_u256(g, mono);
             vstore256((vec256_t *) &buffer[src_col_idx], s);
         }
 
@@ -141,11 +103,8 @@ int generator_RREF(generator_mat_t *G,
     vec256_t *gm[K] __attribute__((aligned(32)));
     vec256_t em[0x80][NW];
     vec256_t *ep[0x80];
-    vec256_t c01, c7f;
     vec256_t x, t, *rp, *rg;
-
-    vset8(c01, 0x01);
-    vset8(c7f, 0x7f);
+	const uint8x16_t c7f = vdupq_n_u8(0x7F);
 
     for (i = 0; i < K; i++) {
         gm[i] = (vec256_t *) G->values[i];
@@ -198,7 +157,7 @@ int generator_RREF(generator_mat_t *G,
         for (j = 2; j < 127; j++) {
             for (uint32_t k = 0; k < NW; k++) {
                 vadd8(x, em[j - 1][k], rg[k])
-                W_RED127_(x);
+                vred8(x, t, c7f);
                 em[j][k] = x;
             }
         }
@@ -225,12 +184,11 @@ int generator_RREF(generator_mat_t *G,
                 rp = ep[127 - sc];
                 for (uint32_t k = 0; k < NW; k++) {
                     vadd8(x, gm[j][k], rp[k])
-                    W_RED127_(x);
+                    vred8(x, t, c7f);
                     gm[j][k] = x;
                 }
             }
         }
-
     }
 
     return 1;
@@ -334,10 +292,9 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                     const uint8x16_t a  = vld1q_u8(G->values[j] + k);
                     const uint8x16_t ap = vld1q_u8(G->values[i] + k);
                     const uint8x16_t b  = gf127v_scalar_table(ap, table);
-                    const uint8x16_t m  = vcltq_u8(a, b);
-                    const uint8x16_t c1 = vaddq_u8(a, q);
-                    const uint8x16_t c  = vbslq_u8(m, c1, a);
-                    const uint8x16_t d  = vsubq_u8(c, b);
+                    const uint8x16_t c  = vsubq_u8(a, b);
+                    const uint8x16_t e  = vaddq_u8(c, q);
+                    const uint8x16_t d  = vminq_u8(c, e);
                     vst1q_u8(G->values[j] + k, d);
                 }
             }
@@ -605,9 +562,11 @@ void generator_sample(rref_generator_mat_t *res,
 } /* end generator_sample */
 
 /// NOTE: not constant time
-/// \param res
-/// \param G
-/// \param c
+/// \param res[out]: G*c a generator matrix: K \times N-K
+/// \param G[in]: current generator matrix: K \times N-K
+/// \param c[in]: compressed cf action
+/// \param initial_G_col_pivot[in]: input IS
+/// \param permuted_G_col_pivot[out]: output IS, to keep track of the pivot cols
 void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
                                       const generator_mat_t *G,
                                       const uint8_t *const c,
@@ -671,10 +630,25 @@ void normalized_row_swap(normalized_IS_t *V,
 void normalized_monomial_right(normalized_IS_t *res,
                             const normalized_IS_t *const G,
                             const monomial_t *const monom) {
-   for(uint32_t src_col_idx = 0; src_col_idx < K; src_col_idx++) {
-      for(uint32_t row_idx = 0; row_idx < K; row_idx++) {
-         res->values[row_idx][monom->permutation[src_col_idx]] =
-            fq_mul(G->values[row_idx][src_col_idx], monom->coefficients[src_col_idx]);
-      }
-   }
+    FQ_ELEM buffer[N_pad];
+    uint8x16_t monomial[NW*2];
+    for (uint32_t i = 0; i < (NW*2); i++) {
+        monomial[i] = vld1q_u8(monom->coefficients + i*16);
+    }
+
+    for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
+        const FQ_ELEM *G_pointer = G->values[row_idx];
+        uint32_t ctr = 0;
+
+        for (uint32_t src_col_idx = 0; (src_col_idx+16) <= K_pad; src_col_idx += 16) {
+            const uint8x16_t a = vld1q_u8(G_pointer + src_col_idx);
+            const uint8x16_t t = gf127v_mul_u128(a, monomial[ctr]);
+            vst1q_u8(buffer + src_col_idx, t);
+            ctr += 1;
+        }
+
+        for (uint32_t i = 0; i < K; i++) {
+            res->values[row_idx][monom->permutation[i]] = buffer[i];
+        }
+    }
 } /* end normalized_monomial_right */
