@@ -37,7 +37,7 @@ class Matrix:
 
     def __setitem__(self,
                     tup: int | tuple[int, int],
-                    data):
+                    data: Union[int, Fq]):
         """ nice access function
         NOTE: access it via:
             A[i, j] or  (returns field element)
@@ -247,7 +247,7 @@ class Matrix:
         for i in range(B_c):
             # each row in A
             for j in range(self.nrows):  
-                s = Fq(0)
+                s = Fq(0, self.q)
                 # each element in a row in A
                 for k in range(self.ncols):  
                     t = self[j, k] * B[k, i]
@@ -306,6 +306,18 @@ class Matrix:
             t += self.data[j][col] != 0
         return t
 
+    def scale_row(self, row: int, v: Fq) -> 'Matrix':
+        """ scales the row `row` by v"""
+        for j in range(self.ncols):
+            self.data[row][j] *= v
+        return self
+
+    def scale_col(self, col: int, v: Fq) -> 'Matrix':
+        """ scales the col `col` by v"""
+        for j in range(self.nrows):
+            self.data[j][col] *= v
+        return self
+
     def __swap_rows(self, i: int, j: int) -> None:
         """ swap the rows i and j """
         assert i < self.nrows and j < self.nrows
@@ -357,7 +369,43 @@ class Matrix:
         return ret
 
 
+def test():
+    def scale_row(A, i: int) -> Matrix:
+        ret = A[i][0]
+        for j in range(1, len(A[i])):
+            ret += A[i][j]
+        t = ret.inv()
+        A.scale_row(i, t)
+        return A
+
+    def scale_rows(A) -> Matrix:
+        for i in range(A.nrows):
+            scale_row(A, i)
+        return A 
+
+    nc, nr, q = 4, 3, 7
+    A = Matrix(nr, nc, q)
+    # A[0][0], A[0][1], A[0][2], A[0][3] = 
+    # A[1][0], A[1][1], A[1][2], A[1][3] = 
+    # A[2][0], A[2][1], A[2][2], A[2][3] = 
+    A.set([[1, 2, 4, 5], [0, 2, 3, 1], [2, 4, 2, 0]])
+    #A.print()
+
+    P = Matrix(nr, nr, q)
+    # P.set([[0, 1, 0], [4, 0, 0], [0, 0, 3]])
+    P.set([[0, 1, 0], [4, 0, 0], [0, 0, 3]])
+   
+    print(A)
+    C = P.mul(A);
+    print(C)
+    C = scale_rows(C)
+    A = scale_rows(A)
+    print(A)
+    print(C)
+
 if __name__ == "__main__":
+    test()
+    exit(0)
     nc, nr, q, w = 10, 5, 2, 2
     A = Matrix(nr, nc, q)
     A.print()

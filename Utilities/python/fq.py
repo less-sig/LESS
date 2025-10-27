@@ -7,7 +7,8 @@ import math
 
 
 class Fq():
-    def __init__(self, value: int = 0, q: int = 127) -> None:
+    def __init__(self, value: int = 0, q: int = 0) -> None:
+        assert q 
         self.q = q
         self.__value = value % self.q
     
@@ -34,6 +35,11 @@ class Fq():
         ret = Fq((self.__value * value) % self.q, self.q)
         return ret
 
+    def inv(self) -> 'Fq':
+        """ """
+        v = Fq.mod_inverse(self.__value, self.q)
+        return Fq(v, self.q)
+
     def random(self, lower: int = 0, upper: int = 0) -> 'Fq': 
         """ generates a random element """
         if upper == 0:
@@ -41,6 +47,50 @@ class Fq():
         assert (lower <= upper)
         self.__value = random.randint(lower, upper)
         return self
+
+    @staticmethod
+    def extended_gcd(a: Union[int, 'Fq'], 
+                     b: Union[int, 'Fq']):
+        """
+        Extended Euclidean Algorithm.
+        Returns (gcd, x, y) such that ax + by = gcd(a, b)
+        """
+        if isinstance(a, 'Fq'):
+            a = a.__value
+        if isinstance(b, 'Fq'):
+            b = b.__value
+
+        if a == 0:
+            return b, 0, 1
+
+        gcd, x1, y1 = Fq.extended_gcd(b % a, a)
+        x = y1 - (b // a) * x1
+        y = x1
+        return gcd, x, y
+
+    @staticmethod
+    def mod_inverse(a: Union[int, 'Fq'], 
+                    p: Union[int, 'Fq']):
+        """
+        Compute modular inverse of a modulo prime p using Fermat's Little Theorem.
+        For prime p: a^(p-1) ≡ 1 (mod p)
+        Therefore: a^(p-2) ≡ a^(-1) (mod p)
+        Args:
+            a: integer to find inverse of
+            p: prime modulus
+        Returns:
+            modular inverse of a modulo p
+        Raises:
+            ValueError: if a is not coprime to p
+        """
+        if isinstance(a, Fq):
+            a = a.__value
+        if isinstance(p, Fq):
+            p = p.__value
+
+        if a % p == 0: 
+            raise ValueError(f"{a} is not invertible modulo {p}")
+        return pow(a, p - 2, p)
 
     def __add__(self, fq: Union['Fq', int]) -> 'Fq':
         if isinstance(fq, Fq): fq = fq.__value
