@@ -33,7 +33,7 @@
 /// 		1 on success
 int CF(normalized_IS_t *G);
 
-/// blinds the input generator matrix. E.g samples two random monomial matrices 
+/// blinds the input generator matrix. E.g. samples two random monomial matrices
 ///     L and R, and computes G = L * G * R
 /// \param G[in/out]: input generator matrix (only non IS part), K \times N-k
 /// \param prng[in]: pointer to an initialized prng state

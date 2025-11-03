@@ -35,22 +35,26 @@
 /// \param seed_len_bytes[in]: number of bytes of the seed
 void initialize_csprng(SHAKE_STATE_STRUCT *shake_state,
                        const unsigned char *seed,
-                       const uint32_t seed_len_bytes);
+                       uint32_t seed_len_bytes);
 
-/* initializes a CSPRNG, given the seed, a state pointer and a domain separation
- * constant */
-void initialize_csprng_ds(SHAKE_STATE_STRUCT *shake_state,
-                       const unsigned char *seed,
-                       const uint32_t seed_len_bytes,
-                       const uint16_t domain_sep_constant );
-
-
+/// initializes a CSPRNG, given the seed, a state pointer and a domain separation
+/// constant
 /// extracts xlen bytes from the CSPRNG, given the state
 /// \param shake_state[out] uninitialized shake structure
 /// \param seed[in]: seed which is feed into the prng
 /// \param seed_len_bytes[in]: length of the seed
-/// \param domain_sep_constant[in]: domain seperator as defined in the spec, 
+/// \param domain_sep_constant[in]: domain seperator as defined in the spec,
 ///         which is fed into the prng after the seed
+void initialize_csprng_ds(SHAKE_STATE_STRUCT *shake_state,
+                          const unsigned char *seed,
+                          uint32_t seed_len_bytes,
+                          uint16_t domain_sep_constant );
+
+
+/// extracts xlen bytes from the CSPRNG, given the state
+/// \param x[out]: output buffer of size
+/// \param xlen[in]: number of bytes to extract from the PRNG
+/// \param shake_state[out] uninitialized shake structure
 static inline
 void csprng_randombytes(unsigned char *x,
                         unsigned long long xlen,
@@ -61,7 +65,7 @@ void csprng_randombytes(unsigned char *x,
 /// global csprng state employed to have a deterministic randombytes for testing
 extern SHAKE_STATE_STRUCT platform_csprng_state;
 
-/// extracts xlen bytes from the global CSPRNG 
+/// extracts `xlen` bytes from the global CSPRNG
 /// \param x[out]: output buffer 
 /// \param xlen[in]: length of the bytes to extract
 static inline

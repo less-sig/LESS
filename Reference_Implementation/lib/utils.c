@@ -6,7 +6,7 @@
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
- * @author Floyd Zweydinge <zweydfg8+github@rub.de>
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -35,7 +35,7 @@
 /// taken from the kyber impl.
 /// \param a[in]: pointer to the first byte array
 /// \param b[in]: pointer to the second byte array
-/// \param len[in]: length of the byte arrray
+/// \param len[in]: length of the byte array
 /// \returns 0 if the byte arrays are equal, 1 otherwise
 int verify(const uint8_t *a,
            const uint8_t *b,

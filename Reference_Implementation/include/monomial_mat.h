@@ -83,36 +83,51 @@ void yt_shuffle(POSITION_T permutation[N]);
 
 /// expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
 /// monomial matrices
-/// \param res[out]: pointer to an unitialized monomial
+/// \param res[out]: pointer to an allocated, but not initialized monomial
 /// \param seed[in]: byte buffer fed into the prng
-/// \param sack[in]: byte buffer additionally fed into the prng
+/// \param salt[in]: byte buffer additionally fed into the prng
 /// \param round_index[in]: round index additionally fed into prng
 void monomial_sample_salt(monomial_t *res,
                           const unsigned char seed[SEED_LENGTH_BYTES],
                           const unsigned char salt[HASH_DIGEST_LENGTH],
-                          const uint16_t round_index);
+                          uint16_t round_index);
 
 /// expands a monomial matrix, given a double length PRNG seed (used to prevent
 /// multikey attacks)
+/// \param res[out]: pointer to an allocated, but not initialized monomial
+/// \param seed[in]: input seed.
 void monomial_sample_prikey(monomial_t *res,
                             const unsigned char seed[PRIVATE_KEY_SEED_LENGTH_BYTES]);
 
 /// computes the inverse of the monomial matrix
-/// \param monomial_inv[out]: pointer to an unitialized monomial matrix
+/// \param res[out]: pointer to an allocated but not initialized monomial matrix
 /// \param to_invert[in]: pointer to an initialized monomial matrix
 void monomial_inv(monomial_t *res,
-                  const monomial_t *const to_invert);
+                  const monomial_t *to_invert);
 
 /// composes a compactly stored action of a monomial on an IS with a regular
 /// monomial.
 /// NOTE: Only the permutation is computed, as this is the only thing we need
 /// since the adaption of canonical forms.
 /// \param out[out]: output monomial
-/// \param to_compose[in]: input monomial 
+/// \param Q_in[in]: input monomial
 /// \param in[in]: input monomial
 void monomial_compose_action(monomial_action_IS_t * out, 
-                             const monomial_t *to_compose, 
+                             const monomial_t *Q_in,
                              const monomial_action_IS_t *in);
+
+
+/// NOTE: Only the permutation is computed, as this is the only thing we need
+/// since the adaption of canonical forms.
+/// \param pi_tilde[out]: mu_tilde * information set
+/// \param mu_tilde[in]: input monomial matrix.
+/// \param is_pivot_column[in]: information set, where a 1 in the array
+///         symbolizes that the corresponding columns is a pivot column.
+void monomial_compose_action_information_set(monomial_action_IS_t *pi_tilde,
+                                             const monomial_t *mu_tilde,
+                                             const uint8_t *is_pivot_column);
+
+
 
 /// canonical form compression
 /// \param b[out]: N bits in which K bits will be sed
@@ -121,9 +136,10 @@ void CosetRep(uint8_t *b,
               const monomial_action_IS_t *Q_star);
 
 /// checks if the given (N+7/8) bytes are a valid
-/// canonical form action.
+/// canonical form action. E.g. this function checks
+/// if exactly `K` ones ares in the input.
 /// \param b[in]: compressed canonical form output from
 ///         `CosetRep`
-/// \return true: if the weight is K
-///         false: if the weight is not K
-int CheckCanonicalAction(const uint8_t* const mono);
+/// \return true: if the hamming weight is K
+///         false: if the hamming weight is not K
+int CheckCanonicalAction(const uint8_t *b);

@@ -4,7 +4,7 @@
  *
  * @version 1.2 (February 2025)
  *
- * @author Floyd Zweydinge <zweydfg8+github@rub.de>
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -136,27 +136,10 @@ static inline void matrix_transposeNx8(uint8_t *dst,
     }
 }
 
-
-/// Compute origin of the 64-block next to (rb, cb) in row-major order
-/// NOTE: internal function. Do no call directly.
-const uint8_t* next_block(const uint8_t *src,
-                          uint64_t rb,
-                          uint64_t cb,
-                          const size_t n) {
-    uint64_t cb1 = cb + 1;
-    uint64_t rb1 = rb;
-    if (cb1 == n/64) {
-        rb1 += 1;
-        cb1 = 0;
-    }
-
-    return src + (rb1*n + cb1) * 64;
-}
-
 /// \param dst[out]: output non-IS matrix: K \times N-K
 /// \param src[in]: input non-IS matrix: K \times N-K
-/// \param r nr cols
-/// \param c nr rows
+/// \param r[in]: nr cols
+/// \param c[in]: nr rows
 void matrix_transpose_opt(uint8_t *dst,
                           const uint8_t *src,
                           const uint32_t r,

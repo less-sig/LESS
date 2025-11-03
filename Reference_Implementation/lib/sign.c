@@ -6,7 +6,7 @@
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
- * @author Floyd Zweydinge <zweydfg8+github@rub.de>
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -30,8 +30,8 @@
 
 #include "LESS.h"
 
-/// \param pk[out]: pointer to an unitialized public key
-/// \param sk[out]: pointer to an unitialized secret key
+/// \param pk[out]: pointer to an uninitialized public key
+/// \param sk[out]: pointer to an uninitialized secret key
 int crypto_sign_keypair(unsigned char *pk,
                         unsigned char *sk) {
     /* keygen cannot fail */

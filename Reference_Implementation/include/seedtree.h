@@ -45,9 +45,9 @@ uint32_t GGMPath(const unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_B
                  unsigned char *seed_storage);
 
 /// \param seed_tree[out]: full seed tree
-/// \param root_seed[in]: main seed fed into the prng
-/// \param indices_to_publish[in]: binary array denoting if node has to be 
+/// \param indices_to_publish[in]: binary array denoting if node has to be
 ///     released (cell == 0) or not.
+/// \param stored_seeds[in]: main seed fed into the prng
 /// \param salt[in]: additional salt fed into the prng
 /// \returns 1 on success, 0 on failure
 uint32_t RebuildGGM(unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTES],

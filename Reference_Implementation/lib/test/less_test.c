@@ -36,7 +36,7 @@ void inverse_mod_tester(void){
     uint32_t inverse[Q-1];
     for(uint32_t i=1; i <= Q-1; i++){
         value[i-1] = i;
-        inverse[i-1] = fq_inv(i);
+        inverse[i-1] = fq_inv_non_ct(i);
     }
     int all_ok = 1;
     for(uint32_t i=1; i <= Q-1; i++){
@@ -60,12 +60,13 @@ void rref_gen_byte_compress_tester(void){
      generator_mat_t G = {0}, Gcheck;
      uint8_t G_compressed [RREF_MAT_PACKEDBYTES];
      uint8_t is_pivot_column[NN];
+     uint8_t was_pivot_column[NN] = {0};
 
      /* randomly generate a non-singular G */
      do {
          generator_rnd(&G);
          memset(is_pivot_column,0,sizeof(is_pivot_column));
-     } while ( generator_RREF(&G,is_pivot_column) == 0);
+     } while ( generator_RREF_pivot_reuse(&G,is_pivot_column,was_pivot_column,K) == 0);
 
      memcpy(&Gcheck,&G, sizeof(G));
      compress_rref(G_compressed,&G,is_pivot_column);
@@ -78,7 +79,7 @@ void rref_gen_byte_compress_tester(void){
        generator_pretty_print_name("G",&G);
 
        fprintf(stderr,"is_pivot = \n [ ");
-       for(int x=0;x < N ;x++){fprintf(stderr," %d ",is_pivot_column[x]); }
+       for(uint64_t x=0;x < N ;x++){fprintf(stderr," %d ",is_pivot_column[x]); }
        fprintf(stderr,"]\n");
 
        fprintf(stderr," \n\n\n\n\n\n\n\n\nReference\n");

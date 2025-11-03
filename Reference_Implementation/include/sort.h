@@ -26,14 +26,15 @@
 #include "codes.h"
 
 
-/// sorts a single row into `out`
-/// \param out[out]: buffer of 127 elements counint the number occurancies  
+/// Does not really sort a single row into `out`. It computes the
+/// histogram of the input array `in`;
+/// \param out[out]: buffer of 127 elements count the number occurrences
 ///     of each Fq element in `in`
 /// \param in[in]: row of a matrix containing Fq elements
-/// \param len[in]: lenght of the row
+/// \param len[in]: length of the row
 void sort(uint8_t *out,
           const uint8_t *in,
-          const uint32_t len);
+          uint32_t len);
 
 /// \param row1[in]: pointer to the first row
 /// \param row2[in]: pointer to the second row
@@ -43,20 +44,20 @@ void sort(uint8_t *out,
 int compare_rows(const FQ_ELEM *row1,
                  const FQ_ELEM *row2);
 
-/// sort the rows of V
+/// sort the rows of G
 /// \param G[in]: pointer to a generator matrix (only non IS part) to sort.
 /// \param n[in]: number of rows to sort
 /// \param L[in]: pointer to the currently shortest row
 /// \return 1 on success
 ///			0 if two rows generate the same multiset
 int SortRows(normalized_IS_t *G,
-             const uint32_t n,
+             uint32_t n,
              const uint8_t *L);
 
-/// sort the cols of V
+/// sort the cols of G
 /// \param G[in]: pointer to a generator matrix (only non IS part) to sort.
 /// \param z[in]: number of columns to sort
 void SortCols(normalized_IS_t *G,
-              const uint32_t z);
+              uint32_t z);
 
 #endif //SORT_H

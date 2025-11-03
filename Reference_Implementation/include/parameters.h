@@ -51,8 +51,8 @@
 
 /********************************* Category 1 *********************************/
 #elif CATEGORY == 252
-#define N (252)
-#define K (126)
+#define N (252u)
+#define K (126u)
 
 #define SEED_LENGTH_BYTES (16)
 #define SIGN_PIVOT_REUSE_LIMIT (25) // Ensures probability of non-CT operation is < 2^-64
@@ -262,9 +262,9 @@
 /// number of columns to reuse in vrfy
 #define LESS_VERIFY_PIVOT_REUSE_LIMIT K
 
-// if defined, enable pre-processing pass in CF pocnt function to try
+// if defined, enable pre-processing pass in CF function to try
 // to find the best potential candidate before calculating in full CFs
-#define LESS_CF_PREPROC_PASS_EN
+#define LESS_CF_PREPROC_PASS_ENABLE
 
 #ifdef USE_AVX2
 /// NOTE: only available for optimized implementations if set a custom 4 bucket 
@@ -274,6 +274,8 @@
 #endif
 #endif
 
-// NOTE: if set the AVX2 and AVX512 fq arithmetic implementaions will use the 
-// `blindv` instruction instead of the `minv`, to compute the final reduction.
-// TODO #define LESS_USE_BLEND_IN_ARITH
+// NOTE: if set the AVX2 and AVX512 fq arithmetic implementations will use the
+// `blendv` instruction instead of the `minv`, to compute the final reduction.
+// The `blendv` instruction is ~10% faster on zen4 then the `minv` instruction.
+// But on older x86 hardware this is di
+#define LESS_USE_BLEND_IN_ARITH

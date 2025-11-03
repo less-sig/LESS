@@ -59,6 +59,12 @@ void LESS_keygen(prikey_t *SK,
                            &sk_shake_state);
     }
 
+#if defined(LESS_REUSE_PIVOTS_VY)
+    /// NOTE: this is only needed to use the faster non-ct RREF implementation
+    /// NOTE: cannot be const.
+    uint8_t was_pivot_column[N_pad] = {0};
+#endif
+
     /* note that the first "keypair" is just the public generator G_0, stored
      * as a seed and the identity matrix (not stored) */
     for (uint32_t i = 0; i < NUM_KEYPAIRS - 1; i++) {
@@ -67,19 +73,23 @@ void LESS_keygen(prikey_t *SK,
         monomial_t private_Q;
         monomial_t private_Q_inv;
         monomial_sample_prikey(&private_Q_inv, private_monomial_seeds[i]);
+        /// NOTE: the inversion is not implemented in constant time.
         monomial_inv(&private_Q, &private_Q_inv);
 
         generator_mat_t result_G = {0};
-        generator_monomial_mul(&result_G,
-                               &tmp_full_G,
-                               &private_Q);
+        generator_monomial_mul(&result_G, &tmp_full_G, &private_Q);
         memset(is_pivot_column, 0, sizeof(is_pivot_column));
+
+        // NOTE: if enabled we use a non-constant time RREF
+        // for the keygen.
+#if defined(LESS_REUSE_PIVOTS_VY)
+        generator_RREF_pivot_reuse(&result_G, is_pivot_column, was_pivot_column, K);
+#else
         generator_RREF(&result_G, is_pivot_column);
+#endif
         /* note that the result is stored at i-1 as the first
          * public key element is just a seed */
-        compress_rref(PK->SF_G[i],
-                      &result_G,
-                      is_pivot_column);
+        compress_rref(PK->SF_G[i], &result_G, is_pivot_column);
     }
 } /* end LESS_keygen */
 
@@ -172,38 +182,15 @@ size_t LESS_sign(const prikey_t *SK,
         }
 #endif
         // just copy the non IS
-        uint32_t ctr = 0;
-        for(uint32_t j = 0; j < N-K; j++) {
-            while (is_pivot_column[ctr]) {
-                ctr += 1;
-            }
-            /// copy column
-            for (uint32_t k = 0; k < K; k++) {
-                A_i.values[k][j] = G0.values[k][ctr];
-            }
-            ctr += 1;
-        }
-
-        POSITION_T piv_idx = 0;
-        for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
-            POSITION_T row_idx = 0;
-            for(uint32_t t = 0; t < N; t++) {
-               if (mu_tilde.permutation[t] == col_idx) {
-                   row_idx = t;
-                   break;
-               }
-            }
-            if(is_pivot_column[col_idx] == 1) {
-               pi_tilde[i].permutation[piv_idx] = row_idx;
-               piv_idx++;
-            }
-        }
+        normalized_copy_from_generator_non_information_set(&A_i, &G0, is_pivot_column);
+        monomial_compose_action_information_set(&pi_tilde[i], &mu_tilde, is_pivot_column);
 
         blind(&A_i, &cf_shake_state);
         const int t = CF(&A_i);
 
         if (t == 0) {
-            *(linearized_rounds_seeds + i*SEED_LENGTH_BYTES) += 1;
+            // this give us 2**64 retries. That should be more then enough.
+            *(uint64_t *)(linearized_rounds_seeds + i*SEED_LENGTH_BYTES) += 1;
             i -= 1;
         } else {
             // NOTE: as we increase the size of the `normalized_IS_t`
@@ -232,22 +219,19 @@ size_t LESS_sign(const prikey_t *SK,
         indices_to_publish[i] = !!(fixed_weight_string[i]);
     }
 
-    int emitted_monoms = 0;
     memset(&sig->seed_storage, 0, SEED_TREE_MAX_PUBLISHED_BYTES);
 
     const uint32_t num_seeds_published =
-            GGMPath(seed_tree,
-                           indices_to_publish,
-                           (unsigned char *) &sig->seed_storage);
+            GGMPath(seed_tree, indices_to_publish,(unsigned char *) &sig->seed_storage);
 
+    int emitted_monoms = 0;
     monomial_action_IS_t mono_action;
     for (uint32_t i = 0; i < T; i++) {
         monomial_t Q_to_multiply;
         if (fixed_weight_string[i] != 0) {
             const int sk_monom_seed_to_expand_idx = fixed_weight_string[i];
 
-            monomial_sample_prikey(&Q_to_multiply,
-                                   private_monomial_seeds[sk_monom_seed_to_expand_idx - 1]);
+            monomial_sample_prikey(&Q_to_multiply, private_monomial_seeds[sk_monom_seed_to_expand_idx - 1]);
             monomial_compose_action(&mono_action, &Q_to_multiply, &pi_tilde[i]);
 
             CosetRep(sig->cf_monom_actions[emitted_monoms], &mono_action);
@@ -283,11 +267,7 @@ int LESS_verify(const pubkey_t *const PK,
     }
 
     unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES] = {0};
-    uint32_t rebuilding_seeds_went_fine;
-    rebuilding_seeds_went_fine = RebuildGGM(seed_tree,
-                                                          published_seed_indexes,
-                                                          (unsigned char *) &sig->seed_storage,
-                                                          sig->salt);
+    const uint32_t rebuilding_seeds_went_fine = RebuildGGM(seed_tree,published_seed_indexes,(unsigned char *) &sig->seed_storage, sig->salt);
     if (!rebuilding_seeds_went_fine) {
         return 0;
     }
@@ -339,24 +319,18 @@ int LESS_verify(const pubkey_t *const PK,
             }
 #endif
         } else {
-            // expand_to_rref(&G0, PK->SF_G[fixed_weight_string[i] - 1], gi_initial_pivot_flags);
             memset(gi_initial_pivot_flags, 0, N);
             const uint32_t key_pos = fixed_weight_string[i] -1;
             if (!CheckCanonicalAction(sig->cf_monom_actions[employed_monoms])) {
                 return 0;
             }
 
+            UnpackCosetRep(&G_prime, &Gs[key_pos], sig->cf_monom_actions[employed_monoms], gi_initial_pivot_flags, g0_permuted_pivot_flags);
 #if defined(LESS_REUSE_PIVOTS_VY)
-            apply_cf_action_to_G_with_pivots(&G_prime,
-                                             &Gs[key_pos],
-                                             sig->cf_monom_actions[employed_monoms],
-                                             gi_initial_pivot_flags,
-                                             g0_permuted_pivot_flags);
             const int ret = generator_RREF_pivot_reuse(&G_prime, is_pivot_column,
                                                        g0_permuted_pivot_flags,
                                                        LESS_VERIFY_PIVOT_REUSE_LIMIT);
 #else
-            apply_cf_action_to_G(&G_prime, &Gs[key_pos]  sig->cf_monom_actions[employed_monoms]);
             const int ret = generator_RREF(&G_prime, is_pivot_column);
 #endif
             if(ret == 0) {
@@ -365,22 +339,16 @@ int LESS_verify(const pubkey_t *const PK,
 
             employed_monoms++;
         }
-        // just copy the non IS
-        uint32_t ctr = 0;
-        for(uint32_t j = 0; j < N-K; j++) {
-            while (is_pivot_column[ctr]) {
-                ctr += 1;
-            }
-            /// copy column
-            for (uint32_t k = 0; k < K; k++) {
-                Ai.values[k][j] = G_prime.values[k][ctr];
-            }
-            ctr += 1;
-        }
-        const int r = CF(&Ai);
-        if (r == 0) {
+
+        // copy the non IS
+        normalized_copy_from_generator_non_information_set(&Ai, &G_prime, is_pivot_column);
+        // compute the canonical form and exit on any failure
+        if (CF(&Ai) == 0) {
             return 0;
         }
+
+        // NOTE: as we increase the size of the `normalized_IS_t`
+        // we need to hash the values row by row.
 #if defined(USE_AVX2) || defined(USE_NEON)
         for (uint32_t sl = 0; sl < K; sl++) {
             LESS_SHA3_INC_ABSORB(&state, Ai.values[sl], K);
@@ -397,7 +365,6 @@ int LESS_verify(const pubkey_t *const PK,
     LESS_SHA3_INC_FINALIZE(recomputed_digest, &state);
 
     /// NOTE: does not have to be constant time.
-    return (verify(recomputed_digest, sig->digest,
-                   HASH_DIGEST_LENGTH) == 0);
+    return verify(recomputed_digest, sig->digest, HASH_DIGEST_LENGTH) == 0;
 } /* end LESS_verify */
 

@@ -4,7 +4,7 @@
  *
  * @version 1.2 (February 2025)
  *
- * @author Floyd Zweydinge <zweydfg8+github@rub.de>
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -39,14 +39,15 @@ void pointer_swap(FQ_ELEM **a,
     FQ_ELEM *c = *a; *a = *b; *b = c;
 }
 
-/// NOTE: only needed for `compute_canonical_form_type4_sub`
-/// \input row1[in]:
-/// \input row2[in]:
+/// NOTE: pointers must be different
+/// NOTE: each pointer must point to Q bytes of memory.
+/// \input row1[in]: pointer to the first row in histogram form
+/// \input row2[in]: pointer to the second row in histogram form
 /// \return: 0 if multiset(row1) == multiset(row2)
 ///          x if multiset(row1) > multiset(row2)
 ///         -x if multiset(row1) < multiset(row2)
-int compare_rows(const FQ_ELEM *row1,
-                 const FQ_ELEM *row2) {
+int compare_rows(const FQ_ELEM *__restrict__ const row1,
+                 const FQ_ELEM *__restrict__ const row2) {
     uint32_t i=0;
     while((i < (Q-1)) && (row1[i] == row2[i])) {
         i += 1;
@@ -54,7 +55,7 @@ int compare_rows(const FQ_ELEM *row1,
     return (((int)(row2[i]))-((int)(row1[i])));
 }
 
-/// NOTE: only used in `rowsort_internal`
+/// NOTE: only used in `SortRows_internal`
 /// \param ptr[in/out]: list of arrays, containing the histograms of the input 
 ///     matrix.
 /// \param P[in/out]: permutation to keep track of the applied permutation
@@ -248,6 +249,7 @@ void sort(uint8_t *out,
 #endif // end LESS_USE_CUSTOM_HISTOGRAM
 }
 
+/// NOTE: absolutely not constant time.
 /// internal sorting function for `SortRows`
 /// \param ptr[in/out]: list of arrays, containing the histograms of the input 
 ///     matrix.
@@ -282,7 +284,8 @@ int SortRows_internal(FQ_ELEM *ptr[K],
     return 1;
 }
 
-/// applies the a permutation to the rows of the generator matrix
+/// NOTE: absolutely not constant time.
+/// applies the given permutation to the rows of the generator matrix
 /// \param G[out/in]: generator matrix (non IS part)
 /// \param P[in]: permutation to apply
 /// \param n[in]: number of rows <=> K
@@ -299,6 +302,7 @@ void SortRows_swap(normalized_IS_t *G,
     }
 }
 
+/// NOTE: absolutely not constant time.
 /// NOTE: only operates on ptrs
 /// NOTE: not constant time
 /// \param G[in/out]: generator matrix to sort
@@ -334,9 +338,9 @@ int SortRows(normalized_IS_t *G,
 }
 
 /// lexicographic comparison between a row with the pivot row
-/// \input: ptr[in/out]: K x (N-K) matrix
-/// \input: row_idx[in]: position of the row to compare in `ptr`
-/// \input: pivot[in]: pivot row
+/// \param ptr[in/out]: K x (N-K) matrix
+/// \param row_idx[in]: position of the row to compare in `ptr`
+/// \param pivot[in]: pivot row
 /// \returns   1 if the pivot is greater,
 /// 	      -1 if it is smaller,
 /// 		   0 if it matches

@@ -732,7 +732,7 @@ int compute_canonical_form_type4_ct(normalized_IS_t *G) {
 		FQ_ELEM sp = row_acc_inv(G->values[row]);
 
 		if (s != 0) {
-			s = fq_inv(s);
+			s = fq_inv_non_ct(s);
 		} else {
 			s = sp;
 			if (s == 0) {
@@ -821,7 +821,7 @@ int compute_canonical_form_type4_sub_v2(normalized_IS_t *G,
 		FQ_ELEM s = row_acc(G->values[i]);
 
 		if (s != 0) {
-			s = fq_inv(s);
+			s = fq_inv_non_ct(s);
 		} else {
 			s = row_acc_inv(G->values[i]);
 			if (s == 0) { return 0; }

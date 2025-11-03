@@ -24,7 +24,6 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "codes.h"
@@ -32,15 +31,19 @@
 #include "parameters.h"
 #include "sort.h"
 
-
+/// Implementation of the `SortCF` algorithm from the specification.
 /// NOTE: non-constant time
 /// NOTE: computes the result inplace
-/// first sort the rows, then the columns
+/// NOTE: early exist from the `SortRows` function if `L` is already shorter.
+/// NOTE: first sort the rows, then the columns
+/// \param G[in/out]: pointer to the non IS-part of a generator matrix.
+/// The rows and then the columns are sorted inplace.
+/// \param L[in]: pointer the currently shortest row.
 /// \return 0 on failure (identical rows, which create the same multiset)
 /// 		1 on success
 static
 int SortCF(normalized_IS_t *__restrict__ G,
-           const uint8_t *__restrict__ L) {
+           const uint8_t *__restrict__ const L) {
     if (SortRows(G, K, L) == 0) {
 	    return 0;
     }
@@ -48,21 +51,25 @@ int SortCF(normalized_IS_t *__restrict__ G,
     return 1;
 } /* end SortCF */
 
+/// Implementation of the `ScaleCF` algorithm from the specification.
 /// NOTE: non-constant time
 /// NOTE: computes the result inplace
+/// NOTE: does not early exit. Only `SortCF` can do that.
+/// \param G[in/out]: pointer to the non IS-part of a generator matrix.
+/// \param L[in]: pointer the currently shortest row, in histogram form.
 /// \return 0 on failure:
 /// 			- compute_power_column fails.
 /// 			- identical rows, which create the same multiset
 /// 		1 on success
 static
 int ScaleCF(normalized_IS_t *__restrict__ G,
-            const uint8_t *__restrict__ L) {
+            const uint8_t *__restrict__ const L) {
 	for (uint32_t row = 0; row < K; row++) {
 		if (row_all_same(G->values[row])) { continue; }
 		FQ_ELEM s = row_acc(G->values[row]);
 
 		if (s != 0) {
-			s = fq_inv(s);
+			s = fq_inv_non_ct(s);
 		} else {
 			s = row_acc_inv(G->values[row]);
 			if (s == 0) {
@@ -97,7 +104,7 @@ int ScaleCFSubPreprocessBase(normalized_IS_t *__restrict__ G,
 		FQ_ELEM s = row_acc(G->values[i]);
 
 		if (s != 0) {
-			s = fq_inv(s);
+			s = fq_inv_non_ct(s);
 		} else {
 			s = row_acc_inv(G->values[i]);
 			if (s == 0) { return 0; }
@@ -129,15 +136,15 @@ static
 int ScaleCFSubPreprocess(normalized_IS_t *__restrict__ G,
                          const uint32_t z,
                          FQ_ELEM *__restrict__ M) {
+    /// NOTE: aligment is needed for the optimized avx{2|512} impelementations.
     FQ_ELEM tmp[Q_pad] __attribute__((aligned(32))) = {0};
-    int ret;
+    int ret = 0;
 
-    ret = 0;
     for (uint32_t i = 0; i < z; i++) {
         FQ_ELEM s = row_acc(G->values[i]);
 
         if (s != 0) {
-            s = fq_inv(s);
+            s = fq_inv_non_ct(s);
         } else {
             s = row_acc_inv(G->values[i]);
             if (s == 0) { continue; }
@@ -150,8 +157,8 @@ int ScaleCFSubPreprocess(normalized_IS_t *__restrict__ G,
         if (compare_rows(tmp, M) < 0) {
             ret = 1;
             // copy new smallest row
-            for (uint32_t i = 0; i < Q; i++) {
-                M[i] = tmp[i];
+            for (uint32_t j = 0; j < Q; j++) {
+                M[j] = tmp[j];
             }
         }
     }
@@ -161,7 +168,7 @@ int ScaleCFSubPreprocess(normalized_IS_t *__restrict__ G,
 
 /// NOTE: non-constant time
 /// implements a total order on matrices
-/// we simply compare the columns lexicographically
+/// we simply compare the rows lexicographically
 /// \param V1[in]: first matrix
 /// \param V2[in]: second matrix
 /// \param z[in]: number of rows within both matrices
@@ -189,9 +196,8 @@ int compare_matrices(const normalized_IS_t *__restrict__ V1,
 
 /// NOTE: non-constant time
 /// NOTE: computes the result inplace
-/// Original slowest canonical form function. This is the function we check 
-/// correctnes against. Also its the backup implementation which is called by 
-/// all other implementation if any failure happens.
+/// Original slowest canonical form function. It's the backup implementation
+/// which is called by all other implementation if any failure happens.
 /// \param G[in/out] non IS part of a generator matrix
 /// \return 0 on failure
 /// 		1 on success
@@ -226,7 +232,7 @@ int CFOriginal(normalized_IS_t *G) {
 
 /// NOTE: non-constant time
 /// NOTE: computes the result inplace
-/// This is the second fastest implementation of the canonical form function.
+/// This is the second-fastest implementation of the canonical form function.
 /// \param G[in/out] non IS part of a generator matrix
 /// \return 0 on failure
 /// 		1 on success
@@ -303,18 +309,20 @@ int ImprovedCFBase(normalized_IS_t *G) {
 
 /// NOTE: non-constant time
 /// NOTE: computes the result inplace
-/// This is the second fastest implementation of the canonical form function.
+/// This is the fastest implementation of the canonical form function.
+/// This function scans the matrix for the rows which probably lead
+/// to the shortest canonical form. If this process fails it falls
+/// back to either `CFOriginal` or `ImprovedCF`. The very slow `CFOriginal`
+/// is only called if every row in the matrix contains zeros.
 /// \param G[in/out] non IS part of a generator matrix
 /// \return 0 on failure
 /// 		1 on success
 static
 int ImprovedCF(normalized_IS_t *G) {
-    int ret;
-
     /// track the rows with the most zeros.
     uint32_t J[K];
     uint32_t z = 0;
-    int smallest_scaling_row = 0;
+    uint32_t smallest_scaling_row = 0;
 
     // count zeros in each row
     uint32_t max_zeros = 0;
@@ -369,10 +377,10 @@ int ImprovedCF(normalized_IS_t *G) {
         row_mul3(B.values[row2], G->values[row2], row_inv_data);
     }
 
-    ret = ScaleCF(&B, L);
+    const int ret = ScaleCF(&B, L);
     /// If candidate was not valid, fall back to regular approach
     if (ret != 1) {
-        // Best was not valid;
+        // Best scaled row was not valid;
         return ImprovedCFBase(G);
     }
 
@@ -381,12 +389,13 @@ int ImprovedCF(normalized_IS_t *G) {
 } /* ImprovedCF */
 
 /// samples to random monomial matrices (A, B) and comptes A*G*B
-/// \param G[in/out] non IS part of a generator matrix
-/// \param prng[in/out]:
+/// \param G[in/out]: non IS part of a generator matrix
+/// \param prng[in/out]: pointer to an already initialized PRNG.
+///     in total two random monomials are sampled from the PRNG.
 void blind(normalized_IS_t *G,
            SHAKE_STATE_STRUCT *prng) {
     /// NOTE: the type `monomial` allocates a N elements, which is a little
-    /// bit a overkill, as we only need K or N-K.
+    /// bit a too much, as we only need K or N-K.
     monomial_t left, right;
 
     // NOTE: init with zero to please valgrind, as the tailing (K_pad - K) rows
@@ -423,7 +432,7 @@ void blind(normalized_IS_t *G,
 /// \return 0 on failure
 /// 		1 on success
 int CF(normalized_IS_t *G) {
-#if defined(LESS_CF_PREPROC_PASS_EN)
+#if defined(LESS_CF_PREPROC_PASS_ENABLE)
     return ImprovedCF(G);
 #else
     return ImprovedCFBase(G);

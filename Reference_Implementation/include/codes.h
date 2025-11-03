@@ -31,13 +31,18 @@
 #include "parameters.h"
 #include "monomial_mat.h"
 
-/// Generator matrix, stored explicitly
+/// Generator matrix, stored explicitly in row major form
 typedef struct {  
-    // NOTE: the alignment is needed for the optimized AVX{2|512} implementation
+    // NOTE: the alignment is needed for the optimized NEON/AVX{2|512} implementation
+    // NOTE: the padding is also need for the optimized implementation, which
+    // makes the tail management easier.
     FQ_ELEM values[K][N_pad] __attribute__((aligned(32)));
 } generator_mat_t;
 
 /// RREF Generator mat., only values and positions of non-pivot columns stored
+/// NOTE: still in row-major form
+/// NOTE: still padded to multiples of 16|32 (depending on the architecture)
+/// to speed up computations.
 typedef struct {
     /// values of the non-pivot columns
     FQ_ELEM values[K][N_K_pad];
@@ -46,6 +51,11 @@ typedef struct {
 } rref_generator_mat_t;
 
 /// Set of columns not constituting the IS for an RREF matrix.
+/// NOTE: still in row-major form
+/// NOTE: still padded to multiples of 16|32 (depending on the architecture)
+/// to speed up computations.
+/// NOTE: also the number of rows are padded to the next multiple of 16|32
+/// to speed up the transposing the CF computation.
 typedef struct {
     /// values of the non-pivot columns
     FQ_ELEM values[K_pad][N_K_pad];   
@@ -54,7 +64,7 @@ typedef struct {
 /// Calculate pivot flag array
 /// \param G[in]:
 /// \param pivot_flag[ou]:
-void generator_get_pivot_flags(const rref_generator_mat_t *const G,
+void generator_get_pivot_flags(const rref_generator_mat_t *G,
                                uint8_t pivot_flag [N]);
 
 /// multiplies a monomial matrix by a generator matrix
@@ -62,8 +72,8 @@ void generator_get_pivot_flags(const rref_generator_mat_t *const G,
 /// \param G[in]: full (K \times N) generator matrix
 /// \param monom[in]: (random) monomial matrix
 void generator_monomial_mul(generator_mat_t *res,
-                            const generator_mat_t *const G,
-                            const monomial_t *const monom);
+                            const generator_mat_t *G,
+                            const monomial_t *monom);
 
 
 /// Computes the row-reduced echelon form of the generator matrix
@@ -87,7 +97,7 @@ int generator_RREF(generator_mat_t *G,
 int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
                                   uint8_t is_pivot_column[N],
                                   uint8_t was_pivot_column[N],
-                                  const int pvt_reuse_limit);
+                                  int pvt_reuse_limit);
 
 /// NOTE: not constant time
 /// \param G[in/out]: generator matrix K \times N
@@ -101,20 +111,20 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
 int generator_RREF_pivot_reuse(generator_mat_t *G,
                                uint8_t is_pivot_column[N],
                                uint8_t was_pivot_column[N],
-                               const int pvt_reuse_limit);
+                               int pvt_reuse_limit);
 
-/// Compresses a generator matrix in RREF into a array of bytes
+/// Compresses a generator matrix in RREF into an array of bytes
 /// \param compressed[out] byte array of length RREF_MAT_PACKEDBYTES
 /// \param full[in]: full generator matrix (K \times N)
 /// \param is_pivot_column[in]: array of length N in which K fields are 1, the 
 ///     rest must be zero. Indicating the positions of the pivot columns.
 void compress_rref(uint8_t *compressed,
-                   const generator_mat_t *const full,
+                   const generator_mat_t *full,
                    const uint8_t is_pivot_column[N]);
 
 /// Expands a compressed RREF generator matrix into a full one
 /// \param full[out]: output full matrix (K \times N)
-/// \param compressed[in]: bytestream containing the compressed maitrx
+/// \param compressed[in]: bytestream containing the compressed matrix
 /// \param is_pivot_column[out]: N bytes will be initialized with zeros. And 
 ///     only 1 will be written at the column position which is a pivot column.
 void expand_to_rref(generator_mat_t *full,
@@ -139,9 +149,9 @@ void generator_sample(rref_generator_mat_t *res,
 /// \param c[in]: compressed cf action
 /// \param initial_G_col_pivot[in]: input IS
 /// \param permuted_G_col_pivot[out]: output IS, to keep track of the pivot cols
-void apply_cf_action_to_G_with_pivots(generator_mat_t* res,
+void UnpackCosetRep(generator_mat_t* res,
                                       const generator_mat_t *G,
-                                      const uint8_t *const c,
+                                      const uint8_t *c,
                                       const uint8_t initial_G_col_pivot[N],
                                       uint8_t permuted_G_col_pivot[N]);
 
@@ -156,13 +166,20 @@ void normalized_copy(normalized_IS_t *V1,
 /// \param row1[in]: first row
 /// \param row2[in]: second row
 void normalized_row_swap(normalized_IS_t *V,
-                         const POSITION_T row1,
-                         const POSITION_T row2);
+                         POSITION_T row1,
+                         POSITION_T row2);
 
 /// right-multiplies a generator by a monomial: res = G*monom
 /// \param res[out] pointer to an uninitialized generator matrix (non IS part)
 /// \param G[in]: pointer to an initialized generator matrix (non IS part)
 /// \param monom[in]: pointer to an initialized monomial matrix
 void normalized_monomial_right(normalized_IS_t *res,
-                               const normalized_IS_t *const G,
-                               const monomial_t *const monom);
+                               const normalized_IS_t *G,
+                               const monomial_t *monom);
+/// \param A[out]: pointer to allocated normalized struct, which get filled with the
+///     non-IS of the generator matrix G
+/// \param G[in]: generator matrix to extract the non-IS from.
+/// \param is_pivot_column[in]: array identifying a pivot column via a 1
+void normalized_copy_from_generator_non_information_set(normalized_IS_t *A ,
+                                                        const generator_mat_t *G,
+                                                        const uint8_t *is_pivot_column);
