@@ -50,7 +50,7 @@ void swap_rows(FQ_ELEM r[N_pad],
 } /* end swap_rows */
 
 /// Calculate pivot flag array
-/// \param G[in]: generator matrix in compress formatj
+/// \param G[in]: generator matrix in compress format
 /// \param pivot_flag[out]: array denoting the pivot columns via a 1, everything
 ///     else is 0
 void generator_get_pivot_flags(const rref_generator_mat_t *const G,
@@ -209,7 +209,6 @@ int generator_RREF(generator_mat_t *G,
                 }
             }
         }
-
     }
 
     return 1;
@@ -298,8 +297,10 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
         /// NOTE: this needs explenation. We can skip the reduction of the pivot row, because for
         /// the CF it doesnt matter. The only thing that is important for the CF is the number of
         /// zeros, and this doest change if we reduce a reused pivot row.
-        if ((was_pivot_column[pivc] == 1) && (pvt_reuse_cnt < pvt_reuse_limit) && (pivc < K)) {
-            pvt_reuse_cnt++;
+        if ((was_pivot_column[pivc] == 1) &&
+            (pvt_reuse_cnt < pvt_reuse_limit) &&
+            (pivc < K)) {
+            pvt_reuse_cnt += 1;
             continue;
         }
 

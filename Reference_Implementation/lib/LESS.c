@@ -189,7 +189,7 @@ size_t LESS_sign(const prikey_t *SK,
         const int t = CF(&A_i);
 
         if (t == 0) {
-            // this give us 2**64 retries. That should be more then enough.
+            // this gives us 2**64 retries. That should be more then enough.
             *(uint64_t *)(linearized_rounds_seeds + i*SEED_LENGTH_BYTES) += 1;
             i -= 1;
         } else {
