@@ -331,7 +331,7 @@ static inline __m256i avx_mul_full256(const __m256i a1, const __m256i a2,
     return w2;
 } /* end avx_mul_full256 */
 
-/// NOTE: these functions are outsourced to this file, to make the optimizied 
+/// NOTE: these functions are outsourced to this file, to make the optimized
 /// implementation as easy as possible 
 /// NOTE: the length of all input rows must be multiple of 32.
 /// accumulates the input row
@@ -442,6 +442,14 @@ void row_inv2(FQ_ELEM *__restrict__ out,
 ///         0 else
 static inline
 uint32_t row_all_same(const FQ_ELEM *in) {
+#if 1
+    for (uint64_t col = 0;col < N-K; col++) {
+        if (in[col-1] != in[col]) {
+            return 0;
+        }
+    }
+    return 1;
+#else
     vec256_t t1, t2, acc;
     vset8(acc, -1);
     vset8(t2, in[0]);
@@ -461,6 +469,7 @@ uint32_t row_all_same(const FQ_ELEM *in) {
     }
 
     return t3 == -1u;
+#endif
 } /* end row_all_same */
 
 /// NOTE: not CT, but close.

@@ -36,7 +36,7 @@ typedef struct {
     // NOTE: the alignment is needed for the optimized NEON/AVX{2|512} implementation
     // NOTE: the padding is also need for the optimized implementation, which
     // makes the tail management easier.
-    FQ_ELEM values[K][N_pad] __attribute__((aligned(32)));
+    FQ_ELEM values[K][N_pad] __attribute__((aligned(64)));
 } generator_mat_t;
 
 /// RREF Generator mat., only values and positions of non-pivot columns stored

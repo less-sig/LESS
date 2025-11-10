@@ -31,6 +31,7 @@
 
 #include "parameters.h"
 #include "rng.h"
+#include "utils.h"
 #include "lookup_table.h"
 
 #define NUM_BITS_Q (BITS_TO_REPRESENT(Q))
@@ -76,79 +77,6 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
       } \
    } while (1); }
 
-
-/// constant itme implementation
-/// \param x[in] < 256
-/// \return x mod 127
-static inline
-FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
-    // equivalent to: (x >= Q) ? (x - Q) : x
-    // likely to be ~ constant-time (a "smart" compiler might turn this into conditionals though)
-    FQ_ELEM sub_q = x - Q;
-    FQ_ELEM mask = -(sub_q >> NUM_BITS_Q);
-    return (mask & Q) + sub_q;
-} /* end fq_cond_sub */
-
-/// constant itme implementation
-/// \param x[in] < 127**2
-/// \return x mod 127
-static inline
-FQ_ELEM fq_red(const FQ_DOUBLEPREC x) {
-    return fq_cond_sub((x >> NUM_BITS_Q) + ((FQ_ELEM) x & Q));
-} /* end fq_red */
-
-/// constant itme implementation
-/// \param x[in] < 127
-/// \param y[in] < 127
-/// \return x - y mod 127
-static inline
-FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
-    return fq_cond_sub(x + Q - y);
-} /* end fq_sub */
-
-/// constant itme implementation
-/// \param x[in] < 127
-/// \param y[in] < 127
-/// \return x * y mod 127
-static inline
-FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
-    return fq_red(((FQ_DOUBLEPREC)x) *(FQ_DOUBLEPREC)y);
-} /* end fq_mul */
-
-/// constant itme implementation
-/// \param x[in] < 127
-/// \param y[in] < 127
-/// \return x + y mod 127
-static inline
-FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
-    return fq_cond_sub(x + y);
-
-} /* end fq_add */
-
-/// NOTE: non constant-time. Don't use for anything important
-/// \param x[in]: < 127
-/// \param y[in]: < 127
-/// \return x * y;
-static inline
-FQ_ELEM fq_mul_non_ct(const FQ_ELEM x, const FQ_ELEM y) {
-    return __gf127_lookuptable[x*128 + y];
-} /* end fq_mul_non_ct */
-
-/// NOTE: maybe dont use it for sensitive data
-static const uint8_t fq_inv_table[128] __attribute__((aligned(64))) = {
-   0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126, 0
-};
-
-
-/// NOTE: non constant-time. Dont use for anything important.
-/// NOTE: input must be reduced.
-/// \param x[in]: input value < 127
-/// \return x^{-1} mod 127
-static inline
-FQ_ELEM fq_inv(FQ_ELEM x) {
-    return fq_inv_table[x];
-} /* end fq_inv */
-
 /// Sampling functions from the global TRNG state
 DEF_RAND(fq_star_rnd_elements, FQ_ELEM, 1, Q-1)
 DEF_RAND(rand_range_q_elements, FQ_ELEM, 0, Q-1)
@@ -157,19 +85,121 @@ DEF_RAND(rand_range_q_elements, FQ_ELEM, 0, Q-1)
 DEF_RAND_STATE(fq_star_rnd_state_elements, FQ_ELEM, 1, Q-1)
 DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
 
+/// constant time implementation
+/// \param x[in]: input number < 2*127
+/// \return x mod 127
+static inline
+FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
+    // equivalent to: (x >= Q) ? (x - Q) : x
+    // likely to be ~ constant-time (a "smart" compiler might turn this into conditionals though)
+    FQ_ELEM sub_q = x - Q;
+    FQ_ELEM mask = -(sub_q >> NUM_BITS_Q);
+    return (mask & Q) + sub_q;
+}
+
+/// constant time implementation
+/// \param x[in]: input number < 127**2
+/// \return x mod 127
+static inline
+FQ_ELEM fq_red(const FQ_DOUBLEPREC x) {
+    return fq_cond_sub((x >> NUM_BITS_Q) + ((FQ_ELEM) x & Q));
+}
+
+/// constant time implementation
+/// \param x[in]: minuend < 127
+/// \param y[in]: subtrahend < 127
+/// \return difference x-y mod 127
+static inline
+FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
+    return fq_cond_sub(x + Q - y);
+}
+
+/// constant time implementation
+/// \param x[in]: first summand < 127
+/// \param y[in]: second summand < 127
+/// \return sum x+y mod 127
+static inline
+FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
+    return fq_cond_sub(x + y);
+}
+
+/// constant time implementation
+/// \param x[in]: first factor < 127
+/// \param y[in]: second factor < 127
+/// \return product x*y mod 127
+static inline
+FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
+    return fq_red((FQ_DOUBLEPREC) x * (FQ_DOUBLEPREC) y);
+}
+
+/// NOTE: non constant-time. Don't use it for anything important
+/// \param x[in]: first factor < 127
+/// \param y[in]: second factor < 127
+/// \return product x*y mod 127;
+static inline
+FQ_ELEM fq_mul_non_ct(const FQ_ELEM x, const FQ_ELEM y) {
+    return __fq127_lookup_table[x*128 + y];
+}
+
+/// NOTE: non constant-time. Don't use it for anything important
+static const uint8_t fq_inv_table[128] __attribute__((aligned(64))) = {
+   0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126, 0
+};
+
+/// NOTE: non constant-time. Don't use for anything important.
+/// NOTE: input must be reduced.
+/// \param x[in]: input value < 127
+/// \return x^{-1} mod 127
+static inline
+FQ_ELEM fq_inv_non_ct(const FQ_ELEM x) {
+   return fq_inv_table[x];
+}
+
+/// NOTE: constant time
+/// NOTE: input must be reduced.
+/// \param x[in]: input value < 127
+/// \return x^{-1} mod 127
+static inline
+FQ_ELEM fq_inv(const FQ_ELEM x) {
+#if 1
+    FQ_ELEM ret = 0;
+    for (uint64_t i = 0; i < 127; i++) {
+        const FQ_ELEM mask = COMPUTE_CT_MASK(i, x);
+        const FQ_ELEM val = fq_inv_table[i] & mask;
+        ret ^= val;
+    }
+    return ret;
+#else
+    /// Fermat's method for inversion employing r-t-l square and multiply,
+    /// unrolled for actual parameters */
+    FQ_DOUBLEPREC xlift = x;
+    FQ_DOUBLEPREC accum = 1;
+    // No need for square and mult always, Q-2 is public
+    uint32_t exp = Q-2;
+    while(exp) {
+        if(exp & 1) {
+            accum = fq_red(accum*xlift);
+        }
+        xlift = fq_red(xlift*xlift);
+        exp >>= 1;
+    }
+    return fq_red(accum);
+#endif
+} /* end fq_inv */
+
 // load avx2 and avx512 macros
 #include "macro.h"
 
 
 /// \param ret[out]: two __m512i register, which will contain a lookup table.
-///     This table can be efficently processed via `_mm512_permutex2var_epi8`, 
+///     This table can be efficiently processed via `_mm512_permutex2var_epi8`,
 ///     which will then contain the result of the scalar multiplication of each 
 ///     input with the scalar `a`.
 /// \param a[in]: input scalar
 static inline void gf127v_scalar_u512_compute_table(__m512i *ret,
                                                     const uint8_t a) {
-    ret[0] = _mm512_load_si512((const __m512i *)(__gf127_lookuptable + 128 * a +  0));
-    ret[1] = _mm512_load_si512((const __m512i *)(__gf127_lookuptable + 128 * a + 64));
+    ret[0] = _mm512_load_si512((const __m512i *)(__fq127_lookup_table + 128 * a +  0));
+    ret[1] = _mm512_load_si512((const __m512i *)(__fq127_lookup_table + 128 * a + 64));
 }
 
 /// \param in[in]: input register: containing 64 Fq elements:
@@ -231,7 +261,7 @@ uint8_t vhadd8_512(const __m512i in) {
 
 /// \param aa[in]: aa[i] < 127 in 16 bit limb for i in range(32)
 /// \param bb[in]: bb[i] < 127 in 16 bit limb for i in range(32)
-/// \return aa[i] * bb[i] for all i in range(32)
+/// \return aa[i] * bb[i] % 127 for all i in range(32),
 static inline __m256i avx_mul_full512(const __m512i aa,
                                       const __m512i bb) {
 
@@ -247,6 +277,25 @@ static inline __m256i avx_mul_full512(const __m512i aa,
     acc = _mm512_sub_epi16(acc, tmp);
     const __m256i t = _mm512_cvtepi16_epi8(acc);
     return t;
+}
+
+/// \param aa[in]: aa[i] < 127 in 16 bit limb for i in range(32)
+/// \param bb[in]: bb[i] < 127 in 16 bit limb for i in range(32)
+/// \return aa[i] * bb[i] % 127 for all i in range(32) in 16 bit limbs
+static inline __m512i _mm512_mul_epi16(const __m512i aa,
+                                       const __m512i bb) {
+
+    __m512i c01, c7f, c516, tmp;
+    vset16_512(c01, 0x01);
+    vset16_512(c7f, 0x7F);
+    vset16_512(c516, 516);
+
+    __m512i acc = _mm512_mullo_epi16(aa, bb);
+    tmp = _mm512_add_epi16(acc, c01);
+    tmp = _mm512_mulhi_epu16(tmp, c516);
+    tmp = _mm512_mullo_epi16(tmp, c7f);
+    acc = _mm512_sub_epi16(acc, tmp);
+    return acc;
 }
 
 /// accumulates a row

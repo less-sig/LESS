@@ -433,7 +433,7 @@ int SortCols_internal(FQ_ELEM* ptr[K],
 void SortCols(normalized_IS_t *V,
               const uint32_t z) {
     normalized_IS_t VT __attribute__((aligned(32)));
-    matrix_transpose_opt((uint8_t *)VT.values, (uint8_t *)V->values, z, K_pad);
+    matrix_transpose((uint8_t *)VT.values, (uint8_t *)V->values, z, K_pad);
 
     FQ_ELEM* ptr[K];
     uint32_t P[K];
@@ -453,5 +453,5 @@ void SortCols(normalized_IS_t *V,
         normalized_row_swap(&VT, t, ind);
     }
 
-    matrix_transpose_opt((uint8_t *)V->values, (uint8_t *)VT.values, K_pad, z);
+    matrix_transpose((uint8_t *)V->values, (uint8_t *)VT.values, K_pad, z);
 }

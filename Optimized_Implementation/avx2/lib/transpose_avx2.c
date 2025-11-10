@@ -21,15 +21,17 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  **/
+
 #include <stdint.h>
-#include <stdlib.h>
 #include <immintrin.h>
 
 #include "utils.h"
-static const uint32_t matrix_transpose_table[] __attribute__((aligned(32))) = {
+
+static const uint32_t matrix_transpose_table[16] __attribute__((aligned(32))) = {
     0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15
 };
 
+/// transposes a 32x32 submatrix
 /// \param dst_origin[out]: output matrix
 /// \param src_origin[in]: input matrix
 /// \param src_stride[in]: number of bytes between two input rows

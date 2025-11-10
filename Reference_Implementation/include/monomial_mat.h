@@ -51,7 +51,7 @@ typedef struct {
     /// considering the product GQ, permutation[...] stores into the cell with
     /// index 0, the position of the DESTINATION of column 0 in G after the
     /// computation of GQ.
-    POSITION_T permutation[N];
+    POSITION_T permutation[N_pad];
 } monomial_t;
 
 typedef struct {

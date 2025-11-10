@@ -53,11 +53,11 @@ void swap_rows(FQ_ELEM r[N_pad],
 /// \param pivot_flag[out]: array denoting the pivot columns via a 1, everything
 ///     else is 0
 void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t pivot_flag [N]) {
-    for (int i = 0; i < N; i = i + 1) {
+    for (uint64_t i = 0; i < N; i = i + 1) {
         pivot_flag[i] = 1;
     }
 
-    for (int i = 0; i < K; i = i + 1) {
+    for (uint64_t i = 0; i < K; i = i + 1) {
         pivot_flag[G->column_pos[i]] = 0;
     }
 } /* end generator_get_pivot_flags */
@@ -69,6 +69,62 @@ void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t piv
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom) {
+#if 1
+    const __m512i c32 = _mm512_set1_epi16( 32);
+    const __m512i s = _mm512_set_epi16(31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0);
+    __m512i buffer[NW];
+    __m512i monomial[NW];
+    __m512i perms[NW][NW];
+    __mmask32 masks[NW][NW];
+    for (uint64_t i = 0; i < NW; i++) {
+        __m512i tmp = _mm512_loadu_epi16(monom->permutation + i*32);
+        for (uint64_t j = 0; j < NW; j++) {
+            masks[i][j] = _mm512_cmplt_epu16_mask(tmp, c32);
+            /// TODO need to computethe inverse here
+            perms[i][j] = _mm512_permutexvar_epi16( s, tmp);
+            tmp = _mm512_sub_epi16(tmp, c32);
+        }
+    }
+
+    uint32_t k = 0;
+    for (; k+2 <= NW; k+=2) {
+        const __m256i a = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k +  0));
+        const __m256i b = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k + 32));
+        const __m512i t1 = _mm512_cvtepu8_epi16(a);
+        const __m512i t2 = _mm512_cvtepu8_epi16(b);
+        monomial[k + 0] = t1;
+        monomial[k + 1] = t2;
+    }
+
+    for (; k < NW; k++) {
+        const __m256i a = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k +  0));
+        const __m512i t1 = _mm512_cvtepu8_epi16(a);
+        monomial[k + 0] = t1;
+    }
+
+    for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
+        const FQ_ELEM *G_pointer = G->values[row_idx];
+
+        LOOP_UNROLL_4
+        for (uint32_t i = 0; i < NW; i++) {
+            const __m256i a = _mm256_loadu_si256((const __m256i *)(G_pointer + i*32));
+            const __m512i b = _mm512_cvtepi8_epi16(a);
+            buffer[i] = _mm512_mul_epi16(b, monomial[i]);
+        }
+
+        // in the first iteration we collect all indicies < 32
+        for (uint64_t j = 0; j < NW; j++) {
+            __m512i t = _mm512_maskz_permutexvar_epi16(masks[0][j], perms[0][j], buffer[0]);
+            LOOP_UNROLL_8
+            for (uint64_t i = 1; i < NW; i++) {
+                t = _mm512_mask_permutexvar_epi16(t, masks[i][j], perms[i][j], buffer[i]);
+            }
+
+            const __m256i tmp = _mm512_cvtepi16_epi8(t);
+            _mm256_storeu_epi8(res->values[row_idx] + j*32, tmp);
+        }
+    }
+#else
     FQ_ELEM buffer[N_pad] __attribute__((aligned(64)));
     __m512i monomial[NW];
     uint32_t k = 0;
@@ -100,9 +156,10 @@ void generator_monomial_mul(generator_mat_t *res,
         }
 
         for (uint32_t i = 0; i < N; i++) {
-            res->values[row_idx][monom->permutation[i]] = buffer[i];
+              res->values[row_idx][monom->permutation[i]] = buffer[i];
         }
     }
+#endif
 } /* end generator_monomial_mul */
 
 /// \param G[in/out]: generator matrix
@@ -111,7 +168,6 @@ void generator_monomial_mul(generator_mat_t *res,
 /// \return 0 on failure
 ///         1 on success
 int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
-    int i, j, pivc;
     uint8_t tmp, sc;
 
     vec256_t *gm[K] __attribute__((aligned(32)));
@@ -121,14 +177,14 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
     vec256_t x, t, *rp, *rg;
     vset8(c7f, 0x7f);
 
-    for (i = 0; i < K; i++) {
+    for (uint64_t i = 0; i < K; i++) {
         gm[i] = (vec256_t *) G->values[i];
     }
 
-    for (i = 0; i < K; i++) {
-        j = i;
+    for (uint64_t i = 0; i < K; i++) {
+        uint64_t j = i;
         /*start by searching the pivot in the col = row*/
-        pivc = i;
+        uint64_t pivc = i;
 
         while (pivc < N) {
             while (j < K) {
@@ -222,7 +278,6 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
                                   uint8_t is_pivot_column[N],
                                   uint8_t was_pivot_column[N],
                                   const int pvt_reuse_limit) {
-    int i, j, pivc;
     uint8_t tmp, sc;
     __m256i em[0x80][NW] __attribute__((aligned(64)));
     __m256i *ep[0x80];
@@ -250,176 +305,10 @@ int generator_RREF_pivot_reuse_ct(generator_mat_t *G,
         }
     }
 
-    for (i = 0; i < K; i++) {
-        j = i;
+    for (uint64_t i = 0; i < K; i++) {
+        uint64_t j = i;
         /*start by searching the pivot in the col = row*/
-        pivc = i;
-
-        while (pivc < N) {
-            while (j < K) {
-                sc = G->values[j][pivc];
-                if (sc != 0) {
-                    goto found;
-                }
-
-                j++;
-            }
-            pivc++;     /* move to next col */
-            j = i;      /*starting from row to red */
-        }
-
-        if (pivc >= N) {
-            return 0; /* no pivot candidates left, report failure */
-        }
-
-        found:
-        is_pivot_column[pivc] = 1; /* pivot found, mark the column*/
-
-        /* if we found the pivot on a row which has an index > pivot_column
-         * we need to swap the rows */
-        if (i != j) {
-            was_pivot_column[j] = 0; // pivot no longer reusable - will be corrupted during reduce row
-            // for (uint32_t k = 0; k < (NW/2); k++) {
-            //     t = gm[i][k];
-            //     gm[i][k] = gm[j][k];
-            //     gm[j][k] = t;
-            // }
-            uint32_t k = 0;
-            for (; (k + 2) <= NW; k+=2) {
-                const __m512i t1 = _mm512_loadu_si512((__m512i *)(G->values[i] + k*32));
-                const __m512i t2 = _mm512_loadu_si512((__m512i *)(G->values[j] + k*32));
-                _mm512_storeu_si512((__m512i *)(G->values[i] + k*32), t2);
-                _mm512_storeu_si512((__m512i *)(G->values[j] + k*32), t1);
-            }
-            for (; k < NW; k++) {
-                const __m256i t1 = _mm256_loadu_si256((__m256i *)(G->values[i] + k*32));
-                const __m256i t2 = _mm256_loadu_si256((__m256i *)(G->values[j] + k*32));
-                _mm256_storeu_si256((__m256i *)(G->values[i] + k*32), t2);
-                _mm256_storeu_si256((__m256i *)(G->values[j] + k*32), t1);
-            }
-        }
-
-        /// NOTE: this needs explenation. We can skip the reduction of the pivot row, because for
-        /// the CF it doesnt matter. The only thing that is important for the CF is the number of
-        /// zeros, and this doest change if we reduce a reused pivot row.
-        if ((was_pivot_column[pivc] == 1) &&
-            (pvt_reuse_cnt < pvt_reuse_limit) &&
-            (pivc < K)) {
-            continue;
-        }
-
-        /* Compute rescaling factor */
-        /* rescale pivot row to have pivot = 1. Values at the left of the pivot
-         * are already set to zero by previous iterations */
-
-        //  generate the em matrix
-        rg = (__m256i *)(G->values[i]);
-        memcpy(em[1], rg, LESS_WSZ * NW);
-
-        for (j = 2; j < 127; j++) {
-            uint32_t k = 0;
-            for (; (k+2) <= NW; k+=2) {
-                const __m512i t1 = _mm512_loadu_si512((__m512i *)(em[j-1] + k));
-                const __m512i t2 = _mm512_loadu_si512((__m512i *)(rg + k));
-                const __m512i x  = _mm512_add_epi8(t1, t2);
-                const __m512i xx = _mm512_sub_epi8(x, c7f);
-                const __m512i tt = _mm512_min_epu8(x, xx);
-                _mm512_storeu_si512((__m512i *)(em[j] + k), tt);
-            }
-            for (; k < NW; k++) {
-                const __m256i t1 = _mm256_loadu_si256((__m256i *)(em[j-1] + k));
-                const __m256i t2 = _mm256_loadu_si256((__m256i *)(rg + k));
-                const __m256i x = _mm256_add_epi8(t1, t2);
-                const __m256i xx = _mm256_sub_epi8(x, c7f_);
-                const __m256i tt = _mm256_min_epu8(x, xx);
-                _mm256_storeu_si256((__m256i *)(em[j] + k), tt);
-            }
-        }
-
-        //  shuffle the pointers into ep
-        sc = ((uint8_t *) rg)[pivc];
-        ep[0] = em[0];
-        tmp = sc;
-        for (j = 1; j < 127; j++) {
-            ep[tmp] = em[j];
-            tmp += sc;
-            tmp = (tmp + (tmp >> 7)) & 0x7F;
-        }
-        ep[0x7F] = em[0];
-
-        //  copy back the normalized one
-        memcpy(rg, ep[1], LESS_WSZ * NW);
-
-        /* Subtract the now placed and reduced pivot rows, from the others,
-         * after rescaling it */
-        for (j = 0; j < K; j++) {
-            sc = G->values[j][pivc];
-            if (sc != 0x00 && j != i) {
-                rp = ep[127 - sc];
-
-                uint32_t k = 0;
-                for (; k+2 <= NW; k+=2) {
-                    const __m512i t1 = _mm512_loadu_si512((__m512i *)(G->values[j] + k*32));
-                    const __m512i t2 = _mm512_loadu_si512((__m512i *)(rp + k));
-                    const __m512i x = _mm512_add_epi8(t1, t2);
-                    const __m512i xx = _mm512_sub_epi8(x, c7f);
-                    const __m512i tt = _mm512_min_epu8(x, xx);
-                    _mm512_storeu_si512((__m512i *)(G->values[j] + k*32), tt);
-                }
-
-                for (; k < NW; k++) {
-                    const __m256i t1 = _mm256_loadu_si256((__m256i *)(G->values[j] + k*32));
-                    const __m256i t2 = _mm256_loadu_si256((__m256i *)(rp + k));
-                    const __m256i x  = _mm256_add_epi8(t1, t2);
-                    const __m256i xx = _mm256_sub_epi8(x, c7f_);
-                    const __m256i tt = _mm256_min_epu8(x, xx);
-                    _mm256_storeu_si256((__m256i *)(G->values[j] + k*32), tt);
-                }
-            }
-        }
-    }
-
-    return 1;
-} /* end generator_RREF */
-
-/// \param G[in/out]: generator matrix K \times N
-/// \param is_pivot_column[out]: N bytes, set to 1 if this column
-///                 is a pivot column
-/// \param was_pivot_column[out]: N bytes, set to 1 if this column
-///                 is a pivot column
-/// \param pvt_reuse_limit:[in]:
-/// \return 0 on failure
-///         1 on success
-int generator_RREF_pivot_reuse(generator_mat_t *G,
-                               uint8_t is_pivot_column[N],
-                               uint8_t was_pivot_column[N],
-                               const int pvt_reuse_limit) {
-    const __m512i q = _mm512_set1_epi8(127);
-    int i, j, pivc;
-    uint8_t sc;
-    int pvt_reuse_cnt = 0;
-
-    // this loop roughly takes 2.2% of the whole function runtime ()
-    if (pvt_reuse_limit != 0) {
-        for (int preproc_col = K - 1; preproc_col >= 0; preproc_col--) {
-            if (was_pivot_column[preproc_col] == 1) {
-                // find pivot row
-                uint32_t pivot_el_row = 0;
-                for (uint32_t row = 0; row < K; row = row + 1) {
-                    if (G->values[row][preproc_col] != 0) {
-                        pivot_el_row = row;
-                    }
-                }
-
-                swap_rows(G->values[preproc_col], G->values[pivot_el_row]);
-            }
-        }
-    }
-
-    for (i = 0; i < K; i++) {
-        j = i;
-        /*start by searching the pivot in the col = row*/
-        pivc = i;
+        uint64_t pivc = i;
 
         while (pivc < N) {
             while (j < K) {
@@ -448,16 +337,178 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
             was_pivot_column[j] = 0;
             uint32_t k = 0;
             for (; (k + 2) <= NW; k+=2) {
-                const __m512i t1 = _mm512_loadu_si512((__m512i *)(G->values[i] + k*32));
-                const __m512i t2 = _mm512_loadu_si512((__m512i *)(G->values[j] + k*32));
-                _mm512_storeu_si512((__m512i *)(G->values[i] + k*32), t2);
-                _mm512_storeu_si512((__m512i *)(G->values[j] + k*32), t1);
+                const __m512i t1 = _mm512_load_si512((__m512i *)(G->values[i] + k*32));
+                const __m512i t2 = _mm512_load_si512((__m512i *)(G->values[j] + k*32));
+                _mm512_store_si512((__m512i *)(G->values[i] + k*32), t2);
+                _mm512_store_si512((__m512i *)(G->values[j] + k*32), t1);
             }
             for (; k < NW; k++) {
-                const __m256i t1 = _mm256_loadu_si256((__m256i *)(G->values[i] + k*32));
-                const __m256i t2 = _mm256_loadu_si256((__m256i *)(G->values[j] + k*32));
-                _mm256_storeu_si256((__m256i *)(G->values[i] + k*32), t2);
-                _mm256_storeu_si256((__m256i *)(G->values[j] + k*32), t1);
+                const __m256i t1 = _mm256_load_si256((__m256i *)(G->values[i] + k*32));
+                const __m256i t2 = _mm256_load_si256((__m256i *)(G->values[j] + k*32));
+                _mm256_store_si256((__m256i *)(G->values[i] + k*32), t2);
+                _mm256_store_si256((__m256i *)(G->values[j] + k*32), t1);
+            }
+        }
+
+        /// NOTE: this needs explenation. We can skip the reduction of the pivot row, because for
+        /// the CF it doesnt matter. The only thing that is important for the CF is the number of
+        /// zeros, and this doest change if we reduce a reused pivot row.
+        if ((was_pivot_column[pivc] == 1) &&
+            (pvt_reuse_cnt < pvt_reuse_limit) &&
+            (pivc < K)) {
+            pvt_reuse_cnt += 1;
+            continue;
+        }
+
+        /* Compute rescaling factor */
+        /* rescale pivot row to have pivot = 1. Values at the left of the pivot
+         * are already set to zero by previous iterations */
+
+        //  generate the em matrix
+        rg = (__m256i *)(G->values[i]);
+        memcpy(em[1], rg, LESS_WSZ * NW);
+
+        for (j = 2; j < 127; j++) {
+            uint32_t k = 0;
+            for (; (k+2) <= NW; k+=2) {
+                const __m512i t1 = _mm512_load_si512((__m512i *)(em[j-1] + k));
+                const __m512i t2 = _mm512_load_si512((__m512i *)(rg + k));
+                const __m512i x  = _mm512_add_epi8(t1, t2);
+                const __m512i xx = _mm512_sub_epi8(x, c7f);
+                const __m512i tt = _mm512_min_epu8(x, xx);
+                _mm512_store_si512((__m512i *)(em[j] + k), tt);
+            }
+            for (; k < NW; k++) {
+                const __m256i t1 = _mm256_load_si256((__m256i *)(em[j-1] + k));
+                const __m256i t2 = _mm256_load_si256((__m256i *)(rg + k));
+                const __m256i x = _mm256_add_epi8(t1, t2);
+                const __m256i xx = _mm256_sub_epi8(x, c7f_);
+                const __m256i tt = _mm256_min_epu8(x, xx);
+                _mm256_store_si256((__m256i *)(em[j] + k), tt);
+            }
+        }
+
+        //  shuffle the pointers into ep
+        sc = ((uint8_t *) rg)[pivc];
+        ep[0] = em[0];
+        tmp = sc;
+        for (j = 1; j < 127; j++) {
+            ep[tmp] = em[j];
+            tmp += sc;
+            tmp = (tmp + (tmp >> 7)) & 0x7F;
+        }
+        ep[0x7F] = em[0];
+
+        //  copy back the normalized one
+        memcpy(rg, ep[1], LESS_WSZ * NW);
+
+        /* Subtract the now placed and reduced pivot rows, from the others,
+         * after rescaling it */
+        for (j = 0; j < K; j++) {
+            sc = G->values[j][pivc];
+            if (sc != 0x00 && j != i) {
+                rp = ep[127 - sc];
+
+                uint32_t k = 0;
+                for (; k+2 <= NW; k+=2) {
+                    const __m512i t1 = _mm512_load_si512((__m512i *)(G->values[j] + k*32));
+                    const __m512i t2 = _mm512_load_si512((__m512i *)(rp + k));
+                    const __m512i x = _mm512_add_epi8(t1, t2);
+                    const __m512i xx = _mm512_sub_epi8(x, c7f);
+                    const __m512i tt = _mm512_min_epu8(x, xx);
+                    _mm512_store_si512((__m512i *)(G->values[j] + k*32), tt);
+                }
+
+                for (; k < NW; k++) {
+                    const __m256i t1 = _mm256_load_si256((__m256i *)(G->values[j] + k*32));
+                    const __m256i t2 = _mm256_load_si256((__m256i *)(rp + k));
+                    const __m256i x  = _mm256_add_epi8(t1, t2);
+                    const __m256i xx = _mm256_sub_epi8(x, c7f_);
+                    const __m256i tt = _mm256_min_epu8(x, xx);
+                    _mm256_store_si256((__m256i *)(G->values[j] + k*32), tt);
+                }
+            }
+        }
+    }
+
+    return 1;
+} /* end generator_RREF */
+
+/// \param G[in/out]: generator matrix K \times N
+/// \param is_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \param was_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \param pvt_reuse_limit:[in]:
+/// \return 0 on failure
+///         1 on success
+int generator_RREF_pivot_reuse(generator_mat_t *G,
+                               uint8_t is_pivot_column[N],
+                               uint8_t was_pivot_column[N],
+                               const int pvt_reuse_limit) {
+    const __m512i q = _mm512_set1_epi8(127);
+    uint8_t sc;
+    int pvt_reuse_cnt = 0;
+
+    // this loop roughly takes 2.2% of the whole function runtime ()
+    if (pvt_reuse_limit != 0) {
+        for (int preproc_col = K - 1; preproc_col >= 0; preproc_col--) {
+            if (was_pivot_column[preproc_col] == 1) {
+                // find pivot row
+                uint32_t pivot_el_row = 0;
+                for (uint32_t row = 0; row < K; row = row + 1) {
+                    if (G->values[row][preproc_col] != 0) {
+                        pivot_el_row = row;
+                    }
+                }
+
+                swap_rows(G->values[preproc_col], G->values[pivot_el_row]);
+            }
+        }
+    }
+
+    for (uint64_t i = 0; i < K; i++) {
+        uint64_t j = i;
+        /*start by searching the pivot in the col = row*/
+        uint64_t pivc = i;
+
+        while (pivc < N) {
+            while (j < K) {
+                sc = G->values[j][pivc];
+                if (sc != 0) {
+                    goto found;
+                }
+
+                j++;
+            }
+            pivc++;     /* move to next col */
+            j = i;      /*starting from row to red */
+        }
+
+        if (pivc >= N) {
+            return 0; /* no pivot candidates left, report failure */
+        }
+
+        found:
+        is_pivot_column[pivc] = 1; /* pivot found, mark the column*/
+
+        /* if we found the pivot on a row which has an index > pivot_column
+         * we need to swap the rows */
+        if (i != j) {
+            // pivot no longer reusable - will be corrupted during reduce row
+            was_pivot_column[j] = 0;
+            uint32_t k = 0;
+            for (; (k + 2) <= NW; k+=2) {
+                const __m512i t1 = _mm512_load_si512((__m512i *)(G->values[i] + k*32));
+                const __m512i t2 = _mm512_load_si512((__m512i *)(G->values[j] + k*32));
+                _mm512_store_si512((__m512i *)(G->values[i] + k*32), t2);
+                _mm512_store_si512((__m512i *)(G->values[j] + k*32), t1);
+            }
+            for (; k < NW; k++) {
+                const __m256i t1 = _mm256_load_si256((__m256i *)(G->values[i] + k*32));
+                const __m256i t2 = _mm256_load_si256((__m256i *)(G->values[j] + k*32));
+                _mm256_store_si256((__m256i *)(G->values[i] + k*32), t2);
+                _mm256_store_si256((__m256i *)(G->values[j] + k*32), t1);
             }
         }
 
@@ -473,26 +524,26 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
 
         // solve pivot row
         sc = fq_inv(G->values[i][pivc]);
-        __m512i t1 = *(__m512i *)(__gf127_lookuptable + sc * 128);
-        __m512i t2 = *(__m512i *)(__gf127_lookuptable + sc * 128 + 64);
+        __m512i t1 = *(__m512i *)(__fq127_lookup_table + sc * 128);
+        __m512i t2 = *(__m512i *)(__fq127_lookup_table + sc * 128 + 64);
         uint32_t k = 0;
         for (; (k+2) <= NW; k+=2) {
             const __m512i a = _mm512_loadu_si512(G->values[i] + k*32);
             const __m512i b = gf127v_scalar_table_u512(a, t1, t2);
-            _mm512_storeu_si512(G->values[i] + k*32, b);
+            _mm512_store_si512(G->values[i] + k*32, b);
         }
         for (; k < NW; k++) {
             const __m512i a = _mm512_castsi256_si512((_mm256_loadu_si256((const __m256i *)(G->values[i] + k*32))));
             const __m512i b = gf127v_scalar_table_u512(a, t1, t2);
-            _mm256_storeu_si256((__m256i *)(G->values[i] + k*32), _mm512_castsi512_si256(b));
+            _mm256_store_si256((__m256i *)(G->values[i] + k*32), _mm512_castsi512_si256(b));
         }
 
         // solve
         for (j = 0; j < K; j++) {
             sc = G->values[j][pivc];
             if (sc != 0x00 && j != i) {
-                t1 = *(__m512i *)(__gf127_lookuptable + sc * 128);
-                t2 = *(__m512i *)(__gf127_lookuptable + sc * 128 + 64);
+                t1 = *(__m512i *)(__fq127_lookup_table + sc * 128);
+                t2 = *(__m512i *)(__fq127_lookup_table + sc * 128 + 64);
                 uint32_t k = 0;
                 for (; k+2 <= NW; k+=2) {
                     const __m512i a  = _mm512_loadu_si512(G->values[j] + k*32);
@@ -501,7 +552,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                     const __m512i c1 = _mm512_sub_epi8(a, b);
                     const __m512i c2 = _mm512_add_epi8(c1, q);
                     const __m512i d  = _mm512_min_epu8(c2, c1);
-                    _mm512_storeu_si512(G->values[j] + k*32, d);
+                    _mm512_store_si512(G->values[j] + k*32, d);
                 }
 
                 for (; k < NW; k++) {
@@ -511,7 +562,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                     const __m512i c1 = _mm512_sub_epi8(a, b);
                     const __m512i c2 = _mm512_add_epi8(c1, q);
                     const __m512i d  = _mm512_min_epu8(c2, c1);
-                    _mm256_storeu_si256((__m256i *)(G->values[j] + k*32), _mm512_castsi512_si256(d));
+                    _mm256_store_si256((__m256i *)(G->values[j] + k*32), _mm512_castsi512_si256(d));
                 }
             }
         }
@@ -622,11 +673,11 @@ void expand_to_rref(generator_mat_t *full,
                     const uint8_t *compressed,
                     uint8_t is_pivot_column[N]) {
     // Decompress pivot flags
-    for (int i = 0; i < N; i++) {
+    for (uint64_t i = 0; i < N; i++) {
         is_pivot_column[i] = 0;
     }
 
-    for (int col_byte = 0; col_byte < N / 8; col_byte++) {
+    for (uint64_t col_byte = 0; col_byte < N / 8; col_byte++) {
         is_pivot_column[col_byte * 8 + 0] = compressed[col_byte] & 0x1;
         is_pivot_column[col_byte * 8 + 1] = (compressed[col_byte] >> 1) & 0x1;
         is_pivot_column[col_byte * 8 + 2] = (compressed[col_byte] >> 2) & 0x1;
@@ -865,5 +916,25 @@ void normalized_monomial_right(normalized_IS_t *res,
             res->values[row_idx][monom->permutation[i]] = buffer[i];
         }
     }
+}
 
+/// \param A[out]: pointer to allocated normalized struct, which get filled with the
+///     non-IS of the generator matrix G
+/// \param G[in]: generator matrix to extract the non-IS from.
+/// \param is_pivot_column[in]: array identifying a pivot column via a 1
+void normalized_copy_from_generator_non_information_set(normalized_IS_t *A ,
+                                                        const generator_mat_t *const G,
+                                                        const uint8_t *const is_pivot_column) {
+
+    uint32_t ctr = 0;
+    for(uint32_t j = 0; j < N-K; j++) {
+        while (is_pivot_column[ctr]) {
+            ctr += 1;
+        }
+        /// copy column
+        for (uint32_t k = 0; k < K; k++) {
+            A->values[k][j] = G->values[k][ctr];
+        }
+        ctr += 1;
+    }
 }

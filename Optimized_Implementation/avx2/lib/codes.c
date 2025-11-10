@@ -33,6 +33,7 @@
 #include "fq_arith.h"
 #include "macro.h"
 #include "parameters.h"
+#include "transpose.h"
 
 /// swap N_pad bytes in r and s
 /// \param r[in]: pointer to the first row

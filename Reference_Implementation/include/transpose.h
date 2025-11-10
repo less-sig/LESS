@@ -60,7 +60,7 @@ void matrix_transpose_64x64(uint8_t* dst_origin,
 /// \param src[in]: pointer to the input matrix
 /// \param r[in]: number of rows in `src`
 /// \param c[in]: number of cols in `src`
-void matrix_transpose_opt(uint8_t *dst,
-                          const uint8_t *src,
-                          uint32_t r,
-                          uint32_t c);
+void matrix_transpose(uint8_t *dst,
+                      const uint8_t *src,
+                      size_t r,
+                      size_t c);
