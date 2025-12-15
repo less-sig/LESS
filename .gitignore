@@ -1,4 +1,5 @@
 *build/
+target/
 *compile_commands.json
 *.ipynb_checkpoints/
 *__pycache__/
