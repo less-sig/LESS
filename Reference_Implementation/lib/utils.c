@@ -6,7 +6,7 @@
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
- * @author Floyd Zweydinge <zweydfg8+github@rub.de>
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -25,25 +25,18 @@
  **/
 
 #include "utils.h"
-#include <stdlib.h>
+#include "sha3.h"
+#include "rng.h"
 
-/// swaps a and b if mask == -1ull
-void cswap(uintptr_t *a,
-           uintptr_t *b,
-           const uintptr_t mask) {
-    *a ^= (mask & *b);
-    *b ^= (mask & *a);
-    *a ^= (mask & *b);
-}
+#include <stdint.h>
 
+
+/// Compare two arrays for equality in constant time.
 /// taken from the kyber impl.
-/// Description: Compare two arrays for equality in constant time.
-///
-/// Arguments:   const uint8_t *a: pointer to first byte array
-///              const uint8_t *b: pointer to second byte array
-///              size_t len:       length of the byte arrays
-///
-/// Returns 0 if the byte arrays are equal, 1 otherwise
+/// \param a[in]: pointer to the first byte array
+/// \param b[in]: pointer to the second byte array
+/// \param len[in]: length of the byte array
+/// \returns 0 if the byte arrays are equal, 1 otherwise
 int verify(const uint8_t *a,
            const uint8_t *b,
            const size_t len) {
@@ -56,15 +49,18 @@ int verify(const uint8_t *a,
     return (-(uint64_t)r) >> 63;
 }
 
-///
+/// max value in the fixed weight string
 #define MAX_KEYPAIR_INDEX (NUM_KEYPAIRS-1)
-///
+/// bit mask for the MAX_KEYPAIR_INDEX
 #define KEYPAIR_INDEX_MASK (((uint16_t)1u << BITS_TO_REPRESENT(MAX_KEYPAIR_INDEX)) - 1u)
-/* bitmask for rejection sampling of the position */
-#define  POSITION_MASK (( (uint16_t)1 << BITS_TO_REPRESENT(T-1))-1)
+/// bitmask for rejection sampling of the position
+#define POSITION_MASK (( (uint16_t)1 << BITS_TO_REPRESENT(T-1))-1)
 
-/* Expands a digest expanding it into a fixed weight string with elements in
- * Z_{NUM_KEYPAIRS}. */
+/// Expands a digest expanding it into a fixed weight string with elements in
+/// Z_{NUM_KEYPAIRS}.
+/// \param fixed_weight_string[out]: array of length T, with hamming weight W,
+///     where the values > 0 are between [1, MAX_KEYPAIR_INDEX)
+/// \param digest[in]: commitment hash
 void SampleChallenge(uint8_t fixed_weight_string[T],
                      const uint8_t digest[HASH_DIGEST_LENGTH]) {
     SHAKE_STATE_STRUCT shake_state;

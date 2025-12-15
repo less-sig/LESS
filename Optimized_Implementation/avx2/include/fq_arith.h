@@ -30,9 +30,11 @@
 #include <stdint.h>
 
 #include "parameters.h"
+#include "utils.h"
 #include "lookup_table.h"
 #include "rng.h"
 
+// number of needed to represent q = 7
 #define NUM_BITS_Q (BITS_TO_REPRESENT(Q))
 
 
@@ -77,8 +79,18 @@ static inline void FUNC_NAME(EL_T *buffer, size_t num_elements) { \
    } while (1); }
 
 
-/* GCC actually inlines and vectorizes Barrett's reduction already.
- * Backup implementation for less aggressive compilers follows */
+/// Sampling functions from the global TRNG state
+DEF_RAND(fq_star_rnd_elements, FQ_ELEM, 1, Q-1)
+DEF_RAND(rand_range_q_elements, FQ_ELEM, 0, Q-1)
+
+/// Sampling functions from the taking the PRNG state as a parameter
+DEF_RAND_STATE(fq_star_rnd_state_elements, FQ_ELEM, 1, Q-1)
+DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
+
+
+/// constant time implementation
+/// \param x[in]: input number < 2*127
+/// \return x mod 127
 static inline
 FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
     // equivalent to: (x >= Q) ? (x - Q) : x
@@ -88,63 +100,140 @@ FQ_ELEM fq_cond_sub(const FQ_ELEM x) {
     return (mask & Q) + sub_q;
 }
 
+/// constant time implementation
+/// \param x[in]: input number < 127**2
+/// \return x mod 127
 static inline
 FQ_ELEM fq_red(const FQ_DOUBLEPREC x) {
     return fq_cond_sub((x >> NUM_BITS_Q) + ((FQ_ELEM) x & Q));
 }
 
+/// constant time implementation
+/// \param x[in]: minuend < 127
+/// \param y[in]: subtrahend < 127
+/// \return difference x-y mod 127
 static inline
 FQ_ELEM fq_sub(const FQ_ELEM x, const FQ_ELEM y) {
     return fq_cond_sub(x + Q - y);
 }
 
-static inline
-FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
-    return fq_red(((FQ_DOUBLEPREC)x) *(FQ_DOUBLEPREC)y);
-}
-
+/// constant time implementation
+/// \param x[in]: first summand < 127
+/// \param y[in]: second summand < 127
+/// \return sum x+y mod 127
 static inline
 FQ_ELEM fq_add(const FQ_ELEM x, const FQ_ELEM y) {
-      return fq_cond_sub(x + y);
+    return fq_cond_sub(x + y);
 }
 
-/// NOTE: non constant-time. Dont use for anything important
-/// \param x[in]: < 127
-/// \param y[in]: < 127
-/// \return x * y;
+/// constant time implementation
+/// \param x[in]: first factor < 127
+/// \param y[in]: second factor < 127
+/// \return product x*y mod 127
+static inline
+FQ_ELEM fq_mul(const FQ_ELEM x, const FQ_ELEM y) {
+    return fq_red((FQ_DOUBLEPREC) x * (FQ_DOUBLEPREC) y);
+}
+
+/// NOTE: non constant-time. Don't use it for anything important
+/// \param x[in]: first factor < 127
+/// \param y[in]: second factor < 127
+/// \return product x*y mod 127;
 static inline
 FQ_ELEM fq_mul_non_ct(const FQ_ELEM x, const FQ_ELEM y) {
     return __fq127_lookup_table[x*128 + y];
 }
 
-/// NOTE: maybe dont use it for sensitive data
-static const uint8_t __fq127_inv_table[128] __attribute__((aligned(64))) = { 0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126, 0
+/// NOTE: non constant-time. Don't use it for anything important
+static const uint8_t fq_inv_table[128] __attribute__((aligned(64))) = {
+   0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126, 0
 };
 
-// just to a look up
+/// NOTE: non constant-time. Don't use for anything important.
+/// NOTE: input must be reduced.
+/// \param x[in]: input value < 127
+/// \return x^{-1} mod 127
 static inline
-FQ_ELEM fq_inv(FQ_ELEM x) {
-   return __fq127_inv_table[x];
+FQ_ELEM fq_inv_non_ct(const FQ_ELEM x) {
+   return fq_inv_table[x];
+}
+
+/// NOTE: constant time
+/// NOTE: input must be reduced.
+/// \param x[in]: input value < 127
+/// \return x^{-1} mod 127
+static inline
+FQ_ELEM fq_inv(const FQ_ELEM x) {
+#if 1
+    FQ_ELEM ret = 0;
+    for (uint64_t i = 0; i < 127; i++) {
+        const FQ_ELEM mask = COMPUTE_CT_MASK(i, x);
+        const FQ_ELEM val = fq_inv_table[i] & mask;
+        ret ^= val;
+    }
+    return ret;
+#else
+    /// Fermat's method for inversion employing r-t-l square and multiply,
+    /// unrolled for actual parameters */
+    FQ_DOUBLEPREC xlift = x;
+    FQ_DOUBLEPREC accum = 1;
+    // No need for square and mult always, Q-2 is public
+    uint32_t exp = Q-2;
+    while(exp) {
+        if(exp & 1) {
+            accum = fq_red(accum*xlift);
+        }
+        xlift = fq_red(xlift*xlift);
+        exp >>= 1;
+    }
+    return fq_red(accum);
+#endif
 } /* end fq_inv */
 
-/* Sampling functions from the global TRNG state */
-
-DEF_RAND(fq_star_rnd_elements, FQ_ELEM, 1, Q-1)
-
-DEF_RAND(rand_range_q_elements, FQ_ELEM, 0, Q-1)
-
-/* Sampling functions from the taking the PRNG state as a parameter*/
-DEF_RAND_STATE(fq_star_rnd_state_elements, FQ_ELEM, 1, Q-1)
-
-DEF_RAND_STATE(rand_range_q_state_elements, FQ_ELEM, 0, Q-1)
-
+/// load avx2 macros
 #include "macro.h"
 
+
+/// \param in[in]: avx2 register
+/// \return in[0] + in[1] + ... + in[31] % q
+static inline 
+uint8_t vhadd8(const __m256i in) {
+    vec256_t c7f, tmp;
+    vset8(c7f, 0x7F);
+
+    __m256i a = _mm256_srli_epi16(in, 8);
+    __m256i t = _mm256_add_epi8(a, in);
+    vred8(t,tmp,c7f)
+
+    a = _mm256_srli_epi32(t, 16);
+    t = _mm256_add_epi8(a, t);
+    vred8(t,tmp,c7f)
+
+    a = _mm256_srli_epi64(t, 32);
+    t = _mm256_add_epi8(a, t);
+    vred8(t,tmp,c7f)
+
+    a = _mm256_srli_si256(t, 8);
+    t = _mm256_add_epi8(a, t);
+    vred8(t,tmp,c7f)
+
+    a = _mm256_permute2x128_si256(t, t, 1);
+    t = _mm256_add_epi8(a, t);
+    vred8(t,tmp,c7f)
+
+    return _mm256_extract_epi8(t, 0);
+} /* end vhadd8 */
+
 /// \retuns ptr *b
-static inline __m256i avx_mul(const uint8_t *ptr, const __m256i b) {
-    vec256_t v1, v2, w1, w2;
-    const __m256i c7f = _mm256_set1_epi8((short)127);
-    const __m256i c7f2 = _mm256_set1_epi16((short)127);
+/// \param ptr[in]: pointer to 32 byte of memory, can be unaligned.
+///     NOTE: the memory does not need to be aligned
+/// \param b[in]: avx2 register containing 16 already zero extended Fq elements.
+///     [b_0, ..., b_15], b_i \in Fq and b_i = uint16_t
+static inline __m256i avx_mul(const uint8_t *ptr,
+                              const __m256i b) {
+    vec256_t v1, v2;
+    const __m256i c7f = _mm256_set1_epi8((short)0x7f);
+    const __m256i c7f2 = _mm256_set1_epi16((short)0x7f);
     const __m128i t1 = _mm_loadu_si128((const __m128i *)(ptr +  0));
     const __m128i t2 = _mm_loadu_si128((const __m128i *)(ptr + 16));
 
@@ -155,50 +244,67 @@ static inline __m256i avx_mul(const uint8_t *ptr, const __m256i b) {
     vmul_lo16(a_hi, a_hi, b);
     vsr16(v1, a_lo, 7);
     vsr16(v2, a_hi, 7);
-    w1 = _mm256_packs_epi16(a_lo&c7f2, a_hi&c7f2);
-    w2 = _mm256_packs_epi16(v1, v2);
+    __m256i w1 = _mm256_packs_epi16(_mm256_and_si256(a_lo, c7f2), _mm256_and_si256(a_hi, c7f2));
+    __m256i w2 = _mm256_packs_epi16(v1, v2);
 
     vadd8(v1, w1, w2);
-    v2 = _mm256_permute4x64_epi64(v1, 0b11011000);
+    v2 = _mm256_permute4x64_epi64(v1, 0xd8); // 0b11011000
     w1 = _mm256_sub_epi8(v2, c7f);
-    //w2 = _mm256_blendv_epi8(w1, v2, w1);
+#if defined(LESS_USE_BLEND_IN_ARITH)
+    w2 = _mm256_blendv_epi8(w1, v2, w1);
+#else
     w2 = _mm256_min_epu8(v2, w1);
+#endif
     return w2;
-}
+} /* end avx_mul */
 
-/// \return TODO explain
+/// each of the input SSE registers is in a 8bit limb
+/// \param a1[in]: [a_0, ..., a_15], a_i \in Fq, lower values
+/// \param a2[in]: [a_0, ..., a_15], a_i \in Fq, upper values
+/// \param b1[in]: [b_0, ..., b_15], b_i \in Fq, lower values
+/// \param b2[in]: [b_0, ..., b_15], b_i \in Fq, upper values
+///         0         a1*b1          15, 16      a2*b2        31 (limb)
+/// \return [ a_0 * b_0, ..., a_15*b_15, a_0*b_0, ..., a_15*b_15]
 static inline __m256i avx_mul_full(const __m128i a1, const __m128i a2,
                                    const __m128i b1, const __m128i b2) {
-    vec256_t v1, v2, w1, w2;
+    vec256_t v1, v2;
     const __m256i c7f = _mm256_set1_epi8((short)127);
     const __m256i c7f2 = _mm256_set1_epi16((short)127);
 
     __m256i a_lo = _mm256_cvtepu8_epi16(a1);
     __m256i a_hi = _mm256_cvtepu8_epi16(a2);
-    __m256i b_lo = _mm256_cvtepu8_epi16(b1);
-    __m256i b_hi = _mm256_cvtepu8_epi16(b2);
+    const __m256i b_lo = _mm256_cvtepu8_epi16(b1);
+    const __m256i b_hi = _mm256_cvtepu8_epi16(b2);
 
     vmul_lo16(a_lo, a_lo, b_lo);
     vmul_lo16(a_hi, a_hi, b_hi);
     vsr16(v1, a_lo, 7);
     vsr16(v2, a_hi, 7);
-    w1 = _mm256_packs_epi16(a_lo&c7f2, a_hi&c7f2);
-    w2 = _mm256_packs_epi16(v1, v2);
+    __m256i w1 = _mm256_packs_epi16(_mm256_and_si256(a_lo, c7f2), _mm256_and_si256(a_hi, c7f2));
+    __m256i w2 = _mm256_packs_epi16(v1, v2);
 
     vadd8(v1, w1, w2);
-    v2 = _mm256_permute4x64_epi64(v1, 0b11011000);
+    v2 = _mm256_permute4x64_epi64(v1, 0xd8); // 0b11011000
     w1 = _mm256_sub_epi8(v2, c7f);
-    //w2 = _mm256_blendv_epi8(w1, v2, w1);
+#if defined(LESS_USE_BLEND_IN_ARITH)
+    w2 = _mm256_blendv_epi8(w1, v2, w1);
+#else
     w2 = _mm256_min_epu8(v2, w1);
-
+#endif
     return w2;
-}
+} /* end avx_mul_full */
 
-/// \return TODO explain
-/// NOTE assumes each FQ element is in a 16bit limb
+/// NOTE assumes each Fq element is in a 16bit limb
+/// \param a1[in]: [a_0, ..., a_15], a_i \in Fq, a_i \in 16bit limb lower values
+/// \param a2[in]: [a_0, ..., a_15], a_i \in Fq, a_i \in 16bit limb upper values
+/// \param b1[in]: [b_0, ..., b_15], b_i \in Fq, b_i \in 16bit limb lower values
+/// \param b2[in]: [b_0, ..., b_15], b_i \in Fq, b_i \in 16bit limb upper values
+/// NOTE: the return value is compress from 16bits down to 8bits.
+///         0         a1*b1          15, 16      a2*b2        31 (limb)
+/// \return [ a_0 * b_0, ..., a_15*b_15, a_0*b_0, ..., a_15*b_15]
 static inline __m256i avx_mul_full256(const __m256i a1, const __m256i a2,
                                       const __m256i b1, const __m256i b2) {
-    vec256_t v1, v2, w1, w2;
+    vec256_t v1, v2;
     const __m256i c7f = _mm256_set1_epi8((short)127);
     const __m256i c7f2 = _mm256_set1_epi16((short)127);
 
@@ -211,204 +317,103 @@ static inline __m256i avx_mul_full256(const __m256i a1, const __m256i a2,
     vmul_lo16(a_hi, a_hi, b_hi);
     vsr16(v1, a_lo, 7);
     vsr16(v2, a_hi, 7);
-    w1 = _mm256_packs_epi16(a_lo&c7f2, a_hi&c7f2);
-    w2 = _mm256_packs_epi16(v1, v2);
+    __m256i w1 = _mm256_packs_epi16(_mm256_and_si256(a_lo, c7f2), _mm256_and_si256(a_hi, c7f2));
+    __m256i w2 = _mm256_packs_epi16(v1, v2);
 
     vadd8(v1, w1, w2);
-    v2 = _mm256_permute4x64_epi64(v1, 0b11011000);
+    v2 = _mm256_permute4x64_epi64(v1, 0xd8); // 0b11011000
     w1 = _mm256_sub_epi8(v2, c7f);
-    // w2 = _mm256_blendv_epi8(w1, v2, w1);
+#if defined(LESS_USE_BLEND_IN_ARITH) 
+    w2 = _mm256_blendv_epi8(w1, v2, w1);
+#else
     w2 = _mm256_min_epu8(v2, w1);
+#endif
     return w2;
-}
+} /* end avx_mul_full256 */
 
-/// NOTE: these functions are outsourced to this file, to make the
-/// optimizied implementation as easy as possible.
-/// accumulates a row
-/// \param d
-/// \return sum(d) for _ in range(N-K)
+/// NOTE: these functions are outsourced to this file, to make the optimized
+/// implementation as easy as possible 
+/// NOTE: the length of all input rows must be multiple of 32.
+/// accumulates the input row
+/// \param row[in]: pointer to a row of length ROUND_UP(N-K, 32)
+/// \return sum(d[i]) for i in range(N-K)
 static inline
-FQ_ELEM row_acc(const FQ_ELEM *d) {
+FQ_ELEM row_acc(const FQ_ELEM *row) {
     vec256_t s, t, c7f;
     vset8(s, 0);
     vset8(c7f, 0x7F);
-
+    
     for (uint32_t col = 0; col < N_K_pad; col+=32) {
-        vload256(t, (const vec256_t *)(d + col));
+        vload256(t, (const vec256_t *)(row + col));
         vadd8(s, s, t);
-        W_RED127_(s, t, c7f);
+        vred8(s, t, c7f);
 	 }
 
     uint32_t k = vhadd8(s);
-    return fq_red(k);
-}
+    return fq_red(k); // TODO remove 
+} /* end row_acc */
 
-/// accumulates the inverse of a row
-/// \param d
+/// accumulates the inverse to a row of length N_pad
+/// \param row[in]: pointer to a row
 /// \return sum(d[i]**-1) for i in range(N-K)
-static inline FQ_ELEM row_acc_inv(const FQ_ELEM *d) {
+static inline FQ_ELEM row_acc_inv(const FQ_ELEM *row) {
     // NOTE: actually only the last pos need to be 0
     static FQ_ELEM inv_data[N_K_pad] = {0};
     for (uint32_t col = 0; col < (N-K); col++) {
-        inv_data[col] = fq_inv(d[col]);
+        inv_data[col] = fq_inv_non_ct(row[col]);
     }
 
     return row_acc(inv_data);
-}
-
-/// accumulates the inverse of a row
-/// \param d
-/// \return sum(d[i]**-1) for i in range(N-K)
-//static inline
-//FQ_ELEM row_acc_inv2(const FQ_ELEM *d) {
-//    const __m256i perm = _mm256_setr_epi32(0,1,4,5,2,3,6,7);
-//    // NOTE: actually only the last pos need to be 0
-//    static FQ_ELEM inv_data[N_K_pad] = {0}; 
-//    for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
-//        const __m128i f1 = _mm_loadu_si128((const __m128i *)(d + col +  0));
-//        const __m128i f2 = _mm_loadu_si128((const __m128i *)(d + col + 16));
-//        const __m256i t1 = _mm256_cvtepi8_epi32(f1);
-//        const __m256i t3 = _mm256_cvtepi8_epi32(f2);
-//        const __m256i t2 = _mm256_cvtepi8_epi32(_mm_bsrli_si128(f1, 8));
-//        const __m256i t4 = _mm256_cvtepi8_epi32(_mm_bsrli_si128(f2, 8));
-//
-//        const __m256i l1 = _mm256_i32gather_epi32(__fq127_inv_table, t1, 4);
-//        const __m256i l2 = _mm256_i32gather_epi32(__fq127_inv_table, t2, 4);
-//        const __m256i l3 = _mm256_i32gather_epi32(__fq127_inv_table, t3, 4);
-//        const __m256i l4 = _mm256_i32gather_epi32(__fq127_inv_table, t4, 4);
-//
-//        const __m256i a1 = _mm256_packs_epi32(l1, l2);
-//        const __m256i a2 = _mm256_packs_epi32(l3, l4);
-//        const __m256i a3 = _mm256_permutevar8x32_epi32(a1, perm);
-//        const __m256i a4 = _mm256_permutevar8x32_epi32(a2, perm);
-//
-//        const __m256i b1 = _mm256_packus_epi16(a3, a4);
-//        const __m256i b2 = _mm256_permute4x64_epi64(b1, 0b11011000);
-//        _mm256_storeu_si256((__m256i *)(inv_data + col), b2);
-//	}
-//
-//    return row_acc(inv_data);
-//}
+} /* end row_acc_inv */
 
 /// scalar multiplication of a row
-/// NOTE: not a full reduction
-/// \param row[in/out] *= s for _ in range(N-K)
-/// \param s
+/// \param row[in/out] *= s for _ in range(N-K), pointer to a row of length ROUND_UP(N-K, 32)
+/// \param s[in]: scalar value
 static inline
-void row_mul(FQ_ELEM *row, const FQ_ELEM s) {
-    // precompute b
+void row_mul(FQ_ELEM *row,
+             const FQ_ELEM s) {
     const __m256i b = _mm256_set1_epi16(s);
     for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
         const __m256i t = avx_mul(row + col, b);
         vstore256((vec256_t *)(row + col), t);
     }
-}
+} /* end row_mul */
 
 /// scalar multiplication of a row
-/// NOTE: not a full reduction
-/// \param row[in/out] *= s for _ in range(N-K)
-/// \param s
-//static inline
-//void row_mul_(FQ_ELEM *row, const FQ_ELEM s) {
-//    vec256_t shuffle, t, c7f, c01, b, a, a_lo, a_hi, b_lo, b_hi;
-//    vec128_t tmp;
-//
-//    vload256(shuffle, (vec256_t *) shuff_low_half);
-//    vset8(c7f, 127);
-//    vset8(c01, 1);
-//
-//    // precompute b
-//    vset8(b, s);
-//    vget_lo(tmp, b);
-//    vextend8_16(b_lo, tmp);
-//    vget_hi(tmp, b);
-//    vextend8_16(b_hi, tmp);
-//
-//    for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
-//        vload256(a, (vec256_t *)(row + col));
-//
-//        vget_lo(tmp, a);
-//        vextend8_16(a_lo, tmp);
-//        vget_hi(tmp, a);
-//        vextend8_16(a_hi, tmp);
-//
-//        barrett_mul_u16(a_lo, a_lo, b_lo, t);
-//        barrett_mul_u16(a_hi, a_hi, b_hi, t);
-//
-//        vshuffle8(a_lo, a_lo, shuffle);
-//        vshuffle8(a_hi, a_hi, shuffle);
-//
-//        vpermute_4x64(a_lo, a_lo, 0xd8);
-//        vpermute_4x64(a_hi, a_hi, 0xd8);
-//
-//        vpermute2(t, a_lo, a_hi, 0x20);
-//
-//        W_RED127_(t);
-//        vstore256((vec256_t *)(row + col), t);
-//    }
-//}
-
-
-/// scalar multiplication of a row
-/// NOTE: not a full reduction
-/// \param row[in/out] *= s for _ in range(N-K)
-/// \param s
-//static inline
-//void row_mul_gather(FQ_ELEM *row, const FQ_ELEM s) {
-//    const __m256i perm = _mm256_setr_epi32(0,1,4,5,2,3,6,7);
-//    const uint32_t *ptr = __fq127_lookup_table + s*128;
-//    for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
-//        const __m128i f1 = _mm_loadu_si128((const __m128i *)(row + col +  0));
-//        const __m128i f2 = _mm_loadu_si128((const __m128i *)(row + col + 16));
-//        const __m256i t1 = _mm256_cvtepi8_epi32(f1);
-//        const __m256i t3 = _mm256_cvtepi8_epi32(f2);
-//        const __m256i t2 = _mm256_cvtepi8_epi32(_mm_bsrli_si128(f1, 8));
-//        const __m256i t4 = _mm256_cvtepi8_epi32(_mm_bsrli_si128(f2, 8));
-//
-//        const __m256i l1 = _mm256_i32gather_epi32(ptr, t1, 4);
-//        const __m256i l2 = _mm256_i32gather_epi32(ptr, t2, 4);
-//        const __m256i l3 = _mm256_i32gather_epi32(ptr, t3, 4);
-//        const __m256i l4 = _mm256_i32gather_epi32(ptr, t4, 4);
-//
-//        const __m256i a1 = _mm256_packs_epi32(l1, l2);
-//        const __m256i a2 = _mm256_packs_epi32(l3, l4);
-//        const __m256i a3 = _mm256_permutevar8x32_epi32(a1, perm);
-//        const __m256i a4 = _mm256_permutevar8x32_epi32(a2, perm);
-//
-//        const __m256i b1 = _mm256_packus_epi16(a3, a4);
-//        const __m256i b2 = _mm256_permute4x64_epi64(b1, 0b11011000);
-//        _mm256_storeu_si256((__m256i *)(row + col), b2);
-//	}
-//}
-
-/// scalar multiplication of a row
-/// \param out = s*in[i] for i in range(N-K)
-/// \param in
-/// \param s
+/// \param out[out]: = s*in[i] for i in range(N-K)
+/// \param in[in]: pointer to a row of length ROUND_UP(N-K, 32)
+/// \param s[in]: scalar value
 static inline
-void row_mul2(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
+void row_mul2(FQ_ELEM *__restrict__ out,
+              const FQ_ELEM *__restrict__ in,
+              const FQ_ELEM s) {
     const __m256i b = _mm256_set1_epi16(s);
     for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
         const __m256i t = avx_mul(in + col, b);
         vstore256((vec256_t *)(out + col), t);
     }
-}
+} /* end row_mul2 */
 
 /// scalar multiplication of a row
-/// \param out = s*in[i] for i in range(N-K)
-/// \param in
-/// \param s
+/// NOTE: constant time implementation needed for `blind`
+/// \param out[out]: = s*in[i] for i in range(N-K)
+/// \param in[in]: pointer to a row of length ROUND_UP(N-K, 32)
+/// \param s[in]: input scalar
 static inline
-void row_mul2_ct(FQ_ELEM *out, const FQ_ELEM *in, const FQ_ELEM s) {
+void row_mul2_ct(FQ_ELEM *__restrict__ out,
+                 const FQ_ELEM *__restrict__ in,
+                 const FQ_ELEM s) {
     row_mul2(out, in, s);
-}
+} /* end row_mul2_ct */
 
-///
-/// \param out = in1[i]*in2[i] for i in range(N-K)
-/// \param in1
-/// \param in2
+/// full element wise multiplication of two rows
+/// \param out[out]: = in1[i]*in2[i] for i in range(N-K)
+/// \param in1[in]: pointer to a row of length ROUND_UP(N-K, 32)
+/// \param in2[in]: pointer to a row of length ROUND_UP(N-K, 32)
 static inline
-void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
+void row_mul3(FQ_ELEM *__restrict__ out,
+              const FQ_ELEM *__restrict__ in1,
+              const FQ_ELEM *__restrict__ in2) {
     for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
         const __m128i a1 = _mm_loadu_si128((const __m128i *)(in1 + col +  0));
         const __m128i a2 = _mm_loadu_si128((const __m128i *)(in1 + col + 16));
@@ -417,24 +422,34 @@ void row_mul3(FQ_ELEM *out, const FQ_ELEM *in1, const FQ_ELEM *in2) {
         const __m256i t = avx_mul_full(a1, a2, b1, b2);
         vstore256((vec256_t *)(out + col), t);
     }
-}
+} /* end row_mul3 */
 
+/// NOTE: this is not constant time
+/// NOTE: this is not improvable via AVX2
 /// invert a row
 /// \param out[out]: in[i]**-1 for i in range(N-K)
-/// \param in [in]
+/// \param in [in]: pointer to a row of length N-K
 static inline
-void row_inv2(FQ_ELEM *out, const FQ_ELEM *in) {
+void row_inv2(FQ_ELEM *__restrict__ out,
+              const FQ_ELEM *__restrict__ in) {
     for (uint32_t col = 0; col < (N-K); col++) {
-        out[col] = fq_inv(in[col]);
+        out[col] = fq_inv_non_ct(in[col]);
     }
-}
+} /* end row_inv2 */
 
-/// NOTE: avx512 optimized version (it has a special instruction for stuff like this)
 /// \param in[in]: vector of length N-K
 /// \return 1 if all elements are the same
 ///         0 else
 static inline
 uint32_t row_all_same(const FQ_ELEM *in) {
+#if 1
+    for (uint64_t col = 0;col < N-K; col++) {
+        if (in[col-1] != in[col]) {
+            return 0;
+        }
+    }
+    return 1;
+#else
     vec256_t t1, t2, acc;
     vset8(acc, -1);
     vset8(t2, in[0]);
@@ -454,9 +469,11 @@ uint32_t row_all_same(const FQ_ELEM *in) {
     }
 
     return t3 == -1u;
-}
+#endif
+} /* end row_all_same */
 
-/// \param in[in] row
+/// NOTE: not CT, but close.
+/// \param in[in]: row
 /// \return 1 if a zero was found
 ///         0 else
 static inline
@@ -480,10 +497,13 @@ uint32_t row_contains_zero(const FQ_ELEM *in) {
         }
     }
     return 0;
-}
+} /* end row_contains_zero */
 
+/// NOTE: eventhough the input vectors are of length ROUND_UP(N-K, 32), only 
+/// N-K bytes are read. As the remaining alignment bytes are zero, which would  
+/// alter the result.
 /// \param in[in]: vector of length N-K
-/// \return the number of zeros in the input vector
+/// \return: the number of zeros in `in`
 static inline
 uint32_t row_count_zero(const FQ_ELEM *in) {
     vec256_t t1, zero, acc, mask;
@@ -503,5 +523,4 @@ uint32_t row_count_zero(const FQ_ELEM *in) {
         a += (in[col] == 0);
     }
     return a;
-}
-
+} /* end row_count_zero */

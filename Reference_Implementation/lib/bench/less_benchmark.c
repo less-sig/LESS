@@ -70,10 +70,10 @@ void welford_print(const welford_t state) {
 #elif CATEGORY==400
 #define NUM_RUNS 256
 #else
-#define NUM_RUNS 512
+#define NUM_RUNS 256
 #endif
 
-#define NUM_AVG_RUNS (1u << 10u)
+#define NUM_AVG_RUNS (1u << 5u)
 
 #ifdef N_pad
 #define NN N_pad
@@ -97,11 +97,11 @@ void microbench(void){
     generator_mat_t G;
     generator_rnd(&G);
     uint8_t is_pivot_column[NN];
+    uint8_t was_pivot_column[NN] = {0};
 
-    uint64_t cycles;
     for(int i = 0; i <NUM_RUNS; i++) {
-        cycles = read_cycle_counter();
-        generator_RREF(&G,is_pivot_column);
+        const uint64_t cycles = read_cycle_counter();
+        generator_RREF_pivot_reuse(&G,is_pivot_column,was_pivot_column,0);
         welford_update(&timer,(read_cycle_counter()-cycles)/1000.0);
     }
     fprintf(stderr,"Gaussian elimination kCycles (avg,stddev):");
@@ -167,7 +167,7 @@ void LESS_sign_verify_speed(void){
 
     printf("Timings (kcycles):\n");
     welford_init(&timer);
-    for(size_t i = 0; i <NUM_RUNS; i++) {
+    for(uint64_t i = 0; i <NUM_RUNS; i++) {
         cycles = read_cycle_counter();
         LESS_keygen(&sk,&pk);
         welford_update(&timer,(read_cycle_counter()-cycles)/1000.0);
@@ -178,7 +178,7 @@ void LESS_sign_verify_speed(void){
 
 
     welford_init(&timer);
-    for(int i = 0; i <NUM_RUNS; i++) {
+    for(uint64_t i = 0; i <NUM_RUNS; i++) {
         cycles = read_cycle_counter();
         LESS_sign(&sk,message,8,&signature);
         welford_update(&timer,(read_cycle_counter()-cycles)/1000.0);
@@ -189,7 +189,7 @@ void LESS_sign_verify_speed(void){
 
     int is_signature_ok = 1;
     welford_init(&timer);
-    for(int i = 0; i <NUM_RUNS; i++) {
+    for(uint64_t i = 0; i <NUM_RUNS; i++) {
         cycles = read_cycle_counter();
         is_signature_ok = LESS_verify(&pk,message,8,&signature); // Message never changes
         welford_update(&timer,(read_cycle_counter()-cycles)/1000.0);

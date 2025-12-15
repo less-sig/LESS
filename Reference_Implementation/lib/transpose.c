@@ -4,7 +4,7 @@
  *
  * @version 1.2 (February 2025)
  *
- * @author Floyd Zweydinge <zweydfg8+github@rub.de>
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -27,10 +27,10 @@
 #include "transpose.h"
 #include "parameters.h"
 
-/// \param dst[out]: out  data
+/// \param dst[out]: out data
 /// \param src[in] input bytes 8x8 matrix
-/// \param src_stride[in] in bytes
-/// \param dst_stride[in] in bytes
+/// \param src_stride[in]: number of bytes between two rows in `src`
+/// \param dst_stride[in]: number of bytes between two cols in `dst`
 void matrix_transpose8x8(uint8_t* dst,
                          const uint8_t* src,
                          const size_t src_stride,
@@ -86,84 +86,14 @@ void matrix_transpose8x8(uint8_t* dst,
     *(uint64_t*)(dst + 7*dst_stride) = d7;
 }
 
-/// assumes max 8 rows in the input matrix
-/// assumes that the output matrix has n columns
-/// \param dst
-/// \param src
-/// \param n   number of columns
-static inline void matrix_transpose8xN(uint8_t *dst, 
-                                       const uint8_t *src,
-                                       const uint32_t n) {
-    const uint32_t bsize = 8;
-    uint64_t rb = 0;
-    for (; rb < n / bsize; rb++) {
-            const uint8_t *srcb_origin = src + ( 0 * n + rb) * bsize;
-                  uint8_t *dstb_origin = dst + (rb * n +  0) * bsize;
-        matrix_transpose8x8(dstb_origin, srcb_origin, n, n);
-    }
-
-    rb *= bsize;
-    for (; rb < n; rb++) {
-        for (uint32_t j = 0; j < 8; j++) {
-            const uint8_t t = src[j*n + rb];
-            dst[rb*n + j] = t;
-        }
-    }
-}
-
-/// assumes max 8 cols in the input matrix
-/// assumes that the output matrix has n columns
-/// \param dst
-/// \param src
-/// \param n   number of columns
-static inline void matrix_transposeNx8(uint8_t *dst,
-                                       const uint8_t *src,
-                                       const uint32_t n) {
-    const uint32_t bsize = 8;
-    uint64_t cb = 0;
-    for (; cb < n / bsize; cb++) {
-            const uint8_t *srcb_origin = src + (cb * n +  0) * bsize;
-                  uint8_t *dstb_origin = dst + ( 0 * n + cb) * bsize;
-        matrix_transpose8x8(dstb_origin, srcb_origin, n, n);
-    }
-
-    cb *= bsize;
-    for (; cb < n; cb++) {
-        for (uint32_t j = 0; j < 8; j++) {
-            const uint8_t t = src[cb*n + j];
-            dst[j*n + cb] = t;
-        }
-    }
-}
-
-
-/// Compute origin of the 64-block next to (rb, cb) in row-major order
-/// NOTE: internal function. Do no call directly.
-const uint8_t* next_block(const uint8_t *src,
-                          uint64_t rb,
-                          uint64_t cb,
-                          const size_t n) {
-    uint64_t cb1 = cb + 1;
-    uint64_t rb1 = rb;
-    if (cb1 == n/64) {
-        rb1 += 1;
-        cb1 = 0;
-    }
-
-    return src + (rb1*n + cb1) * 64;
-}
-
 /// \param dst[out]: output non-IS matrix: K \times N-K
 /// \param src[in]: input non-IS matrix: K \times N-K
-/// \param r nr cols
-/// \param c nr rows
-void matrix_transpose_opt(uint8_t *dst,
-                          const uint8_t *src,
-                          const uint32_t r,
-                          const uint32_t c) {
-    // small block size
-    const size_t small = 8;
-
+/// \param r[in]: number of rows in `src`
+/// \param c[in]: number of cols in `src`
+void matrix_transpose(uint8_t *dst,
+                      const uint8_t *src,
+                      const size_t r,
+                      const size_t c) {
 #if defined(USE_AVX2) || defined(USE_NEON) || defined(USE_AVX512)
 #if defined(USE_AVX512)
     const size_t bsize = 32;
@@ -177,39 +107,20 @@ void matrix_transpose_opt(uint8_t *dst,
     const size_t src_stride = K_pad;
     const size_t dst_stride = N_K_pad;
 
-    if ((c < bsize) || (r < bsize)) {
-        if (c <= small) {
-            matrix_transposeNx8(dst, src, r);
-            return;
-        }
-
-        if (r <= small) {
-            matrix_transpose8xN(dst, src, c);
-            return;
-        }
-        for (uint32_t i = 0; i < r; i++) {
-            for (uint32_t j = 0; j < c; j++) {
-                dst[j*dst_stride + i] = src[i*src_stride + j];
-            }
-        }
-
-        return ;
-    }
-
     uint64_t rb = 0;
-    for (; rb < c / bsize; rb++) {
+    for (; rb < r / bsize; rb++) {
         for (uint64_t cb = 0; cb < c / bsize; cb++) {
 #if defined(USE_AVX2) || defined(USE_NEON) || defined(USE_AVX512)
-            const uint8_t* prf_origin = NULL;// next_block(src, rb, cb, src_stride);
             const uint8_t* src_origin = src + (rb*src_stride+cb)*bsize;
                   uint8_t* dst_origin = dst + (cb*dst_stride+rb)*bsize;
-            const uint32_t n = src_stride;
 
 #if defined(USE_AVX512)
-            // matrix_transpose_64x64(dst_origin, src_origin, prf_origin, n, n);
-            matrix_transpose_32x32(dst_origin, src_origin, prf_origin, n, n);
+            // turns out: on some machines the avx512 is slower than
+            // the avx2 implementation. Choose whatever is faster for you.
+            // matrix_transpose_64x64(dst_origin, src_origin, n, n);
+            matrix_transpose_32x32(dst_origin, src_origin, src_stride, dst_stride);
 #else
-            matrix_transpose_32x32(dst_origin, src_origin, prf_origin, n, n);
+            matrix_transpose_32x32(dst_origin, src_origin, src_stride, dst_stride);
 #endif
 #else
             const uint8_t *srcb_origin = src + (rb*src_stride + cb) * bsize;
@@ -227,7 +138,7 @@ void matrix_transpose_opt(uint8_t *dst,
 
     const uint32_t rem = c % bsize;
     if (rem) {
-        rb *= (64 / bsize);
+        rb *= 64 / bsize;
 
         // solve the last columns
         for (uint32_t i = rb*bsize; i < c; i++) {
@@ -235,9 +146,10 @@ void matrix_transpose_opt(uint8_t *dst,
                 dst[j*dst_stride + i] = src[i*src_stride + j];
             }
         }
+
         // solve the last rows
-        for (uint32_t i = 0; i < c; i++) {
-            for(uint32_t j = rb*bsize; j < c; j++) {
+        for(uint32_t j = rb*bsize; j < c; j++) {
+            for (uint32_t i = 0; i < c; i++) {
                 dst[j*dst_stride + i] = src[i*src_stride + j];
             }
         }

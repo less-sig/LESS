@@ -34,10 +34,8 @@
 /// \param dst_stride[in]: number of bytes (including alignment) in each row for destination matrix
 void matrix_transpose_32x32(uint8_t* dst_origin,
                            const uint8_t* src_origin,
-                           const uint8_t* prf_origin,
                            const size_t src_stride,
                            const size_t dst_stride) {
-    (void)prf_origin;
     const vec256_t rnd_0_0 = *((vec256_t *)(src_origin + 0*src_stride));
     const vec256_t rnd_0_1 = *((vec256_t *)(src_origin + 1*src_stride));
     vec256_t rnd_1_0; rnd_1_0.v[0] = vtrn1q_u8(rnd_0_0.v[0], rnd_0_1.v[0]); rnd_1_0.v[1] = vtrn1q_u8(rnd_0_0.v[1], rnd_0_1.v[1]);
