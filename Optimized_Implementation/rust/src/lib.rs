@@ -1,14 +1,15 @@
-mod opt;
-mod fq;
-mod matrix;
-mod monomial;
+pub mod fq;
+pub mod vector;
+//pub mod matrix;
+//pub mod monomial;
 
+pub mod opt;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-    }
-}
+//#[cfg(test)]
+//mod tests {
+//    use super::*;
+//
+//    #[test]
+//    fn it_works() {
+//    }
+//}

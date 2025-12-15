@@ -1,4 +1,5 @@
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, Mul, Sub, Div};
+use std::ops::Deref;
 
 
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
@@ -26,8 +27,8 @@ impl Fq {
     /// # Examples
     ///
     /// ```
-    /// use less::Fq;
-    /// let result = Fq::red(0)
+    /// use less::fq::Fq;
+    /// let result = Fq::red(0);
     /// assert_eq!(result.0, 0);
     /// ```
     ///
@@ -46,8 +47,8 @@ impl Fq {
     /// # Examples
     ///
     /// ```
-    /// use less::Fq;
-    /// let result = Fq::add(0, 0)
+    /// use less::fq::Fq;
+    /// let result = Fq::add(Fq(0), Fq(0));
     /// assert_eq!(result.0, 0);
     /// ```
     ///
@@ -68,8 +69,8 @@ impl Fq {
     /// # Examples
     ///
     /// ```
-    /// use less::Fq;
-    /// let result = Fq::sub(0, 0)
+    /// use less::fq::Fq;
+    /// let result = Fq::sub(Fq(0), Fq(0));
     /// assert_eq!(result.0, 0);
     /// ```
     ///
@@ -90,8 +91,8 @@ impl Fq {
     /// # Examples
     ///
     /// ```
-    /// use less::Fq;
-    /// let result = Fq::mul(0, 17)
+    /// use less::fq::Fq;
+    /// let result = Fq::mul(Fq(0), Fq(17));
     /// assert_eq!(result.0, 0);
     /// ```
     ///
@@ -112,8 +113,8 @@ impl Fq {
     /// # Examples
     ///
     /// ```
-    /// use less::Fq;
-    /// let result = Fq::inv(1)
+    /// use less::fq::Fq;
+    /// let result = Fq::inv(Fq(1));
     /// assert_eq!(result.0, 1);
     /// ```
     ///
@@ -151,6 +152,21 @@ impl Mul for Fq {
     #[inline]
     fn mul(self, r: Fq) -> Fq {
         Fq::mul(self, r)
+    }
+}
+
+impl Div for Fq {
+    type Output = Fq;
+    #[inline]
+    fn div(self, r: Fq) -> Fq {
+        Fq::mul(self, Fq::inv(r))
+    }
+}
+
+impl Deref for Fq {
+    type Target = u8;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -207,7 +223,7 @@ mod tests {
     }
 
     #[test]
-    fn div() {
+    fn inv() {
         for i in 1..127u16 {
             let a = Fq(i as u8);
             let b = Fq::inv(a);
