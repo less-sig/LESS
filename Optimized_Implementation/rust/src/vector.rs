@@ -35,8 +35,23 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn add(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
-        for i in 0..N {
-            c[i] = Fq::add(a[i], b[i]);
+        if is_x86_feature_detected!("avx2") {
+            assert!(N%16 == 0);
+            Self::add_avx2(c, a, b);
+        } else {
+            for i in 0..N {
+                c[i] = Fq::add(a[i], b[i]);
+            }
+        }
+    }
+
+    #[inline]
+    pub fn add_avx2(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
+        let n = N / 16;
+        unsafe {
+            // for i in (0..N).step_by(16) {
+            //     const _
+            // }
         }
     }
 
@@ -76,7 +91,7 @@ impl <const N: usize> Vector<N>{
     /// let a = Vector::<N>([Fq(0); N]);
     /// let b = Vector::<N>([Fq(1); N]);
     /// Vector::mul(&mut c, &a, &b);
-    /// assert_eq!(c[0].0, 0);
+    /// sert_eq!(c[0].0, 0);
     /// ```
     ///
     /// # Parameters
@@ -132,7 +147,7 @@ mod tests {
 
     #[test]
     fn add() {
-        const N: usize = 100;
+        const N: usize = 128;
         let mut c = Vector::<N>([Fq(0); N]);
         let a = Vector::<N>([Fq(0); N]);
         let b = Vector::<N>([Fq(1); N]);
@@ -144,7 +159,7 @@ mod tests {
 
     #[test]
     fn sub() {
-        const N: usize = 100;
+        const N: usize = 128;
         let mut c = Vector::<N>([Fq(0); N]);
         let a = Vector::<N>([Fq(1); N]);
         let b = Vector::<N>([Fq(0); N]);
@@ -156,7 +171,7 @@ mod tests {
 
     #[test]
     fn mul() {
-        const N: usize = 100;
+        const N: usize = 128;
         let mut c = Vector::<N>([Fq(0); N]);
         let a = Vector::<N>([Fq(0); N]);
         let b = Vector::<N>([Fq(1); N]);

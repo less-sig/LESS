@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 project(less_avx2)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 99)

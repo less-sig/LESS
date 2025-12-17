@@ -19,6 +19,6 @@ stdenv.mkDerivation {
   src = ./.;
 
   buildInputs = bInputs; #with pkgs; [ ];
-  nativeBuildInputs = with pkgs; [addOpenGLRunpath];
+  nativeBuildInputs = with pkgs; [];
   RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
 }

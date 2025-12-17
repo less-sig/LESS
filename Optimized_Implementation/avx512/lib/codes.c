@@ -115,7 +115,7 @@ void generator_monomial_mul(generator_mat_t *res,
         // in the first iteration we collect all indicies < 32
         for (uint64_t j = 0; j < NW; j++) {
             __m512i t = _mm512_maskz_permutexvar_epi16(masks[0][j], perms[0][j], buffer[0]);
-            LOOP_UNROLL_8
+            LOOP_UNROLL_2
             for (uint64_t i = 1; i < NW; i++) {
                 t = _mm512_mask_permutexvar_epi16(t, masks[i][j], perms[i][j], buffer[i]);
             }
