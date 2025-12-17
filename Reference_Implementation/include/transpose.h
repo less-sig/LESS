@@ -64,3 +64,16 @@ void matrix_transpose(uint8_t *dst,
                       const uint8_t *src,
                       size_t r,
                       size_t c);
+
+/// \param dst[out]: output non-IS matrix: K \times N-K
+/// \param src[in]: input non-IS matrix: K \times N-K
+/// \param r[in]: number of rows in `src`
+/// \param c[in]: number of cols in `src`
+/// \param src_stride[in]: number of elements between two rows in `src`
+/// \param dst_stride[in]: number of elements between two cols in `dst`
+void matrix_transpose_stride(uint8_t *dst,
+                             const uint8_t *src,
+                             size_t r,
+                             size_t c,
+                             size_t src_stride,
+                             size_t dst_stride);

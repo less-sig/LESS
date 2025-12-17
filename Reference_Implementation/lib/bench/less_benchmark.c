@@ -70,7 +70,7 @@ void welford_print(const welford_t state) {
 #elif CATEGORY==400
 #define NUM_RUNS 256
 #else
-#define NUM_RUNS 256
+#define NUM_RUNS 128
 #endif
 
 #define NUM_AVG_RUNS (1u << 5u)

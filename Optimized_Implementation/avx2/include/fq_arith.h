@@ -331,6 +331,27 @@ static inline __m256i avx_mul_full256(const __m256i a1, const __m256i a2,
     return w2;
 } /* end avx_mul_full256 */
 
+/// \param aa[in]: aa[i] < 127 in 16 bit limb for i in range(32)
+/// \param bb[in]: bb[i] < 127 in 16 bit limb for i in range(32)
+/// \return aa[i] * bb[i] % 127 for all i in range(32),
+static inline __m128i avx_mul_full256_v2(const __m256i aa,
+                                         const __m256i bb) {
+
+    __m256i c01, c7f, c516, tmp;
+    vset16(c01, 0x01);
+    vset16(c7f, 0x7F);
+    vset16(c516, 516);
+
+    __m256i acc = _mm256_mullo_epi16(aa, bb);
+    tmp = _mm256_add_epi16(acc, c01);
+    tmp = _mm256_mulhi_epu16(tmp, c516);
+    tmp = _mm256_mullo_epi16(tmp, c7f);
+    acc = _mm256_sub_epi16(acc, tmp);
+    const __m256i t = _mm256_packs_epi16(acc, _mm256_permute2x128_si256(acc, acc, 0x01));
+    return _mm256_castsi256_si128(t);
+}
+
+
 /// NOTE: these functions are outsourced to this file, to make the optimized
 /// implementation as easy as possible 
 /// NOTE: the length of all input rows must be multiple of 32.
@@ -373,10 +394,20 @@ static inline
 void row_mul(FQ_ELEM *row,
              const FQ_ELEM s) {
     const __m256i b = _mm256_set1_epi16(s);
-    for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
+#if 0
+    LOOP_UNROLL_4
+    for (uint32_t col = 0; col+16 <= N_K_pad; col+=16) {
+        const __m128i t1 = _mm_load_si128((const __m128i *)(row + col));
+        const __m256i t2 = _mm256_cvtepi8_epi16(t1);
+        const __m128i t3 = avx_mul_full256_v2(t2, b);
+        _mm_storeu_si128((__m128i *)(row + col), t3);
+    }
+#else
+    for (uint32_t col = 0; col+32 <= N_K_pad; col+=32) {
         const __m256i t = avx_mul(row + col, b);
         vstore256((vec256_t *)(row + col), t);
     }
+#endif
 } /* end row_mul */
 
 /// scalar multiplication of a row
@@ -414,6 +445,17 @@ static inline
 void row_mul3(FQ_ELEM *__restrict__ out,
               const FQ_ELEM *__restrict__ in1,
               const FQ_ELEM *__restrict__ in2) {
+#if 1
+    for (uint32_t col = 0; col+16 <= N_K_pad; col+=16) {
+        const __m128i a1 = _mm_loadu_si128((const __m128i *)(in1 + col));
+        const __m256i a2 = _mm256_cvtepi8_epi16(a1);
+        const __m128i b1 = _mm_loadu_si128((const __m128i *)(in2 + col));
+        const __m256i b2 = _mm256_cvtepi8_epi16(b1);
+        const __m128i t1 = avx_mul_full256_v2(a2, b2);
+
+        _mm_storeu_si128((__m128i *)(out + col), t1);
+    }
+#else
     for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
         const __m128i a1 = _mm_loadu_si128((const __m128i *)(in1 + col +  0));
         const __m128i a2 = _mm_loadu_si128((const __m128i *)(in1 + col + 16));
@@ -422,6 +464,7 @@ void row_mul3(FQ_ELEM *__restrict__ out,
         const __m256i t = avx_mul_full(a1, a2, b1, b2);
         vstore256((vec256_t *)(out + col), t);
     }
+#endif
 } /* end row_mul3 */
 
 /// NOTE: this is not constant time
@@ -432,7 +475,7 @@ void row_mul3(FQ_ELEM *__restrict__ out,
 static inline
 void row_inv2(FQ_ELEM *__restrict__ out,
               const FQ_ELEM *__restrict__ in) {
-    for (uint32_t col = 0; col < (N-K); col++) {
+    for (uint32_t col = 0; col < N-K; col++) {
         out[col] = fq_inv_non_ct(in[col]);
     }
 } /* end row_inv2 */
@@ -443,7 +486,7 @@ void row_inv2(FQ_ELEM *__restrict__ out,
 static inline
 uint32_t row_all_same(const FQ_ELEM *in) {
 #if 1
-    for (uint64_t col = 0;col < N-K; col++) {
+    for (uint64_t col = 1; col < N-K; col++) {
         if (in[col-1] != in[col]) {
             return 0;
         }

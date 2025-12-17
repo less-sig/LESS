@@ -31,10 +31,10 @@
 /// \param src[in] input bytes 8x8 matrix
 /// \param src_stride[in]: number of bytes between two rows in `src`
 /// \param dst_stride[in]: number of bytes between two cols in `dst`
-void matrix_transpose8x8(uint8_t* dst,
-                         const uint8_t* src,
-                         const size_t src_stride,
-                         const size_t dst_stride) {
+void matrix_transpose_8x8(uint8_t* dst,
+                          const uint8_t* src,
+                          const size_t src_stride,
+                          const size_t dst_stride) {
     // load rows of src matrix
     const uint64_t a0 = *((uint64_t*)(src+0*src_stride));
     const uint64_t a1 = *((uint64_t*)(src+1*src_stride));
@@ -86,6 +86,28 @@ void matrix_transpose8x8(uint8_t* dst,
     *(uint64_t*)(dst + 7*dst_stride) = d7;
 }
 
+#if !(defined(USE_AVX2) || defined(USE_NEON) || defined(USE_AVX512))
+/// \param dst[out]: out data
+/// \param src[in] input bytes 8x8 matrix
+/// \param src_stride[in]: number of bytes between two rows in `src`
+/// \param dst_stride[in]: number of bytes between two cols in `dst`
+void matrix_transpose_32x32(uint8_t* dst,
+                            const uint8_t* src,
+                            const size_t src_stride,
+                            const size_t dst_stride) {
+    // matrix_transpose8x8(dst + 0*dst_stride, src + 0*src_stride, src_stride, dst_stride);
+    // matrix_transpose8x8(dst + 0*dst_stride, src + 0*src_stride, src_stride, dst_stride);
+
+    for (size_t rw = 0; rw < 4; rw++) {
+        for (size_t cw = 0; cw < 4; cw++) {
+            const uint8_t *srcw_origin = src + (cw*src_stride + rw) * 8;
+                  uint8_t *dstw_origin = dst + (rw*dst_stride + cw) * 8;
+            matrix_transpose_8x8(dstw_origin, srcw_origin, src_stride, dst_stride);
+        }
+    }
+}
+#endif
+
 /// \param dst[out]: output non-IS matrix: K \times N-K
 /// \param src[in]: input non-IS matrix: K \times N-K
 /// \param r[in]: number of rows in `src`
@@ -113,7 +135,6 @@ void matrix_transpose(uint8_t *dst,
 #if defined(USE_AVX2) || defined(USE_NEON) || defined(USE_AVX512)
             const uint8_t* src_origin = src + (rb*src_stride+cb)*bsize;
                   uint8_t* dst_origin = dst + (cb*dst_stride+rb)*bsize;
-
 #if defined(USE_AVX512)
             // turns out: on some machines the avx512 is slower than
             // the avx2 implementation. Choose whatever is faster for you.
@@ -129,7 +150,7 @@ void matrix_transpose(uint8_t *dst,
                 for (size_t cw = 0; cw < bsize / 8; cw++) {
                     const uint8_t *srcw_origin = srcb_origin + (cw*src_stride + rw) * 8;
                           uint8_t *dstw_origin = dstb_origin + (rw*dst_stride + cw) * 8;
-                    matrix_transpose8x8(dstw_origin, srcw_origin, src_stride, dst_stride);
+                    matrix_transpose_8x8(dstw_origin, srcw_origin, src_stride, dst_stride);
                 }
             }
 #endif
@@ -154,4 +175,85 @@ void matrix_transpose(uint8_t *dst,
             }
         }
     }
+}
+
+/// \param dst[out]: output non-IS matrix: K \times N-K
+/// \param src[in]: input non-IS matrix: K \times N-K
+/// \param r[in]: number of rows in `src`
+/// \param c[in]: number of cols in `src`
+/// \param src_stride[in]: number of elements between two rows in `src`
+/// \param dst_stride[in]: number of elements between two cols in `dst`
+void matrix_transpose_stride(uint8_t *dst,
+                             const uint8_t *src,
+                             const size_t r,
+                             const size_t c,
+                             const size_t src_stride,
+                             const size_t dst_stride) {
+    // TODO
+#if !(defined(USE_AVX2) || defined(USE_NEON) || defined(USE_AVX512))
+    for (uint64_t row = 0; row < r; row++) {
+        for (uint64_t col = 0; col < c; col++) {
+            dst[col*dst_stride + row] = src[row*src_stride + col];
+        }
+    }
+    return;
+#endif
+    const size_t bsize = 32;
+
+    uint64_t rb = 0;
+    for (; rb < r / bsize; rb++) {
+        for (uint64_t cb = 0; cb < c / bsize; cb++) {
+            const uint8_t* src_origin = src + (rb*src_stride+cb)*bsize;
+                  uint8_t* dst_origin = dst + (cb*dst_stride+rb)*bsize;
+            // turns out: on some machines the avx512 code is slower than
+            // the avx2 implementation. Choose whatever is faster for you.
+            // matrix_transpose_64x64(dst_origin, src_origin, n, n);
+            matrix_transpose_32x32(dst_origin, src_origin, src_stride, dst_stride);
+        }
+    }
+
+#if !(defined(USE_AVX2) || defined(USE_NEON) || defined(USE_AVX512))
+    if (r % bsize) {
+        uint64_t j = rb*bsize;
+        const uint64_t climit = bsize * (c /bsize);
+        for(; j + 8 <= r; j+=8) {
+            for (uint32_t i = 0; i+8 <= climit; i+=8) {
+                const uint8_t* src_origin = src + j*src_stride + i;
+                      uint8_t* dst_origin = dst + i*dst_stride + j;
+
+                matrix_transpose_8x8(dst_origin, src_origin, src_stride, dst_stride);
+            }
+        }
+        for(; j < r; j++) {
+            for (uint32_t i = 0; i < climit; i++) {
+                dst[i*dst_stride + j] = src[j*src_stride + i];
+            }
+        }
+    }
+
+    if (c % bsize) {
+        uint64_t i = rb*bsize;
+        for (; i+8 <= c; i+=8) {
+            uint32_t j = 0;
+            for(; j + 8 <= r; j+=8) {
+                const uint8_t* src_origin = src + j * src_stride + i;
+                uint8_t*       dst_origin = dst + i * dst_stride + j;
+
+                matrix_transpose_8x8(dst_origin, src_origin, src_stride, dst_stride);
+            }
+
+            for(uint64_t k = i; k < i+8; k++) {
+                uint32_t jj = j;
+                for(; jj < r; jj++) {
+                    dst[k*dst_stride + jj] = src[jj*src_stride + k];
+                }
+            }
+        }
+        for (; i < c; i++) {
+            for(uint64_t j = 0; j < r; j++) {
+                dst[i*dst_stride + j] = src[j*src_stride + i];
+            }
+        }
+    }
+#endif
 }

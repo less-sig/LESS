@@ -25,11 +25,13 @@
  **/
 
 #include <string.h>
+#include <stdio.h>
 
 #include "codes.h"
 #include "fq_arith.h"
 #include "parameters.h"
-#include <assert.h>
+#include "transpose.h"
+
 
 /// swap N bytes in r and s.
 /// \param r[in/out] first row
@@ -67,13 +69,21 @@ void generator_get_pivot_flags(const rref_generator_mat_t *const G,
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom) {
-    for (uint32_t src_col_idx = 0; src_col_idx < N; src_col_idx++) {
-        for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
-            // NOTE: are we really sure that this dont leak memory?
-            res->values[row_idx][monom->permutation[src_col_idx]] =
-                    fq_mul(G->values[row_idx][src_col_idx], monom->coefficients[src_col_idx]);
+    FQ_ELEM tmp1[N*K] = {0};
+    FQ_ELEM tmp2[N*K];
+
+    matrix_transpose_stride(tmp1, (uint8_t *)G->values, K, N, N, K);
+    for (uint64_t i = 0; i < N; i++) {
+        const uint8_t p = monom->coefficients[i];
+        const uint64_t in_off = i * K;
+        const uint64_t out_off = monom->permutation[i] * K;
+        for (uint64_t j = 0; j < K; j++) {
+            const uint8_t v = tmp1[in_off + j];
+            const uint8_t t =  fq_mul(v, p);
+            tmp2[out_off + j] = t;
         }
     }
+    matrix_transpose_stride((uint8_t *)res->values, tmp2, N, K, K, N);
 } /* end generator_monomial_mul */
 
 

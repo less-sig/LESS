@@ -32,6 +32,7 @@
 #include "fq_arith.h"
 #include "macro.h"
 #include "parameters.h"
+#include "transpose.h"
 
 /// swap N_pad bytes in r and s
 /// \param r[in]: pointer to the first row
@@ -70,6 +71,26 @@ void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom) {
 #if 1
+    FQ_ELEM tmp1[N_pad*K_pad] __attribute__((aligned(32)));
+    FQ_ELEM tmp2[N_pad*K_pad] __attribute__((aligned(32)));
+
+    matrix_transpose_stride(tmp1, (uint8_t *)G->values, K_pad, N_pad, N_pad, K_pad);
+
+    for (uint64_t i = 0; i < N; i++) {
+        const __m512i p = _mm512_set1_epi16(monom->coefficients[i]);
+        const uint64_t in_off = i * K_pad;
+        const uint64_t out_off = monom->permutation[i] * K_pad;
+        for (uint64_t j = 0; j+32 <= K_pad; j += 32) {
+            const __m256i a = _mm256_loadu_si256((const __m256i *)(tmp1 + in_off + j +  0));
+            const __m512i b = _mm512_cvtepu8_epi16(a);
+            const __m256i t = avx_mul_full512(b, p);
+            _mm256_store_si256((__m256i *)(tmp2 + out_off + j), t);
+        }
+    }
+
+    matrix_transpose_stride((uint8_t *)res->values, tmp2, N_pad, K_pad, K_pad, N_pad);
+
+#if 0
     const __m512i c32 = _mm512_set1_epi16( 32);
     const __m512i s = _mm512_set_epi16(31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0);
     __m512i buffer[NW];
@@ -124,6 +145,7 @@ void generator_monomial_mul(generator_mat_t *res,
             _mm256_storeu_epi8(res->values[row_idx] + j*32, tmp);
         }
     }
+#endif
 #else
     FQ_ELEM buffer[N_pad] __attribute__((aligned(64)));
     __m512i monomial[NW];

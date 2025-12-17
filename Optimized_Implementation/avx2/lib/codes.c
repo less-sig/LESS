@@ -73,41 +73,27 @@ void generator_get_pivot_flags(const rref_generator_mat_t *const G,
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom) {
-    FQ_ELEM buffer[N_pad] __attribute__((aligned(32)));
-    __m256i monomial[NW*2];
+    FQ_ELEM tmp1[N_pad*K_pad] __attribute__((aligned(32)));
+    FQ_ELEM tmp2[N_pad*K_pad] __attribute__((aligned(32)));
 
-    // first load the monomial and extend each entry to 2 bytes.
-    for (uint32_t i = 0; i < NW; i++) {
-        const __m128i a = _mm_loadu_si128((const __m128i *)(monom->coefficients + 32*i +  0));
-        const __m128i b = _mm_loadu_si128((const __m128i *)(monom->coefficients + 32*i + 16));
-        const __m256i t1 = _mm256_cvtepu8_epi16(a);
-        const __m256i t2 = _mm256_cvtepu8_epi16(b);
-        monomial[2*i + 0] = t1;
-        monomial[2*i + 1] = t2;
-    }
+    matrix_transpose_stride(tmp1, (uint8_t *)G->values, K_pad, N_pad, N_pad, K_pad);
 
-    // now compute the actual multiplication
-    for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
-        const FQ_ELEM *G_pointer = G->values[row_idx];
-        uint32_t ctr = 0;
+    for (uint64_t i = 0; i < N; i++) {
+        const __m256i p = _mm256_set1_epi16(monom->coefficients[i]);
+        const uint64_t in_off = i * K_pad;
+        const uint64_t out_off = monom->permutation[i] * K_pad;
+        for (uint64_t j = 0; j+32 <= K_pad; j += 32) {
+            const __m128i a = _mm_loadu_si128((const __m128i *)(tmp1 + in_off + j +  0));
+            const __m128i b = _mm_loadu_si128((const __m128i *)(tmp1 + in_off + j + 16));
+            const __m256i t0 = _mm256_cvtepu8_epi16(a);
+            const __m256i t1 = _mm256_cvtepu8_epi16(b);
 
-        for (uint32_t src_col_idx = 0; (src_col_idx+32) <= N_pad; src_col_idx += 32) {
-            const __m128i a1 = _mm_loadu_si128((const __m128i *)(G_pointer + src_col_idx +  0));
-            const __m128i a2 = _mm_loadu_si128((const __m128i *)(G_pointer + src_col_idx + 16));
-
-            const __m256i a_lo = _mm256_cvtepu8_epi16(a1);
-            const __m256i a_hi = _mm256_cvtepu8_epi16(a2);
-            const __m256i t = avx_mul_full256(a_lo, a_hi, monomial[ctr], monomial[ctr + 1]);
-            _mm256_store_si256((__m256i *)(buffer + src_col_idx), t);
-            ctr += 2;
-        }
-
-        // this is probably the bottleneck, as this needs to be non-aligned memory access.
-        for (uint32_t i = 0; i < N; i++) {
-            // NOTE: does this leak anything?
-            res->values[row_idx][monom->permutation[i]] = buffer[i];
+            const __m256i t = avx_mul_full256(t0, t1, p, p);
+            _mm256_store_si256((__m256i *)(tmp2 + out_off + j), t);
         }
     }
+
+    matrix_transpose_stride((uint8_t *)res->values, tmp2, N_pad, K_pad, K_pad, N_pad);
 } /* end generator_monomial_mul */
 
 /// \param G[in/out]: generator matrix
@@ -314,6 +300,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
         memcpy(em[1], rg, LESS_WSZ * NW);
 
         for (j = 2; j < 127; j++) {
+            LOOP_UNROLL_4
             for (uint32_t k = 0; k < NW; k++) {
                 vadd8(x, em[j - 1][k], rg[k])
                 const __m256i xx = _mm256_sub_epi8(x, c7f);
@@ -346,6 +333,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
             sc = ((uint8_t *) gm[j])[pivc];
             if (sc != 0x00 && j != i) {
                 rp = ep[127 - sc];
+                LOOP_UNROLL_4
                 for (uint32_t k = 0; k < NW; k++) {
                     vadd8(x, gm[j][k], rp[k]);
                     const __m256i xx = _mm256_sub_epi8(x, c7f);
@@ -691,7 +679,30 @@ void normalized_monomial_right(normalized_IS_t *res,
 void normalized_copy_from_generator_non_information_set(normalized_IS_t *A ,
                                                         const generator_mat_t *const G,
                                                         const uint8_t *const is_pivot_column) {
+#if 1
+    uint32_t ctr = 0;
+    for (uint64_t i = 0; i < K; i++) {
+        ctr += is_pivot_column[i];
+    }
 
+    for (uint64_t i = 0; i < K; i++) {
+        memcpy(((uint8_t *)A->values) + i*K_pad, ((uint8_t *)G->values) + K_pad + i*N_pad, K_pad);
+    }
+    if (ctr == K) {
+        return ;
+    }
+    /// TODO not fully correct
+    if (ctr == K-1) {
+        const uint64_t j = 0;
+        for (uint32_t k = 0; k < K; k++) {
+            A->values[k][j] = G->values[k][ctr];
+        }
+
+        return;
+    }
+    // hard pard
+    return;
+#else
     uint32_t ctr = 0;
     for(uint32_t j = 0; j < N-K; j++) {
         while (is_pivot_column[ctr]) {
@@ -703,4 +714,5 @@ void normalized_copy_from_generator_non_information_set(normalized_IS_t *A ,
         }
         ctr += 1;
     }
+#endif
 }

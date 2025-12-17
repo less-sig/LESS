@@ -1,3 +1,48 @@
+TODO remove
+
+18bb0daf28bfc806649ad406c6638f3b9c07ebb5  PQCsignKAT_105174.rsp
+8df56aa1ba520ffac241d8294f12f11ed5accf1d  PQCsignKAT_13940.rsp
+c9df47972b63d915e1693ad687722bf46f43e7cd  PQCsignKAT_197315.rsp
+8398b442844bfd00f40d329e45a8f8e78fe8cb6e  PQCsignKAT_35074.rsp
+5978466ec06c646a027d8305ad232bedc636c2ad  PQCsignKAT_41788.rsp
+c3b94175d0367439cba18d6990cf8c1d5a8b8b71  PQCsignKAT_65793.rsp
+98019ba6113c9f1743955a0fb120d313838c9cef  PQCsignKAT_97484.rsp
+
+AVX2 
+CHES paper:
+sign: 117.0
+vrfy: 106.8
+
+After Gauß fix
+Key generation kCycles (avg,stddev):   725.72,21.88
+Signature kCycles (avg,stddev):     134955.52,4338.17
+Verification kCycles (avg,stddev):  110472.24,1282.03
+
+After right mul fix 
+Key generation kCycles (avg,stddev):   649.47,45.52
+kSignature kCycles (avg,stddev):    130633.64,1836.56
+Verification kCycles (avg,stddev):  107606.55,1817.26
+
+After normalized_copy_from_generator_non_information_set
+Key generation kCycles (avg,stddev):   658.12,42.94
+Signature kCycles (avg,stddev):     124807.28,3526.02
+Verification kCycles (avg,stddev):  102872.68,4438.76
+
+AVX512 
+CHES paper:
+sign: 112.2
+vrfy:  80.6
+
+After Gauß fix:
+Key generation kCycles (avg,stddev):   466.86,19.30
+Signature kCycles (avg,stddev):     123132.42,857.23
+Verification kCycles (avg,stddev):   85493.60,725.60
+
+After right mul fix 
+Key generation kCycles (avg,stddev):   489.47,52.89
+Signature kCycles (avg,stddev):     120312.14,5400.90
+Verification kCycles (avg,stddev):   82619.34,545.12
+
 The submission for LESS contains the following:
 
 ## Reference Implementation
