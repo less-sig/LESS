@@ -640,6 +640,30 @@ void normalized_row_swap(normalized_IS_t *V,
 void normalized_monomial_right(normalized_IS_t *res,
                                const normalized_IS_t *const G,
                                const monomial_t *const monom) {
+#if 1
+    FQ_ELEM tmp1[K_pad*K_pad] __attribute__((aligned(32)));
+    FQ_ELEM tmp2[K_pad*K_pad] __attribute__((aligned(32)));
+
+    matrix_transpose_stride(tmp1, (uint8_t *)G->values, K_pad, K_pad, K_pad, K_pad);
+
+    for (uint64_t i = 0; i < K; i++) {
+        const __m256i p = _mm256_set1_epi16(monom->coefficients[i]);
+        const uint64_t in_off = i * K_pad;
+        const uint64_t out_off = monom->permutation[i] * K_pad;
+        for (uint64_t j = 0; j+32 <= K_pad; j += 32) {
+            const __m128i a = _mm_loadu_si128((const __m128i *)(tmp1 + in_off + j +  0));
+            const __m128i b = _mm_loadu_si128((const __m128i *)(tmp1 + in_off + j + 16));
+            const __m256i t0 = _mm256_cvtepu8_epi16(a);
+            const __m256i t1 = _mm256_cvtepu8_epi16(b);
+
+            const __m256i t = avx_mul_full256(t0, t1, p, p);
+            _mm256_store_si256((__m256i *)(tmp2 + out_off + j), t);
+        }
+    }
+
+    matrix_transpose_stride((uint8_t *)res->values, tmp2, K_pad, K_pad, K_pad, K_pad);
+
+#else
     FQ_ELEM buffer[N_pad] __attribute__((aligned(64)));
    __m256i monomial[NW*2];
     for (uint32_t i = 0; i < (K_pad/32); i++) {
@@ -670,6 +694,7 @@ void normalized_monomial_right(normalized_IS_t *res,
             res->values[row_idx][monom->permutation[i]] = buffer[i];
         }
     }
+#endif
 } /* normalized_monomial_right*/
 
 /// \param A[out]: pointer to allocated normalized struct, which get filled with the
@@ -679,40 +704,24 @@ void normalized_monomial_right(normalized_IS_t *res,
 void normalized_copy_from_generator_non_information_set(normalized_IS_t *A ,
                                                         const generator_mat_t *const G,
                                                         const uint8_t *const is_pivot_column) {
-#if 1
-    uint32_t ctr = 0;
+    // we simply copy the last N-K columns even if they are not the information set.
     for (uint64_t i = 0; i < K; i++) {
-        ctr += is_pivot_column[i];
+        memcpy((uint8_t *)A->values[i], ((uint8_t *)G->values[i]) + K, K);
     }
 
-    for (uint64_t i = 0; i < K; i++) {
-        memcpy(((uint8_t *)A->values) + i*K_pad, ((uint8_t *)G->values) + K_pad + i*N_pad, K_pad);
-    }
-    if (ctr == K) {
-        return ;
-    }
-    /// TODO not fully correct
-    if (ctr == K-1) {
-        const uint64_t j = 0;
-        for (uint32_t k = 0; k < K; k++) {
-            A->values[k][j] = G->values[k][ctr];
-        }
-
-        return;
-    }
-    // hard pard
-    return;
-#else
+    // now we scan if we need to fix the non information set
     uint32_t ctr = 0;
-    for(uint32_t j = 0; j < N-K; j++) {
-        while (is_pivot_column[ctr]) {
-            ctr += 1;
-        }
+    for (; ctr < K && is_pivot_column[ctr] == 1; ctr++) {}
+
+    // easy part: the last N-K columns are the non IS
+    if (ctr == K) { return; }
+
+    // "hard" part: copy all remaining columns < K into the non information set part
+    for(uint32_t j = 0; j < N-K && is_pivot_column[ctr] == 0; j++) {
         /// copy column
         for (uint32_t k = 0; k < K; k++) {
             A->values[k][j] = G->values[k][ctr];
         }
         ctr += 1;
     }
-#endif
 }

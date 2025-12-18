@@ -28,6 +28,16 @@ Key generation kCycles (avg,stddev):   658.12,42.94
 Signature kCycles (avg,stddev):     124807.28,3526.02
 Verification kCycles (avg,stddev):  102872.68,4438.76
 
+After normalized right mul fix 
+Key generation kCycles (avg,stddev):   710.58,29.35
+Signature kCycles (avg,stddev):     120549.10,4510.03
+Verification kCycles (avg,stddev):   99220.38,1089.34
+
+After u16 in monomial compose
+Key generation kCycles (avg,stddev):   712.59,52.55
+Signature kCycles (avg,stddev):     114642.35,4966.43
+Verification kCycles (avg,stddev):   98302.40,1362.30
+
 AVX512 
 CHES paper:
 sign: 112.2
@@ -42,6 +52,29 @@ After right mul fix
 Key generation kCycles (avg,stddev):   489.47,52.89
 Signature kCycles (avg,stddev):     120312.14,5400.90
 Verification kCycles (avg,stddev):   82619.34,545.12
+
+After normalized_copy_from_generator_non_information_set
+Key generation kCycles (avg,stddev):   443.53,44.91
+Signature kCycles (avg,stddev):     111853.09,578.93
+Verification kCycles (avg,stddev):   74715.54,192.74
+
+After normalized right mul fix 
+Key generation kCycles (avg,stddev):   451.78,38.98
+Signature kCycles (avg,stddev):     114027.85,709.83
+Verification kCycles (avg,stddev):   75053.27,747.74
+
+After u16 in monomial compose
+Key generation kCycles (avg,stddev):   460.27,44.74
+Signature kCycles (avg,stddev):     105467.72,1308.16
+Verification kCycles (avg,stddev):   75136.03,322.
+
+
+
+
+
+
+
+
 
 The submission for LESS contains the following:
 

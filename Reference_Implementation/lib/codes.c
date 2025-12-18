@@ -69,7 +69,7 @@ void generator_get_pivot_flags(const rref_generator_mat_t *const G,
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom) {
-    FQ_ELEM tmp1[N*K] = {0};
+    FQ_ELEM tmp1[N*K];
     FQ_ELEM tmp2[N*K];
 
     matrix_transpose_stride(tmp1, (uint8_t *)G->values, K, N, N, K);
@@ -629,12 +629,21 @@ void normalized_row_swap(normalized_IS_t *V,
 void normalized_monomial_right(normalized_IS_t *res,
                                const normalized_IS_t *const G,
                                const monomial_t *const monom) {
-    for (uint32_t src_col_idx = 0; src_col_idx < K; src_col_idx++) {
-        for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
-            res->values[row_idx][monom->permutation[src_col_idx]] =
-                fq_mul_non_ct(G->values[row_idx][src_col_idx], monom->coefficients[src_col_idx]);
+    FQ_ELEM tmp1[K*K];
+    FQ_ELEM tmp2[K*K];
+
+    matrix_transpose_stride(tmp1, (uint8_t *)G->values, K, K, K, K);
+    for (uint64_t i = 0; i < K; i++) {
+        const uint8_t p = monom->coefficients[i];
+        const uint64_t in_off = i * K;
+        const uint64_t out_off = monom->permutation[i] * K;
+        for (uint64_t j = 0; j < K; j++) {
+            const uint8_t v = tmp1[in_off + j];
+            const uint8_t t =  fq_mul(v, p);
+            tmp2[out_off + j] = t;
         }
     }
+    matrix_transpose_stride((uint8_t *)res->values, tmp2, K, K, K, K);
 } /* end normalized_monomial_right */
 
 /// \param A[out]: pointer to allocated normalized struct, which get filled with the
@@ -644,11 +653,20 @@ void normalized_monomial_right(normalized_IS_t *res,
 void normalized_copy_from_generator_non_information_set(normalized_IS_t *A ,
                                                         const generator_mat_t *const G,
                                                         const uint8_t *const is_pivot_column) {
+    // we simply copy the last N-K columns even if they are not the information set.
+    for (uint64_t i = 0; i < K; i++) {
+        memcpy((uint8_t *)A->values[i], ((uint8_t *)G->values[i]) + K, K);
+    }
+
+    // now we scan if we need to fix the non information set
     uint32_t ctr = 0;
-    for(uint32_t j = 0; j < N-K; j++) {
-        while (is_pivot_column[ctr]) {
-            ctr += 1;
-        }
+    for (; ctr < K && is_pivot_column[ctr] == 1; ctr++) {}
+
+    // easy part: the last N-K columns are the non IS
+    if (ctr == K) { return; }
+
+    // "hard" part: copy all remaining columns < K into the non information set part
+    for(uint32_t j = 0; j < N-K && is_pivot_column[ctr] == 0; j++) {
         /// copy column
         for (uint32_t k = 0; k < K; k++) {
             A->values[k][j] = G->values[k][ctr];

@@ -339,14 +339,14 @@ FQ_ELEM row_acc_inv(const FQ_ELEM *row) {
     static FQ_ELEM inv_data[N_K_pad] __attribute__((aligned(64))) = {0}; 
 
     uint32_t col = 0;
-    for (; (col+64) <= N_K_pad; col += 64) {
+    for (; col+64 <= N_K_pad; col += 64) {
         const __m512i a = _mm512_loadu_si512((const __m512i *)(row + col));
         const __m512i k = _mm512_permutex2var_epi8(t1, a, t2);
         _mm512_store_si512((__m512i *)(inv_data + col), k);
 	}
 
     // tail mngt...
-    for (; (col+32) <= N_K_pad; col += 32) {
+    for (; col+32 <= N_K_pad; col += 32) {
         const __m256i b = _mm256_loadu_si256((const __m256i *)(row + col));
         const __m512i a = _mm512_castsi256_si512(b);
         const __m512i c = gf127v_scalar_table_u512(a, t1, t2); 

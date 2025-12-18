@@ -71,8 +71,8 @@ void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom) {
 #if 1
-    FQ_ELEM tmp1[N_pad*K_pad] __attribute__((aligned(32)));
-    FQ_ELEM tmp2[N_pad*K_pad] __attribute__((aligned(32)));
+    FQ_ELEM tmp1[N_pad*K_pad] __attribute__((aligned(64)));
+    FQ_ELEM tmp2[N_pad*K_pad] __attribute__((aligned(64)));
 
     matrix_transpose_stride(tmp1, (uint8_t *)G->values, K_pad, N_pad, N_pad, K_pad);
 
@@ -904,6 +904,26 @@ void normalized_row_swap(normalized_IS_t *V,
 void normalized_monomial_right(normalized_IS_t *res,
                                const normalized_IS_t *const G,
                                const monomial_t *const monom) {
+#if 1
+    FQ_ELEM tmp1[K_pad*K_pad] __attribute__((aligned(64)));
+    FQ_ELEM tmp2[K_pad*K_pad] __attribute__((aligned(64))) = {0}; // NOTE this is important
+
+    matrix_transpose_stride(tmp1, (uint8_t *)G->values, K_pad, K_pad, K_pad, K_pad);
+
+    for (uint64_t i = 0; i < K; i++) {
+        const __m512i p = _mm512_set1_epi16(monom->coefficients[i]);
+        const uint64_t in_off = i * K_pad;
+        const uint64_t out_off = monom->permutation[i] * K_pad;
+        for (uint64_t j = 0; j+32 <= K_pad; j += 32) {
+            const __m256i a = _mm256_loadu_si256((const __m256i *)(tmp1 + in_off + j +  0));
+            const __m512i b = _mm512_cvtepu8_epi16(a);
+            const __m256i t = avx_mul_full512(b, p);
+            _mm256_store_si256((__m256i *)(tmp2 + out_off + j), t);
+        }
+    }
+
+    matrix_transpose_stride((uint8_t *)res->values, tmp2, K_pad, K_pad, K_pad, K_pad);
+#else
     FQ_ELEM buffer[K_pad] __attribute__((aligned(64)));
     __m512i monomial[K_pad / 32];
     uint32_t k = 0;
@@ -938,6 +958,7 @@ void normalized_monomial_right(normalized_IS_t *res,
             res->values[row_idx][monom->permutation[i]] = buffer[i];
         }
     }
+#endif
 }
 
 /// \param A[out]: pointer to allocated normalized struct, which get filled with the
@@ -947,12 +968,20 @@ void normalized_monomial_right(normalized_IS_t *res,
 void normalized_copy_from_generator_non_information_set(normalized_IS_t *A ,
                                                         const generator_mat_t *const G,
                                                         const uint8_t *const is_pivot_column) {
+    // we simply copy the last N-K columns even if they are not the information set.
+    for (uint64_t i = 0; i < K; i++) {
+        memcpy((uint8_t *)A->values[i], ((uint8_t *)G->values[i]) + K, K);
+    }
 
+    // now we scan if we need to fix the non information set
     uint32_t ctr = 0;
-    for(uint32_t j = 0; j < N-K; j++) {
-        while (is_pivot_column[ctr]) {
-            ctr += 1;
-        }
+    for (; ctr < K && is_pivot_column[ctr] == 1; ctr++) {}
+
+    // easy part: the last N-K columns are the non IS
+    if (ctr == K) { return; }
+
+    // "hard" part: copy all remaining columns < K into the non information set part
+    for(uint32_t j = 0; j < N-K && is_pivot_column[ctr] == 0; j++) {
         /// copy column
         for (uint32_t k = 0; k < K; k++) {
             A->values[k][j] = G->values[k][ctr];

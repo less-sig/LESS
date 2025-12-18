@@ -137,7 +137,8 @@ void monomial_sample_prikey(monomial_t *res,
     yt_shuffle_state(&shake_monomial_state, res->permutation);
 } /* end monomial_sample_prikey */
 
-/// NOTE: non constant time implementation.
+/// NOTE: non constant time implementation. But thats ok as its only
+///     used in `keygen`
 /// \param res[out]: = to_invert**-1
 /// \param to_invert[in]:
 void monomial_inv(monomial_t *res,
@@ -160,43 +161,44 @@ void monomial_inv(monomial_t *res,
 void monomial_compose_action(monomial_action_IS_t *out,
                              const monomial_t *Q_in,
                              const monomial_action_IS_t *in) {
-    /* to compose with monomial_action_IS_t, reverse the convention
-     * for Q storage: store in permutation[i] the idx of the source column landing
-     * as the i-th after the GQ product, and in coefficients[i] the coefficient
-     * by which the column is multiplied upon landing */
+    /// to compose with monomial_action_IS_t, reverse the convention
+    /// for Q storage: store in permutation[i] the idx of the source column landing
+    /// as the i-th after the GQ product, and in coefficients[i] the coefficient
+    /// by which the column is multiplied upon landing
     monomial_t reverse_Q;
-    for (uint32_t i = 0; i < N; i++) {
-        // what we want to compute
+    for (uint16_t i = 0; i < N; i++) {
+        // we want to compute:
         // reverse_Q.permutation[Q_in->permutation[i]] = i;
 
-        const uint32_t pos = Q_in->permutation[i];
-        for (uint32_t j = 0; j < N; j++) {
-            const uint32_t mask = COMPUTE_CT_MASK(j, pos);
-            const uint32_t not_mask = ~mask;
-            const uint32_t value = (reverse_Q.permutation[j] & not_mask) ^ (i & mask);
+        /// NOTE: the type `uint16_t` is rather important. Otherwise the compiler is needed to emit
+        /// costly zero-extend mov instructions. At least on a ryzen 5 7600X the resulting code
+        /// is ~2x slower.
+        const uint16_t pos = Q_in->permutation[i];
+        for (uint16_t j = 0; j < N; j++) {
+            const uint16_t mask = COMPUTE_CT_MASK(j, pos);
+            const uint16_t not_mask = ~mask;
+            const uint16_t value = (reverse_Q.permutation[j] & not_mask) ^ (i & mask);
             reverse_Q.permutation[j] = value;
         }
-
     }
-    /* compose actions out = Q_in*in */
-    for (uint32_t i = 0; i < K; i++) {
-        // what we want to compute:
-        // out->permutation[i] = reverse_Q.permutation[in->permutation[i]];
 
-        const uint32_t pos = in->permutation[i];
-        uint32_t value = 0;
-        for (uint32_t j = 0; j < N; j++) {
-            const uint32_t mask = COMPUTE_CT_MASK(j, pos);
-            const uint32_t not_mask = ~mask;
-            value = (reverse_Q.permutation[j] & mask) ^ (value & not_mask);
+    for (uint16_t i = 0; i < K; i++) {
+        // we want to compute:
+        // out->permutation[i] = reverse_Q.permutation[in->permutation[i]];
+        const uint16_t pos = in->permutation[i];
+        uint16_t value = 0;
+        for (uint16_t j = 0; j < N; j++) {
+            const uint16_t mask = COMPUTE_CT_MASK(j, pos);
+            value ^= reverse_Q.permutation[j] & mask;
         }
         out->permutation[i] = value;
     }
 } /* end monomial_compose_action */
 
+/// NOTE: constant time implementation
 /// NOTE: Only the permutation is computed, as this is the only thing we need
 /// since the adaption of canonical forms.
-/// \param pi_tilde[out]: mu_tilde * information set
+/// \param pi_tilde[out]: mu_tilde^{-1} * information set
 /// \param mu_tilde[in]: input monomial matrix.
 /// \param is_pivot_column[in]: information set, where a 1 in the array
 ///         symbolizes that the corresponding columns is a pivot column.
@@ -204,13 +206,15 @@ void monomial_compose_action_information_set(monomial_action_IS_t *pi_tilde,
                                              const monomial_t *mu_tilde,
                                              const uint8_t *is_pivot_column) {
 
-    POSITION_T piv_idx = 0;
-    for(uint32_t col_idx = 0; col_idx < N; col_idx++) {
-        POSITION_T row_idx = 0;
-        for(uint32_t t = 0; t < N; t++) {
+    uint16_t piv_idx = 0;
+    for(uint16_t col_idx = 0; col_idx < N; col_idx++) {
+        uint16_t row_idx = 0;
+        for(uint16_t t = 0; t < N; t++) {
+            // NOTE: do not break here.
+            // NOTE: the compiler should not be able to optimize a break here. As it doesnt know that each
+            //      value in `permutation` is unique, hence it "could" be that there are multiple position == col_idx
             if (mu_tilde->permutation[t] == col_idx) {
                 row_idx = t;
-                break; // NOTE this maybe leaks information
             }
         }
         /// NOTE: this should not leak information.
