@@ -1,40 +1,222 @@
 #![allow(dead_code)]
 
-use std::ops::Add;
+use std::{
+    cmp,
+    fmt,
+    ops::{Add, Index, IndexMut},
+};
+
 use crate::fq::Fq;
+use crate::monomial::Monomial;
+use crate::vector::Vector;
 
 
 const Q_PAD: usize = 128;
 const Q: u8 = 127;
 
-#[derive(Debug)]
 pub struct Matrix<const N: usize, const M: usize> {
-    rows: [[Fq; M]; N],
+    rows: [Vector<M>; N],
 }
 
 impl<const N: usize, const M: usize> Matrix<N, M> {
-    pub fn new() -> Matrix<N, M> {
-        Matrix {
-            rows: [[Fq(0); M]; N],
+
+    /// Zero Initialised
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::matrix::Matrix;
+    /// let result: Matrix<100, 100> = Matrix::init();
+    /// assert_eq!(result[0][0], 0);
+    /// assert_eq!(result.dimension(), (100, 100));
+    /// ```
+    ///
+    /// # Returns
+    /// A new Matrix
+    #[inline]
+    pub fn init() -> Self {
+        Self {
+            rows: core::array::from_fn(|_| Vector::<M>::init() ),
         }
     }
-    
-    // unneded
-    // fn sub(r: &mut Self, l: &Self) {
-    //     for i in 0..N {
-    //         for j in 0..M {
-    //             r.rows[i][j] = Fq::sub(r.rows[i][j], l.rows[i][j]);
-    //         } 
-    //     }
-    // }
 
-    fn add(r: &mut Self, l: &Self) {
+    /// same as init
+    #[inline]
+    pub fn new() -> Matrix<N, M> {
+        Matrix {
+            rows: core::array::from_fn(|_| Vector::<M>::init() ),
+        }
+    }
+
+    /// Identity Matrix
+    /// # Examples
+    ///
+    /// ```
+    /// use lll_rs::matrix::ConstMatrix;
+    /// use lll_rs::number::BigInteger;
+    /// let result: ConstMatrix<BigInteger, 100, 100> = ConstMatrix::id();
+    /// assert_eq!(result[0][0].is_zero(), false);
+    /// assert_eq!(result.dimension(), (100, 100));
+    /// ```
+    ///
+    /// # Returns
+    /// A new identity matrix
+    pub fn id() -> Self {
+        let mut a = Self::init();
+        for i in 0..cmp::min(N, M) {
+            a[i][i] = Fq(1);
+        }
+        a
+    }
+
+    /// The size/dimension of the matrix
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::matrix::Matrix;
+    /// let result: Matrix<100, 100> = matrix::init();
+    /// assert_eq!(result.dimension(), (100, 100));
+    /// ```
+    ///
+    /// # Returns
+    /// A size/dimension of the vector
+    #[inline]
+    pub fn dimension(&self) -> (usize, usize) {
+        (N, M)
+    }
+
+    /// Return the number of columns
+    /// # Examples
+    ///
+    /// ```
+    /// use lll_rs::matrix::ConstMatrix;
+    /// use lll_rs::number::BigInteger;
+    /// let result: ConstMatrix<BigInteger, 100, 100> = ConstMatrix::init();
+    /// assert_eq!(result.ncols(), 100);
+    /// ```
+    ///
+    /// # Returns
+    /// n_cols
+    #[inline]
+    pub fn ncols(&self) -> usize {
+        M
+    }
+
+    /// Return the number of rows
+    /// # Examples
+    ///
+    /// ```
+    /// use lll_rs::matrix::ConstMatrix;
+    /// use lll_rs::number::BigInteger;
+    /// let result: ConstMatrix<BigInteger, 100, 100> = ConstMatrix::init();
+    /// assert_eq!(result.nrows(), 100);
+    /// ```
+    ///
+    /// # Returns
+    /// n_rows
+    #[inline]
+    pub fn nrows(&self) -> usize {
+        N
+    }
+    
+    /// constant time addition
+    /// r += l
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::Matrix;
+    /// ```
+    ///
+    /// # Parameters
+    /// - `r`: NxM matrix
+    /// - `l`: NxM matrix
+    #[inline]
+    pub fn add(r: &mut Self, l: &Self) {
         for i in 0..N {
             for j in 0..M {
                 r.rows[i][j] = Fq::add(r.rows[i][j], l.rows[i][j]);
             } 
         }
     }
+
+    /// constant time subtraction
+    /// r -= l
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::Matrix;
+    /// ```
+    ///
+    /// # Parameters
+    /// - `r`: NxM matrix
+    /// - `l`: NxM matrix
+    #[inline]
+    pub fn sub(r: &mut Self, l: &Self) {
+        for i in 0..N {
+            for j in 0..M {
+                r.rows[i][j] = Fq::sub(r.rows[i][j], l.rows[i][j]);
+            } 
+        }
+    }
+
+    /// constant time row swap
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::Matrix;
+    /// ```
+    ///
+    /// # Parameters
+    /// - `r`: NxM matrix
+    /// - `r1`: index of the first row
+    /// - `r2`: index of the second row
+    #[inline]
+    pub fn swap_rows(r: &mut Self, r1: usize, r2: usize) {
+        for j in 0..M {
+            let tmp = r.rows[r1][j];
+            r.rows[r1][j] = r.rows[r2][j];
+            r.rows[r2][j] = tmp;
+        } 
+    }
+
+    /// TODO not ct
+    pub fn monomial_mul(res: &mut Self, g: &Self, monom: &Monomial<N>) {
+        for src_col_idx in 0..M {
+            for row_idx in 0..N {
+                let pos = monom.perms[src_col_idx];
+                let a = g.rows[row_idx][src_col_idx];
+                let b = monom.coeffs[src_col_idx];
+                res.rows[row_idx][pos as usize] = Fq::mul(a, b);
+            }
+        }
+    }
+
+    pub fn rref_ct(g: &mut Self,
+                   is_pivot_column: &mut [u8; M],
+                   was_pivot_column: &[u8; M],
+                   pvt_reuse_limit: u32) {
+        let mut pvt_reuse_limit: u32 = 0;
+
+        if pvt_reuse_limit != 0 {
+            // TODO: loop boundaries propably not correct
+            for preproc_col in N - 1 .. 0 {
+                if was_pivot_column[preproc_col as usize] == 1 {
+                    let mut pivot_el_row = 0;
+                    for row in 0..N {
+                        if g.rows[row][preproc_col] != Fq(0) {
+                            pivot_el_row = row;
+                        }
+                    }
+
+                    Self::swap_rows(g, preproc_col, pivot_el_row);
+                }
+            }
+        }
+
+        for row_to_reduce in 0..N {
+            // TODO
+        }
+    }
+
 }
 
 
@@ -52,6 +234,27 @@ impl<'a, const N: usize, const M: usize> Add for &'a mut Matrix<N, M> {
     fn add(self, r: Self) -> Self::Output {
         Matrix::<N, M>::add(self, r);
         self
+    }
+}
+
+
+/// Direct access to a row
+impl<const N: usize, const M: usize> Index<usize> for Matrix<N, M> {
+    type Output = Vector<M>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.rows[index]
+    }
+}
+/// Direct access to a row (mutable)
+impl<const N: usize, const M: usize> IndexMut<usize> for Matrix<N, M> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.rows[index]
+    }
+}
+impl<const N: usize, const M: usize> fmt::Debug for Matrix<N, M> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "{:?}", self.rows)
     }
 }
 

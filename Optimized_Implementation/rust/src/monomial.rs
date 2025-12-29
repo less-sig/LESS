@@ -3,13 +3,13 @@ use crate::fq::Fq;
 
 #[derive(Debug)]
 pub struct Monomial<const N: usize> {
-    coeffs: [Fq; N],
-    perms: [u16; N],
+    pub coeffs: [Fq; N],
+    pub perms: [u16; N],
 }
 
 #[derive(Debug)]
 pub struct MonomialIS<const N: usize> {
-    perms: [u16; N],
+    pub perms: [u16; N],
 }
 
 impl<const N: usize> Monomial<N> {

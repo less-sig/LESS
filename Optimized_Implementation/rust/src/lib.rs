@@ -1,7 +1,7 @@
 pub mod fq;
 pub mod vector;
-//pub mod matrix;
-//pub mod monomial;
+pub mod matrix;
+pub mod monomial;
 
 pub mod opt;
 

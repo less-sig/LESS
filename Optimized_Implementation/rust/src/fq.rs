@@ -109,7 +109,7 @@ impl Fq {
         return Fq::red((a.0 as u16) * (b.0 as u16));
     }
 
-    /// a+b mod q,  a,b < 127
+    /// a^{-1} mod q, a < 127
     /// # Examples
     ///
     /// ```

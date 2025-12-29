@@ -15,6 +15,64 @@ impl <const N: usize> Vector<N>{
     pub const Q: u8 = 127;
     pub const Q_BITS:u8 = 7;
 
+    /// Create an instance from a `Vec`
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::vector::Vector;
+    /// use crate::fq::Fq;
+    /// let t = core::array::from_fn(|_| Fq::default());
+    /// let result: Vector<100> = Vector::from_vector(t);
+    /// assert_eq!(result[0], 0);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `coefficients`: The first number.
+    ///
+    /// # Returns
+    /// A new vector element
+    #[inline]
+    pub fn from_vector(coefficients: [Fq; N]) -> Self {
+        Self { 0: coefficients }
+    }
+
+    /// Zero Initialised
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::vector::Vector;
+    /// use crate::fq::Fq;
+    /// let result: Vector<100> = Vector::init();
+    /// assert_eq!(result[0], 0);
+    /// assert_eq!(result.dimension(), 100);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `dimension`: Size of the vector
+    ///
+    /// # Returns
+    /// A new vector element
+    #[inline]
+    pub fn init() -> Self {
+        Self {
+            0: core::array::from_fn(|_| Fq::default() ),
+        }
+    }
+   
+    /// same as ::init()
+    #[inline]
+    pub fn zero(&mut self) {
+        for i in 0..N {
+            self.0[i] = Fq(0);
+        }
+    }
+
+    pub fn new() -> Vector<N> {
+        Vector {
+            0: [Fq(0); N],
+        }
+    }
+
     /// c[i] = a[i]+b[i] mod q,  a[i],b[i] < 127, for i in 0..N
     /// # Examples
     ///
@@ -45,6 +103,7 @@ impl <const N: usize> Vector<N>{
         }
     }
 
+    /// TODO not finished
     #[inline]
     pub fn add_avx2(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
         let n = N / 16;
