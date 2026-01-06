@@ -1,3 +1,4 @@
+pub mod helper;
 pub mod fq;
 pub mod vector;
 pub mod matrix;

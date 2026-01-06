@@ -1,6 +1,7 @@
 use std::ops::{Add, Mul, Sub, Div};
 use std::ops::Deref;
 
+use crate::helper::compute_ct_mask;
 
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct Fq(pub u8);
@@ -125,7 +126,34 @@ impl Fq {
     /// a^{-1} mod 127
     #[must_use]
     #[inline]
-    pub const fn inv(a: Fq) -> Fq {
+    pub fn inv(a: Fq) -> Fq {
+        assert!(a.0 < 127);
+        let j = a.0;
+        let mut r: u8 = 0;
+        for i in 1..127u8{
+            compute_ct_mask(i, j);
+            r &= FQ127_INV_TABLE[a.0 as usize];
+        }
+        Fq(r)
+    }
+
+    /// a^{-1} mod q, a < 127
+    /// # Examples
+    ///
+    /// ```
+    /// use less::fq::Fq;
+    /// let result = Fq::inv_non_ct(Fq(1));
+    /// assert_eq!(result.0, 1);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `a`: value to invert
+    ///
+    /// # Returns
+    /// a^{-1} mod 127
+    #[must_use]
+    #[inline]
+    pub const fn inv_non_ct(a: Fq) -> Fq {
         assert!(a.0 < 127);
         Fq(FQ127_INV_TABLE[a.0 as usize])
     }
