@@ -1,17 +1,40 @@
 #![allow(unused_imports)]
 
-use crate::{fq::Fq, vector::Vector};
+
+use crate::{
+    fq::Fq,
+    fq::FQ127_INV_TABLE,
+    vector::Vector
+};
 
 use std::arch::x86_64::{
     __m128i, __m256i,
-    _mm_loadu_si128, _mm256_loadu_si256,
-    _mm_storeu_si128, _mm256_storeu_si256,
-    _mm256_setzero_si256, _mm_set1_epi8,_mm256_set1_epi8, _mm256_set1_epi16, _mm256_extract_epi32, _mm256_extract_epi8, 
+    _mm_extract_epi8, _mm256_extract_epi32, _mm256_extract_epi8, 
+    _mm_loadu_si128, _mm256_loadu_si256, _mm256_load_si256,
+    _mm_storeu_si128, _mm256_storeu_si256, _mm256_store_si256,
+    _mm256_setzero_si256, _mm_set1_epi8,_mm256_set1_epi8, _mm256_set1_epi16,
     _mm256_add_epi8, _mm256_sub_epi8, _mm256_min_epu8, 
     _mm256_permute4x64_epi64, _mm256_permute2x128_si256, _mm256_blendv_epi8,
     _mm256_srli_epi16, _mm256_srli_epi32, _mm256_srli_epi64, _mm256_srli_si256,
     _mm256_mullo_epi16, _mm256_cvtepu8_epi16, 
-    _mm256_packs_epi16, _mm256_and_si256
+    _mm256_packs_epi16, _mm256_movemask_epi8,
+    _mm256_and_si256, _mm256_or_si256,
+    _mm256_cmpeq_epi8
+};
+use std::arch::x86_64::{
+    __m512i, 
+    _mm512_set1_epi8, _mm512_set1_epi16,
+    _mm512_add_epi8, _mm512_add_epi16,
+    _mm512_sub_epi8, _mm512_sub_epi16,
+    _mm512_min_epu8,
+    _mm512_extracti32x4_epi32,
+    _mm512_load_si512, _mm512_store_si512,
+    _mm512_permutex2var_epi8,
+    _mm512_cvtepu8_epi16, _mm512_cvtepi16_epi8, 
+    _mm512_mullo_epi16, _mm512_mulhi_epi16, _mm512_mulhi_epu16,
+    _mm512_castsi512_si256, _mm512_castsi256_si512,
+    _mm512_extracti32x8_epi32,
+
 };
 
 /// using blend instruction
@@ -47,6 +70,48 @@ fn gf127_red_u256_v2(a: __m256i) -> __m256i {
     let q = _mm256_set1_epi8(0x7f);
     let b = _mm256_sub_epi8(a, q);
     let t3 = _mm256_min_epu8(b, a);
+    t3
+}
+
+/// c[i] = a[i] mod q,  a[i] < 127, for i in 0..32
+/// # Examples
+/// ```
+/// let a = _mm512_set1_epi8(i as i8);
+/// let c = gf127_red_u16_u512(a);
+/// ```
+///
+/// # Parameters
+/// - `a`: first addend
+/// - `b`: second addend
+#[target_feature(enable = "avx512f,avx512bw")]
+fn gf127_red_u16_u512(a: __m512i) -> __m512i {
+    let c01 = _mm512_set1_epi8(0x01);
+    let c7f = _mm512_set1_epi8(0x7f);
+    let c516 = _mm512_set1_epi8(516);
+
+    let mut tmp: __m512i = _mm512_add_epi16(a, c01);
+    tmp = _mm512_mulhi_epu16(tmp, c516);
+    tmp = _mm512_mullo_epi16(tmp, c7f);
+    tmp = _mm512_sub_epi16(a, tmp);
+
+    return tmp;
+}
+
+/// c[i] = a[i] mod q,  a[i] < 127, for i in 0..64
+/// # Examples
+/// ```
+/// let a = _mm512_set1_epi8(i as i8);
+/// let c = gf127_red_u512(a);
+/// ```
+///
+/// # Parameters
+/// - `a`: first addend
+/// - `b`: second addend
+#[target_feature(enable = "avx512f,avx512bw")]
+fn gf127_red_u512(a: __m512i) -> __m512i {
+    let q = _mm512_set1_epi8(0x7f);
+    let t2 = _mm512_sub_epi8(a, q);
+    let t3 = _mm512_min_epu8(a, t2);
     t3
 }
 
@@ -92,6 +157,26 @@ fn gf127_add_u256_v2(a: __m256i, b: __m256i) -> __m256i {
     t3
 }
 
+/// c[i] = a[i]+b[i] mod q,  a[i],b[i] < 127, for i in 0..32
+/// # Examples
+/// ```
+/// let a = _mm512_set1_epi8(i as i8);
+/// let b = _mm512_set1_epi8(j as i8);
+/// let c = gf127_add_u512(a, b);
+/// ```
+///
+/// # Parameters
+/// - `a`: first addend
+/// - `b`: second addend
+#[target_feature(enable = "avx512f,avx512bw")]
+fn gf127_add_u512(a: __m512i, b: __m512i) -> __m512i {
+    let q = _mm512_set1_epi8(0x7f);
+    let t1 = _mm512_add_epi8(a, b);
+    let t2 = _mm512_sub_epi8(t1, q);
+    let t3 = _mm512_min_epu8(t1, t2);
+    t3
+}
+
 /// using the min instruction
 /// c[i] = a[i]-b[i] mod q,  a[i],b[i] < 127, for i in 0..32
 /// # Examples
@@ -119,7 +204,7 @@ unsafe fn gf127_sub_u256(a: __m256i, b: __m256i) -> __m256i {
 /// ```
 /// let a = _mm256_set1_epi8(0 as i8);
 /// let b = _mm256_set1_epi8(1 as i8);
-/// let c = gf127_sub_u256(a, b);
+/// let c = gf127_sub_u512a, b);
 /// ```
 ///
 /// # Parameters
@@ -132,10 +217,29 @@ unsafe fn gf127_sub_u256_v2(a: __m256i, b: __m256i) -> __m256i {
     let t2 = _mm256_add_epi8(t1, q);
     let t3 = _mm256_min_epu8(t1, t2);
     t3
-} 
+}
+
+/// c[i] = a[i]-b[i] mod q,  a[i],b[i] < 127, for i in 0..32
+/// # Examples
+/// ```
+/// let a = _mm512_set1_epi8(i as i8);
+/// let b = _mm512_set1_epi8(j as i8);
+/// let c = gf127_add_u512(a, b);
+/// ```
+///
+/// # Parameters
+/// - `a`: first addend
+/// - `b`: second addend
+#[target_feature(enable = "avx512f,avx512bw")]
+fn gf127_sub_u512(a: __m512i, b: __m512i) -> __m512i {
+    let q = _mm512_set1_epi8(0x7f);
+    let t1 = _mm512_sub_epi8(a, b);
+    let t2 = _mm512_add_epi8(t1, q);
+    let t3 = _mm512_min_epu8(t1, t2);
+    t3
+}
 
 
-/// using the min instruction
 ///  sum_{i=0}^{i < 32} v[i] mod q, v[i] < 127, for i in 0..32
 /// # Examples
 /// ```
@@ -171,6 +275,28 @@ unsafe fn gf127_hadd_avx2(v: __m256i) -> u8 {
     return _mm256_extract_epi8(t, 0) as u8;
 }
 
+///  sum_{i=0}^{i < 32} v[i] mod q, v[i] < 127, for i in 0..32
+/// # Examples
+/// ```
+/// let a = _mm512_set1_epi8(1 as i8);
+/// let c = gf127_hadd_avx512(a);
+/// ```
+///
+/// # Parameters
+/// - `a`: first addend
+/// - `b`: second addend
+#[target_feature(enable = "avx512f,avx512bw")]
+fn gf127_hadd_avx512(v: __m512i) -> u8 {
+    unsafe {
+        let lo = _mm512_castsi512_si256(v);
+        let hi = _mm512_extracti32x8_epi32(v, 1);
+
+        let x0 = _mm256_add_epi8(lo, hi);
+        let x1 = gf127_red_u256(x0);
+        return gf127_hadd_avx2(x1);
+    }
+}
+
 /// TODO test
 /// c[i] = a[i]+b[i] mod q,  a[i],b[i] < 127, for i in 0..32
 /// # Examples
@@ -184,29 +310,69 @@ unsafe fn gf127_hadd_avx2(v: __m256i) -> u8 {
 /// - `a`: first addend
 /// - `b`: second addend
 #[target_feature(enable = "avx,avx2")]
-unsafe fn gf127_scalar_mul_avx2(a: [Fq; 32], b: __m256i) -> __m256i {
-    let c7f = _mm256_set1_epi8(127);
-    let c007f = _mm256_set1_epi16(127);
+unsafe fn gf127_row_scalar_mul_avx2_(a: [Fq; 32], b: __m256i) -> __m256i {
+    unsafe {
+        let c007f = _mm256_set1_epi16(127);
 
-    let t1 = _mm_loadu_si128(a.as_ptr() as *const __m128i);
-    let t2 = _mm_loadu_si128(a.as_ptr().add(16) as *const __m128i);
-    
-    let mut a_lo: __m256i = _mm256_cvtepu8_epi16(t1);
-    let mut a_hi: __m256i = _mm256_cvtepu8_epi16(t2);
-    
-    a_lo = _mm256_mullo_epi16(a_lo, b);
-    a_hi = _mm256_mullo_epi16(a_hi, b);
-    
-    let mut v1 = _mm256_srli_epi16(a_lo, 7);
-    let mut v2 = _mm256_srli_epi16(a_hi, 7);
+        let t1 = _mm_loadu_si128(a.as_ptr() as *const __m128i);
+        let t2 = _mm_loadu_si128(a.as_ptr().add(16) as *const __m128i);
+        
+        let mut a_lo: __m256i = _mm256_cvtepu8_epi16(t1);
+        let mut a_hi: __m256i = _mm256_cvtepu8_epi16(t2);
+        
+        a_lo = _mm256_mullo_epi16(a_lo, b);
+        a_hi = _mm256_mullo_epi16(a_hi, b);
+        
+        let mut v1 = _mm256_srli_epi16(a_lo, 7);
+        let mut v2 = _mm256_srli_epi16(a_hi, 7);
 
-    let w1: __m256i = _mm256_packs_epi16(_mm256_and_si256(a_lo, c007f), _mm256_and_si256(a_hi, c007f));
-    let w2: __m256i = _mm256_packs_epi16(v1, v2);
+        let w1: __m256i = _mm256_packs_epi16(_mm256_and_si256(a_lo, c007f), _mm256_and_si256(a_hi, c007f));
+        let w2: __m256i = _mm256_packs_epi16(v1, v2);
 
-    v1 = _mm256_add_epi8(w1, w2);
-    v2 = _mm256_permute4x64_epi64(v1, 0xd8); // 0b11011000
-    let t = gf127_red_u256(v2);
-    return t;
+        v1 = _mm256_add_epi8(w1, w2);
+        v2 = _mm256_permute4x64_epi64(v1, 0xd8); // 0b11011000
+        let t = gf127_red_u256(v2);
+        return t;
+    }
+}
+
+/// # Examples
+/// ```
+/// ```
+///
+/// # Parameters
+/// - `s`: input scalar value
+///
+/// # Returns
+/// - [0*s, ..., 127 * s]
+#[target_feature(enable = "avx512f,avx512bw")]
+unsafe fn gf127_scalar_mul_gen_avx512(s: Fq) -> [__m512i; 2]{
+    unsafe {
+        let ptr = FQ127_INV_TABLE.as_ptr(); // *const u8
+        let ret: [__m512i; 2] = [
+            _mm512_load_si512(ptr.add( 0 + 128 * s.0 as usize) as *const __m512i),
+            _mm512_load_si512(ptr.add(64 + 128 * s.0 as usize) as *const __m512i)
+        ];
+
+        return ret;
+    }
+}
+
+/// # Examples
+/// ```
+/// ```
+///
+/// # Parameters
+/// - `s`: 
+///
+/// # Returns
+/// - [0*s, ..., 127 * s]
+#[target_feature(enable = "avx512f,avx512bw")]
+unsafe fn gf127_scalar_mul_avx512(a: __m512i, 
+                                  table: [__m512i; 2]) -> __m512i {
+    unsafe {
+        return _mm512_permutex2var_epi8(table[0], a, table[1]);
+    }
 }
 
 /// c[i] = a[i]*b[i] mod q,  a[i],b[i] < 127, for i in 0..32
@@ -220,8 +386,10 @@ unsafe fn gf127_scalar_mul_avx2(a: [Fq; 32], b: __m256i) -> __m256i {
 /// ```
 ///
 /// # Parameters
-/// - `a`: first addend
-/// - `b`: second addend
+/// - `a1`: first/lower half of vector a 
+/// - `a2`: second/higher half of vector a
+/// - `b1`: first/lower half of vector a 
+/// - `b2`: second/higher half of vector a
 #[target_feature(enable = "avx,avx2")]
 unsafe fn gf127_mul_avx2(a1: __m128i, a2: __m128i,
                          b1: __m128i, b2: __m128i) -> __m256i {
@@ -244,6 +412,52 @@ unsafe fn gf127_mul_avx2(a1: __m128i, a2: __m128i,
     v1 = _mm256_add_epi8(w1, w2);
     v2 = _mm256_permute4x64_epi64(v1, 0xd8); // 0b11011000
     let t = gf127_red_u256(v2);
+    return t;
+}
+
+/// c[i] = a[i]*b[i] mod q,  a[i],b[i] < 127, for i in 0..32
+/// # Examples
+/// ```
+/// let a = _mm256_set1_epi8(0 as i8);
+/// let b = _mm256_set1_epi8(0 as i8);
+/// let c = gf127_mul_avx512(a, b);
+/// ```
+///
+/// # Parameters
+/// - `a`: vector a 
+/// - `b`: vector a 
+#[target_feature(enable = "avx512f,avx512bw")]
+unsafe fn gf127_mul_avx512(a: __m256i, b: __m256i) -> __m256i {
+    unsafe {
+        let a_: __m512i = _mm512_cvtepu8_epi16(a);
+        let b_: __m512i = _mm512_cvtepu8_epi16(b);
+        return gf127_mul_u16_avx512(a_, b_);
+    }
+}
+
+/// c[i] = a[i]*b[i] mod q,  a[i],b[i] < 127, for i in 0..32
+/// # Examples
+/// ```
+/// let a: __m512i = _mm512_set1_epi16(0 as i8);
+/// let b: __m512i = _mm512_set1_epi16(0 as i8);
+/// let c: __m256i = gf127_mul_u16_avx512(a, b);
+/// ```
+///
+/// # Parameters
+/// - `a`: vector a 
+/// - `b`: vector a 
+#[target_feature(enable = "avx512f,avx512bw")]
+unsafe fn gf127_mul_u16_avx512(a: __m512i, b: __m512i) -> __m256i {
+    let c7f = _mm512_set1_epi16(127);
+    let c01 = _mm512_set1_epi16(1);
+    let c516 = _mm512_set1_epi16(516);
+
+    let mut acc = _mm512_mullo_epi16(a, b);
+    let mut tmp = _mm512_add_epi16(acc, c01);
+    tmp = _mm512_mulhi_epi16(tmp, c516);
+    tmp = _mm512_mullo_epi16(tmp, c7f);
+    acc = _mm512_sub_epi16(acc, tmp);
+    let t = _mm512_cvtepi16_epi8(acc);
     return t;
 }
 
@@ -273,6 +487,36 @@ pub fn gf127_row_acc_avx2<const N: usize>(row: &mut Vector<N>) -> u8 {
     }
 }
 
+/// \return sum_i..N a[i] mod q, a[i] < 127 for i in 0..N
+/// # Examples
+/// ```
+/// const N: usize = 128;
+/// let mut row = Vector::<N>::from_u8(1);
+/// let a1 = gf127_row_acc_avx512(&mut row);
+/// ```
+///
+/// # Parameters
+/// - `a`: row to accumulate
+#[target_feature(enable = "avx512f,avx512bw")]
+pub fn gf127_row_acc_avx512<const N: usize>(row: &mut Vector<N>) -> u8 {
+    assert!(N % 32 == 0);
+
+    unsafe {
+        let ptr = row.as_ptr(); // *const u8
+        
+        let t0: __m256i = _mm256_loadu_si256(ptr as *const __m256i);
+        let mut acc = _mm512_cvtepu8_epi16(t0);
+
+        for col in (32..N).step_by(32) {
+            let t0: __m256i = _mm256_loadu_si256(ptr.add(col) as *const __m256i);
+            let t1 = _mm512_cvtepu8_epi16(t0);
+            acc = _mm512_add_epi16(acc, t1);
+        }
+
+        return gf127_hadd_avx512(acc);
+    }
+}
+
 /// \return sum_i..N a[i]^-1 mod q, a[i] < 127 for i in 0..N
 /// # Examples
 /// ```
@@ -292,6 +536,52 @@ pub fn gf127_row_acc_inv_avx2<const N: usize>(row: &mut Vector<N>) -> u8 {
     }
 
     return gf127_row_acc_avx2(&mut inv_data);
+}
+
+/// \return sum_i..N a[i]^-1 mod q, a[i] < 127 for i in 0..N
+/// # Examples
+/// ```
+/// const N: usize = 128;
+/// let mut row = Vector::<N>::from_u8(1);
+/// let a1 = gf127_row_acc_inv_avx2(&mut row);
+/// ```
+///
+/// # Parameters
+/// - `a`: row to accumulate
+#[target_feature(enable = "avx,avx2")]
+pub fn gf127_row_acc_inv_avx512<const N: usize>(row: &mut Vector<N>) -> u8 {
+    assert!(N % 32 == 0);
+
+    unsafe {
+        let ptr_inv = FQ127_INV_TABLE.as_ptr(); // *const u8
+        let t1 = _mm512_load_si512(ptr_inv.add( 0) as *const __m512i);
+        let t2 = _mm512_load_si512(ptr_inv.add(64) as *const __m512i);
+
+        let mut inv_data: Vector<N> = Vector::new();
+
+        let ptr = row.as_ptr(); // *const u8
+        let ptr_out = inv_data.as_ptr(); // *const u8
+        
+        let mut off = 0;
+        for col in (0..N).step_by(64) {
+            let a = _mm512_load_si512(ptr.add(col) as *const __m512i);
+            let t = _mm512_permutex2var_epi8(t1, a, t2);
+            _mm512_store_si512(ptr_out.add(col) as *mut __m512i, t);
+            off += 64;
+        }
+        
+        for col in (off..N).step_by(64) {
+            let b = _mm256_load_si256(ptr.add(col) as *const __m256i);
+            let a = _mm512_castsi256_si512(b);
+            let t = _mm512_permutex2var_epi8(t1, a, t2);
+            let u = _mm512_castsi512_si256(t);
+
+            _mm256_store_si256(ptr_out.add(col) as *mut __m256i, u);
+            off += 64;
+        }
+        
+        return gf127_row_acc_avx512(&mut inv_data);
+    };
 }
 
 /// \return a[i]*s mod q, a[i] < 127 for i in 0..N
@@ -319,6 +609,34 @@ pub fn gf127_row_scalar_mul_avx2<const N: usize>(row: &mut Vector<N>,
             let t2: __m256i = gf127_mul_avx2(a1, a2, b, b); 
 
             _mm256_storeu_si256(ptr.add(col) as *mut __m256i, t2);
+        }
+    }
+}
+
+/// \return a[i]*s mod q, a[i] < 127 for i in 0..N
+/// # Examples
+/// ```
+/// const N: usize = 128;
+/// let mut row = Vector::<N>::from_u8(1);
+/// let s: u7 = 2;
+/// gf127_row_scalar_mul_avx512(&mut row), s;
+/// ```
+///
+/// # Parameters
+/// - `a`: row to accumulate
+#[target_feature(enable = "avx512f,avx512bw")]
+pub fn gf127_row_scalar_mul_avx512bw<const N: usize>(row: &mut Vector<N>,
+                                                     s: Fq) {
+    assert!(N % 32 == 0);
+    unsafe {
+        let ptr = row.as_ptr(); // *const u8
+        let b = _mm512_set1_epi8(s.0 as i8);
+
+        for col in (0..N).step_by(32) {
+            let a0: __m256i = _mm256_load_si256(ptr.add(col +  0) as *const __m256i);
+            let a1 = _mm512_cvtepu8_epi16(a0);
+            let t0: __m256i = gf127_mul_u16_avx512(a1, b); 
+            _mm256_storeu_si256(ptr.add(col) as *mut __m256i, t0);
         }
     }
 }
@@ -388,13 +706,45 @@ pub fn gf127_row_mul_avx2<const N: usize>(row_out: &mut Vector<N>,
     }
 }
 
+/// c[i] == 0 for all i  < n
+/// # Examples
+/// ```
+/// const N: usize = 128;
+/// let row1 = Vector::<N>::from_u8(1);
+/// gf127_row_contains_zero_avx2(&row1);
+/// ```
+///
+/// # Parameters
+/// - `a`: row 
+///
+/// # return 
+///     1 if row contains a zer 
+///     0 else
+#[target_feature(enable = "avx,avx2")]
+pub fn gf127_row_contains_zero_avx2<const N: usize>(row: &Vector<N>) -> bool {
+    assert!(N % 32 == 0);
+    unsafe {
+        let zero: __m256i = _mm256_setzero_si256();
+        let mut acc: __m256i = _mm256_setzero_si256();
+        let ptr1 = row.as_ptr(); // *const u8
+
+        for col in (0..N).step_by(32) {
+            let a0: __m256i = _mm256_loadu_si256(ptr1.add(col +  0) as *const __m256i);
+            let a1: __m256i = _mm256_cmpeq_epi8(a0, zero);
+            acc = _mm256_or_si256(acc, a1);
+        }
+
+        let t: i32 = _mm256_movemask_epi8(acc);
+        return t != 0;
+    }
+}
 
 /// c[i] == 0 for all i  < n
 /// # Examples
 /// ```
 /// const N: usize = 128;
 /// let row1 = Vector::<N>::from_u8(1);
-/// Vector::<N>::count_zero(&row1);
+/// gf127_row_count_zero_avx2(&row1);
 /// ```
 ///
 /// # Parameters
@@ -403,29 +753,23 @@ pub fn gf127_row_mul_avx2<const N: usize>(row_out: &mut Vector<N>,
 /// # return 
 ///     number of zeros in row
 #[target_feature(enable = "avx,avx2")]
-pub fn gf127_count_zero_avx2<const N: usize>(row: &Vector<N>) -> u32 {
+pub fn gf127_row_count_zero_avx2<const N: usize>(row: &Vector<N>) -> u32 {
     assert!(N % 32 == 0);
     unsafe {
-        let mut zero: __m256i = _mm256_setzero_si256();
-        let mut ask: __m256i = _mm256_setzero_si256();
-        let mut mask: __m256i = _mm256_set1_epi8(1);
+        let zero: __m256i = _mm256_setzero_si256();
+        let mask: __m256i = _mm256_set1_epi8(1);
+        let mut acc: __m256i = _mm256_setzero_si256();
         let ptr1 = row.as_ptr(); // *const u8
 
         for col in (0..N).step_by(32) {
-            let a: __m256i = _mm256_loadu_si256(ptr1.add(col +  0) as *const __m256i);
-
-            let t2: __m256i = gf127_mul_avx2(a1, a2, b1, b2); 
-            _mm256_storeu_si256(ptr_out.add(col) as *mut __m256i, t2);
+            let a0: __m256i = _mm256_loadu_si256(ptr1.add(col +  0) as *const __m256i);
+            let a1: __m256i = _mm256_cmpeq_epi8(a0, zero);
+            let a2: __m256i = _mm256_and_si256(a1, mask);
+            acc = _mm256_add_epi8(acc, a2);
         }
 
+        return gf127_hadd_avx2(acc) as u32;
     }
-    let mut c: u32 = 0;
-    for col in 0..N {
-        if row[col] == Fq(0) {
-            c += 1;
-        }
-    }
-    return c;
 }
 
 // #[cfg(target_feature = "avx2")]
@@ -493,6 +837,23 @@ mod tests {
         }
     }
 
+    // #[target_feature(enable = "avx512f,avx512bw")]
+    #[test]
+    fn test_gf127_add_u512() { 
+        unsafe {
+            for i in 0..127u8 {
+                for j in 0..127u8 {
+                    let a = _mm512_set1_epi8(i as i8);
+                    let b = _mm512_set1_epi8(j as i8);
+                    let c = gf127_add_u512(a, b);
+
+                    let t: u8 = (_mm_extract_epi8::<0>(_mm512_extracti32x4_epi32::<0>(c))) as u8;
+                    assert_eq!(t, (i+j) % 127);
+                }
+            }
+        }
+    }
+
     #[test]
     fn test_gf127_sub_u256() { 
         unsafe {
@@ -526,6 +887,22 @@ mod tests {
     }
 
     #[test]
+    fn test_gf127_sub_u512() { 
+        unsafe {
+            for i in 0..127u8 {
+                for j in 0..127u8 {
+                    let a = _mm512_set1_epi8(i as i8);
+                    let b = _mm512_set1_epi8(j as i8);
+                    let c = gf127_sub_u512(a, b);
+
+                    let t: u8 = (_mm_extract_epi8::<0>(_mm512_extracti32x4_epi32::<0>(c))) as u8;
+                    assert_eq!(t, (i+127-j) % 127);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn test_gf127_mul_avx2() { 
         unsafe {
             for i in 0..127u8 {
@@ -535,6 +912,21 @@ mod tests {
                     let b1 = _mm_set1_epi8(j as i8);
                     let b2 = _mm_set1_epi8(j as i8);
                     let c = gf127_mul_avx2(a1, a2, b1, b2);
+                    let t: u8 = (_mm256_extract_epi32::<0>(c) & 0xFF) as u8;
+                    assert_eq!(t, ((i as u16 * j as u16) % 127) as u8);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_gf127_mul_avx512() { 
+        unsafe {
+            for i in 0..127u8 {
+                for j in 0..127u8 {
+                    let a = _mm256_set1_epi8(i as i8);
+                    let b = _mm256_set1_epi8(j as i8);
+                    let c = gf127_mul_avx512(a, b);
                     let t: u8 = (_mm256_extract_epi32::<0>(c) & 0xFF) as u8;
                     assert_eq!(t, ((i as u16 * j as u16) % 127) as u8);
                 }
@@ -600,6 +992,40 @@ mod tests {
             for i in 0..N {
                 assert_eq!(Fq(1), row_out[i]);
             }
+        }
+    }
+    
+    #[test]
+    fn test_gf127_row_contains_zero_avx2() { 
+        const N: usize = 128;
+        let mut row_out = Vector::<N>::from_u8(1);
+
+        unsafe {
+            let t1 = gf127_row_contains_zero_avx2(&mut row_out,);
+            assert_eq!(false, t1);
+        }
+       
+        row_out[17] = Fq(0);
+        unsafe {
+            let t1 = gf127_row_contains_zero_avx2(&mut row_out,);
+            assert_eq!(true, t1);
+        }
+    }
+
+    #[test]
+    fn test_gf127_row_count_zero_avx2() { 
+        const N: usize = 128;
+        let mut row_out = Vector::<N>::from_u8(1);
+
+        unsafe {
+            let t1 = gf127_row_count_zero_avx2(&mut row_out,);
+            assert_eq!(0, t1);
+        }
+       
+        row_out[17] = Fq(0);
+        unsafe {
+            let t1 = gf127_row_count_zero_avx2(&mut row_out,);
+            assert_eq!(1, t1);
         }
     }
 }
