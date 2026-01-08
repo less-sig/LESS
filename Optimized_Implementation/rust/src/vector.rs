@@ -36,6 +36,17 @@ impl <const N: usize> Vector<N>{
         Self { 0: coefficients }
     }
 
+    /// same as ::init()
+    #[inline]
+    pub fn from_u8(val: u8) -> Self {
+        let mut ret = Self::new();
+        for i in 0..N {
+            ret.0[i] = Fq(val);
+        }
+
+        return ret;
+    }
+
     /// Zero Initialised
     /// # Examples
     ///
@@ -106,12 +117,12 @@ impl <const N: usize> Vector<N>{
     /// TODO not finished
     #[inline]
     pub fn add_avx2(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
-        let n = N / 16;
-        unsafe {
-            // for i in (0..N).step_by(16) {
-            //     const _
-            // }
-        }
+        //let n = N / 16;
+        //unsafe {
+        //    // for i in (0..N).step_by(16) {
+        //    //     const _
+        //    // }
+        //}
     }
 
     /// c[i] = a[i]-b[i] mod q,  a[i],b[i] < 127, for i in 0..N
@@ -163,6 +174,97 @@ impl <const N: usize> Vector<N>{
             c[i] = Fq::mul(a[i], b[i]);
         }
     }
+
+    /// NOTE: non ct
+    /// c[i] = a[i]^{-1} mod q, a[i] < 127 for i in 0..N
+    /// # Examples
+    /// ```
+    /// const N: usize = 128;
+    /// let mut row_out = Vector::<N>::new();
+    /// let row1 = Vector::<N>::from_u8(1);
+    /// gf127_row_inv(&mut row_out, &row1);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `a`: row to accumulate
+    pub fn inv(row_out: &mut Vector<N>,
+               in1: &Vector<N>) {
+        for col in 0..N {
+            row_out[col] = Fq::inv_non_ct(in1[col]);
+        }
+    }
+    
+    /// c[i] == c[j] for all i < j < n
+    /// # Examples
+    /// ```
+    /// const N: usize = 128;
+    /// let row1 = Vector::<N>::from_u8(1);
+    /// Vector::<N>::all_same(&row1);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `a`: row to accumulate
+    ///
+    /// # return 
+    ///     1 if all elements are the same
+    ///     0 else
+    pub fn all_same(row: &Vector<N>) -> bool {
+        let v = row[0];
+        for col in 1..N {
+            if row[col] != v {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// c[i] == 0 for all i  < n
+    /// # Examples
+    /// ```
+    /// const N: usize = 128;
+    /// let row1 = Vector::<N>::from_u8(1);
+    /// Vector::<N>::contains_zero(&row1);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `a`: row 
+    ///
+    /// # return 
+    ///     1 if a zero is in the row
+    ///     0 else
+    pub fn contain_zero(row: &Vector<N>) -> bool {
+        for col in 0..N {
+            if row[col] == Fq(0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// c[i] == 0 for all i  < n
+    /// # Examples
+    /// ```
+    /// const N: usize = 128;
+    /// let row1 = Vector::<N>::from_u8(1);
+    /// Vector::<N>::count_zero(&row1);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `a`: row 
+    ///
+    /// # return 
+    ///     number of zeros in row
+    pub fn count_zero(row: &Vector<N>) -> u32 {
+        let mut c: u32 = 0;
+        for col in 0..N {
+            if row[col] == Fq(0) {
+                c += 1;
+            }
+        }
+        return c;
+    }
+
+
 }
 
 impl<const N: usize> Index<usize> for Vector<N> {

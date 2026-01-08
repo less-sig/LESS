@@ -366,6 +366,7 @@ static inline FQ_ELEM row_acc_inv(const FQ_ELEM *row) {
     return row_acc(inv_data);
 } /* end row_acc_inv */
 
+/// TODO rename to scalar mul
 /// scalar multiplication of a row
 /// \param row[in/out] *= s for _ in range(N-K), pointer to a row of length ROUND_UP(N-K, 32)
 /// \param s[in]: scalar value

@@ -131,8 +131,8 @@ impl Fq {
         let j = a.0;
         let mut r: u8 = 0;
         for i in 1..127u8{
-            compute_ct_mask(i, j);
-            r &= FQ127_INV_TABLE[a.0 as usize];
+            let mask = compute_ct_mask(i, j);
+            r ^= FQ127_INV_TABLE[a.0 as usize] & mask;
         }
         Fq(r)
     }

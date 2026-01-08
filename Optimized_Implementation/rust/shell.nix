@@ -8,6 +8,7 @@ let
     llvm 
     lldb
     unstable_pkgs.cargo
+    unstable_pkgs.cargo-nextest
     unstable_pkgs.rustc
   ] ++ (lib.optionals pkgs.stdenv.isLinux ([
   ]));

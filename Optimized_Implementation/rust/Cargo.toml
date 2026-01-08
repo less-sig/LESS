@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 sha3 = "0.10.8"
+num-traits = "0.2.19"
 
 
 

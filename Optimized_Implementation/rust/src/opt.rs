@@ -5,7 +5,8 @@ use crate::{fq::Fq, vector::Vector};
 use std::arch::x86_64::{
     __m128i, __m256i,
     _mm_loadu_si128, _mm256_loadu_si256,
-    _mm256_set1_epi8, _mm256_set1_epi16, _mm256_extract_epi32, _mm256_extract_epi8, 
+    _mm_storeu_si128, _mm256_storeu_si256,
+    _mm256_setzero_si256, _mm_set1_epi8,_mm256_set1_epi8, _mm256_set1_epi16, _mm256_extract_epi32, _mm256_extract_epi8, 
     _mm256_add_epi8, _mm256_sub_epi8, _mm256_min_epu8, 
     _mm256_permute4x64_epi64, _mm256_permute2x128_si256, _mm256_blendv_epi8,
     _mm256_srli_epi16, _mm256_srli_epi32, _mm256_srli_epi64, _mm256_srli_si256,
@@ -183,7 +184,7 @@ unsafe fn gf127_hadd_avx2(v: __m256i) -> u8 {
 /// - `a`: first addend
 /// - `b`: second addend
 #[target_feature(enable = "avx,avx2")]
-unsafe fn gf127_scalar_mul_avx2(a: [u8; 32], b: __m256i) -> __m256i {
+unsafe fn gf127_scalar_mul_avx2(a: [Fq; 32], b: __m256i) -> __m256i {
     let c7f = _mm256_set1_epi8(127);
     let c007f = _mm256_set1_epi16(127);
 
@@ -208,7 +209,16 @@ unsafe fn gf127_scalar_mul_avx2(a: [u8; 32], b: __m256i) -> __m256i {
     return t;
 }
 
-/// TODO doc test
+/// c[i] = a[i]*b[i] mod q,  a[i],b[i] < 127, for i in 0..32
+/// # Examples
+/// ```
+/// let a1 = _mm_set1_epi8(0 as i8);
+/// let a2 = _mm_set1_epi8(0 as i8);
+/// let b1 = _mm_set1_epi8(0 as i8);
+/// let b2 = _mm_set1_epi8(0 as i8);
+/// let c = gf127_mul_avx2(a1, a2, b1, b2);
+/// ```
+///
 /// # Parameters
 /// - `a`: first addend
 /// - `b`: second addend
@@ -237,7 +247,16 @@ unsafe fn gf127_mul_avx2(a1: __m128i, a2: __m128i,
     return t;
 }
 
-/// TODO doc test
+/// \return sum_i..N a[i] mod q, a[i] < 127 for i in 0..N
+/// # Examples
+/// ```
+/// const N: usize = 128;
+/// let mut row = Vector::<N>::from_u8(1);
+/// let a1 = gf127_row_acc_avx2(&mut row);
+/// ```
+///
+/// # Parameters
+/// - `a`: row to accumulate
 #[target_feature(enable = "avx,avx2")]
 pub fn gf127_row_acc_avx2<const N: usize>(row: &mut Vector<N>) -> u8 {
     assert!(N % 32 == 0);
@@ -254,12 +273,20 @@ pub fn gf127_row_acc_avx2<const N: usize>(row: &mut Vector<N>) -> u8 {
     }
 }
 
-
-/// TODO doc test
+/// \return sum_i..N a[i]^-1 mod q, a[i] < 127 for i in 0..N
+/// # Examples
+/// ```
+/// const N: usize = 128;
+/// let mut row = Vector::<N>::from_u8(1);
+/// let a1 = gf127_row_acc_inv_avx2(&mut row);
+/// ```
+///
+/// # Parameters
+/// - `a`: row to accumulate
 #[target_feature(enable = "avx,avx2")]
 pub fn gf127_row_acc_inv_avx2<const N: usize>(row: &mut Vector<N>) -> u8 {
     assert!(N % 32 == 0);
-    let mut inv_data: Vector<N>;
+    let mut inv_data: Vector<N> = Vector::new();
     for col in 0..N {
         inv_data[col] = Fq::inv_non_ct(row[col]);
     }
@@ -267,6 +294,139 @@ pub fn gf127_row_acc_inv_avx2<const N: usize>(row: &mut Vector<N>) -> u8 {
     return gf127_row_acc_avx2(&mut inv_data);
 }
 
+/// \return a[i]*s mod q, a[i] < 127 for i in 0..N
+/// # Examples
+/// ```
+/// const N: usize = 128;
+/// let mut row = Vector::<N>::from_u8(1);
+/// let s: u7 = 2;
+/// gf127_row_scalar_mul_avx2(&mut row), s;
+/// ```
+///
+/// # Parameters
+/// - `a`: row to accumulate
+#[target_feature(enable = "avx,avx2")]
+pub fn gf127_row_scalar_mul_avx2<const N: usize>(row: &mut Vector<N>,
+                                                 s: Fq) {
+    assert!(N % 32 == 0);
+    unsafe {
+        let ptr = row.as_ptr(); // *const u8
+        let b = _mm_set1_epi8(s.0 as i8);
+
+        for col in (0..N).step_by(32) {
+            let a1: __m128i = _mm_loadu_si128(ptr.add(col +  0) as *const __m128i);
+            let a2: __m128i = _mm_loadu_si128(ptr.add(col + 16) as *const __m128i);
+            let t2: __m256i = gf127_mul_avx2(a1, a2, b, b); 
+
+            _mm256_storeu_si256(ptr.add(col) as *mut __m256i, t2);
+        }
+    }
+}
+
+/// c[i] = a[i]*s mod q, a[i] < 127 for i in 0..N
+/// # Examples
+/// ```
+/// const N: usize = 128;
+/// let mut row_out = Vector::<N>::new();
+/// let row = Vector::<N>::from_u8(1);
+/// let s: u7 = 2;
+/// gf127_row_scalar_mul_2_avx2(&mut row_out, &row, s);
+/// ```
+///
+/// # Parameters
+/// - `a`: row to accumulate
+#[target_feature(enable = "avx,avx2")]
+pub fn gf127_row_scalar_mul_2_avx2<const N: usize>(row_out: &mut Vector<N>,
+                                                   row_in: &Vector<N>,
+                                                   s: Fq) {
+    assert!(N % 32 == 0);
+    unsafe {
+        let ptr = row_in.as_ptr(); // *const u8
+        let ptr_out = row_out.as_ptr(); // *const u8
+        let b = _mm_set1_epi8(s.0 as i8);
+
+        for col in (0..N).step_by(32) {
+            let a1: __m128i = _mm_loadu_si128(ptr.add(col +  0) as *const __m128i);
+            let a2: __m128i = _mm_loadu_si128(ptr.add(col + 16) as *const __m128i);
+            let t2: __m256i = gf127_mul_avx2(a1, a2, b, b); 
+
+            _mm256_storeu_si256(ptr_out.add(col) as *mut __m256i, t2);
+        }
+    }
+}
+
+/// c[i] = a[i]*b[i] mod q, a[i] < 127 for i in 0..N
+/// # Examples
+/// ```
+/// const N: usize = 128;
+/// let mut row_out = Vector::<N>::new();
+/// let row1 = Vector::<N>::from_u8(1);
+/// let row2 = Vector::<N>::from_u8(1);
+/// gf127_row_mul_avx2(&mut row_out, &row1, &row2);
+/// ```
+///
+/// # Parameters
+/// - `a`: row to accumulate
+#[target_feature(enable = "avx,avx2")]
+pub fn gf127_row_mul_avx2<const N: usize>(row_out: &mut Vector<N>,
+                                          in1: &Vector<N>,
+                                          in2: &Vector<N>) {
+    assert!(N % 32 == 0);
+    unsafe {
+        let ptr1 = in1.as_ptr(); // *const u8
+        let ptr2 = in2.as_ptr(); // *const u8
+        let ptr_out = row_out.as_ptr(); // *const u8
+
+        for col in (0..N).step_by(32) {
+            let a1: __m128i = _mm_loadu_si128(ptr1.add(col +  0) as *const __m128i);
+            let a2: __m128i = _mm_loadu_si128(ptr1.add(col + 16) as *const __m128i);
+            let b1: __m128i = _mm_loadu_si128(ptr2.add(col +  0) as *const __m128i);
+            let b2: __m128i = _mm_loadu_si128(ptr2.add(col + 16) as *const __m128i);
+            let t2: __m256i = gf127_mul_avx2(a1, a2, b1, b2); 
+            _mm256_storeu_si256(ptr_out.add(col) as *mut __m256i, t2);
+        }
+    }
+}
+
+
+/// c[i] == 0 for all i  < n
+/// # Examples
+/// ```
+/// const N: usize = 128;
+/// let row1 = Vector::<N>::from_u8(1);
+/// Vector::<N>::count_zero(&row1);
+/// ```
+///
+/// # Parameters
+/// - `a`: row 
+///
+/// # return 
+///     number of zeros in row
+#[target_feature(enable = "avx,avx2")]
+pub fn gf127_count_zero_avx2<const N: usize>(row: &Vector<N>) -> u32 {
+    assert!(N % 32 == 0);
+    unsafe {
+        let mut zero: __m256i = _mm256_setzero_si256();
+        let mut ask: __m256i = _mm256_setzero_si256();
+        let mut mask: __m256i = _mm256_set1_epi8(1);
+        let ptr1 = row.as_ptr(); // *const u8
+
+        for col in (0..N).step_by(32) {
+            let a: __m256i = _mm256_loadu_si256(ptr1.add(col +  0) as *const __m256i);
+
+            let t2: __m256i = gf127_mul_avx2(a1, a2, b1, b2); 
+            _mm256_storeu_si256(ptr_out.add(col) as *mut __m256i, t2);
+        }
+
+    }
+    let mut c: u32 = 0;
+    for col in 0..N {
+        if row[col] == Fq(0) {
+            c += 1;
+        }
+    }
+    return c;
+}
 
 // #[cfg(target_feature = "avx2")]
 // unsafe fn gf127_mul_u256(a1: __m256i, a2: __m256i,
@@ -361,6 +521,84 @@ mod tests {
                     let t: u8 = (_mm256_extract_epi32::<0>(c) & 0xFF) as u8;
                     assert_eq!(t, (i+127-j) % 127);
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn test_gf127_mul_avx2() { 
+        unsafe {
+            for i in 0..127u8 {
+                for j in 0..127u8 {
+                    let a1 = _mm_set1_epi8(i as i8);
+                    let a2 = _mm_set1_epi8(i as i8);
+                    let b1 = _mm_set1_epi8(j as i8);
+                    let b2 = _mm_set1_epi8(j as i8);
+                    let c = gf127_mul_avx2(a1, a2, b1, b2);
+                    let t: u8 = (_mm256_extract_epi32::<0>(c) & 0xFF) as u8;
+                    assert_eq!(t, ((i as u16 * j as u16) % 127) as u8);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_gf127_row_acc_avx2() { 
+        const N: usize = 128;
+        let mut row = Vector::<N>::from_u8(1);
+        unsafe {
+            let a1 = gf127_row_acc_avx2(&mut row);
+            assert_eq!(a1, (N % 127) as u8);
+        }
+    }
+
+
+    #[test]
+    fn test_gf127_row_acc_inv_avx2() { 
+        const N: usize = 128;
+        let mut row = Vector::<N>::from_u8(1);
+        unsafe {
+            let a1 = gf127_row_acc_inv_avx2(&mut row);
+            assert_eq!(a1, (N % 127) as u8);
+        }
+    }
+
+    #[test]
+    fn test_gf127_row_scalar_mul_avx2() { 
+        const N: usize = 128;
+        let mut row = Vector::<N>::from_u8(1);
+        unsafe {
+            gf127_row_scalar_mul_avx2(&mut row, Fq(2));
+            for i in 0..N {
+                assert_eq!(Fq(2), row[i]);
+            }
+        }
+    }
+    
+    #[test]
+    fn test_gf127_row_scalar_mul_2_avx2() { 
+        const N: usize = 128;
+        let mut row_out = Vector::<N>::from_u8(1);
+        let row = Vector::<N>::from_u8(0);
+        unsafe {
+            gf127_row_scalar_mul_2_avx2(&mut row_out, &row, Fq(2));
+            for i in 0..N {
+                assert_eq!(Fq(0), row_out[i]);
+            }
+        }
+    }
+
+    #[test]
+    fn test_gf127_row_mul_avx2() { 
+        const N: usize = 128;
+        let mut row_out = Vector::<N>::new();
+        let row1 = Vector::<N>::from_u8(1);
+        let row2 = Vector::<N>::from_u8(1);
+
+        unsafe {
+            gf127_row_mul_avx2(&mut row_out, &row1, &row2);
+            for i in 0..N {
+                assert_eq!(Fq(1), row_out[i]);
             }
         }
     }
