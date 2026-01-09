@@ -157,6 +157,14 @@ impl Fq {
         assert!(a.0 < 127);
         Fq(FQ127_INV_TABLE[a.0 as usize])
     }
+
+
+    #[must_use]
+    #[inline]
+    pub const fn is_zero(a: Fq) -> bool {
+        assert!(a.0 < 127);
+        a.0 == 0
+    }
 }
 
 impl Add for Fq {

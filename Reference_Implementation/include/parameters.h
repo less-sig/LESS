@@ -101,8 +101,8 @@
 
 /********************************* Category 3 *********************************/
 #elif CATEGORY == 400
-#define N (400)
-#define K (200)
+#define N (425)
+#define K (212)
 #define SEED_LENGTH_BYTES (24)
 #define SIGN_PIVOT_REUSE_LIMIT (51) // Ensures probability of non-CT operation is < 2^-64
 

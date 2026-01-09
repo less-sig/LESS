@@ -5,6 +5,16 @@ use std::ops::IndexMut;
 use std::ops::Deref;
 use std::ops::DerefMut;
 
+use crate::opt::{
+    gf127_row_add_avx2, gf127_row_add2_avx2,
+    gf127_row_add_avx512, gf127_row_add2_avx512,
+    gf127_row_sub_avx2, gf127_row_sub2_avx2,
+    gf127_row_sub_avx512, gf127_row_sub2_avx512,
+    gf127_row_mul_avx2, gf127_row_mul2_avx2,
+    gf127_row_mul_avx512, gf127_row_mul2_avx512,
+    gf127_row_inv_avx512,
+};
+
 use crate::fq::Fq;
 
 
@@ -19,11 +29,11 @@ impl <const N: usize> Vector<N>{
     /// # Examples
     ///
     /// ```
-    /// use crate::vector::Vector;
-    /// use crate::fq::Fq;
+    /// use less::vector::Vector;
+    /// use less::fq::Fq;
     /// let t = core::array::from_fn(|_| Fq::default());
     /// let result: Vector<100> = Vector::from_vector(t);
-    /// assert_eq!(result[0], 0);
+    /// assert_eq!(result[0].0, 0);
     /// ```
     ///
     /// # Parameters
@@ -51,10 +61,10 @@ impl <const N: usize> Vector<N>{
     /// # Examples
     ///
     /// ```
-    /// use crate::vector::Vector;
-    /// use crate::fq::Fq;
+    /// use less::vector::Vector;
+    /// use less::fq::Fq;
     /// let result: Vector<100> = Vector::init();
-    /// assert_eq!(result[0], 0);
+    /// assert_eq!(result[0].0, 0);
     /// assert_eq!(result.dimension(), 100);
     /// ```
     ///
@@ -78,10 +88,17 @@ impl <const N: usize> Vector<N>{
         }
     }
 
+    /// same as ::init()
+    #[inline]
     pub fn new() -> Vector<N> {
         Vector {
             0: [Fq(0); N],
         }
+    }
+
+    #[inline]
+    pub fn dimension(&self) -> usize {
+        N
     }
 
     /// c[i] = a[i]+b[i] mod q,  a[i],b[i] < 127, for i in 0..N
@@ -90,7 +107,7 @@ impl <const N: usize> Vector<N>{
     /// ```
     /// use less::vector::Vector;
     /// use less::fq::Fq;
-    /// const N: usize = 100;
+    /// const N: usize = 64;
     /// let mut c = Vector::<N>([Fq(0); N]);
     /// let a = Vector::<N>([Fq(0); N]);
     /// let b = Vector::<N>([Fq(1); N]);
@@ -105,8 +122,15 @@ impl <const N: usize> Vector<N>{
     #[inline]
     pub fn add(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
         if is_x86_feature_detected!("avx2") {
-            assert!(N%16 == 0);
-            Self::add_avx2(c, a, b);
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_add_avx2(c, a, b);
+            }
+        } else if is_x86_feature_detected!("avx512f") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_add_avx512(c, a, b);
+            }
         } else {
             for i in 0..N {
                 c[i] = Fq::add(a[i], b[i]);
@@ -114,15 +138,40 @@ impl <const N: usize> Vector<N>{
         }
     }
 
-    /// TODO not finished
+    /// c[i] = c[i]+a[i] mod q,  a[i],b[i] < 127, for i in 0..N
+    /// # Examples
+    ///
+    /// ```
+    /// use less::vector::Vector;
+    /// use less::fq::Fq;
+    /// const N: usize = 64;
+    /// let mut c = Vector::<N>([Fq(0); N]);
+    /// let a = Vector::<N>([Fq(1); N]);
+    /// Vector::add2(&mut c, &a);
+    /// assert_eq!(c[0].0, 1);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `c`: output value
+    /// - `a`: first addend
+    /// - `b`: second addend
     #[inline]
-    pub fn add_avx2(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
-        //let n = N / 16;
-        //unsafe {
-        //    // for i in (0..N).step_by(16) {
-        //    //     const _
-        //    // }
-        //}
+    pub fn add2(c: &mut Vector<N>, a: &Vector<N>) {
+        if is_x86_feature_detected!("avx2") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_add2_avx2(c, a);
+            }
+        } else if is_x86_feature_detected!("avx512f") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_add2_avx512(c, a);
+            }
+        } else {
+            for i in 0..N {
+                c[i] = Fq::add(c[i], a[i]);
+            }
+        }
     }
 
     /// c[i] = a[i]-b[i] mod q,  a[i],b[i] < 127, for i in 0..N
@@ -131,7 +180,7 @@ impl <const N: usize> Vector<N>{
     /// ```
     /// use less::vector::Vector;
     /// use less::fq::Fq;
-    /// const N: usize = 100;
+    /// const N: usize = 64;
     /// let mut c = Vector::<N>([Fq(0); N]);
     /// let a = Vector::<N>([Fq(1); N]);
     /// let b = Vector::<N>([Fq(0); N]);
@@ -145,8 +194,56 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn sub(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
-        for i in 0..N {
-            c[i] = Fq::sub(a[i], b[i]);
+        if is_x86_feature_detected!("avx2") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_sub_avx2(c, a, b);
+            }
+        } else if is_x86_feature_detected!("avx512f") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_sub_avx512(c, a, b);
+            }
+        } else {
+            for i in 0..N {
+                c[i] = Fq::sub(a[i], b[i]);
+            }
+        }
+    }
+
+    /// c[i] = a[i]-b[i] mod q,  a[i],b[i] < 127, for i in 0..N
+    /// # Examples
+    ///
+    /// ```
+    /// use less::vector::Vector;
+    /// use less::fq::Fq;
+    /// const N: usize = 64;
+    /// let mut c = Vector::<N>([Fq(0); N]);
+    /// let a = Vector::<N>([Fq(1); N]);
+    /// Vector::sub2(&mut c, &a);
+    /// assert_eq!(c[0].0, 1);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `c`: output value
+    /// - `a`: first addend
+    /// - `b`: second addend
+    #[inline]
+    pub fn sub2(c: &mut Vector<N>, a: &Vector<N>) {
+        if is_x86_feature_detected!("avx2") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_sub2_avx2(c, a);
+            }
+        } else if is_x86_feature_detected!("avx512f") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_sub2_avx512(c, a);
+            }
+        } else {
+            for i in 0..N {
+                c[i] = Fq::sub(c[i], a[i]);
+            }
         }
     }
 
@@ -156,12 +253,12 @@ impl <const N: usize> Vector<N>{
     /// ```
     /// use less::vector::Vector;
     /// use less::fq::Fq;
-    /// const N: usize = 100;
+    /// const N: usize = 64;
     /// let mut c = Vector::<N>([Fq(0); N]);
     /// let a = Vector::<N>([Fq(0); N]);
     /// let b = Vector::<N>([Fq(1); N]);
     /// Vector::mul(&mut c, &a, &b);
-    /// sert_eq!(c[0].0, 0);
+    /// assert_eq!(c[0].0, 0);
     /// ```
     ///
     /// # Parameters
@@ -170,8 +267,56 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn mul(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
-        for i in 0..N {
-            c[i] = Fq::mul(a[i], b[i]);
+        if is_x86_feature_detected!("avx2") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_mul_avx2(c, a, b);
+            }
+        } else if is_x86_feature_detected!("avx512f") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_mul_avx512(c, a, b);
+            }
+        } else {
+            for i in 0..N {
+                c[i] = Fq::mul(a[i], b[i]);
+            }
+        }
+    }
+
+    /// c[i] = c[i]*a[i] mod q,  a[i],b[i] < 127, for i in 0..N
+    /// # Examples
+    ///
+    /// ```
+    /// use less::vector::Vector;
+    /// use less::fq::Fq;
+    /// const N: usize = 64;
+    /// let mut c = Vector::<N>([Fq(0); N]);
+    /// let a = Vector::<N>([Fq(0); N]);
+    /// Vector::mul2(&mut c, &a);
+    /// assert_eq!(c[0].0, 0);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `c`: output value
+    /// - `a`: first addend
+    /// - `b`: second addend
+    #[inline]
+    pub fn mul2(c: &mut Vector<N>, a: &Vector<N>) {
+        if is_x86_feature_detected!("avx2") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_mul2_avx2(c, a);
+            }
+        } else if is_x86_feature_detected!("avx512f") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_mul2_avx512(c, a);
+            }
+        } else {
+            for i in 0..N {
+                c[i] = Fq::mul(c[i], a[i]);
+            }
         }
     }
 
@@ -179,24 +324,33 @@ impl <const N: usize> Vector<N>{
     /// c[i] = a[i]^{-1} mod q, a[i] < 127 for i in 0..N
     /// # Examples
     /// ```
+    /// use less::vector::Vector;
     /// const N: usize = 128;
     /// let mut row_out = Vector::<N>::new();
     /// let row1 = Vector::<N>::from_u8(1);
-    /// gf127_row_inv(&mut row_out, &row1);
+    /// Vector::inv(&mut row_out, &row1);
     /// ```
     ///
     /// # Parameters
     /// - `a`: row to accumulate
     pub fn inv(row_out: &mut Vector<N>,
                in1: &Vector<N>) {
-        for col in 0..N {
-            row_out[col] = Fq::inv_non_ct(in1[col]);
+        if is_x86_feature_detected!("avx512f") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_inv_avx512(row_out, in1);
+            }
+        } else {
+            for col in 0..N {
+                row_out[col] = Fq::inv_non_ct(in1[col]);
+            }
         }
     }
     
     /// c[i] == c[j] for all i < j < n
     /// # Examples
     /// ```
+    /// use less::vector::Vector;
     /// const N: usize = 128;
     /// let row1 = Vector::<N>::from_u8(1);
     /// Vector::<N>::all_same(&row1);
@@ -221,9 +375,10 @@ impl <const N: usize> Vector<N>{
     /// c[i] == 0 for all i  < n
     /// # Examples
     /// ```
+    /// use less::vector::Vector;
     /// const N: usize = 128;
     /// let row1 = Vector::<N>::from_u8(1);
-    /// Vector::<N>::contains_zero(&row1);
+    /// Vector::<N>::contain_zero(&row1);
     /// ```
     ///
     /// # Parameters
@@ -243,7 +398,9 @@ impl <const N: usize> Vector<N>{
 
     /// c[i] == 0 for all i  < n
     /// # Examples
+    ///
     /// ```
+    /// use less::vector::Vector;
     /// const N: usize = 128;
     /// let row1 = Vector::<N>::from_u8(1);
     /// Vector::<N>::count_zero(&row1);

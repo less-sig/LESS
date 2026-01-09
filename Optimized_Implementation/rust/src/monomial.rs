@@ -1,4 +1,3 @@
-use std::ops::Mul;
 use crate::fq::Fq;
 
 #[derive(Debug)]
@@ -40,6 +39,7 @@ impl<const N: usize> Monomial<N> {
         }
     }
 
+    /// NOTE non ct
     /// l = r**-1
     pub fn inv(l: &mut Self, r: &Self) {
         for i in 0..N {
@@ -52,14 +52,10 @@ impl<const N: usize> Monomial<N> {
 
 
 impl<const N: usize> MonomialIS<N> {
-    // const BYTES: usize = (N + 7) / 8;
-
-
-    ///
+    /// initialize with zero
     pub fn new() -> Self {
-        let mut t: [u16; N] = [0u16; N];
         MonomialIS {
-            perms: t,
+            perms: [0u16; N],
         }
     }
 
@@ -72,10 +68,7 @@ impl<const N: usize> MonomialIS<N> {
                 t[i] = i as u16;
             }
         }
-
-        MonomialIS {
-            perms: t,
-        }
+        MonomialIS { perms: t }
     }
 
     ///
@@ -87,5 +80,14 @@ impl<const N: usize> MonomialIS<N> {
         }
 
         t
+    }
+
+    /// NOTE non ct
+    /// l = r**-1
+    pub fn inv(l: &mut Self, r: &Self) {
+        for i in 0..N {
+            let t = r.perms[i] as usize;
+            l.perms[t] = i as u16;
+        } 
     }
 }

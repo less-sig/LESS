@@ -24,9 +24,9 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// # Examples
     ///
     /// ```
-    /// use crate::matrix::Matrix;
+    /// use less::matrix::Matrix;
     /// let result: Matrix<100, 100> = Matrix::init();
-    /// assert_eq!(result[0][0], 0);
+    /// assert_eq!(result[0][0].0, 0);
     /// assert_eq!(result.dimension(), (100, 100));
     /// ```
     ///
@@ -51,10 +51,9 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// # Examples
     ///
     /// ```
-    /// use lll_rs::matrix::ConstMatrix;
-    /// use lll_rs::number::BigInteger;
-    /// let result: ConstMatrix<BigInteger, 100, 100> = ConstMatrix::id();
-    /// assert_eq!(result[0][0].is_zero(), false);
+    /// use less::matrix::Matrix;
+    /// let result: Matrix<100, 100> = Matrix::id();
+    /// assert_eq!(result[0][0].0, 1);
     /// assert_eq!(result.dimension(), (100, 100));
     /// ```
     ///
@@ -72,8 +71,8 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// # Examples
     ///
     /// ```
-    /// use crate::matrix::Matrix;
-    /// let result: Matrix<100, 100> = matrix::init();
+    /// use less::matrix::Matrix;
+    /// let result: Matrix<100, 100> = Matrix::init();
     /// assert_eq!(result.dimension(), (100, 100));
     /// ```
     ///
@@ -88,14 +87,13 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// # Examples
     ///
     /// ```
-    /// use lll_rs::matrix::ConstMatrix;
-    /// use lll_rs::number::BigInteger;
-    /// let result: ConstMatrix<BigInteger, 100, 100> = ConstMatrix::init();
+    /// use less::matrix::Matrix;
+    /// let result: Matrix<100, 100> = Matrix::init();
     /// assert_eq!(result.ncols(), 100);
     /// ```
     ///
     /// # Returns
-    /// n_cols
+    /// number of columns
     #[inline]
     pub fn ncols(&self) -> usize {
         M
@@ -105,9 +103,8 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// # Examples
     ///
     /// ```
-    /// use lll_rs::matrix::ConstMatrix;
-    /// use lll_rs::number::BigInteger;
-    /// let result: ConstMatrix<BigInteger, 100, 100> = ConstMatrix::init();
+    /// use less::matrix::Matrix;
+    /// let result: Matrix<100, 100> = Matrix::init();
     /// assert_eq!(result.nrows(), 100);
     /// ```
     ///
@@ -119,12 +116,10 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     }
     
     /// constant time addition
-    /// r += l
+    ///     r += l
+    ///
     /// # Examples
     ///
-    /// ```
-    /// use less::matrix::Matrix;
-    /// ```
     ///
     /// # Parameters
     /// - `r`: NxM matrix
@@ -132,9 +127,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     #[inline]
     pub fn add(r: &mut Self, l: &Self) {
         for i in 0..N {
-            for j in 0..M {
-                r.rows[i][j] = Fq::add(r.rows[i][j], l.rows[i][j]);
-            } 
+            Vector::<M>::add2(&mut r[i],&l[i]);
         }
     }
 
@@ -144,6 +137,9 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// ```
     /// use less::matrix::Matrix;
+    /// let mut C: Matrix<100, 100> = Matrix::init();
+    /// let A: Matrix<100, 100> = Matrix::init();
+    /// Matrix<100, 100>::sub(&mut C, &A)
     /// ```
     ///
     /// # Parameters
@@ -152,9 +148,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     #[inline]
     pub fn sub(r: &mut Self, l: &Self) {
         for i in 0..N {
-            for j in 0..M {
-                r.rows[i][j] = Fq::sub(r.rows[i][j], l.rows[i][j]);
-            } 
+            Vector::<M>::sub2(&mut r[i],&l[i]);
         }
     }
 
