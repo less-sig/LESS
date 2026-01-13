@@ -1229,6 +1229,9 @@ mod tests {
 
     #[test]
     fn test_gf127_add_u256() { 
+        if !std::is_x86_feature_detected!("avx2") {
+            return;
+        }
         unsafe {
             for i in 0..127u8 {
                 for j in 0..127u8 {
@@ -1245,6 +1248,9 @@ mod tests {
 
     #[test]
     fn test_gf127_add_u256_v2() { 
+        if !std::is_x86_feature_detected!("avx2") {
+            return;
+        }
         unsafe {
             for i in 0..127u8 {
                 for j in 0..127u8 {
@@ -1262,6 +1268,9 @@ mod tests {
     // #[target_feature(enable = "avx512f,avx512bw")]
     #[test]
     fn test_gf127_add_u512() { 
+        if !std::is_x86_feature_detected!("avx512f") {
+            return;
+        }
         unsafe {
             for i in 0..127u8 {
                 for j in 0..127u8 {
@@ -1278,6 +1287,9 @@ mod tests {
 
     #[test]
     fn test_gf127_sub_u256() { 
+        if !std::is_x86_feature_detected!("avx2") {
+            return;
+        }
         unsafe {
             for i in 0..127u8 {
                 for j in 0..127u8 {
@@ -1294,6 +1306,9 @@ mod tests {
 
     #[test]
     fn test_gf127_sub_u256_v2() { 
+        if !std::is_x86_feature_detected!("avx2") {
+            return;
+        }
         unsafe {
             for i in 0..127u8 {
                 for j in 0..127u8 {
@@ -1310,6 +1325,9 @@ mod tests {
 
     #[test]
     fn test_gf127_sub_u512() { 
+        if !std::is_x86_feature_detected!("avx512f") {
+            return;
+        }
         unsafe {
             for i in 0..127u8 {
                 for j in 0..127u8 {
@@ -1326,6 +1344,9 @@ mod tests {
 
     #[test]
     fn test_gf127_mul_avx2() { 
+        if !std::is_x86_feature_detected!("avx2") {
+            return;
+        }
         unsafe {
             for i in 0..127u8 {
                 for j in 0..127u8 {
@@ -1343,6 +1364,9 @@ mod tests {
 
     #[test]
     fn test_gf127_mul_avx512() { 
+        if !std::is_x86_feature_detected!("avx512f") {
+            return;
+        }
         unsafe {
             for i in 0..127u8 {
                 for j in 0..127u8 {
@@ -1358,6 +1382,9 @@ mod tests {
 
     #[test]
     fn test_gf127_row_acc_avx2() { 
+        if !std::is_x86_feature_detected!("avx2") {
+            return;
+        }
         const N: usize = 128;
         let mut row = Vector::<N>::from_u8(1);
         unsafe {
@@ -1369,6 +1396,9 @@ mod tests {
 
     #[test]
     fn test_gf127_row_acc_inv_avx2() { 
+        if !std::is_x86_feature_detected!("avx2") {
+            return;
+        }
         const N: usize = 128;
         let mut row = Vector::<N>::from_u8(1);
         unsafe {
@@ -1379,6 +1409,9 @@ mod tests {
 
     #[test]
     fn test_gf127_row_scalar_mul_avx2() { 
+        if !std::is_x86_feature_detected!("avx2") {
+            return;
+        }
         const N: usize = 128;
         let mut row = Vector::<N>::from_u8(1);
         unsafe {
@@ -1391,6 +1424,9 @@ mod tests {
     
     #[test]
     fn test_gf127_row_scalar_mul_2_avx2() { 
+        if !std::is_x86_feature_detected!("avx2") {
+            return;
+        }
         const N: usize = 128;
         let mut row_out = Vector::<N>::from_u8(1);
         let row = Vector::<N>::from_u8(0);
@@ -1404,6 +1440,9 @@ mod tests {
 
     #[test]
     fn test_gf127_row_mul_avx2() { 
+        if !std::is_x86_feature_detected!("avx2") {
+            return;
+        }
         const N: usize = 128;
         let mut row_out = Vector::<N>::new();
         let row1 = Vector::<N>::from_u8(1);
@@ -1419,6 +1458,9 @@ mod tests {
     
     #[test]
     fn test_gf127_row_contains_zero_avx2() { 
+        if !std::is_x86_feature_detected!("avx2") {
+            return;
+        }
         const N: usize = 128;
         let mut row_out = Vector::<N>::from_u8(1);
 
@@ -1436,6 +1478,9 @@ mod tests {
 
     #[test]
     fn test_gf127_row_count_zero_avx2() { 
+        if !std::is_x86_feature_detected!("avx2") {
+            return;
+        }
         const N: usize = 128;
         let mut row_out = Vector::<N>::from_u8(1);
 

@@ -2,7 +2,9 @@
   description = "Rust Rover environment";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs = {
+      url = "github:nixos/nixpkgs/nixos-unstable";
+    };
     rust-overlay.url = "github:oxalica/rust-overlay";
     flake-utils = {
       url = "github:numtide/flake-utils";
@@ -16,9 +18,10 @@
         pkgs = import nixpkgs {
           inherit system;
           overlays = [ (import rust-overlay) ];
+          config.allowUnfree = true;
         };
 
-        rustToolchain = pkgs.rust-bin.stable."1.88.0".default.override {
+        rustToolchain = pkgs.rust-bin.nightly.latest.default.override {
           extensions = [ "rust-src" "clippy" "rustfmt" ];
         };
       in {

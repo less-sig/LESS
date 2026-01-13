@@ -137,9 +137,10 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// ```
     /// use less::matrix::Matrix;
-    /// let mut C: Matrix<100, 100> = Matrix::init();
-    /// let A: Matrix<100, 100> = Matrix::init();
-    /// Matrix<100, 100>::sub(&mut C, &A)
+    /// const N: usize = 128;
+    /// let mut C = Matrix::<N, N>::init();
+    /// let A = Matrix::<N, N>::init();
+    /// Matrix::sub(&mut C, &A)
     /// ```
     ///
     /// # Parameters
@@ -184,32 +185,32 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
         }
     }
 
-    pub fn rref_ct(g: &mut Self,
-                   is_pivot_column: &mut [u8; M],
-                   was_pivot_column: &[u8; M],
-                   pvt_reuse_limit: u32) {
-        let mut pvt_reuse_limit: u32 = 0;
+    // pub fn rref_ct(g: &mut Self,
+    //                is_pivot_column: &mut [u8; M],
+    //                was_pivot_column: &[u8; M],
+    //                pvt_reuse_limit: u32) {
+    //     let mut pvt_reuse_limit: u32 = 0;
 
-        if pvt_reuse_limit != 0 {
-            // TODO: loop boundaries propably not correct
-            for preproc_col in N - 1 .. 0 {
-                if was_pivot_column[preproc_col as usize] == 1 {
-                    let mut pivot_el_row = 0;
-                    for row in 0..N {
-                        if g.rows[row][preproc_col] != Fq(0) {
-                            pivot_el_row = row;
-                        }
-                    }
+    //     if pvt_reuse_limit != 0 {
+    //         // TODO: loop boundaries propably not correct
+    //         for preproc_col in N - 1 .. 0 {
+    //             if was_pivot_column[preproc_col as usize] == 1 {
+    //                 let mut pivot_el_row = 0;
+    //                 for row in 0..N {
+    //                     if g.rows[row][preproc_col] != Fq(0) {
+    //                         pivot_el_row = row;
+    //                     }
+    //                 }
 
-                    Self::swap_rows(g, preproc_col, pivot_el_row);
-                }
-            }
-        }
+    //                 Self::swap_rows(g, preproc_col, pivot_el_row);
+    //             }
+    //         }
+    //     }
 
-        for row_to_reduce in 0..N {
-            // TODO
-        }
-    }
+    //     for row_to_reduce in 0..N {
+    //         // TODO
+    //     }
+    // }
 
 }
 
@@ -432,4 +433,53 @@ impl<const N: usize> MatrixNonIS<N> {
         let mut z = 0;
         let mut num_zeros = 0;
     }
+}
+
+
+    /// use less::matrix::Matrix;
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add() {
+        const N: usize = 128;
+        let mut C: Matrix<N, N> = Matrix::<N, N>::init();
+        let A = Matrix::<N, N>::init();
+        Matrix::sub(&mut C, &A)
+
+        // let A: Matrix<100, 100> = Matrix::init();
+        // Matrix<100, 100>::sub(&mut C, &A)
+        // let mut c = Vector::<N>([Fq(0); N]);
+        // let a = Vector::<N>([Fq(0); N]);
+        // let b = Vector::<N>([Fq(1); N]);
+        // Vector::add(&mut c, &a, &b);
+        // for i in 0..N {
+        //     assert!(c[i].0 == 1);
+        // }
+    }
+
+    // #[test]
+    // fn sub() {
+    //     const N: usize = 128;
+    //     let mut c = Vector::<N>([Fq(0); N]);
+    //     let a = Vector::<N>([Fq(1); N]);
+    //     let b = Vector::<N>([Fq(0); N]);
+    //     Vector::sub(&mut c, &a, &b);
+    //     for i in 0..N {
+    //         assert!(c[i].0 == 1);
+    //     }
+    // }
+
+    // #[test]
+    // fn mul() {
+    //     const N: usize = 128;
+    //     let mut c = Vector::<N>([Fq(0); N]);
+    //     let a = Vector::<N>([Fq(0); N]);
+    //     let b = Vector::<N>([Fq(1); N]);
+    //     Vector::mul(&mut c, &a, &b);
+    //     for i in 0..N {
+    //         assert!(c[i].0 == 0);
+    //     }
+    // }
 }

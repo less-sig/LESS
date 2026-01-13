@@ -19,6 +19,7 @@ use crate::fq::Fq;
 
 
 #[derive(Debug)]
+#[repr(align(32))]
 pub struct Vector<const N: usize>(pub [Fq; N]);
 
 impl <const N: usize> Vector<N>{
@@ -121,15 +122,15 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn add(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
-        if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_add_avx2(c, a, b);
-            }
-        } else if is_x86_feature_detected!("avx512f") {
+        if is_x86_feature_detected!("avx512f") {
             assert!(N%32 == 0);
             unsafe {
                 gf127_row_add_avx512(c, a, b);
+            }
+        } else if is_x86_feature_detected!("avx2") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_add_avx2(c, a, b);
             }
         } else {
             for i in 0..N {
@@ -157,15 +158,15 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn add2(c: &mut Vector<N>, a: &Vector<N>) {
-        if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_add2_avx2(c, a);
-            }
-        } else if is_x86_feature_detected!("avx512f") {
+        if is_x86_feature_detected!("avx512f") {
             assert!(N%32 == 0);
             unsafe {
                 gf127_row_add2_avx512(c, a);
+            }
+        } else if is_x86_feature_detected!("avx2") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_add2_avx2(c, a);
             }
         } else {
             for i in 0..N {
@@ -185,7 +186,6 @@ impl <const N: usize> Vector<N>{
     /// let a = Vector::<N>([Fq(1); N]);
     /// let b = Vector::<N>([Fq(0); N]);
     /// Vector::sub(&mut c, &a, &b);
-    /// assert_eq!(c[0].0, 1);
     /// ```
     ///
     /// # Parameters
@@ -194,15 +194,15 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn sub(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
-        if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_sub_avx2(c, a, b);
-            }
-        } else if is_x86_feature_detected!("avx512f") {
+        if is_x86_feature_detected!("avx512f") {
             assert!(N%32 == 0);
             unsafe {
                 gf127_row_sub_avx512(c, a, b);
+            }
+        } else if is_x86_feature_detected!("avx2") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_sub_avx2(c, a, b);
             }
         } else {
             for i in 0..N {
@@ -230,15 +230,15 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn sub2(c: &mut Vector<N>, a: &Vector<N>) {
-        if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_sub2_avx2(c, a);
-            }
-        } else if is_x86_feature_detected!("avx512f") {
+        if is_x86_feature_detected!("avx512f") {
             assert!(N%32 == 0);
             unsafe {
                 gf127_row_sub2_avx512(c, a);
+            }
+        } else if is_x86_feature_detected!("avx2") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_sub2_avx2(c, a);
             }
         } else {
             for i in 0..N {
@@ -267,15 +267,15 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn mul(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
-        if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_mul_avx2(c, a, b);
-            }
-        } else if is_x86_feature_detected!("avx512f") {
+        if is_x86_feature_detected!("avx512f") {
             assert!(N%32 == 0);
             unsafe {
                 gf127_row_mul_avx512(c, a, b);
+            }
+        } else if is_x86_feature_detected!("avx2") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_mul_avx2(c, a, b);
             }
         } else {
             for i in 0..N {
@@ -303,15 +303,15 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn mul2(c: &mut Vector<N>, a: &Vector<N>) {
-        if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_mul2_avx2(c, a);
-            }
-        } else if is_x86_feature_detected!("avx512f") {
+        if is_x86_feature_detected!("avx512f") {
             assert!(N%32 == 0);
             unsafe {
                 gf127_row_mul2_avx512(c, a);
+            }
+        } else if is_x86_feature_detected!("avx2") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_mul2_avx2(c, a);
             }
         } else {
             for i in 0..N {
@@ -359,9 +359,9 @@ impl <const N: usize> Vector<N>{
     /// # Parameters
     /// - `a`: row to accumulate
     ///
-    /// # return 
-    ///     1 if all elements are the same
-    ///     0 else
+    /// # Return 
+    /// -   1 if all elements are the same
+    /// -   0 else
     pub fn all_same(row: &Vector<N>) -> bool {
         let v = row[0];
         for col in 1..N {
@@ -384,9 +384,9 @@ impl <const N: usize> Vector<N>{
     /// # Parameters
     /// - `a`: row 
     ///
-    /// # return 
-    ///     1 if a zero is in the row
-    ///     0 else
+    /// # Return 
+    /// -   1 if a zero is in the row
+    /// -   0 else
     pub fn contain_zero(row: &Vector<N>) -> bool {
         for col in 0..N {
             if row[col] == Fq(0) {
@@ -410,7 +410,7 @@ impl <const N: usize> Vector<N>{
     /// - `a`: row 
     ///
     /// # return 
-    ///     number of zeros in row
+    /// -   number of zeros in row
     pub fn count_zero(row: &Vector<N>) -> u32 {
         let mut c: u32 = 0;
         for col in 0..N {

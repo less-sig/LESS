@@ -1,17 +1,7 @@
 with import <nixpkgs> {};
 let 
-
   unstable_pkgs = import <nixos-unstable> {};
-  bInputs = [ 
-    # just for cargo 
-    clang 
-    llvm 
-    lldb
-    unstable_pkgs.cargo
-    unstable_pkgs.cargo-nextest
-    unstable_pkgs.rustc
-  ] ++ (lib.optionals pkgs.stdenv.isLinux ([
-  ]));
+  rustToolchain = unstable_pkgs.rustPlatform.rustLibSrc;
 in
 { pkgs ? import <nixpkgs> {} }:
 
@@ -19,7 +9,21 @@ stdenv.mkDerivation {
   name = "";
   src = ./.;
 
-  buildInputs = bInputs; #with pkgs; [ ];
-  nativeBuildInputs = with pkgs; [];
-  RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
+  buildInputs = [ 
+    # just for cargo 
+    clang 
+    llvm 
+    lldb
+    gdb
+    unstable_pkgs.cargo
+    unstable_pkgs.cargo-nextest
+    unstable_pkgs.rustc
+    unstable_pkgs.rust-analyzer
+
+    # needed for IDE
+    pkg-config  
+    openssl
+  ] ++ (lib.optionals pkgs.stdenv.isLinux ([
+    ]));
+  RUST_SRC_PATH = "${unstable_pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
 }
