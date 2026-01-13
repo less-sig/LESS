@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
-use std::ops::Index;
-use std::ops::IndexMut;
-use std::ops::Deref;
-use std::ops::DerefMut;
+use std::ops:: {
+    Add, AddAssign, Sub, SubAssign, Mul, MulAssign,
+    Index, IndexMut, Deref, DerefMut
+};
 
 use crate::opt::{
     gf127_row_add_avx2, gf127_row_add2_avx2,
@@ -18,8 +18,8 @@ use crate::opt::{
 use crate::fq::Fq;
 
 
-#[derive(Debug)]
-#[repr(align(32))]
+#[derive(Debug, Clone)]
+#[repr(align(32))] // TODO alignment only for avx2/avx512
 pub struct Vector<const N: usize>(pub [Fq; N]);
 
 impl <const N: usize> Vector<N>{
@@ -420,9 +420,57 @@ impl <const N: usize> Vector<N>{
         }
         return c;
     }
-
-
 }
+
+
+impl <const N: usize> Add for Vector<N> {
+    type Output = Vector<N>;
+    #[inline]
+    fn add(self, r: Vector<N>) -> Vector<N> {
+        let mut ret = Vector::new();
+        Vector::<N>::add(&mut ret, &self, &r);
+        ret
+    }
+}
+impl <const N: usize> AddAssign for Vector<N> {
+    #[inline]
+    fn add_assign(&mut self, other: Self) {
+        Vector::<N>::add2(self, &other);
+    }
+}
+
+impl <const N: usize> Sub for Vector<N> {
+    type Output = Vector<N>;
+    #[inline]
+    fn sub(self, r: Vector<N>) -> Vector<N> {
+        let mut ret = Vector::new();
+        Vector::<N>::sub(&mut ret, &self, &r);
+        ret
+    }
+}
+impl <const N: usize> SubAssign for Vector<N> {
+    #[inline]
+    fn sub_assign(&mut self, other: Self) {
+        Vector::<N>::sub2(self, &other);
+    }
+}
+
+impl <const N: usize> Mul for Vector<N> {
+    type Output = Vector<N>;
+    #[inline]
+    fn mul(self, r: Vector<N>) -> Vector<N> {
+        let mut ret = Vector::new();
+        Vector::<N>::mul(&mut ret, &self, &r);
+        ret
+    }
+}
+impl <const N: usize> MulAssign for Vector<N> {
+    #[inline]
+    fn mul_assign(&mut self, other: Self) {
+        Vector::<N>::mul2(self, &other);
+    }
+}
+
 
 impl<const N: usize> Index<usize> for Vector<N> {
     type Output = Fq;
@@ -431,7 +479,6 @@ impl<const N: usize> Index<usize> for Vector<N> {
         &self.0[index]
     }
 }
-
 impl<const N: usize> IndexMut<usize> for Vector<N> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.0[index]
@@ -445,19 +492,13 @@ impl<const N: usize> Deref for Vector<N> {
         &self.0
     }
 }
-
-//impl<const N: usize> Deref for Vector<N> {
-//    type Target = [Fq; N];
-//
-//    fn deref(&self) -> &Self::Target {
-//        &self.0
-//    }
-//}
 impl<const N: usize> DerefMut for Vector<N> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {

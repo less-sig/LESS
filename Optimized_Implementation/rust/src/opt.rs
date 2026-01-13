@@ -596,7 +596,7 @@ pub fn gf127_row_sub_avx2<const N: usize>(c: &mut Vector<N>,
 #[inline]
 #[target_feature(enable = "avx,avx2")]
 pub fn gf127_row_sub2_avx2<const N: usize>(c: &mut Vector<N>,
-                                          a: &Vector<N>) {
+                                           a: &Vector<N>) {
     unsafe {
         let ptr1 = a.as_ptr(); // *const u8
         let ptr_out = c.as_ptr(); // *const u8
@@ -604,7 +604,7 @@ pub fn gf127_row_sub2_avx2<const N: usize>(c: &mut Vector<N>,
         for col in (0..N).step_by(32) {
             let ta: __m256i = _mm256_load_si256(ptr1.add(col) as *const __m256i);
             let tb: __m256i = _mm256_load_si256(ptr_out.add(col) as *const __m256i);
-            let tc = gf127_sub_u256(ta, tb); 
+            let tc = gf127_sub_u256(tb, ta);
             _mm256_store_si256(ptr_out.add(col) as *mut __m256i, tc);
         }
     }
@@ -1185,7 +1185,7 @@ pub fn gf127_row_contains_zero_avx512<const N: usize>(row: &Vector<N>) -> bool {
             let t0: __m256i = _mm256_loadu_si256(ptr1.add(col) as *const __m256i);
             acc |= _mm256_cmp_epu8_mask(t0, _mm512_castsi512_si256(zero), _MM_CMPINT_EQ) as u64;
         }
-        return true;
+        return acc != 0;
     }
 }
 

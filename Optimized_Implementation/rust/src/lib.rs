@@ -1,4 +1,5 @@
 pub mod helper;
+pub mod prng;
 pub mod fq;
 pub mod vector;
 pub mod matrix;

@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul, Sub, Div};
+use std::ops::{Add, AddAssign, Sub, SubAssign, Mul, MulAssign, Div, DivAssign};
 use std::ops::Deref;
 
 use crate::helper::compute_ct_mask;
@@ -10,8 +10,10 @@ pub const FQ127_INV_TABLE: [u8; 128] = [0, 1, 64, 85, 32, 51, 106, 109, 16, 113,
 
 
 impl Fq {
-    pub const Q: u8 = 127;
-    pub const Q_BITS:u8 = 7;
+    pub const Q: u8      = 127;
+    pub const Q_MASK: u8 = 127;
+    pub const Q_BITS: u8 = 7;
+    pub const ZERO: Fq   = Fq(0);
 
     /// a mod q, a < 256
     #[must_use]
@@ -174,12 +176,25 @@ impl Add for Fq {
         Fq::add(self, r)
     }
 }
+impl AddAssign for Fq {
+    #[inline]
+    fn add_assign(&mut self, other: Self) {
+        *self = Fq::add(*self, other);
+    }
+}
 
 impl Sub for Fq {
     type Output = Fq;
     #[inline]
     fn sub(self, r: Fq) -> Fq {
         Fq::sub(self, r)
+    }
+}
+
+impl SubAssign for Fq {
+    #[inline]
+    fn sub_assign(&mut self, other: Self) {
+        *self = Fq::sub(*self, other);
     }
 }
 
@@ -191,11 +206,25 @@ impl Mul for Fq {
     }
 }
 
+impl MulAssign for Fq {
+    #[inline]
+    fn mul_assign(&mut self, other: Self) {
+        *self = Fq::mul(*self, other);
+    }
+}
+
 impl Div for Fq {
     type Output = Fq;
     #[inline]
     fn div(self, r: Fq) -> Fq {
         Fq::mul(self, Fq::inv(r))
+    }
+}
+
+impl DivAssign for Fq {
+    #[inline]
+    fn div_assign(&mut self, other: Self) {
+        *self = Fq::div(*self, other);
     }
 }
 
