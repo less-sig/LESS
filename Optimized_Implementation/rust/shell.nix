@@ -15,6 +15,7 @@ stdenv.mkDerivation {
     llvm 
     lldb
     gdb
+    #vscode-extensions.vadimcn.vscode-lldb
     unstable_pkgs.cargo
     unstable_pkgs.cargo-nextest
     unstable_pkgs.rustc
