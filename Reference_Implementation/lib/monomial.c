@@ -106,7 +106,7 @@ void monomial_sample_salt(monomial_t *res,
                           const uint16_t round_index) {
     SHAKE_STATE_STRUCT shake_monomial_state = {0};
     const int shake_buffer_len = SEED_LENGTH_BYTES + HASH_DIGEST_LENGTH + sizeof(uint16_t);
-    uint8_t shake_input_buffer[shake_buffer_len];
+    uint8_t shake_input_buffer[SEED_LENGTH_BYTES + HASH_DIGEST_LENGTH + sizeof(uint16_t)];
     memcpy(shake_input_buffer, seed, SEED_LENGTH_BYTES);
     memcpy(shake_input_buffer + SEED_LENGTH_BYTES, salt, HASH_DIGEST_LENGTH);
     memcpy(shake_input_buffer + SEED_LENGTH_BYTES + HASH_DIGEST_LENGTH, &round_index, sizeof(uint16_t));

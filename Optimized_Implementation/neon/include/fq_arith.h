@@ -30,6 +30,7 @@
 
 #include "parameters.h"
 #include "rng.h"
+#include "utils.h"
 
 // number of needed to represent q = 7
 #define NUM_BITS_Q (BITS_TO_REPRESENT(Q))
@@ -137,9 +138,24 @@ static const uint8_t fq_inv_table[128] __attribute__((aligned(64))) = {
 /// \param x[in]: input value < 127
 /// \return x^{-1} mod 127
 static inline
-FQ_ELEM fq_inv(FQ_ELEM x) {
+FQ_ELEM fq_inv_non_ct(FQ_ELEM x) {
    return fq_inv_table[x];
 } /* end fq_inv */
+
+/// NOTE: constant time
+/// NOTE: input must be reduced.
+/// \param x[in]: input value < 127
+/// \return x^{-1} mod 127
+static inline
+FQ_ELEM fq_inv(const FQ_ELEM x) {
+	FQ_ELEM ret = 0;
+	for (uint64_t i = 0; i < 127; i++) {
+		const FQ_ELEM mask = COMPUTE_CT_MASK(i, x);
+		const FQ_ELEM val = fq_inv_table[i] & mask;
+		ret ^= val;
+	}
+	return ret;
+}
 
 /// Sampling functions from the global TRNG state
 DEF_RAND(fq_star_rnd_elements, FQ_ELEM, 1, Q-1)

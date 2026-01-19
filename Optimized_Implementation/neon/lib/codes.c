@@ -55,11 +55,11 @@ void swap_rows(FQ_ELEM r[N_pad],
 ///     else is 0
 void generator_get_pivot_flags(const rref_generator_mat_t *const G,
                                uint8_t pivot_flag [N]) {
-    for (int i = 0; i < N; i = i + 1) {
+    for (uint32_t i = 0; i < N; i = i + 1) {
         pivot_flag[i] = 1;
     }
 
-    for (int i = 0; i < K; i = i + 1) {
+    for (uint32_t i = 0; i < K; i = i + 1) {
         pivot_flag[G->column_pos[i]] = 0;
     }
 } /* end generator_get_pivot_flags */
@@ -97,7 +97,6 @@ void generator_monomial_mul(generator_mat_t *res,
 ///         1 on success
 int generator_RREF(generator_mat_t *G,
                    uint8_t is_pivot_column[N_pad]) {
-    int i, j, pivc;
     uint8_t tmp, sc;
 
     vec256_t *gm[K] __attribute__((aligned(32)));
@@ -106,14 +105,14 @@ int generator_RREF(generator_mat_t *G,
     vec256_t x, t, *rp, *rg;
 	const uint8x16_t c7f = vdupq_n_u8(0x7F);
 
-    for (i = 0; i < K; i++) {
+    for (uint32_t i = 0; i < K; i++) {
         gm[i] = (vec256_t *) G->values[i];
     }
 
-    for (i = 0; i < K; i++) {
-        j = i;
+    for (uint32_t i = 0; i < K; i++) {
+        uint32_t j = i;
         /*start by searching the pivot in the col = row*/
-        pivc = i;
+        uint32_t pivc = i;
 
         while (pivc < N) {
             while (j < K) {
@@ -207,7 +206,6 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                                uint8_t was_pivot_column[N],
                                const int pvt_reuse_limit) {
     const uint8x16_t q = vdupq_n_u8(127);
-    int i, j, pivc;
     uint8_t sc;
     int pvt_reuse_cnt = 0;
 
@@ -227,10 +225,10 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
         }
     }
 
-    for (i = 0; i < K; i++) {
-        j = i;
+    for (uint32_t i = 0; i < K; i++) {
+        uint32_t j = i;
         /*start by searching the pivot in the col = row*/
-        pivc = i;
+        uint32_t pivc = i;
 
         while (pivc < N) {
             while (j < K) {
@@ -409,8 +407,8 @@ void compress_rref(uint8_t *compressed, const generator_mat_t *const full,
                 }
             }
         }
-    } /* end compress_rref */
-}
+    }
+}/* end compress_rref */
 
 /// Expands a compressed RREF generator matrix into a full one
 /// \param full[out]: output full matrix (K \times N)
@@ -421,11 +419,11 @@ void expand_to_rref(generator_mat_t *full,
                     const uint8_t *compressed,
                     uint8_t is_pivot_column[N]) {
     // Decompress pivot flags
-    for (int i = 0; i < N; i++) {
+    for (uint32_t i = 0; i < N; i++) {
         is_pivot_column[i] = 0;
     }
 
-    for (int col_byte = 0; col_byte < N / 8; col_byte++) {
+    for (uint32_t col_byte = 0; col_byte < N / 8; col_byte++) {
         is_pivot_column[col_byte * 8 + 0] = compressed[col_byte] & 0x1;
         is_pivot_column[col_byte * 8 + 1] = (compressed[col_byte] >> 1) & 0x1;
         is_pivot_column[col_byte * 8 + 2] = (compressed[col_byte] >> 2) & 0x1;
@@ -652,3 +650,32 @@ void normalized_monomial_right(normalized_IS_t *res,
         }
     }
 } /* end normalized_monomial_right */
+
+/// \param A[out]: pointer to allocated normalized struct, which get filled with the
+///     non-IS of the generator matrix G
+/// \param G[in]: generator matrix to extract the non-IS from.
+/// \param is_pivot_column[in]: array identifying a pivot column via a 1
+void normalized_copy_from_generator_non_information_set(normalized_IS_t *A ,
+                                                        const generator_mat_t *const G,
+                                                        const uint8_t *const is_pivot_column) {
+    // we simply copy the last N-K columns even if they are not the information set.
+    for (uint64_t i = 0; i < K; i++) {
+        memcpy((uint8_t *)A->values[i], ((uint8_t *)G->values[i]) + K, K);
+    }
+
+    // now we scan if we need to fix the non information set
+    uint32_t ctr = 0;
+    for (; ctr < K && is_pivot_column[ctr] == 1; ctr++) {}
+
+    // easy part: the last N-K columns are the non IS
+    if (ctr == K) { return; }
+
+    // "hard" part: copy all remaining columns < K into the non information set part
+    for(uint32_t j = 0; j < N-K && is_pivot_column[ctr] == 0; j++) {
+        /// copy column
+        for (uint32_t k = 0; k < K; k++) {
+            A->values[k][j] = G->values[k][ctr];
+        }
+        ctr += 1;
+    }
+}

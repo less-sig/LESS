@@ -60,9 +60,8 @@ void BuildGGM(unsigned char seed_tree[NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES],
               const unsigned char salt[HASH_DIGEST_LENGTH]) {
     /* input buffer to the CSPRNG, contains the seed to be expanded, a salt,
      * and the integer index of the node being expanded for domain separation */
-    const uint32_t csprng_input_len = SALT_LENGTH_BYTES +
-        SEED_LENGTH_BYTES;
-    unsigned char csprng_input[csprng_input_len];
+    const uint32_t csprng_input_len = SALT_LENGTH_BYTES + SEED_LENGTH_BYTES;
+    unsigned char csprng_input[SALT_LENGTH_BYTES + SEED_LENGTH_BYTES];
     SHAKE_STATE_STRUCT tree_csprng_state;
     memcpy(csprng_input+SEED_LENGTH_BYTES, salt, SALT_LENGTH_BYTES);
 
@@ -236,9 +235,8 @@ uint32_t RebuildGGM(unsigned char seed_tree[NUM_NODES_SEED_TREE*SEED_LENGTH_BYTE
     unsigned char flags_tree_to_publish[NUM_NODES_SEED_TREE] = {0};
     compute_seeds_to_publish(flags_tree_to_publish, indices_to_publish);
 
-    const uint32_t csprng_input_len = SALT_LENGTH_BYTES +
-        SEED_LENGTH_BYTES;
-    unsigned char csprng_input[csprng_input_len];
+    const uint32_t csprng_input_len = SALT_LENGTH_BYTES + SEED_LENGTH_BYTES;
+    unsigned char csprng_input[SALT_LENGTH_BYTES + SEED_LENGTH_BYTES];
     SHAKE_STATE_STRUCT tree_csprng_state;
 
     const uint16_t off[LOG2(T)+1] = TREE_OFFSETS;
