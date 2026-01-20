@@ -678,7 +678,7 @@ pub fn gf127_row_sub2_avx512<const N: usize>(c: &mut Vector<N>,
 /// - `a`: row to accumulate
 #[inline]
 #[target_feature(enable = "avx,avx2")]
-pub fn gf127_row_acc_avx2<const N: usize>(row: &mut Vector<N>) -> u8 {
+pub fn gf127_row_acc_avx2<const N: usize>(row: &Vector<N>) -> u8 {
     assert!(N % 32 == 0);
     unsafe {
         let ptr = row.as_ptr(); // *const u8
@@ -705,7 +705,7 @@ pub fn gf127_row_acc_avx2<const N: usize>(row: &mut Vector<N>) -> u8 {
 /// - `a`: row to accumulate
 #[inline]
 #[target_feature(enable = "avx512f,avx512bw")]
-pub fn gf127_row_acc_avx512<const N: usize>(row: &mut Vector<N>) -> u8 {
+pub fn gf127_row_acc_avx512<const N: usize>(row: &Vector<N>) -> u8 {
     assert!(N % 32 == 0);
 
     unsafe {
@@ -736,7 +736,7 @@ pub fn gf127_row_acc_avx512<const N: usize>(row: &mut Vector<N>) -> u8 {
 /// - `a`: row to accumulate
 #[inline]
 #[target_feature(enable = "avx,avx2")]
-pub fn gf127_row_acc_inv_avx2<const N: usize>(row: &mut Vector<N>) -> u8 {
+pub fn gf127_row_acc_inv_avx2<const N: usize>(row: &Vector<N>) -> u8 {
     assert!(N % 32 == 0);
     let mut inv_data: Vector<N> = Vector::new();
     for col in 0..N {
@@ -758,7 +758,7 @@ pub fn gf127_row_acc_inv_avx2<const N: usize>(row: &mut Vector<N>) -> u8 {
 /// - `a`: row to accumulate
 #[inline]
 #[target_feature(enable = "avx,avx2")]
-pub fn gf127_row_acc_inv_avx512<const N: usize>(row: &mut Vector<N>) -> u8 {
+pub fn gf127_row_acc_inv_avx512<const N: usize>(row: &Vector<N>) -> u8 {
     assert!(N % 32 == 0);
 
     unsafe {
@@ -1222,6 +1222,17 @@ pub fn gf127_row_count_zero_avx2<const N: usize>(row: &Vector<N>) -> u32 {
         return gf127_hadd_avx2(acc) as u32;
     }
 }
+
+
+/// TODO
+#[inline]
+#[target_feature(enable = "avx,avx2")]
+pub fn gf127_histogram_avx2<const N: usize>(out: &[u8; 128], row: &Vector<N>) -> u32 {
+    return 0;
+}
+
+
+
 
 #[cfg(test)]
 mod tests {

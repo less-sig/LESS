@@ -1,12 +1,18 @@
 #![allow(unused_imports)]
 
+use sha3::{
+    Digest, Sha3_256, Sha3_512, Shake128, Shake256, Shake128ReaderCore,
+    digest::{ExtendableOutput, Update, XofReader},
+    digest::core_api::XofReaderCoreWrapper,
+};
 
+use crate::fq::Fq;
 
 //use crate::KyberError;
 //use rand_core::*;
-//
-///// Fills buffer x with len bytes, RNG must satisfy the
-///// RngCore trait and CryptoRng marker trait requirements
+
+/// Fills buffer x with len bytes, RNG must satisfy the
+/// RngCore trait and CryptoRng marker trait requirements
 //pub fn randombytes<R>(x: &mut [u8], len: usize, rng: &mut R) -> Result<(), KyberError>
 //where
 //    R: RngCore + CryptoRng,
@@ -16,81 +22,62 @@
 //        Err(_) => Err(KyberError::RandomBytesGeneration),
 //    }
 //}
-//// how to use it correclty: https://github.com/RustCrypto/KEMs/blob/master/ml-kem/src/crypto.rs
-//fn rand_range_impl<EL, R>(
-//    mut fill_word: R,
-//    buffer: &mut [EL],
-//    min_value: EL,
-//    max_value: EL,
-//)
-//where
-//    EL: Copy
-//        + From<u8>
-//        + core::ops::Add<Output = EL>
-//        + core::ops::Sub<Output = EL>
-//        + PartialOrd
-//        + Into<u64>,
-//    R: FnMut(&mut u64),
-//{
-//    let span: u64 = (max_value - min_value).into();
-//    let req_bits: usize = bits_to_represent(span);
-//    let el_mask: u64 = (1u64 << req_bits) - 1;
-//
-//    let mut count: usize = 0;
-//    let mut word: u64 = 0;
-//
-//    while count < buffer.len() {
-//        fill_word(&mut word);
-//
-//        let iters = (size_of::<u64>() * 8) / req_bits;
-//        for _ in 0..iters {
-//            let rnd_value = word & el_mask;
-//            if rnd_value <= span {
-//                buffer[count] = EL::from(0u8) + min_value + EL::from(rnd_value as u8);
-//                count += 1;
-//                if count >= buffer.len() {
-//                    return;
-//                }
-//            }
-//            word >>= req_bits;
-//        }
-//    }
-//}
-//pub fn rand_with_state<EL>(
-//    shake_state: &mut ShakeState,
-//    buffer: &mut [EL],
-//    min_value: EL,
-//    max_value: EL,
-//)
-//where
-//    EL: Copy
-//        + From<u8>
-//        + core::ops::Add<Output = EL>
-//        + core::ops::Sub<Output = EL>
-//        + PartialOrd
-//        + Into<u64>,
-//{
-//    rand_range_impl(
-//        |word| {
-//            csprng_randombytes(
-//                word as *mut u64 as *mut u8,
-//                core::mem::size_of::<u64>(),
-//                shake_state,
-//            );
-//        },
-//        buffer,
-//        min_value,
-//        max_value,
-//    );
-//}
-//
-//
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//
-//    #[test]
-//    fn it_works() {
-//
-//    }
-//}
+
+fn rand_range_impl<const MIN_V: u8, R>(
+    mut state: R,
+    buffer: &mut [Fq],
+)
+where 
+    R: XofReader
+{
+    let span = 127 - MIN_V;
+    let req_bits: usize = 7;
+    let el_mask: u8 = (1u8 << req_bits) - 1;
+
+    let mut count: usize = 0;
+    let mut buf = [0u8; 8];
+
+    while count < buffer.len() {
+        state.read(&mut buf);
+        let mut word: u64 = u64::from_ne_bytes(buf);
+        let iters = (size_of::<u64>() * 8) / req_bits;
+        for _ in 0..iters {
+            let rnd_value = word as u8 & el_mask;
+            if rnd_value < span {
+                buffer[count] = Fq(MIN_V + rnd_value);
+                count += 1;
+                if count >= buffer.len() {
+                    return;
+                }
+            }
+            word >>= req_bits;
+        }
+    }
+}
+
+pub fn rand_range_q_state_elements<R>(
+    state: R,
+    buffer: &mut [Fq],
+)
+where 
+    R: XofReader
+{
+    rand_range_impl::<0, R>(state, buffer);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn simple() {
+        let mut hasher = Shake128::default();
+        hasher.update(b"123");
+        let reader = hasher.finalize_xof();
+        let mut buffer = [Fq(0); 32];
+        rand_range_impl::<1, XofReaderCoreWrapper<Shake128ReaderCore>>(reader, &mut buffer);
+        for i in 0..32 {
+            assert_ne!(buffer[i], Fq(0));
+        }
+    }
+}

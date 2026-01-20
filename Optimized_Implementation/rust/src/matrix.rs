@@ -7,10 +7,16 @@ use std::{
         Add, Sub, Index, IndexMut
     },
 };
+use sha3::{
+    Digest, Sha3_256, Sha3_512, Shake128, Shake256, Shake128ReaderCore,
+    digest::{ExtendableOutput, Update, XofReader},
+    digest::core_api::XofReaderCoreWrapper,
+};
 
 use crate::fq::Fq;
 use crate::monomial::Monomial;
 use crate::vector::Vector;
+use crate::prng::rand_range_q_state_elements;
 
 const Q_PAD: usize = 128;
 const Q: u8 = 127;
@@ -192,6 +198,17 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     }
 
     /// TODO not ct
+    /// constant time row swap
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::Matrix;
+    /// ```
+    ///
+    /// # Parameters
+    /// - `r`: NxM matrix
+    /// - `r1`: index of the first row
+    /// - `r2`: index of the second row
     pub fn monomial_mul(res: &mut Self, g: &Self, monom: &Monomial<N>) {
         for src_col_idx in 0..M {
             for row_idx in 0..N {
@@ -203,6 +220,17 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
         }
     }
 
+    /// constant time row swap
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::Matrix;
+    /// ```
+    ///
+    /// # Parameters
+    /// - `r`: NxM matrix
+    /// - `r1`: index of the first row
+    /// - `r2`: index of the second row
     pub fn rref<const CT: bool>(&mut self,
                                 is_pivot_column: &mut [u8; M],
                                 was_pivot_column: &mut [u8; M],
@@ -294,6 +322,17 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// * `compressed` – output buffer (RREF_MAT_PACKEDBYTES bytes)
     /// * `is_pivot_column` – length-N array, exactly K entries set to 1
+    /// constant time row swap
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::Matrix;
+    /// ```
+    ///
+    /// # Parameters
+    /// - `r`: NxM matrix
+    /// - `r1`: index of the first row
+    /// - `r2`: index of the second row
     pub fn compress(
         &self,
         compressed: &mut [u8],
@@ -389,6 +428,17 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// * `compressed` – input byte stream
     /// * `is_pivot_column` – length-N array, will be initialized here
+    /// constant time row swap
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::Matrix;
+    /// ```
+    ///
+    /// # Parameters
+    /// - `r`: NxM matrix
+    /// - `r1`: index of the first row
+    /// - `r2`: index of the second row
     pub fn expand(
         &mut self,
         compressed: &[u8],
@@ -507,6 +557,17 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// Expands a compressed RREF generator matrix into a full one
     /// \param full[out]: output generator matrix (K \times N) 
     /// \param compact[out]: input compressed generator matrix (K \times N-K) 
+    /// constant time row swap
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::Matrix;
+    /// ```
+    ///
+    /// # Parameters
+    /// - `r`: NxM matrix
+    /// - `r1`: index of the first row
+    /// - `r2`: index of the second row
     pub fn expand_to_rref(&mut self,
                           compact: MatrixRREF<N>) {
         let mut placed_dense_cols: usize = 0;
@@ -524,8 +585,26 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
         }
     }
 
-    pub fn seed(&mut self, seed: [u8; 32]) {
-
+    /// sample a random matrix
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::Matrix;
+    /// ```
+    ///
+    /// # Parameters
+    /// - `seed`: NxM matrix
+    pub fn sample<S>(&mut self, seed: [u8; 32]) 
+    where 
+        S: ExtendableOutput + Default + Clone
+    {
+        let mut hasher = Shake128::default();
+        hasher.update(&seed);
+        let reader = hasher.finalize_xof();
+        // TODO: is it possible to remove the `clone`?
+        for i in 0..N {
+            rand_range_q_state_elements(reader.clone(), &mut self.rows[i].0);
+        }
     }
 }
 
@@ -587,26 +666,121 @@ impl<const N: usize, const M: usize> fmt::Debug for Matrix<N, M> {
 
 #[derive(Debug)]
 pub struct MatrixNormalized<const N: usize> {
-    rows: [[Fq; N]; N],
+    rows: [Vector<N>; N],
 }
 
 impl<const N: usize> MatrixNormalized<N> {
-    /// generates a new matriz init with 0
+    /// generates a new matrix init with 0
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::MatrixNormalized;
+    /// let result: MatrixNormalized<100> = MatrixNormalized::init();
+    /// assert_eq!(result[0][0].0, 0);
+    /// assert_eq!(result.dimension(), 100);
+    /// ```
+    ///
+    #[inline]
+    pub fn init() -> Self {
+        Self {
+            rows: core::array::from_fn(|_| Vector::<N>::init() ),
+        }
+    }
+
+    /// same as init
     pub fn new() -> MatrixNormalized<N> {
         MatrixNormalized {
-            rows: [[Fq(0); N]; N],
+            rows: core::array::from_fn(|_| Vector::<N>::init() ),
         }
     }
    
     /// generates a new matrix init with q-1
     pub fn new_large() -> MatrixNormalized<N> {
         MatrixNormalized {
-            rows: [[Fq(Q-1); N]; N],
+            rows: core::array::from_fn(|_| Vector::<N>::from_u8(Q-1) ),
         }
     }
 
+    /// same as init, but inits all values with `v`
+    #[inline]
+    pub fn from_u8(v: u8) -> MatrixNormalized<N> {
+        MatrixNormalized {
+            rows: core::array::from_fn(|_| Vector::<N>::from_u8(v) ),
+        }
+    }
+
+    /// Identity Matrix
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::MatrixNormalized;
+    /// let result: MatrixNormalized<100> = MatrixNormalized::id();
+    /// assert_eq!(result[0][0].0, 1);
+    /// assert_eq!(result.dimension(), 100);
+    /// ```
+    ///
+    /// # Returns
+    /// A new identity matrix
+    pub fn id() -> Self {
+        let mut a = Self::init();
+        for i in 0..N {
+            a[i][i] = Fq(1);
+        }
+        a
+    }
+
+    /// The size/dimension of the matrix
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::MatrixNormalized;
+    /// let result: MatrixNormalized<100> = MatrixNormalized::init();
+    /// assert_eq!(result.dimension(), 100);
+    /// ```
+    ///
+    /// # Returns
+    /// A size/dimension of the vector
+    #[inline]
+    pub fn dimension(&self) -> usize {
+        N
+    }
+
+    /// Return the number of columns
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::MatrixNormalized;
+    /// let result: MatrixNormalized<100> = MatrixNormalized::init();
+    /// assert_eq!(result.ncols(), 100);
+    /// ```
+    ///
+    /// # Returns
+    /// number of columns
+    #[inline]
+    pub fn ncols(&self) -> usize {
+        N
+    }
+
+    /// Return the number of rows
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::MatrixNormalized;
+    /// let result: MatrixNormalized<100> = MatrixNormalized::init();
+    /// assert_eq!(result.nrows(), 100);
+    /// ```
+    ///
+    /// # Returns
+    /// n_rows
+    #[inline]
+    pub fn nrows(&self) -> usize {
+        N
+    }
+
+    /// TODO doc, opt
     /// static internal function implementing the histogram function
-    fn sort(out: &mut [u8; Q_PAD], row: &[Fq; N]) {
+    #[inline]
+    fn sort(out: &mut [u8; Q_PAD], row: &Vector<N>) {
         for i in 0..N {
             out[row[i].0 as usize] += 1;
         }
@@ -621,46 +795,74 @@ impl<const N: usize> MatrixNormalized<N> {
 
         return (b[i] as i32) - (a[i]  as i32);
     }
-   
-    // not working as i cannot borrow each row seperatily as mut.
-    // fn row_mul(row: &mut [Fq; N], s: Fq) {
-    //     for i in 0..N {
-    //         row[i] = Fq::mul(row[i], s);
-    //     }
-    // }
 
-    /// rows[i] *= s 
-    fn row_mul(&mut self, i: usize, s: Fq) {
-        for j in 0..N {
-            self.rows[i][j] = Fq::mul(self.rows[i][j], s);
+    /// row addition
+    /// rows[i] += rows[j]
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::MatrixNormalized;
+    /// let result: MatrixNormalized<100> = MatrixNormalized::init();
+    /// ```
+    ///
+    fn add(&mut self, i: usize, j: usize) {
+        // what we want tonimplement
+        // Vector::<N>::add2(&mut self.rows[i], &mut self.rows[j]);
+        if i == j {
+            return;
         }
+
+        let [a, b] = self.rows.get_disjoint_mut([i, j]).unwrap();
+        Vector::<N>::add2(a, b);
+    }
+
+    /// row subtraction
+    /// rows[i] -= rows[j]
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::MatrixNormalized;
+    /// let result: MatrixNormalized<100> = MatrixNormalized::init();
+    /// ```
+    ///
+    fn sub(&mut self, i: usize, j: usize) {
+        if i == j {
+            return;
+        }
+
+        let [a, b] = self.rows.get_disjoint_mut([i, j]).unwrap();
+        Vector::<N>::sub2(a, b);
+    }
+
+    /// row scalar multiplication
+    /// rows[i] *= s 
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::MatrixNormalized;
+    /// let result: MatrixNormalized<100> = MatrixNormalized::init();
+    /// ```
+    ///
+    fn scalar(&mut self, i: usize, s: Fq) {
+        Vector::<N>::scalar2(&mut self.rows[i], s);
     }
 
     /// \return sum(row)
-    fn row_acc(row: &[Fq; N]) -> Fq {
-        let mut t = row[0];
-        for i in 1..N {
-            t = t + row[i];
-        }
-        t 
+    fn acc(row: &Vector<N>) -> Fq {
+        Vector::<N>::acc(row)
     }
 
     /// \return sum(row**{-1})
-    fn row_acc_inv(row: &[Fq; N]) -> Fq {
-        let mut t = Fq::inv(row[0]);
-        for i in 1..N {
-            t = t + Fq::inv(row[i]);
-        }
-        t 
+    fn acc_inv(row: &Vector<N>) -> Fq {
+        Vector::<N>::acc_inv(row)
     }
 
     /// insert sort 
     fn sort_rows(&mut self) -> i32 {
-
         let mut tmp = [[0u8; Q_PAD]; N];
 
         for i in 0..N {
-            Self::sort(&mut tmp[i], &mut self.rows[i]);
+            Self::sort(&mut tmp[i], &self.rows[i]);
         }
 
         for i in 1..N {
@@ -690,17 +892,17 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     fn scale_cf(&mut self) -> i32 {
         for i in 0..N  {
-            let mut s = Self::row_acc(&self.rows[i]);
+            let mut s = Self::acc(&self.rows[i]);
             if s.0 != 0 {
                 s = Fq::inv(s);
             } else {
-                s = Self::row_acc_inv(&self.rows[i]);
+                s = Self::acc_inv(&self.rows[i]);
                 if s.0 == 0 {
                     continue;
                 }
             }
 
-            self.row_mul(i as usize, s);
+            self.scalar(i as usize, s);
         };
 
         return self.sort_cf();
@@ -710,17 +912,17 @@ impl<const N: usize> MatrixNormalized<N> {
     fn scale_cf_preprocess_v1(&mut self, z: usize, m: & [u8; Q_PAD]) -> i32 {
         let mut tmp = [0u8; Q_PAD];
         for i in 0..z  {
-            let mut s = Self::row_acc(&self.rows[i]);
+            let mut s = Self::acc(&self.rows[i]);
             if s.0 != 0 {
                 s = Fq::inv(s);
             } else {
-                s = Self::row_acc_inv(&self.rows[i]);
+                s = Self::acc_inv(&self.rows[i]);
                 if s.0 == 0 {
                     continue;
                 }
             }
 
-            self.row_mul(i as usize, s);
+            self.scalar(i as usize, s);
             Self::sort(&mut tmp, &self.rows[i]);
             if Self::compare_rows(&tmp, m) < 0 {
                 return 0;
@@ -735,17 +937,17 @@ impl<const N: usize> MatrixNormalized<N> {
         let mut tmp = [0u8; Q_PAD];
         let mut ret = 0;
         for i in 0..z  {
-            let mut s = Self::row_acc(&self.rows[i]);
+            let mut s = Self::acc(&self.rows[i]);
             if s.0 != 0 {
                 s = Fq::inv(s);
             } else {
-                s = Self::row_acc_inv(&self.rows[i]);
+                s = Self::acc_inv(&self.rows[i]);
                 if s.0 == 0 {
                     continue;
                 }
             }
 
-            self.row_mul(i as usize, s);
+            self.scalar(i as usize, s);
             Self::sort(&mut tmp, &self.rows[i]);
             if Self::compare_rows(&tmp, m) < 0 {
                 ret = 1;
@@ -764,41 +966,70 @@ impl<const N: usize> MatrixNormalized<N> {
     //    let mut z = 0;
     //    let mut num_zeros = 0;
     //}
+
+    ///
+    pub fn blind<S>(&mut self, state: S) {
+    }
+
+    ///
+    pub fn CanonicalForm(&mut self) {
+    }
 }
 
-//impl<const N: usize> Add for MatrixNonIS<N> {
-//    type Output = MatrixNonIS<N>;
+//impl<const N: usize> Add for MatrixNormalized<N> {
+//    type Output = MatrixNormalized<N>;
 //    fn add(self, r: Self) -> Self::Output {
 //        let mut t = self;
 //        Self::add(&mut t, &r);
 //        t
 //    }
 //}
-//impl<'a, const N: usize> Add for &'a mut MatrixNonIS<N> {
-//    type Output = &'a mut MatrixNonIS<N>;
+//impl<'a, const N: usize> Add for &'a mut MatrixNormalized<N> {
+//    type Output = &'a mut MatrixNormalized<N>;
 //    fn add(self, r: Self) -> Self::Output {
 //        Matrix::<N, M>::add(self, r);
 //        self
 //    }
 //}
-//impl<const N: usize> Sub for MatrixNonIS<N> {
-//    type Output = MatrixNonIS<N>;
+//impl<const N: usize> Sub for MatrixNormalized<N> {
+//    type Output = MatrixNormalized<N>;
 //    fn sub(self, r: Self) -> Self::Output {
 //        let mut t = self;
 //        Self::sub(&mut t, &r);
 //        t
 //    }
 //}
-//impl<'a, const N: usize> Sub for &'a mut MatrixNonIS<N> {
-//    type Output = &'a mut MatrixNonIS<N>;
+//impl<'a, const N: usize> Sub for &'a mut MatrixNormalized<N> {
+//    type Output = &'a mut MatrixNormalized<N>;
 //    fn sub(self, r: Self) -> Self::Output {
-//        MatrixNonIS::<N>::sub(self, r);
+//        MatrixNormalized::<N>::sub(self, r);
 //        self
+//    }
+//}
+//
+
+/// Direct access to a row
+impl<const N: usize> Index<usize> for MatrixNormalized<N> {
+    type Output = Vector<N>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.rows[index]
+    }
+}
+/// Direct access to a row (mutable)
+impl<const N: usize> IndexMut<usize> for MatrixNormalized<N> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.rows[index]
+    }
+}
+//impl<const N: usize> fmt::Debug for MatrixNormalized<N> {
+//    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//        writeln!(f, "{:?}", self.rows)
 //    }
 //}
 
 
-    /// use less::matrix::Matrix;
+/// use less::matrix::Matrix;
 #[cfg(test)]
 mod tests {
     use super::*;

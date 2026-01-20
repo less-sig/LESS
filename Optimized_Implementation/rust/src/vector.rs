@@ -13,13 +13,16 @@ use crate::opt::{
     gf127_row_mul_avx2, gf127_row_mul2_avx2,
     gf127_row_mul_avx512, gf127_row_mul2_avx512,
     gf127_row_inv_avx512,
+    gf127_row_scalar_mul_avx2, gf127_row_scalar_mul_avx512,
+    gf127_row_acc_avx2,gf127_row_acc_avx512,
+    gf127_row_acc_inv_avx2, gf127_row_acc_inv_avx512,
 };
 
 use crate::fq::Fq;
 
 
 #[derive(Debug, Clone)]
-#[repr(align(32))] // TODO alignment only for avx2/avx512
+#[repr(align(32))] // NOTE alignment only for avx2/avx512
 pub struct Vector<const N: usize>(pub [Fq; N]);
 
 impl <const N: usize> Vector<N>{
@@ -211,15 +214,15 @@ impl <const N: usize> Vector<N>{
         }
     }
 
-    /// c[i] = a[i]-b[i] mod q,  a[i],b[i] < 127, for i in 0..N
+    /// c[i] -= a[i] mod q,  a[i],c[i] < 127, for i in 0..N
     /// # Examples
     ///
     /// ```
     /// use less::vector::Vector;
     /// use less::fq::Fq;
     /// const N: usize = 64;
-    /// let mut c = Vector::<N>([Fq(0); N]);
-    /// let a = Vector::<N>([Fq(1); N]);
+    /// let mut c = Vector::<N>([Fq(1); N]);
+    /// let a = Vector::<N>([Fq(0); N]);
     /// Vector::sub2(&mut c, &a);
     /// assert_eq!(c[0].0, 1);
     /// ```
@@ -320,6 +323,90 @@ impl <const N: usize> Vector<N>{
         }
     }
 
+    /// c[i] = c[i]*a[i] mod q,  a[i],b[i] < 127, for i in 0..N
+    /// # Examples
+    ///
+    /// ```
+    /// use less::vector::Vector;
+    /// use less::fq::Fq;
+    /// const N: usize = 64;
+    /// let mut out = Vector::<N>([Fq(0); N]);
+    /// let c = Vector::<N>([Fq(0); N]);
+    /// let a = Fq(1);
+    /// Vector::mul(&mut out, &c, a);
+    /// assert_eq!(c[0].0, 0);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `c`: output value
+    /// - `a`: first addend
+    /// - `b`: second addend
+    #[inline]
+    pub fn scalar(out: &mut Vector<N>, c: &Vector<N>, a: Fq) {
+        for j in 0..N {
+            out[j] = Fq::mul(c[j], a);
+        }
+    }
+
+    /// c[i] = c[i]*a[i] mod q,  a[i],b[i] < 127, for i in 0..N
+    /// # Examples
+    ///
+    /// ```
+    /// use less::vector::Vector;
+    /// use less::fq::Fq;
+    /// const N: usize = 64;
+    /// let mut c = Vector::<N>([Fq(0); N]);
+    /// let a = Fq(1);
+    /// Vector::mul2(&mut c, a);
+    /// assert_eq!(c[0].0, 0);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `c`: output value
+    /// - `a`: first addend
+    /// - `b`: second addend
+    #[inline]
+    pub fn scalar2(c: &mut Vector<N>, a: Fq) {
+        if is_x86_feature_detected!("avx512f") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_scalar_mul_avx512(c, a);
+            }
+        } else if is_x86_feature_detected!("avx2") {
+            assert!(N%32 == 0);
+            unsafe {
+                gf127_row_scalar_mul_avx2(c, a);
+            }
+        } else {
+            for j in 0..N {
+                c[j] = Fq::mul(c[j], a);
+            }
+        }
+    }
+
+    /// TODO doc
+    #[inline]
+    pub fn acc(row: &Vector<N>) -> Fq {
+        if is_x86_feature_detected!("avx512f") {
+            assert!(N%32 == 0);
+            unsafe {
+                return Fq(gf127_row_acc_avx512(row));
+            }
+        } else if is_x86_feature_detected!("avx2") {
+            assert!(N%32 == 0);
+            unsafe {
+                return Fq(gf127_row_acc_avx2(row));
+            }
+        } else {
+            let mut t = row[0];
+            for i in 1..N {
+                t = t + row[i];
+            }
+            t 
+        }
+    }
+
+
     /// NOTE: non ct
     /// c[i] = a[i]^{-1} mod q, a[i] < 127 for i in 0..N
     /// # Examples
@@ -332,7 +419,7 @@ impl <const N: usize> Vector<N>{
     /// ```
     ///
     /// # Parameters
-    /// - `a`: row to accumulate
+    /// - `a`: row to invert
     pub fn inv(row_out: &mut Vector<N>,
                in1: &Vector<N>) {
         if is_x86_feature_detected!("avx512f") {
@@ -346,6 +433,28 @@ impl <const N: usize> Vector<N>{
             }
         }
     }
+
+    /// TODO doc
+    #[inline]
+    pub fn acc_inv(row: &Vector<N>) -> Fq {
+        if is_x86_feature_detected!("avx512f") {
+            assert!(N%32 == 0);
+            unsafe {
+                return Fq(gf127_row_acc_inv_avx512(row));
+            }
+        } else if is_x86_feature_detected!("avx2") {
+            assert!(N%32 == 0);
+            unsafe {
+                return Fq(gf127_row_acc_inv_avx2(row));
+            }
+        } else {
+            let mut t = row[0];
+            for i in 1..N {
+            t = t + Fq::inv(row[i]);
+            }
+            t 
+        }
+    }
     
     /// c[i] == c[j] for all i < j < n
     /// # Examples
@@ -357,7 +466,7 @@ impl <const N: usize> Vector<N>{
     /// ```
     ///
     /// # Parameters
-    /// - `a`: row to accumulate
+    /// - `a`: row to check if all elements are equal
     ///
     /// # Return 
     /// -   1 if all elements are the same
