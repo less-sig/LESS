@@ -4,6 +4,7 @@ use std::ops:: {
     Add, AddAssign, Sub, SubAssign, Mul, MulAssign,
     Index, IndexMut, Deref, DerefMut
 };
+use std::{ fmt::Display, fmt::Formatter, fmt::Result };
 
 use crate::opt::{
     gf127_row_add_avx2, gf127_row_add2_avx2,
@@ -28,38 +29,6 @@ pub struct Vector<const N: usize>(pub [Fq; N]);
 impl <const N: usize> Vector<N>{
     pub const Q: u8 = 127;
     pub const Q_BITS:u8 = 7;
-
-    /// Create an instance from a `Vec`
-    /// # Examples
-    ///
-    /// ```
-    /// use less::vector::Vector;
-    /// use less::fq::Fq;
-    /// let t = core::array::from_fn(|_| Fq::default());
-    /// let result: Vector<100> = Vector::from_vector(t);
-    /// assert_eq!(result[0].0, 0);
-    /// ```
-    ///
-    /// # Parameters
-    /// - `coefficients`: The first number.
-    ///
-    /// # Returns
-    /// A new vector element
-    #[inline]
-    pub fn from_vector(coefficients: [Fq; N]) -> Self {
-        Self { 0: coefficients }
-    }
-
-    /// same as ::init()
-    #[inline]
-    pub fn from_u8(val: u8) -> Self {
-        let mut ret = Self::new();
-        for i in 0..N {
-            ret.0[i] = Fq(val);
-        }
-
-        return ret;
-    }
 
     /// Zero Initialised
     /// # Examples
@@ -100,6 +69,52 @@ impl <const N: usize> Vector<N>{
         }
     }
 
+    /// Create an instance from a `Vec`
+    /// # Examples
+    ///
+    /// ```
+    /// use less::vector::Vector;
+    /// use less::fq::Fq;
+    /// let t = core::array::from_fn(|_| Fq::default());
+    /// let result: Vector<100> = Vector::from_vector(t);
+    /// assert_eq!(result[0].0, 0);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `coefficients`: The first number.
+    ///
+    /// # Returns
+    /// A new vector element
+    #[inline]
+    pub fn from_vector(coefficients: [Fq; N]) -> Self {
+        Self { 0: coefficients }
+    }
+
+    /// same as ::init()
+    #[inline]
+    pub fn from_u8(val: u8) -> Self {
+        let mut ret = Self::new();
+        for i in 0..N {
+            ret.0[i] = Fq(val);
+        }
+
+        return ret;
+    }
+
+    /// Create an instance from a `Vec`
+    /// # Examples
+    ///
+    /// ```
+    /// use less::vector::Vector;
+    /// let result: Vector<100> = Vector::init();
+    /// assert_eq!(result.dimension(), 100);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `coefficients`: The first number.
+    ///
+    /// # Returns
+    /// A new vector element
     #[inline]
     pub fn dimension(&self) -> usize {
         N
@@ -450,7 +465,7 @@ impl <const N: usize> Vector<N>{
         } else {
             let mut t = row[0];
             for i in 1..N {
-            t = t + Fq::inv(row[i]);
+                t = t + Fq::inv(row[i]);
             }
             t 
         }
@@ -607,45 +622,145 @@ impl<const N: usize> DerefMut for Vector<N> {
     }
 }
 
+impl<const N: usize> Display for Vector<N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        for i in 0..N {
+            write!(f, "{}", self[i])?;
+        }
 
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    const N: usize = 128;
+    
+    #[test]
+    fn init() {
+        let c = Vector::<N>::new();
+        for i in 0..c.dimension() {
+            assert_eq!(c[i].0, 0);
+        }
+    }
+
+    #[test]
+    fn from_u8() {
+        let c = Vector::<N>::from_u8(1);
+        for i in 0..c.dimension() {
+            assert_eq!(c[i].0, 1);
+        }
+    }
+    
+    #[test]
+    fn dimension() {
+        let c = Vector::<N>::new();
+        assert_eq!(c.dimension(), N);
+    }
 
     #[test]
     fn add() {
-        const N: usize = 128;
-        let mut c = Vector::<N>([Fq(0); N]);
-        let a = Vector::<N>([Fq(0); N]);
-        let b = Vector::<N>([Fq(1); N]);
-        Vector::add(&mut c, &a, &b);
-        for i in 0..N {
-            assert!(c[i].0 == 1);
+        for i in 0..127 {
+            for j in 0..127 {
+                let t = (i+j)%127;
+                let mut c = Vector::<N>([Fq(0); N]);
+                let a = Vector::<N>([Fq(i); N]);
+                let b = Vector::<N>([Fq(j); N]);
+                Vector::add(&mut c, &a, &b);
+                for i in 0..N {
+                    assert!(c[i].0 == t);
+                }
+            }
         }
     }
 
     #[test]
     fn sub() {
-        const N: usize = 128;
-        let mut c = Vector::<N>([Fq(0); N]);
-        let a = Vector::<N>([Fq(1); N]);
-        let b = Vector::<N>([Fq(0); N]);
-        Vector::sub(&mut c, &a, &b);
-        for i in 0..N {
-            assert!(c[i].0 == 1);
+        for i in 0..127 {
+            for j in 0..127 {
+                let t = ((i+127) - j)%127;
+                let mut c = Vector::<N>([Fq(0); N]);
+                let a = Vector::<N>([Fq(i); N]);
+                let b = Vector::<N>([Fq(j); N]);
+                Vector::sub(&mut c, &a, &b);
+                for i in 0..N {
+                    assert!(c[i].0 == t);
+                }
+            }
         }
     }
 
     #[test]
     fn mul() {
-        const N: usize = 128;
-        let mut c = Vector::<N>([Fq(0); N]);
-        let a = Vector::<N>([Fq(0); N]);
-        let b = Vector::<N>([Fq(1); N]);
-        Vector::mul(&mut c, &a, &b);
-        for i in 0..N {
-            assert!(c[i].0 == 0);
+        for i in 0..127u16 {
+            for j in 0..127u16{
+                let t = ((i*j) % 127) as u8;
+                let mut c = Vector::<N>([Fq(0); N]);
+                let a = Vector::<N>([Fq(i as u8); N]);
+                let b = Vector::<N>([Fq(j as u8); N]);
+                Vector::mul(&mut c, &a, &b);
+                for i in 0..N {
+                    assert!(c[i].0 == t);
+                }
+            }
         }
+    }
+
+    #[test]
+    fn scalar() {
+        for i in 0..127u16 {
+            for j in 0..127u16{
+                let t = ((i*j) % 127) as u8;
+                let mut c = Vector::<N>([Fq(0); N]);
+                let a = Vector::<N>([Fq(i as u8); N]);
+                Vector::scalar(&mut c, &a, Fq(j as u8));
+                for i in 0..N {
+                    assert!(c[i].0 == t);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn acc() {
+        let c = Vector::<N>::new();
+        assert_eq!(Vector::acc(&c).0, 0);
+
+        let c = Vector::<N>::from_u8(1);
+        assert_eq!(Vector::acc(&c), Fq::red(N as u16));
+    }
+
+    #[test]
+    fn all_same() {
+        let c = Vector::<N>::new();
+        assert_eq!(Vector::all_same(&c), true);
+        let c = Vector::<N>::from_u8(1);
+        assert_eq!(Vector::all_same(&c), true);
+        let mut c = Vector::<N>::from_u8(1);
+        c[N-1] = Fq(0);
+        assert_eq!(Vector::all_same(&c), false);
+    }
+
+    #[test]
+    fn contain_zero() {
+        let c = Vector::<N>::new();
+        assert_eq!(Vector::contain_zero(&c), true);
+        let c = Vector::<N>::from_u8(1);
+        assert_eq!(Vector::contain_zero(&c), false);
+        let mut c = Vector::<N>::from_u8(1);
+        c[N-1] = Fq(0);
+        assert_eq!(Vector::contain_zero(&c), true);
+    }
+
+    #[test]
+    fn count_zero() {
+        let c = Vector::<N>::new();
+        assert_eq!(Vector::count_zero(&c), N as u32);
+        let c = Vector::<N>::from_u8(1);
+        assert_eq!(Vector::count_zero(&c), 0);
+        let mut c = Vector::<N>::from_u8(1);
+        c[N-1] = Fq(0);
+        assert_eq!(Vector::count_zero(&c), 1);
     }
 }

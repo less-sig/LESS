@@ -7,6 +7,7 @@ use std::{
         Add, Sub, Index, IndexMut
     },
 };
+use std::{ fmt::Display, fmt::Formatter, fmt::Result };
 use sha3::{
     Digest, Sha3_256, Sha3_512, Shake128, Shake256, Shake128ReaderCore,
     digest::{ExtendableOutput, Update, XofReader},
@@ -24,6 +25,7 @@ const Q: u8 = 127;
 /// row major form
 /// N: number of rows
 /// M: number of cols
+#[derive(Clone)]
 pub struct Matrix<const N: usize, const M: usize> {
     rows: [Vector<M>; N],
 }
@@ -91,6 +93,74 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
         a
     }
 
+    /// sample a random matrix
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::Matrix;
+    /// TODO
+    /// ```
+    ///
+    /// # Parameters
+    /// - `seed`: NxM matrix
+    pub fn rand() -> Self {
+        let mut a = Self::init();
+        for row in 0..a.nrows() {
+            for col in 0..a.ncols() {
+                a[row][col] = Fq::rand();
+            }
+        }
+        a
+    }
+
+    /// sample a random matrix
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::Matrix;
+    /// TODO
+    /// ```
+    ///
+    /// # Parameters
+    /// - `seed`: NxM matrix
+    pub fn rand_from_seed<S>(&mut self, seed: [u8; 32]) 
+    where 
+        S: ExtendableOutput + Default + Clone
+    {
+        let mut hasher = Shake128::default();
+        hasher.update(&seed);
+        let reader = hasher.finalize_xof();
+        // TODO: is it possible to remove the `clone`?
+        for i in 0..N {
+            rand_range_q_state_elements(reader.clone(), &mut self.rows[i].0);
+        }
+    }
+
+    /// The size/dimension of the matrix
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::Matrix;
+    /// let result: Matrix<100, 100> = Matrix::init();
+    /// assert_eq!(result.is_zero(), true);
+    /// ```
+    ///
+    /// # Returns
+    /// A size/dimension of the vector
+    #[inline]
+    #[must_use]
+    pub fn is_zero(&self) -> bool {
+        for row in 0..self.nrows() {
+            for col in 0..self.ncols() {
+                if self[row][col].0 > 0 {
+                    return false
+                }
+            }
+        }
+
+        true
+    }
+
     /// The size/dimension of the matrix
     /// # Examples
     ///
@@ -103,6 +173,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// # Returns
     /// A size/dimension of the vector
     #[inline]
+    #[must_use]
     pub fn dimension(&self) -> (usize, usize) {
         (N, M)
     }
@@ -119,6 +190,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// # Returns
     /// number of columns
     #[inline]
+    #[must_use]
     pub fn ncols(&self) -> usize {
         M
     }
@@ -135,6 +207,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// # Returns
     /// n_rows
     #[inline]
+    #[must_use]
     pub fn nrows(&self) -> usize {
         N
     }
@@ -182,6 +255,8 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// ```
     /// use less::matrix::Matrix;
+    /// let mut a = Matrix::<32, 32>::new();
+    /// a.swap_rows(10, 11);
     /// ```
     ///
     /// # Parameters
@@ -189,11 +264,11 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// - `r1`: index of the first row
     /// - `r2`: index of the second row
     #[inline]
-    pub fn swap_rows(r: &mut Self, r1: usize, r2: usize) {
+    pub fn swap_rows(&mut self, r1: usize, r2: usize) {
         for j in 0..M {
-            let tmp = r.rows[r1][j];
-            r.rows[r1][j] = r.rows[r2][j];
-            r.rows[r2][j] = tmp;
+            let tmp = self.rows[r1][j];
+            self.rows[r1][j] = self.rows[r2][j];
+            self.rows[r2][j] = tmp;
         } 
     }
 
@@ -231,6 +306,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// - `r`: NxM matrix
     /// - `r1`: index of the first row
     /// - `r2`: index of the second row
+    #[must_use]
     pub fn rref<const CT: bool>(&mut self,
                                 is_pivot_column: &mut [u8; M],
                                 was_pivot_column: &mut [u8; M],
@@ -584,28 +660,6 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
             }
         }
     }
-
-    /// sample a random matrix
-    /// # Examples
-    ///
-    /// ```
-    /// use less::matrix::Matrix;
-    /// ```
-    ///
-    /// # Parameters
-    /// - `seed`: NxM matrix
-    pub fn sample<S>(&mut self, seed: [u8; 32]) 
-    where 
-        S: ExtendableOutput + Default + Clone
-    {
-        let mut hasher = Shake128::default();
-        hasher.update(&seed);
-        let reader = hasher.finalize_xof();
-        // TODO: is it possible to remove the `clone`?
-        for i in 0..N {
-            rand_range_q_state_elements(reader.clone(), &mut self.rows[i].0);
-        }
-    }
 }
 
 
@@ -641,8 +695,6 @@ impl<'a, const N: usize, const M: usize> Sub for &'a mut Matrix<N, M> {
 }
 
 
-
-
 /// Direct access to a row
 impl<const N: usize, const M: usize> Index<usize> for Matrix<N, M> {
     type Output = Vector<M>;
@@ -660,6 +712,16 @@ impl<const N: usize, const M: usize> IndexMut<usize> for Matrix<N, M> {
 impl<const N: usize, const M: usize> fmt::Debug for Matrix<N, M> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "{:?}", self.rows)
+    }
+}
+
+impl<const N: usize, const M: usize> Display for Matrix<N, M> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        for i in 0..N {
+            write!(f, "{}", self[i])?;
+        }
+
+        Ok(())
     }
 }
 
@@ -1033,14 +1095,67 @@ impl<const N: usize> IndexMut<usize> for MatrixNormalized<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    const N: usize = 32;
+    const M: usize = 32;
+    
+    #[test]
+    fn init() {
+        let _ = Matrix::<N, M>::init();
+    }
+    #[test]
+    fn new() {
+        let _ = Matrix::<N, M>::new();
+    }
+    #[test]
+    fn from_u8() {
+        let a = Matrix::<N, M>::from_u8(1);
+        for row in 0..a.nrows() {
+            for col in 0..a.ncols() {
+                assert_eq!(a[row][col].0, 1);
+            }
+        }
+    }
+    #[test]
+    fn rand() {
+        let a = Matrix::<N, M>::rand();
+        println!("{}", a);
+        for row in 0..a.nrows() {
+            for col in 0..a.ncols() {
+                assert!(a[row][col].0 <= Fq::Q);
+            }
+        }
+
+        assert!(a.is_zero() == false);
+    }
+    #[test]
+    fn id() {
+        let a = Matrix::<N, M>::id();
+        for row in 0..a.nrows() {
+            for col in 0..a.ncols() {
+                let b = (row == col) as u8;
+                assert_eq!(a[row][col].0, b);
+            }
+        }
+    }
+    #[test]
+    fn ncols() {
+        let a = Matrix::<N, M>::new();
+        assert_eq!(a.ncols(), M);
+    }
+    #[test]
+    fn nrows() {
+        let a = Matrix::<N, M>::new();
+        assert_eq!(a.nrows(), N);
+    }
 
     #[test]
     fn add() {
-        const N: usize = 32;
-        const M: usize = 32;
-
         let a = Matrix::<N, M>::new();
         let b = Matrix::<N, M>::from_u8(1);
+        let c = a.clone().add(b.clone());
+        for i in 0..N {
+            assert!(c[i][i].0 == 1);
+        }
         let c = a + b;
         for i in 0..N {
             assert!(c[i][i].0 == 1);
@@ -1049,14 +1164,36 @@ mod tests {
 
     #[test]
     fn sub() {
-        const N: usize = 32;
-        const M: usize = 32;
-
         let a = Matrix::<N, M>::new();
         let b = Matrix::<N, M>::from_u8(1);
         let c = b - a;
         for i in 0..N {
             assert!(c[i][i].0 == 1);
         }
+    }
+
+    #[test]
+    fn swap_rows() {
+        let mut a = Matrix::<N, M>::new();
+        let i1 = 0; let i2 = N/2;
+        for i in 0..a.ncols() {
+            a[i1][i] = Fq(1);
+        }
+    
+        a.swap_rows(i1, i2);
+        for i in 0..N {
+            assert!(a[i1][i].0 == 0);
+            assert!(a[i2][i].0 == 1);
+        }
+    }
+
+    #[test]
+    fn rref() {
+        let mut a = Matrix::<N, M>::rand();
+        let mut is_pivot_column = [0u8; M];
+        let mut was_pivot_column = [0u8; M];
+        let pvt_reuse_limit = M as u32;
+        let b = a.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, pvt_reuse_limit);
+        assert!(b);
     }
 }

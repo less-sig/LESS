@@ -1,5 +1,7 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign, Mul, MulAssign, Div, DivAssign};
 use std::ops::Deref;
+use std::fmt::{ Display, Formatter, Result };
+use rand;
 
 use crate::helper::compute_ct_mask;
 
@@ -14,6 +16,12 @@ impl Fq {
     pub const Q_MASK: u8 = 127;
     pub const Q_BITS: u8 = 7;
     pub const ZERO: Fq   = Fq(0);
+
+    #[must_use]
+    #[inline]
+    pub fn rand() -> Self {
+        Fq(rand::random_range(0..(Fq::Q+1)))
+    }
 
     /// a mod q, a < 256
     #[must_use]
@@ -235,6 +243,12 @@ impl Deref for Fq {
     }
 }
 
+impl Display for Fq {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -295,5 +309,11 @@ mod tests {
             let t: Fq = Fq::mul(a, b);
             assert!(t.0 == 1);
         }
+    }
+
+    #[test]
+    fn print() {
+        let a = Fq(10);
+        println!("{}", a);
     }
 }
