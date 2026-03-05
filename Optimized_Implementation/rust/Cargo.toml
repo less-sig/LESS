@@ -3,6 +3,16 @@ name = "less"
 version = "0.1.0"
 edition = "2024"
 
+[target.'cfg(target_arch="x86_64")']
+# x86-64-v2 does not have AVX2, but we need that.
+# x86-64-v4 has AVX512 which we explicitly do not include for portability.
+rustflags = ["-C", "target-cpu=x86-64-v3"]
+
+[target.'cfg(all(target_arch="aarch64", target_os="macos"))']
+# For aarch64 macos builds, specifically target M1 rather than generic aarch64.
+rustflags = ["-C", "target-cpu=apple-a14"]
+
+
 [dependencies]
 sha3 = "0.10.8"
 num-traits = "0.2.19"
@@ -12,5 +22,5 @@ rand = "0.9.2"
 opt-level = 3
 lto = true
 codegen-units = 1
-target-feature = "avx2"
+#target-feature = "avx2"
 

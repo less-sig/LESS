@@ -14,7 +14,7 @@ stdenv.mkDerivation {
     clang 
     llvm 
     lldb
-    gdb
+
     #vscode-extensions.vadimcn.vscode-lldb
     unstable_pkgs.cargo
     unstable_pkgs.cargo-nextest
@@ -24,7 +24,9 @@ stdenv.mkDerivation {
     # needed for IDE
     pkg-config  
     openssl
+    git
   ] ++ (lib.optionals pkgs.stdenv.isLinux ([
-    ]));
+    gdb
+  ]));
   RUST_SRC_PATH = "${unstable_pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
 }

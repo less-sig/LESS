@@ -6,21 +6,41 @@ use std::ops:: {
 };
 use std::{ fmt::Display, fmt::Formatter, fmt::Result };
 
-use crate::opt::{
-    gf127_row_add_avx2, gf127_row_add2_avx2,
-    gf127_row_add_avx512, gf127_row_add2_avx512,
-    gf127_row_sub_avx2, gf127_row_sub2_avx2,
-    gf127_row_sub_avx512, gf127_row_sub2_avx512,
-    gf127_row_mul_avx2, gf127_row_mul2_avx2,
-    gf127_row_mul_avx512, gf127_row_mul2_avx512,
-    gf127_row_inv_avx512,
-    gf127_row_scalar_mul_avx2, gf127_row_scalar_mul_avx512,
-    gf127_row_acc_avx2,gf127_row_acc_avx512,
-    gf127_row_acc_inv_avx2, gf127_row_acc_inv_avx512,
-};
-
 use crate::fq::Fq;
 
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx,avx2")]
+use crate::opt::{
+    gf127_row_add_avx2, gf127_row_add2_avx2,
+    gf127_row_sub_avx2, gf127_row_sub2_avx2,
+    gf127_row_mul_avx2, gf127_row_mul2_avx2,
+    gf127_row_scalar_mul_avx2,
+    gf127_row_acc_avx2,
+    gf127_row_acc_inv_avx2,
+};
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx512f,avx512bw")]
+use crate::opt::{
+    gf127_row_add_avx512, gf127_row_add2_avx512,
+    gf127_row_sub_avx512, gf127_row_sub2_avx512,
+    gf127_row_mul_avx512, gf127_row_mul2_avx512,
+    gf127_row_inv_avx512,
+    gf127_row_scalar_mul_avx512,
+    gf127_row_acc_avx512,
+    gf127_row_acc_inv_avx512,
+};
+
+#[cfg(target_arch = "aarch64")]
+use crate::opt::{
+    gf127_row_add_neon, gf127_row_add2_neon,
+    gf127_row_sub_neon, gf127_row_sub2_neon,
+    gf127_row_mul_neon, gf127_row_mul2_neon,
+    gf127_row_inv_neon,
+    gf127_row_scalar_mul_neon, gf127_row_scalar_mul2_neon,
+    gf127_row_acc_neon,
+    gf127_row_acc_inv_neon,
+};
 
 #[derive(Debug, Clone)]
 #[repr(align(32))] // NOTE alignment only for avx2/avx512
@@ -140,20 +160,29 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn add(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
-        if is_x86_feature_detected!("avx512f") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_add_avx512(c, a, b);
+        #[cfg(target_feature = "avx2")]
+        {
+            if is_x86_feature_detected!("avx512f") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    gf127_row_add_avx512(c, a, b);
+                }
+            } else if is_x86_feature_detected!("avx2") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    gf127_row_add_avx2(c, a, b);
+                }
             }
-        } else if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_add_avx2(c, a, b);
-            }
-        } else {
-            for i in 0..N {
-                c[i] = Fq::add(a[i], b[i]);
-            }
+            return;
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            gf127_row_add_neon(c, a, b);
+            return;
+        }
+
+        for i in 0..N {
+            c[i] = Fq::add(a[i], b[i]);
         }
     }
 
@@ -176,20 +205,29 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn add2(c: &mut Vector<N>, a: &Vector<N>) {
-        if is_x86_feature_detected!("avx512f") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_add2_avx512(c, a);
+        #[cfg(target_arch = "x86_64")]
+        {
+            if is_x86_feature_detected!("avx512f") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    gf127_row_add2_avx512(c, a);
+                }
+            } else if is_x86_feature_detected!("avx2") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    gf127_row_add2_avx2(c, a);
+                }
             }
-        } else if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_add2_avx2(c, a);
-            }
-        } else {
-            for i in 0..N {
-                c[i] = Fq::add(c[i], a[i]);
-            }
+        }
+
+        #[cfg(target_feature = "neon")]
+        {
+            gf127_row_add2_neon(c, a);
+            return;
+        }
+
+        for i in 0..N {
+            c[i] = Fq::add(c[i], a[i]);
         }
     }
 
@@ -212,20 +250,31 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn sub(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
-        if is_x86_feature_detected!("avx512f") {
-            assert!(N%32 == 0);
+        #[cfg(target_arch = "x86_64")]
+        {
+            if is_x86_feature_detected!("avx512f") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    gf127_row_sub_avx512(c, a, b);
+                }
+            } else if is_x86_feature_detected!("avx2") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    gf127_row_sub_avx2(c, a, b);
+                }
+            }
+        }
+
+        #[cfg(target_feature = "neon")]
+        {
             unsafe {
-                gf127_row_sub_avx512(c, a, b);
+                gf127_row_sub_neon(c, a, b);
             }
-        } else if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_sub_avx2(c, a, b);
-            }
-        } else {
-            for i in 0..N {
-                c[i] = Fq::sub(a[i], b[i]);
-            }
+            return;
+        }
+
+        for i in 0..N {
+            c[i] = Fq::sub(a[i], b[i]);
         }
     }
 
@@ -248,20 +297,31 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn sub2(c: &mut Vector<N>, a: &Vector<N>) {
-        if is_x86_feature_detected!("avx512f") {
-            assert!(N%32 == 0);
+        #[cfg(target_arch = "x86_64")]
+        {
+            if is_x86_feature_detected!("avx512f") {
+                assert!(N%32 == 0);
+                unsafe {
+                    gf127_row_sub2_avx512(c, a);
+                }
+            } else if is_x86_feature_detected!("avx2") {
+                assert!(N%32 == 0);
+                unsafe {
+                    gf127_row_sub2_avx2(c, a);
+                }
+            }
+        }
+
+        #[cfg(target_feature = "neon")]
+        {
             unsafe {
-                gf127_row_sub2_avx512(c, a);
+                gf127_row_sub2_neon(c, a);
             }
-        } else if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_sub2_avx2(c, a);
-            }
-        } else {
-            for i in 0..N {
-                c[i] = Fq::sub(c[i], a[i]);
-            }
+            return;
+        }
+
+        for i in 0..N {
+            c[i] = Fq::sub(c[i], a[i]);
         }
     }
 
@@ -285,20 +345,30 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn mul(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
-        if is_x86_feature_detected!("avx512f") {
-            assert!(N%32 == 0);
+        #[cfg(target_arch = "x86_64")]
+        {
+            if is_x86_feature_detected!("avx512f") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    gf127_row_mul_avx512(c, a, b);
+                }
+            } else if is_x86_feature_detected!("avx2") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    gf127_row_mul_avx2(c, a, b);
+                }
+            }
+        }
+
+        #[cfg(target_feature = "neon")]
+        {
             unsafe {
-                gf127_row_mul_avx512(c, a, b);
+                gf127_row_mul_neon(c, a, b);
             }
-        } else if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_mul_avx2(c, a, b);
-            }
-        } else {
-            for i in 0..N {
-                c[i] = Fq::mul(a[i], b[i]);
-            }
+            return;
+        }
+        for i in 0..N {
+            c[i] = Fq::mul(a[i], b[i]);
         }
     }
 
@@ -321,21 +391,33 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn mul2(c: &mut Vector<N>, a: &Vector<N>) {
-        if is_x86_feature_detected!("avx512f") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_mul2_avx512(c, a);
-            }
-        } else if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_mul2_avx2(c, a);
-            }
-        } else {
-            for i in 0..N {
-                c[i] = Fq::mul(c[i], a[i]);
+        #[cfg(target_arch = "x86_64")]
+        {
+            if is_x86_feature_detected!("avx512f") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    gf127_row_mul2_avx512(c, a);
+                }
+            } else if is_x86_feature_detected!("avx2") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    gf127_row_mul2_avx2(c, a);
+                }
             }
         }
+
+        #[cfg(target_feature = "neon")]
+        {
+            unsafe {
+                gf127_row_mul2_neon(c, a);
+            }
+            return;
+        }
+
+        for i in 0..N {
+            c[i] = Fq::mul(c[i], a[i]);
+        }
+
     }
 
     /// c[i] = c[i]*a[i] mod q,  a[i],b[i] < 127, for i in 0..N
@@ -358,6 +440,7 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn scalar(out: &mut Vector<N>, c: &Vector<N>, a: Fq) {
+        // TODO simd code
         for j in 0..N {
             out[j] = Fq::mul(c[j], a);
         }
@@ -382,43 +465,64 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn scalar2(c: &mut Vector<N>, a: Fq) {
-        if is_x86_feature_detected!("avx512f") {
-            assert!(N%32 == 0);
+        #[cfg(target_arch = "x86_64")]
+        {
+            if is_x86_feature_detected!("avx512f") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    gf127_row_scalar_mul_avx512(c, a);
+                }
+            } else if is_x86_feature_detected!("avx2") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    gf127_row_scalar_mul_avx2(c, a);
+                }
+            }
+        }
+
+        #[cfg(target_feature = "neon")]
+        {
             unsafe {
-                gf127_row_scalar_mul_avx512(c, a);
+                gf127_row_scalar_mul_neon(c, a);
             }
-        } else if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                gf127_row_scalar_mul_avx2(c, a);
-            }
-        } else {
-            for j in 0..N {
-                c[j] = Fq::mul(c[j], a);
-            }
+            return;
+        }
+
+        for j in 0..N {
+            c[j] = Fq::mul(c[j], a);
         }
     }
 
     /// TODO doc
     #[inline]
     pub fn acc(row: &Vector<N>) -> Fq {
-        if is_x86_feature_detected!("avx512f") {
-            assert!(N%32 == 0);
-            unsafe {
-                return Fq(gf127_row_acc_avx512(row));
+        #[cfg(target_arch = "x86_64")]
+        {
+            if is_x86_feature_detected!("avx512f") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    return Fq(gf127_row_acc_avx512(row));
+                }
+            } else if is_x86_feature_detected!("avx2") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    return Fq(gf127_row_acc_avx2(row));
+                }
             }
-        } else if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                return Fq(gf127_row_acc_avx2(row));
-            }
-        } else {
-            let mut t = row[0];
-            for i in 1..N {
-                t = t + row[i];
-            }
-            t 
         }
+
+        #[cfg(target_feature = "neon")]
+        {
+            unsafe {
+                return Fq(gf127_row_acc_neon(row));
+            }
+        }
+
+        let mut t = row[0];
+        for i in 1..N {
+            t = t + row[i];
+        }
+        t
     }
 
 
@@ -437,38 +541,58 @@ impl <const N: usize> Vector<N>{
     /// - `a`: row to invert
     pub fn inv(row_out: &mut Vector<N>,
                in1: &Vector<N>) {
-        if is_x86_feature_detected!("avx512f") {
-            assert!(N%32 == 0);
+        #[cfg(target_arch = "x86_64")]
+        {
+            if is_x86_feature_detected!("avx512f") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    gf127_row_inv_avx512(row_out, in1);
+                }
+            }
+        }
+
+        #[cfg(target_feature = "neon")]
+        {
             unsafe {
-                gf127_row_inv_avx512(row_out, in1);
+                gf127_row_inv_neon(row_out, in1);
             }
-        } else {
-            for col in 0..N {
-                row_out[col] = Fq::inv_non_ct(in1[col]);
-            }
+            return;
+        }
+        for col in 0..N {
+            row_out[col] = Fq::inv_non_ct(in1[col]);
         }
     }
 
     /// TODO doc
     #[inline]
     pub fn acc_inv(row: &Vector<N>) -> Fq {
-        if is_x86_feature_detected!("avx512f") {
-            assert!(N%32 == 0);
-            unsafe {
-                return Fq(gf127_row_acc_inv_avx512(row));
+        #[cfg(target_arch = "x86_64")]
+        {
+            if is_x86_feature_detected!("avx512f") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    return Fq(gf127_row_acc_inv_avx512(row));
+                }
+            } else if is_x86_feature_detected!("avx2") {
+                assert!(N % 32 == 0);
+                unsafe {
+                    return Fq(gf127_row_acc_inv_avx2(row));
+                }
             }
-        } else if is_x86_feature_detected!("avx2") {
-            assert!(N%32 == 0);
-            unsafe {
-                return Fq(gf127_row_acc_inv_avx2(row));
-            }
-        } else {
-            let mut t = row[0];
-            for i in 1..N {
-                t = t + Fq::inv(row[i]);
-            }
-            t 
         }
+
+        #[cfg(target_feature = "neon")]
+        {
+            unsafe {
+                return Fq(gf127_row_acc_inv_neon(row));
+            }
+        }
+
+        let mut t = row[0];
+        for i in 1..N {
+            t = t + Fq::inv(row[i]);
+        }
+        t
     }
     
     /// c[i] == c[j] for all i < j < n
@@ -512,6 +636,7 @@ impl <const N: usize> Vector<N>{
     /// -   1 if a zero is in the row
     /// -   0 else
     pub fn contain_zero(row: &Vector<N>) -> bool {
+        // TODO vectorize
         for col in 0..N {
             if row[col] == Fq(0) {
                 return true;
@@ -536,6 +661,8 @@ impl <const N: usize> Vector<N>{
     /// # return 
     /// -   number of zeros in row
     pub fn count_zero(row: &Vector<N>) -> u32 {
+
+        // TODO vectorize
         let mut c: u32 = 0;
         for col in 0..N {
             if row[col] == Fq(0) {
