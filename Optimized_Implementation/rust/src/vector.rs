@@ -9,7 +9,6 @@ use std::{ fmt::Display, fmt::Formatter, fmt::Result };
 use crate::fq::Fq;
 
 #[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx,avx2")]
 use crate::opt::{
     gf127_row_add_avx2, gf127_row_add2_avx2,
     gf127_row_sub_avx2, gf127_row_sub2_avx2,
@@ -20,7 +19,6 @@ use crate::opt::{
 };
 
 #[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx512f,avx512bw")]
 use crate::opt::{
     gf127_row_add_avx512, gf127_row_add2_avx512,
     gf127_row_sub_avx512, gf127_row_sub2_avx512,

@@ -7,12 +7,12 @@ use crate::{
     vector::Vector
 };
 
-#[cfg(target_feature = "avx2")]
+#[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::{
     __m128i, __m256i, _mm_extract_epi8, _mm_loadu_si128, _mm_set1_epi8, _mm_storeu_si128, _mm256_add_epi8, _mm256_and_si256, _mm256_blendv_epi8, _mm256_cmpeq_epi8, _mm256_cvtepu8_epi16, _mm256_extract_epi8, _mm256_extract_epi32, _mm256_load_si256, _mm256_loadu_si256, _mm256_min_epu8, _mm256_movemask_epi8, _mm256_mullo_epi16, _mm256_or_si256, _mm256_packs_epi16, _mm256_permute2x128_si256, _mm256_permute4x64_epi64, _mm256_set1_epi8, _mm256_set1_epi16, _mm256_setzero_si256, _mm256_srli_epi16, _mm256_srli_epi32, _mm256_srli_epi64, _mm256_srli_si256, _mm256_store_si256, _mm256_storeu_si256, _mm256_sub_epi8, _mm512_setzero
 };
 
-#[cfg(target_feature = "avx2")]
+#[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::{
     __mmask64,
     __m512i, 
@@ -41,16 +41,17 @@ use std::arch::aarch64::{
     vget_low_u8, vget_high_u8,
     vmovn_u16,
     vmull_u8,
-    vaddq_u16,
+    vaddq_u8, vaddq_u16,
     vsubq_u8,
-    vandq_u8, vandq_u16,
+    vand_u8, vandq_u8, vandq_u16,
+    vorrq_u8,
     vshrq_n_s8, vshrq_n_u16, vbslq_u8,
     vcombine_u8,
     vreinterpretq_s8_u8, vreinterpretq_u8_s8,
     vminq_u8,
     vgetq_lane_u8,
+    vceqq_u8, 
 };
-use std::arch::aarch64::{vaddq_u8, vand_u8, vceqq_u8, vorrq_u8};
 
 const FQ127_MUL_TABLE: [u8; 16256] = [
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -907,7 +908,7 @@ pub fn gf127_row_add2_avx512<const N: usize>(c: &mut Vector<N>,
         let ptr_out = c.as_ptr();
 
         let mut off: usize = 0;
-        if (N >= 64) {
+        if N >= 64 {
             for col in (0..N).step_by(64) {
                 let ta: __m512i = _mm512_load_si512(ptr1.add(col) as *const __m512i);
                 let tb: __m512i = _mm512_load_si512(ptr_out.add(col) as *const __m512i);
@@ -1083,7 +1084,7 @@ pub fn gf127_row_sub_avx512<const N: usize>(c: &mut Vector<N>,
 
         let mut off: usize = 0;
 
-        if (N >= 64) {
+        if N >= 64 {
             for col in (0..N).step_by(64) {
                 let ta: __m512i = _mm512_load_si512(ptr1.add(col) as *const __m512i);
                 let tb: __m512i = _mm512_load_si512(ptr2.add(col) as *const __m512i);
@@ -2022,7 +2023,7 @@ pub fn gf127_row_inv_avx512<const N: usize>(row_out: &mut Vector<N>,
         let t1 = _mm512_load_si512(tab.add(64) as *const __m512i);
        
         let mut off: usize = 0;
-        if col >= 64 {
+        if N >= 64 {
             for col in (0..N).step_by(64) {
                 let a: __m512i = _mm512_load_si512(ptr.add(col) as *const __m512i);
                 let t = _mm512_permutex2var_epi8(t0, a, t1);
@@ -2697,7 +2698,9 @@ mod tests {
             for j in 0..127u8 {
                 let a = Vector::<N>::from_u8(i);
                 let b = Vector::<N>::from_u8(j);
-                gf127_row_sub_avx2(&mut c, &a, &b);
+                unsafe {
+                    gf127_row_sub_avx2(&mut c, &a, &b);
+                }
                 for k in 0..N {
                     assert_eq!(c[k].0, (i+127-j) % 127);
                 }
