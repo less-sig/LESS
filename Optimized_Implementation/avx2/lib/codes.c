@@ -75,7 +75,6 @@ void generator_monomial_mul(generator_mat_t *res,
                             const monomial_t *const monom) {
     FQ_ELEM tmp1[N_pad*K_pad] __attribute__((aligned(32)));
     FQ_ELEM tmp2[N_pad*K_pad] __attribute__((aligned(32)));
-
     matrix_transpose(tmp1, (uint8_t *)G->values, K_pad, N_pad, K_pad, N_pad);
 
     for (uint64_t i = 0; i < N; i++) {
@@ -92,7 +91,6 @@ void generator_monomial_mul(generator_mat_t *res,
             _mm256_store_si256((__m256i *)(tmp2 + out_off + j), t);
         }
     }
-
     matrix_transpose((uint8_t *)res->values, tmp2, N_pad, K_pad, N_pad, K_pad);
 } /* end generator_monomial_mul */
 
@@ -642,7 +640,6 @@ void normalized_monomial_right(normalized_IS_t *res,
                                const monomial_t *const monom) {
     FQ_ELEM tmp1[K_pad*K_pad] __attribute__((aligned(32)));
     FQ_ELEM tmp2[K_pad*K_pad] __attribute__((aligned(32)));
-
     matrix_transpose(tmp1, (uint8_t *)G->values, K_pad, K_pad, K_pad, K_pad);
 
     for (uint64_t i = 0; i < K; i++) {

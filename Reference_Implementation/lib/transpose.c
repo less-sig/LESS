@@ -116,20 +116,17 @@ void matrix_transpose(uint8_t *dst,
                       const size_t c,
                       const size_t dst_stride,
                       const size_t src_stride) {
-#if defined(USE_AVX2) || defined(USE_NEON) || defined(USE_AVX512)
-#if defined(USE_AVX512)
-    const size_t bsize = 32;
+#if !(defined(USE_AVX2) || defined(USE_NEON) || defined(USE_AVX512))
+    for (uint64_t row = 0; row < r; row++) {
+        for (uint64_t col = 0; col < c; col++) {
+            dst[col*dst_stride + row] = src[row*src_stride + col];
+        }
+    }
 #else
     const size_t bsize = 32;
-#endif
-#else
-    const size_t bsize = 64;
-#endif
 
-    uint64_t rb = 0;
-    for (; rb < r / bsize; rb++) {
+    for (uint64_t rb = 0; rb < r / bsize; rb++) {
         for (uint64_t cb = 0; cb < c / bsize; cb++) {
-#if defined(USE_AVX2) || defined(USE_NEON) || defined(USE_AVX512)
             const uint8_t* src_origin = src + (rb*src_stride+cb)*bsize;
                   uint8_t* dst_origin = dst + (cb*dst_stride+rb)*bsize;
 #if defined(USE_AVX512)
@@ -140,36 +137,7 @@ void matrix_transpose(uint8_t *dst,
 #else
             matrix_transpose_32x32(dst_origin, src_origin, src_stride, dst_stride);
 #endif
-#else
-            const uint8_t *srcb_origin = src + (rb*src_stride + cb) * bsize;
-                  uint8_t *dstb_origin = dst + (cb*dst_stride + rb) * bsize;
-            for (size_t rw = 0; rw < bsize / 8; rw++) {
-                for (size_t cw = 0; cw < bsize / 8; cw++) {
-                    const uint8_t *srcw_origin = srcb_origin + (cw*src_stride + rw) * 8;
-                          uint8_t *dstw_origin = dstb_origin + (rw*dst_stride + cw) * 8;
-                    matrix_transpose_8x8(dstw_origin, srcw_origin, src_stride, dst_stride);
-                }
-            }
+        }
+    }
 #endif
-        }
-    }
-
-    const uint32_t rem = c % bsize;
-    if (rem) {
-        rb *= 64 / bsize;
-
-        // solve the last columns
-        for (uint32_t i = rb*bsize; i < c; i++) {
-            for(uint32_t j = 0; j < c; j++) {
-                dst[j*dst_stride + i] = src[i*src_stride + j];
-            }
-        }
-
-        // solve the last rows
-        for(uint32_t j = rb*bsize; j < c; j++) {
-            for (uint32_t i = 0; i < c; i++) {
-                dst[j*dst_stride + i] = src[i*src_stride + j];
-            }
-        }
-    }
 }
