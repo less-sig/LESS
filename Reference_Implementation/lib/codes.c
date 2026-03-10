@@ -71,8 +71,8 @@ void generator_monomial_mul(generator_mat_t *res,
                             const monomial_t *const monom) {
     FQ_ELEM tmp1[N*K];
     FQ_ELEM tmp2[N*K];
+    matrix_transpose(tmp1, (uint8_t *)G->values, K, N, K, N);
 
-    matrix_transpose_stride(tmp1, (uint8_t *)G->values, K, N, N, K);
     for (uint64_t i = 0; i < N; i++) {
         const uint8_t p = monom->coefficients[i];
         const uint64_t in_off = i * K;
@@ -83,7 +83,7 @@ void generator_monomial_mul(generator_mat_t *res,
             tmp2[out_off + j] = t;
         }
     }
-    matrix_transpose_stride((uint8_t *)res->values, tmp2, N, K, K, N);
+    matrix_transpose((uint8_t *)res->values, tmp2, N, K, N, K);
 } /* end generator_monomial_mul */
 
 
@@ -631,8 +631,8 @@ void normalized_monomial_right(normalized_IS_t *res,
                                const monomial_t *const monom) {
     FQ_ELEM tmp1[K*K];
     FQ_ELEM tmp2[K*K];
+    matrix_transpose(tmp1, (uint8_t *)G->values, K, K, K, K);
 
-    matrix_transpose_stride(tmp1, (uint8_t *)G->values, K, K, K, K);
     for (uint64_t i = 0; i < K; i++) {
         const uint8_t p = monom->coefficients[i];
         const uint64_t in_off = i * K;
@@ -643,7 +643,7 @@ void normalized_monomial_right(normalized_IS_t *res,
             tmp2[out_off + j] = t;
         }
     }
-    matrix_transpose_stride((uint8_t *)res->values, tmp2, K, K, K, K);
+    matrix_transpose((uint8_t *)res->values, tmp2, K, K, K, K);
 } /* end normalized_monomial_right */
 
 /// \param A[out]: pointer to allocated normalized struct, which get filled with the
