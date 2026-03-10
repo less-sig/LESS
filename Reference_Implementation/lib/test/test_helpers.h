@@ -109,7 +109,6 @@ void column_swap(normalized_IS_t *V,
 void permutation_swap(permutation_t *P, uint32_t i, uint32_t j);
 void permutation_cswap(permutation_t *P, uint32_t i, uint32_t j, uintptr_t mask);
 void permutation_mat_id(permutation_t *P);
-void permutation_mat_rng(permutation_t *P);
 void permutation_mat_id_v2(permutation_t *P, const uint32_t max);
 void permutation_mat_rng_v2(permutation_t *P, const uint32_t max);
 void permutation_pretty_print(const permutation_t *P);

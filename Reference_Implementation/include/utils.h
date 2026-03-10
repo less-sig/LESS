@@ -34,6 +34,7 @@
 /// \param b[in/out]: will be set to a
 /// \return nothing
 #define SWAP(a, b) { (a)^=(b); (b)^=(a); (a)^=(b); }
+#define MASKED_SWAP(a,b,m) { a^=(m&b); b^=(m&a); a^=(m&b); }
 
 /// \param i[in] first index
 /// \param j[in] second index

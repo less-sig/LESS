@@ -218,8 +218,7 @@ void monomial_mat_rnd(monomial_t *res) {
    for(uint32_t i = 0; i < N; i++) {
       res->permutation[i] = i;
    }
-   /* FY shuffle on the permutation */
-   yt_shuffle(res->permutation);
+    merge_exchange(res->permutation, N, &platform_csprng_state);
 } /* end monomial_mat_rnd */
 
 // samples a random monomial matrix, in which each row has
@@ -329,12 +328,6 @@ void permutation_mat_id(permutation_t *P) {
     for (uint32_t i = 0; i < N; ++i) {
         P->permutation[i] = i;
     }
-}
-
-/// \param P
-void permutation_mat_rng(permutation_t *P) {
-    permutation_mat_id(P);
-    yt_shuffle(P->permutation);
 }
 
 /// \param P

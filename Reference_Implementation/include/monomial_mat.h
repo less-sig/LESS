@@ -61,26 +61,6 @@ typedef struct {
     POSITION_T permutation[K];
 } monomial_action_IS_t;
 
-
-/// applies a random permutation between [0, n-1] on the
-/// input permutation
-/// \param shake_monomial_state[in/out]:
-/// \param permutation[in/out]: random permutation. Must be initialized with
-///         [0,....,n-1]
-/// \param n <= N: number of elements in the permutation
-void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
-                            POSITION_T *permutation,
-                            uint32_t n);
-
-/// \param shake_monomial_state[in/out]: pointer to an initialized prng state
-/// \param permutation[in/out]: random permutation. Must be initialized with
-///         [0,....,n-1]
-void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state,
-                      POSITION_T permutation[N]);
-
-/// FY shuffle on the permutation, sampling from the global TRNG state
-void yt_shuffle(POSITION_T permutation[N]);
-
 /// expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
 /// monomial matrices
 /// \param res[out]: pointer to an allocated, but not initialized monomial

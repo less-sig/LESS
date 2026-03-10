@@ -23,9 +23,7 @@
  *
  **/
 
-#include <string.h>
-#include <stdlib.h>
-
+#include <immintrin.h>
 #include "utils.h"
 #include "rng.h"
 
@@ -38,8 +36,46 @@ void cswap(uintptr_t *a,
     *a ^= (mask & *b);
 }
 
-#ifdef USE_AVX2
-#include <immintrin.h>
+/// needed randomness: n * 1/4 * \floor(log n) * (\floor(log n) + 1)
+/// \param P[out]
+/// \param n[in]:
+/// \param state[in]:
+void merge_exchange(uint16_t *P,
+                    const uint32_t n,
+                    SHAKE_STATE_STRUCT *state) {
+    uint64_t rand = 0;
+    uint32_t ctr = 0;
+
+    uint32_t t = 1;
+    while (t < n - t) t += t;
+
+    for (uint32_t p = t; p > 0; p>>=1) {
+        uint32_t q = t<<1u;
+        uint32_t r = 0;
+        uint32_t d = p;
+        do {
+            q >>= 1;
+            for (uint32_t i = 0; i < (n - d); i++) {
+                if ((i & p) == r) {
+                    if (ctr == 0) {
+                        csprng_randombytes((unsigned char *)&rand, 8, state);
+                        ctr = 64;
+                    }
+
+                    // select random bit
+                    const uint16_t mask = COMPUTE_CT_MASK((rand&1), 1);
+                    MASKED_SWAP(P[i], P[i+d], mask);
+
+                    // update random counter
+                    rand >>= 1;
+                    ctr -= 1;
+                }
+            }
+            d = q - p;
+            r = p;
+        } while(q != p);
+    }
+}
 
 /// taken from kyber
 /// Description: Compare two arrays for equality in constant time.
@@ -75,29 +111,6 @@ int verify(const uint8_t *a,
     r = (-r) >> 63;
     return r;
 }
-#else
-
-/// taken from the kyber impl.
-/// Description: Compare two arrays for equality in constant time.
-///
-/// Arguments:   const uint8_t *a: pointer to first byte array
-///              const uint8_t *b: pointer to second byte array
-///              size_t len:       length of the byte arrays
-///
-/// Returns 0 if the byte arrays are equal, 1 otherwise
-int verify(const uint8_t *a,
-           const uint8_t *b,
-           const size_t len) {
-    uint8_t r = 0;
-
-    for(size_t i=0;i<len;i++) {
-        r |= a[i] ^ b[i];
-    }
-
-    return (-(uint64_t)r) >> 63;
-}
-
-#endif
 
 #define MAX_KEYPAIR_INDEX (NUM_KEYPAIRS-1)
 #define KEYPAIR_INDEX_MASK ( ((uint16_t)1 << BITS_TO_REPRESENT(MAX_KEYPAIR_INDEX)) -1 )

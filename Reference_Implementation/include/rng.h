@@ -83,3 +83,7 @@ void init_randombytes(const uint8_t *seed,
                       const size_t seed_len_bytes) {
     initialize_csprng(&platform_csprng_state, seed, seed_len_bytes);
 }
+
+void merge_exchange(uint16_t *P,
+                    const uint32_t n,
+                    SHAKE_STATE_STRUCT *state);

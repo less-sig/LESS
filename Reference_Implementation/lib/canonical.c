@@ -410,10 +410,10 @@ void blind(normalized_IS_t *G,
     // We compute the following matrix multiplication G = left * G * right
     // where `left` and `right` are randomly sampled monomials
     fq_star_rnd_state_elements(prng, right.coefficients, N-K);
-    yt_shuffle_state_limit(prng, right.permutation, N-K);
+	merge_exchange(right.permutation, N-K, prng);
 
     fq_star_rnd_state_elements(prng, left.coefficients, N-K);
-    yt_shuffle_state_limit(prng, left.permutation, N-K);
+	merge_exchange(left.permutation, N-K, prng);
 
     // apply the right multiplication
     normalized_monomial_right(&B, G, &right);
