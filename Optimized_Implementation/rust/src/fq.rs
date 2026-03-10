@@ -20,7 +20,7 @@ impl Fq {
     #[must_use]
     #[inline]
     pub fn rand() -> Self {
-        Fq(rand::random_range(0..(Fq::Q+1)))
+        Fq(rand::random_range(0..(Fq::Q)))
     }
 
     /// a mod q, a < 256

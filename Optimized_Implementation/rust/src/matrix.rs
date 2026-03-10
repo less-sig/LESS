@@ -864,7 +864,7 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let result: MatrixNormalized<100> = MatrixNormalized::init();
+    /// let result: MatrixNormalized<64> = MatrixNormalized::init();
     /// ```
     ///
     fn add(&mut self, i: usize, j: usize) {
@@ -884,7 +884,7 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let result: MatrixNormalized<100> = MatrixNormalized::init();
+    /// let result: MatrixNormalized<64> = MatrixNormalized::init();
     /// ```
     ///
     fn sub(&mut self, i: usize, j: usize) {
@@ -902,7 +902,7 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let result: MatrixNormalized<100> = MatrixNormalized::init();
+    /// let result: MatrixNormalized<64> = MatrixNormalized::init();
     /// ```
     ///
     fn scalar(&mut self, i: usize, s: Fq) {
@@ -1031,10 +1031,12 @@ impl<const N: usize> MatrixNormalized<N> {
 
     ///
     pub fn blind<S>(&mut self, state: S) {
+        // TODO
     }
 
     ///
     pub fn CanonicalForm(&mut self) {
+        // TODO
     }
 }
 
@@ -1170,6 +1172,13 @@ mod tests {
         for i in 0..N {
             assert!(c[i][i].0 == 1);
         }
+    }
+
+    #[test]
+    fn monomial_mul() {
+        let mut a = Matrix::<N, M>::new();
+        let t = Monomial::<N>::new();
+        // TODO
     }
 
     #[test]
