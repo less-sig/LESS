@@ -728,7 +728,7 @@ int compute_canonical_form_type4_ct(normalized_IS_t *G) {
 		if (row_all_same(G->values[row])) { continue; }
 
         // if we cant find a power
-		FQ_ELEM s = row_acc(G->values[row]);
+		FQ_ELEM s = fq_red(row_acc(G->values[row]));
 		FQ_ELEM sp = row_acc_inv(G->values[row]);
 
 		if (s != 0) {
@@ -818,7 +818,7 @@ int compare_matrices_fastest(const normalized_IS_t *__restrict__ V1,
 int compute_canonical_form_type4_sub_v2(normalized_IS_t *G,
                                         const uint32_t z) {
     for (uint32_t i = 0; i < z; i++) {
-		FQ_ELEM s = row_acc(G->values[i]);
+		FQ_ELEM s = fq_red(row_acc(G->values[i]));
 
 		if (s != 0) {
 			s = fq_inv_non_ct(s);

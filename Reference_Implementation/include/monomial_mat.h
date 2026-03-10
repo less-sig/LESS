@@ -70,7 +70,7 @@ typedef struct {
 /// \param n <= N: number of elements in the permutation
 void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
                             POSITION_T *permutation,
-                            const uint32_t n);
+                            uint32_t n);
 
 /// \param shake_monomial_state[in/out]: pointer to an initialized prng state
 /// \param permutation[in/out]: random permutation. Must be initialized with

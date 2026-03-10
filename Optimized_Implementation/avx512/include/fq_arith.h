@@ -196,8 +196,9 @@ FQ_ELEM fq_inv(const FQ_ELEM x) {
 ///     which will then contain the result of the scalar multiplication of each 
 ///     input with the scalar `a`.
 /// \param a[in]: input scalar
-static inline void gf127v_scalar_u512_compute_table(__m512i *ret,
-                                                    const uint8_t a) {
+static inline
+void gf127v_scalar_u512_compute_table(__m512i *ret,
+                                      const uint8_t a) {
     ret[0] = _mm512_load_si512((const __m512i *)(__fq127_lookup_table + 128 * a +  0));
     ret[1] = _mm512_load_si512((const __m512i *)(__fq127_lookup_table + 128 * a + 64));
 }
@@ -219,7 +220,7 @@ __m512i gf127v_scalar_table_u512(const __m512i in,
 /// \return (in[0] + in[1] + ... + in[31]) % q
 static inline 
 uint8_t vhadd8(const __m256i in) {
-    // TODO replace  with: _mm256_reduce_add_epi16
+    // NOTE replace with: _mm256_reduce_add_epi16
     vec256_t c7f, tmp;
     vset8(c7f, 0x7F);
 
@@ -424,7 +425,6 @@ void row_mul2_ct(FQ_ELEM *__restrict__ out,
     vset16_512(c516, 516);
     vset16_512(bb, s);
 
-    // TODO optimize
     for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
         vload256(a, (vec256_t *)(in + col));
         const __m512i aa = _mm512_cvtepi8_epi16(a);
@@ -451,7 +451,6 @@ void row_mul3(FQ_ELEM *__restrict__ out,
     vset16_512(c7f, 0x7F);
     vset16_512(c516, 516);
 
-    // TODO optimize
     for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
         vload256(a, (vec256_t *)(in1 + col));
         vload256(b, (vec256_t *)(in2 + col));
@@ -502,7 +501,6 @@ uint32_t row_all_same(const FQ_ELEM *in) {
     vset8(acc, -1u);
     vset8(t2, in[0]);
 
-    // TODO make 64 byte wide
     uint32_t col = 0;
     for (; col < N_K_pad-32; col += 32) {
         vload256(t1, (vec256_t *)(in + col));
@@ -574,22 +572,3 @@ uint32_t row_count_zero(const FQ_ELEM *in) {
     }
     return a;
 }
-
-// TODO use this function and catch the case that +=32
-// static inline
-// uint32_t row_count_zero(const FQ_ELEM *in) {
-//     const __m512i mask = _mm512_set1_epi8(1);
-//     const __m512i zero = _mm512_setzero_si512();
-//     __m512i acc = _mm512_setzero_si512();
-//
-//     uint32_t col = 0;
-//     for (; (col+64) <= N_K_pad; col += 64) {
-//         const __m512i a = _mm512_loadu_si512((const __m512i *)(in + col));
-//         const __mmask64 b = _mm512_cmpeq_epu8_mask(a, zero);
-//         acc = _mm512_maskz_add_epi8(b, acc, mask);
-// 	}
-//
-//     const __m512i t = _mm512_sad_epu8(acc, zero);
-//     const int64_t tt = _mm512_reduce_add_epi64(t);
-//     return tt;
-// }

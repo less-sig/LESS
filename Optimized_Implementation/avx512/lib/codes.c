@@ -70,11 +70,11 @@ void generator_get_pivot_flags (const rref_generator_mat_t *const G, uint8_t piv
 void generator_monomial_mul(generator_mat_t *res,
                             const generator_mat_t *const G,
                             const monomial_t *const monom) {
-#if 1
     FQ_ELEM tmp1[N_pad*K_pad] __attribute__((aligned(64)));
     FQ_ELEM tmp2[N_pad*K_pad] __attribute__((aligned(64)));
 
-    matrix_transpose_stride(tmp1, (uint8_t *)G->values, K_pad, N_pad, N_pad, K_pad);
+    // matrix_transpose_stride(tmp1, (uint8_t *)G->values, K_pad, N_pad, N_pad, K_pad);
+    matrix_transpose(tmp1, (uint8_t *)G->values, K_pad, N_pad, K_pad, N_pad);
 
     for (uint64_t i = 0; i < N; i++) {
         const __m512i p = _mm512_set1_epi16(monom->coefficients[i]);
@@ -88,100 +88,8 @@ void generator_monomial_mul(generator_mat_t *res,
         }
     }
 
-    matrix_transpose_stride((uint8_t *)res->values, tmp2, N_pad, K_pad, K_pad, N_pad);
-
-#if 0
-    const __m512i c32 = _mm512_set1_epi16( 32);
-    const __m512i s = _mm512_set_epi16(31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0);
-    __m512i buffer[NW];
-    __m512i monomial[NW];
-    __m512i perms[NW][NW];
-    __mmask32 masks[NW][NW];
-    for (uint64_t i = 0; i < NW; i++) {
-        __m512i tmp = _mm512_loadu_epi16(monom->permutation + i*32);
-        for (uint64_t j = 0; j < NW; j++) {
-            masks[i][j] = _mm512_cmplt_epu16_mask(tmp, c32);
-            /// TODO need to computethe inverse here
-            perms[i][j] = _mm512_permutexvar_epi16( s, tmp);
-            tmp = _mm512_sub_epi16(tmp, c32);
-        }
-    }
-
-    uint32_t k = 0;
-    for (; k+2 <= NW; k+=2) {
-        const __m256i a = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k +  0));
-        const __m256i b = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k + 32));
-        const __m512i t1 = _mm512_cvtepu8_epi16(a);
-        const __m512i t2 = _mm512_cvtepu8_epi16(b);
-        monomial[k + 0] = t1;
-        monomial[k + 1] = t2;
-    }
-
-    for (; k < NW; k++) {
-        const __m256i a = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k +  0));
-        const __m512i t1 = _mm512_cvtepu8_epi16(a);
-        monomial[k + 0] = t1;
-    }
-
-    for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
-        const FQ_ELEM *G_pointer = G->values[row_idx];
-
-        LOOP_UNROLL_4
-        for (uint32_t i = 0; i < NW; i++) {
-            const __m256i a = _mm256_loadu_si256((const __m256i *)(G_pointer + i*32));
-            const __m512i b = _mm512_cvtepi8_epi16(a);
-            buffer[i] = _mm512_mul_epi16(b, monomial[i]);
-        }
-
-        // in the first iteration we collect all indicies < 32
-        for (uint64_t j = 0; j < NW; j++) {
-            __m512i t = _mm512_maskz_permutexvar_epi16(masks[0][j], perms[0][j], buffer[0]);
-            LOOP_UNROLL_8
-            for (uint64_t i = 1; i < NW; i++) {
-                t = _mm512_mask_permutexvar_epi16(t, masks[i][j], perms[i][j], buffer[i]);
-            }
-
-            const __m256i tmp = _mm512_cvtepi16_epi8(t);
-            _mm256_storeu_epi8(res->values[row_idx] + j*32, tmp);
-        }
-    }
-#endif
-#else
-    FQ_ELEM buffer[N_pad] __attribute__((aligned(64)));
-    __m512i monomial[NW];
-    uint32_t k = 0;
-    for (; k+2 <= NW; k+=2) {
-        const __m256i a = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k +  0));
-        const __m256i b = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k + 32));
-        const __m512i t1 = _mm512_cvtepu8_epi16(a);
-        const __m512i t2 = _mm512_cvtepu8_epi16(b);
-        monomial[k + 0] = t1;
-        monomial[k + 1] = t2;
-    }
-
-    for (; k < NW; k++) {
-        const __m256i a = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k +  0));
-        const __m512i t1 = _mm512_cvtepu8_epi16(a);
-        monomial[k + 0] = t1;
-    }
-
-    for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
-        const FQ_ELEM *G_pointer = G->values[row_idx];
-        uint32_t ctr = 0;
-
-        for (uint32_t src_col_idx = 0; (src_col_idx+32) <= N_pad; src_col_idx += 32) {
-            const __m256i a = _mm256_loadu_si256((const __m256i *)(G_pointer + src_col_idx));
-            const __m512i b = _mm512_cvtepi8_epi16(a);
-            const __m256i t = avx_mul_full512(b, monomial[ctr]);
-            _mm256_storeu_si256((__m256i *) (buffer + src_col_idx), t);
-            ctr += 1;
-        }
-
-        for (uint32_t i = 0; i < N; i++) {
-              res->values[row_idx][monom->permutation[i]] = buffer[i];
-        }
-    }
-#endif
+    // matrix_transpose_stride((uint8_t *)res->values, tmp2, N_pad, K_pad, K_pad, N_pad);
+    matrix_transpose((uint8_t *)res->values, tmp2, N_pad, K_pad, N_pad, K_pad);
 } /* end generator_monomial_mul */
 
 /// \param G[in/out]: generator matrix
@@ -250,7 +158,7 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
         for (j = 2; j < 127; j++) {
             for (uint32_t k = 0; k < NW; k++) {
                 vadd8(x, em[j - 1][k], rg[k])
-                vred8(x, t, c7f); // TODO
+                vred8(x, t, c7f);
                 em[j][k] = x;
             }
         }
@@ -277,7 +185,6 @@ int generator_RREF(generator_mat_t *G, uint8_t is_pivot_column[N_pad]) {
                 rp = ep[127 - sc];
                 for (uint32_t k = 0; k < NW; k++) {
                     vadd8(x, gm[j][k], rp[k])
-                    // TODO replace with avx512 code
                     vred8(x, t, c7f);
                     gm[j][k] = x;
                 }
@@ -904,11 +811,10 @@ void normalized_row_swap(normalized_IS_t *V,
 void normalized_monomial_right(normalized_IS_t *res,
                                const normalized_IS_t *const G,
                                const monomial_t *const monom) {
-#if 1
     FQ_ELEM tmp1[K_pad*K_pad] __attribute__((aligned(64)));
     FQ_ELEM tmp2[K_pad*K_pad] __attribute__((aligned(64))) = {0}; // NOTE this is important
 
-    matrix_transpose_stride(tmp1, (uint8_t *)G->values, K_pad, K_pad, K_pad, K_pad);
+    matrix_transpose(tmp1, (uint8_t *)G->values, K_pad, K_pad, K_pad, K_pad);
 
     for (uint64_t i = 0; i < K; i++) {
         const __m512i p = _mm512_set1_epi16(monom->coefficients[i]);
@@ -922,43 +828,7 @@ void normalized_monomial_right(normalized_IS_t *res,
         }
     }
 
-    matrix_transpose_stride((uint8_t *)res->values, tmp2, K_pad, K_pad, K_pad, K_pad);
-#else
-    FQ_ELEM buffer[K_pad] __attribute__((aligned(64)));
-    __m512i monomial[K_pad / 32];
-    uint32_t k = 0;
-    for (; k+2 <= (K_pad/32); k+=2) {
-        const __m256i a = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k +  0));
-        const __m256i b = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k + 32));
-        const __m512i t1 = _mm512_cvtepu8_epi16(a);
-        const __m512i t2 = _mm512_cvtepu8_epi16(b);
-        monomial[k + 0] = t1;
-        monomial[k + 1] = t2;
-    }
-
-    for (; k < (K_pad/32); k++) {
-        const __m256i a = _mm256_loadu_si256((const __m256i *)(monom->coefficients + 32*k +  0));
-        const __m512i t1 = _mm512_cvtepu8_epi16(a);
-        monomial[k + 0] = t1;
-    }
-
-    for (uint32_t row_idx = 0; row_idx < K; row_idx++) {
-        const FQ_ELEM *G_pointer = G->values[row_idx];
-        uint32_t ctr = 0;
-
-        for (uint32_t src_col_idx = 0; (src_col_idx+32) <= K_pad; src_col_idx += 32) {
-            const __m256i a = _mm256_loadu_si256((const __m256i *)(G_pointer + src_col_idx));
-            const __m512i b = _mm512_cvtepi8_epi16(a);
-            const __m256i t = avx_mul_full512(b, monomial[ctr]);
-            _mm256_store_si256((__m256i *) (buffer + src_col_idx), t);
-            ctr += 1;
-        }
-
-        for (uint32_t i = 0; i < K; i++) {
-            res->values[row_idx][monom->permutation[i]] = buffer[i];
-        }
-    }
-#endif
+    matrix_transpose((uint8_t *)res->values, tmp2, K_pad, K_pad, K_pad, K_pad);
 }
 
 /// \param A[out]: pointer to allocated normalized struct, which get filled with the

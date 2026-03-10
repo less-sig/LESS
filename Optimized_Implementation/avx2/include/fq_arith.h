@@ -334,8 +334,9 @@ static inline __m256i avx_mul_full256(const __m256i a1, const __m256i a2,
 /// \param aa[in]: aa[i] < 127 in 16 bit limb for i in range(32)
 /// \param bb[in]: bb[i] < 127 in 16 bit limb for i in range(32)
 /// \return aa[i] * bb[i] % 127 for all i in range(32),
-static inline __m128i avx_mul_full256_v2(const __m256i aa,
-                                         const __m256i bb) {
+static inline
+__m128i avx_mul_full256_v2(const __m256i aa,
+                           const __m256i bb) {
 
     __m256i c01, c7f, c516, tmp;
     vset16(c01, 0x01);
@@ -355,11 +356,11 @@ static inline __m128i avx_mul_full256_v2(const __m256i aa,
 /// NOTE: these functions are outsourced to this file, to make the optimized
 /// implementation as easy as possible 
 /// NOTE: the length of all input rows must be multiple of 32.
-/// accumulates the input row
+/// accumulates the input row, but does not reduce it
 /// \param row[in]: pointer to a row of length ROUND_UP(N-K, 32)
 /// \return sum(d[i]) for i in range(N-K)
 static inline
-FQ_ELEM row_acc(const FQ_ELEM *row) {
+uint32_t row_acc(const FQ_ELEM *row) {
     vec256_t s, t, c7f;
     vset8(s, 0);
     vset8(c7f, 0x7F);
@@ -370,8 +371,7 @@ FQ_ELEM row_acc(const FQ_ELEM *row) {
         vred8(s, t, c7f);
 	 }
 
-    uint32_t k = vhadd8(s);
-    return fq_red(k); // TODO remove 
+    return vhadd8(s);
 } /* end row_acc */
 
 /// accumulates the inverse to a row of length N_pad
@@ -384,7 +384,7 @@ static inline FQ_ELEM row_acc_inv(const FQ_ELEM *row) {
         inv_data[col] = fq_inv_non_ct(row[col]);
     }
 
-    return row_acc(inv_data);
+    return fq_red(row_acc(inv_data));
 } /* end row_acc_inv */
 
 /// scalar multiplication of a row
@@ -394,20 +394,10 @@ static inline
 void row_mul(FQ_ELEM *row,
              const FQ_ELEM s) {
     const __m256i b = _mm256_set1_epi16(s);
-#if 0
-    LOOP_UNROLL_4
-    for (uint32_t col = 0; col+16 <= N_K_pad; col+=16) {
-        const __m128i t1 = _mm_load_si128((const __m128i *)(row + col));
-        const __m256i t2 = _mm256_cvtepi8_epi16(t1);
-        const __m128i t3 = avx_mul_full256_v2(t2, b);
-        _mm_storeu_si128((__m128i *)(row + col), t3);
-    }
-#else
     for (uint32_t col = 0; col+32 <= N_K_pad; col+=32) {
         const __m256i t = avx_mul(row + col, b);
         vstore256((vec256_t *)(row + col), t);
     }
-#endif
 } /* end row_mul */
 
 /// scalar multiplication of a row
@@ -445,7 +435,6 @@ static inline
 void row_mul3(FQ_ELEM *__restrict__ out,
               const FQ_ELEM *__restrict__ in1,
               const FQ_ELEM *__restrict__ in2) {
-#if 1
     for (uint32_t col = 0; col+16 <= N_K_pad; col+=16) {
         const __m128i a1 = _mm_loadu_si128((const __m128i *)(in1 + col));
         const __m256i a2 = _mm256_cvtepi8_epi16(a1);
@@ -455,16 +444,6 @@ void row_mul3(FQ_ELEM *__restrict__ out,
 
         _mm_storeu_si128((__m128i *)(out + col), t1);
     }
-#else
-    for (uint32_t col = 0; (col+32) <= N_K_pad; col+=32) {
-        const __m128i a1 = _mm_loadu_si128((const __m128i *)(in1 + col +  0));
-        const __m128i a2 = _mm_loadu_si128((const __m128i *)(in1 + col + 16));
-        const __m128i b1 = _mm_loadu_si128((const __m128i *)(in2 + col +  0));
-        const __m128i b2 = _mm_loadu_si128((const __m128i *)(in2 + col + 16));
-        const __m256i t = avx_mul_full(a1, a2, b1, b2);
-        vstore256((vec256_t *)(out + col), t);
-    }
-#endif
 } /* end row_mul3 */
 
 /// NOTE: this is not constant time
@@ -485,6 +464,7 @@ void row_inv2(FQ_ELEM *__restrict__ out,
 ///         0 else
 static inline
 uint32_t row_all_same(const FQ_ELEM *in) {
+/// choose is faster for you.
 #if 1
     for (uint64_t col = 1; col < N-K; col++) {
         if (in[col-1] != in[col]) {

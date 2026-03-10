@@ -66,7 +66,7 @@ int ScaleCF(normalized_IS_t *__restrict__ G,
             const uint8_t *__restrict__ const L) {
 	for (uint32_t row = 0; row < K; row++) {
 		if (row_all_same(G->values[row])) { continue; }
-		FQ_ELEM s = row_acc(G->values[row]);
+		FQ_ELEM s = fq_red(row_acc(G->values[row]));
 
 		if (s != 0) {
 			s = fq_inv_non_ct(s);
@@ -101,7 +101,7 @@ int ScaleCFSubPreprocessBase(normalized_IS_t *__restrict__ G,
                              const FQ_ELEM *__restrict__ M) {
     FQ_ELEM tmp[Q_pad] __attribute__((aligned(32))) = {0};
     for (uint32_t i = 0; i < z; i++) {
-		FQ_ELEM s = row_acc(G->values[i]);
+		FQ_ELEM s = fq_red(row_acc(G->values[i]));
 
 		if (s != 0) {
 			s = fq_inv_non_ct(s);
@@ -141,7 +141,7 @@ int ScaleCFSubPreprocess(normalized_IS_t *__restrict__ G,
     int ret = 0;
 
     for (uint32_t i = 0; i < z; i++) {
-        FQ_ELEM s = row_acc(G->values[i]);
+        FQ_ELEM s = fq_red(row_acc(G->values[i]));
 
         if (s != 0) {
             s = fq_inv_non_ct(s);
