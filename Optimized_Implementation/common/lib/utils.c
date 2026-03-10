@@ -23,7 +23,6 @@
  *
  **/
 
-#include <immintrin.h>
 #include "utils.h"
 #include "rng.h"
 
@@ -77,6 +76,8 @@ void merge_exchange(uint16_t *P,
     }
 }
 
+#if defined(USE_AVX2) || defined(USE_AVX512)
+#include <immintrin.h>
 /// taken from kyber
 /// Description: Compare two arrays for equality in constant time.
 /// Arguments:   const uint8_t *a: pointer to first byte array
@@ -111,6 +112,25 @@ int verify(const uint8_t *a,
     r = (-r) >> 63;
     return r;
 }
+#else
+/// Compare two arrays for equality in constant time.
+/// taken from the kyber impl.
+/// \param a[in]: pointer to the first byte array
+/// \param b[in]: pointer to the second byte array
+/// \param len[in]: length of the byte array
+/// \returns 0 if the byte arrays are equal, 1 otherwise
+int verify(const uint8_t *a,
+           const uint8_t *b,
+           const size_t len) {
+    uint8_t r = 0;
+
+    for(size_t i=0;i<len;i++) {
+        r |= a[i] ^ b[i];
+    }
+
+    return (-(uint64_t)r) >> 63;
+}
+#endif
 
 #define MAX_KEYPAIR_INDEX (NUM_KEYPAIRS-1)
 #define KEYPAIR_INDEX_MASK ( ((uint16_t)1 << BITS_TO_REPRESENT(MAX_KEYPAIR_INDEX)) -1 )

@@ -30,9 +30,50 @@
 
 #include <stdint.h>
 
+/// needed randomness: n * 1/4 * \floor(log n) * (\floor(log n) + 1)
+/// \param P[out]
+/// \param n[in]:
+/// \param state[in]:
+void merge_exchange(uint16_t *P,
+                    const uint32_t n,
+                    SHAKE_STATE_STRUCT *state) {
+    uint64_t rand = 0;
+    uint32_t ctr = 0;
+
+    uint32_t t = 1;
+    while (t < n - t) t += t;
+
+    for (uint32_t p = t; p > 0; p>>=1) {
+        uint32_t q = t<<1u;
+        uint32_t r = 0;
+        uint32_t d = p;
+        do {
+            q >>= 1;
+            for (uint32_t i = 0; i < (n - d); i++) {
+                if ((i & p) == r) {
+                    if (ctr == 0) {
+                        csprng_randombytes((unsigned char *)&rand, 8, state);
+                        ctr = 64;
+                    }
+
+                    // select random bit
+                    const uint16_t mask = COMPUTE_CT_MASK((rand&1), 1);
+                    MASKED_SWAP(P[i], P[i+d], mask);
+
+                    // update random counter
+                    rand >>= 1;
+                    ctr -= 1;
+                }
+            }
+            d = q - p;
+            r = p;
+        } while(q != p);
+    }
+}
+
+
 
 /// Compare two arrays for equality in constant time.
-/// taken from the kyber impl.
 /// \param a[in]: pointer to the first byte array
 /// \param b[in]: pointer to the second byte array
 /// \param len[in]: length of the byte array
