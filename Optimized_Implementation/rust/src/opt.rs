@@ -1674,8 +1674,8 @@ mod tests {
 
                 unsafe {
                     gf127_row_mul_avx2(&mut row_out, &row1, &row2);
-                    for i in 0..N {
-                        assert_eq!(row_out[i].0, (((i as u16) * (j as u16)) % 127) as u8);
+                    for k in 0..N {
+                        assert_eq!(row_out[k].0, (((i as u16) * (j as u16)) % 127) as u8);
                     }
                 }
             }
