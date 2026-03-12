@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0.0)
+cmake_minimum_required(VERSION 3.10.0)
 project(LESS)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 99)
