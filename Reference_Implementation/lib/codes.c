@@ -329,7 +329,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
         /* rescale pivot row to have pivot = 1. Values at the left of the pivot
          * are already set to zero by previous iterations */
         for (uint32_t i = pivot_column; i < N; i++) {
-            G->values[pivot_row][i] = fq_mul_non_ct(scaling_factor, G->values[pivot_row][i]);
+            G->values[pivot_row][i] = fq_mul(scaling_factor, G->values[pivot_row][i]);
         }
 
         /* Subtract the now placed and reduced pivot rows, from the others,
@@ -340,7 +340,7 @@ int generator_RREF_pivot_reuse(generator_mat_t *G,
                 /* all elements before the pivot in the pivot row are null, no need to
                  * subtract them from other rows. */
                 for (uint32_t col_idx = 0; col_idx < N; col_idx++) {
-                    const FQ_ELEM tmp = fq_mul_non_ct(multiplier, G->values[pivot_row][col_idx]);
+                    const FQ_ELEM tmp = fq_mul(multiplier, G->values[pivot_row][col_idx]);
                     G->values[row_idx][col_idx] = fq_sub(G->values[row_idx][col_idx], tmp);
                 }
             }
