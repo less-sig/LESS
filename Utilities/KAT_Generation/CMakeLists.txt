@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.10)
 project(LESS)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 99)
@@ -23,7 +23,7 @@ option(USE_REFERENCE "Use reference implementation" ON)
 
 # use AVX2 implementations.
 option(USE_AVX2 "Use the AVX2 Optimized Omplementation." OFF)
-option(USE_AVX512 "Use the AVX2 Optimized Omplementation." OFF)
+option(USE_AVX512 "Use the AVX512 Optimized Omplementation." OFF)
 option(USE_NEON "Use the NEON Optimized Omplementation." OFF)
 # option(USE_M4 "Use the M4 Optimized Omplementation." OFF)
 

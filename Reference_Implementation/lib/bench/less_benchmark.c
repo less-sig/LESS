@@ -68,7 +68,7 @@ void welford_print(const welford_t state) {
 #if CATEGORY == 548
 #define NUM_RUNS 128
 #elif CATEGORY==400
-#define NUM_RUNS 256
+#define NUM_RUNS 128
 #else
 #define NUM_RUNS 128
 #endif
