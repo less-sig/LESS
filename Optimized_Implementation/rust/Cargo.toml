@@ -17,6 +17,7 @@ rustflags = ["-C", "target-cpu=apple-a14"]
 sha3 = "0.10.8"
 num-traits = "0.2.19"
 rand = "0.9.2"
+rand_core = { version = "0.10.1",  default-features = false }
 
 [profile.release]
 opt-level = 3

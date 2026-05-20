@@ -1,0 +1,11 @@
+pub const PRIVATE_KEY_SEED_LENGTH_BYTES: usize = 32;
+pub const SEED_LENGTH_BYTES: usize  = 32;
+pub const RREF_MAT_PACKEDBYTES: usize = 1000;
+pub const NUM_KEYPAIRS: usize = 2;
+pub const HASH_DIGEST_LENGTH: usize = 32;
+pub const SEED_TREE_MAX_PUBLISHED_BYTES: usize = 32;
+pub const K: usize = 128;
+pub const N: usize = 256;
+pub const T: usize = 192;
+pub const W: usize = 32;
+pub const N8: usize = 32;

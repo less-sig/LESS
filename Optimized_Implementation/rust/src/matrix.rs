@@ -1,3 +1,4 @@
+// TODO remove
 #![allow(dead_code)]
 
 use std::{
@@ -129,10 +130,10 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     {
         let mut hasher = Shake128::default();
         hasher.update(&seed);
-        let reader = hasher.finalize_xof();
+        let mut reader = hasher.finalize_xof();
         // TODO: is it possible to remove the `clone`?
         for i in 0..N {
-            rand_range_q_state_elements(reader.clone(), &mut self.rows[i].0);
+            rand_range_q_state_elements(&mut reader, &mut self.rows[i].0);
         }
     }
 

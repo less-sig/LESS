@@ -2214,6 +2214,21 @@ pub fn gf127_histogram_avx2<const N: usize>(out: &[u8; 128], row: &Vector<N>) ->
     return 0;
 }
 
+//#[inline]
+//#[cfg(target_arch = "x86_64")]
+//#[target_feature(enable = "avx,avx2")]
+//pub fn transpose_avx2
+//<const N: usize, const M: usize>
+//(out: &[Vector<M>; N], src: &[Vector<M>; N], dst_stride: usize, src_stride: usize)  {
+//    unsafe {
+//        let mut t = [__m256i; 32];
+//        for i in 0..32 {
+//            let ptr = src[i].as_ptr();
+//            t[i] = _mm256_loadu_si256(ptr as *const __m256i);
+//        }
+//
+//    };
+//}
 
 
 #[cfg(test)]

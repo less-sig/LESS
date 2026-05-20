@@ -120,7 +120,7 @@ impl Fq {
         return Fq::red((a.0 as u16) * (b.0 as u16));
     }
 
-    /// a^{-1} mod q, a < 127
+    /// a^{-1} mod q, a < 127 in constant time
     /// # Examples
     ///
     /// ```
@@ -147,7 +147,7 @@ impl Fq {
         Fq(r)
     }
 
-    /// a^{-1} mod q, a < 127
+    /// a^{-1} mod q, a < 127 in non constant time
     /// # Examples
     ///
     /// ```
