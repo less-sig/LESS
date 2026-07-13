@@ -12,6 +12,7 @@ use crate::prng::{
     csprng_randombytes,
     csprng_initialize
 };
+
 /// Expands a digest into a fixed weight string with elements in Z_{NUM_KEYPAIRS}.
 /// \param fixed_weight_string[out]: array of length T, with hamming weight W,
 ///     where values > 0 are between [1, NUM_KEYPAIRS-1)
@@ -45,7 +46,7 @@ pub fn sample_challenge(
         for i in (T - W)..T {
             loop {
                 if c == 0 {
-                    let mut buf: [u8; 8] = [0u8; 8];
+                    let buf: [u8; 8] = [0u8; 8];
                     // TODO csprng_randombytes(&mut buf, &mut shake_state);
                     rnd_buf = u64::from_le_bytes(buf);
                     c = 64 / keypair_bits;
@@ -77,7 +78,7 @@ pub fn sample_challenge(
         let mut pos: usize;
         loop {
             if c == 0 {
-                let mut buf: [u8; 8] = [0u8; 8];
+                let buf: [u8; 8] = [0u8; 8];
                 // TODO csprng_randombytes(&mut buf, &mut shake_state);
                 rnd_buf = u64::from_le_bytes(buf);
                 c = 64 / position_bits;

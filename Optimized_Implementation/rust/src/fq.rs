@@ -5,10 +5,13 @@ use rand;
 
 use crate::helper::compute_ct_mask;
 
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Fq(pub u8);
 
-pub const FQ127_INV_TABLE: [u8; 128] = [0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126, 0];
+/// NOTE: we define 0^{-1} := 0.
+#[repr(align(64))]
+pub struct Aligned<T>(pub T);
+pub const FQ127_INV_TABLE: Aligned<[u8; 128]> = Aligned([0, 1, 64, 85, 32, 51, 106, 109, 16, 113, 89, 104, 53, 88, 118, 17, 8, 15, 120, 107, 108, 121, 52, 116, 90, 61, 44, 80, 59, 92, 72, 41, 4, 77, 71, 98, 60, 103, 117, 114, 54, 31, 124, 65, 26, 48, 58, 100, 45, 70, 94, 5, 22, 12, 40, 97, 93, 78, 46, 28, 36, 25, 84, 125, 2, 43, 102, 91, 99, 81, 49, 34, 30, 87, 115, 105, 122, 33, 57, 82, 27, 69, 79, 101, 62, 3, 96, 73, 13, 10, 24, 67, 29, 56, 50, 123, 86, 55, 35, 68, 47, 83, 66, 37, 11, 75, 6, 19, 20, 7, 112, 119, 110, 9, 39, 74, 23, 38, 14, 111, 18, 21, 76, 95, 42, 63, 126, 0]);
 
 
 impl Fq {
@@ -142,7 +145,7 @@ impl Fq {
         let mut r: u8 = 0;
         for i in 1..127u8{
             let mask = compute_ct_mask(i, j);
-            r ^= FQ127_INV_TABLE[a.0 as usize] & mask;
+            r ^= FQ127_INV_TABLE.0[a.0 as usize] & mask;
         }
         Fq(r)
     }
@@ -165,7 +168,7 @@ impl Fq {
     #[inline]
     pub const fn inv_non_ct(a: Fq) -> Fq {
         assert!(a.0 < 127);
-        Fq(FQ127_INV_TABLE[a.0 as usize])
+        Fq(FQ127_INV_TABLE.0[a.0 as usize])
     }
 
 
@@ -257,11 +260,11 @@ mod tests {
     fn conditional_sub_raw() {
         for i in 0..127 {
             let t: u8 = Fq::conditional_sub_raw(i);
-            assert!(t == i);
+            assert_eq!(t, i);
         }
         for i in 127..254 {
             let t: u8 = Fq::conditional_sub_raw(i);
-            assert!(t == i - 127);
+            assert_eq!(t, i - 127);
         }
     }
 
@@ -272,7 +275,7 @@ mod tests {
                 let a = Fq(i);
                 let b = Fq(j);
                 let t: Fq = Fq::add(a, b);
-                assert!(t.0 == (i+j)%127);
+                assert_eq!(t.0, (i + j) % 127);
             }
         }
     }
@@ -284,7 +287,7 @@ mod tests {
                 let a = Fq(i as u8);
                 let b = Fq(j as u8);
                 let t: Fq = Fq::sub(a, b);
-                assert!(t.0 == (((i + 127) - j)%127) as u8);
+                assert_eq!(t.0, (((i + 127) - j) % 127) as u8);
             }
         }
     }
@@ -296,7 +299,7 @@ mod tests {
                 let a = Fq(i as u8);
                 let b = Fq(j as u8);
                 let t: Fq = Fq::mul(a, b);
-                assert!(t.0 == ((i * j)%127) as u8);
+                assert_eq!(t.0, ((i * j) % 127) as u8);
             }
         }
     }
@@ -307,7 +310,7 @@ mod tests {
             let a = Fq(i as u8);
             let b = Fq::inv(a);
             let t: Fq = Fq::mul(a, b);
-            assert!(t.0 == 1);
+            assert_eq!(t.0, 1);
         }
     }
 

@@ -1,21 +1,26 @@
 #![allow(dead_code)]
-
+#![allow(unreachable_code)]
 use std::ops:: {
     Add, AddAssign, Sub, SubAssign, Mul, MulAssign,
     Index, IndexMut, Deref, DerefMut
 };
+use std::cmp::Ordering;
 use std::{ fmt::Display, fmt::Formatter, fmt::Result };
-
+use sha3::digest::ExtendableOutput;
+use sha3::Shake128;
+use crate::constants::{
+    Q_PAD,
+};
 use crate::fq::Fq;
-
+use crate::multiset::Multiset;
 #[cfg(target_arch = "x86_64")]
 use crate::opt::{
     gf127_row_add_avx2, gf127_row_add2_avx2,
     gf127_row_sub_avx2, gf127_row_sub2_avx2,
     gf127_row_mul_avx2, gf127_row_mul2_avx2,
-    gf127_row_scalar_mul_avx2,
-    gf127_row_acc_avx2,
-    gf127_row_acc_inv_avx2,
+    gf127_row_scalar_mul_avx2, gf127_row_scalar_mul2_avx2,
+    gf127_row_acc_avx2, gf127_row_acc_inv_avx2,
+    gf127_row_contains_zero_avx2, gf127_row_count_zero_avx2,
 };
 
 #[cfg(target_arch = "x86_64")]
@@ -24,9 +29,9 @@ use crate::opt::{
     gf127_row_sub_avx512, gf127_row_sub2_avx512,
     gf127_row_mul_avx512, gf127_row_mul2_avx512,
     gf127_row_inv_avx512,
-    gf127_row_scalar_mul_avx512,
-    gf127_row_acc_avx512,
-    gf127_row_acc_inv_avx512,
+    gf127_row_scalar_mul_avx512, gf127_row_scalar_mul2_avx512,
+    gf127_row_acc_avx512, gf127_row_acc_inv_avx512,
+    gf127_row_contains_zero_avx512,
 };
 
 #[cfg(target_arch = "aarch64")]
@@ -36,11 +41,12 @@ use crate::opt::{
     gf127_row_mul_neon, gf127_row_mul2_neon,
     gf127_row_inv_neon,
     gf127_row_scalar_mul_neon, gf127_row_scalar_mul2_neon,
-    gf127_row_acc_neon,
-    gf127_row_acc_inv_neon,
+    gf127_row_acc_neon, gf127_row_acc_inv_neon,
+    gf127_row_contains_zero_neon, gf127_row_count_zero_avx2,
 };
+use crate::prng::rand_range_q_state_elements;
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(align(32))] // NOTE alignment only for avx2/avx512
 pub struct Vector<const N: usize>(pub [Fq; N]);
 
@@ -70,7 +76,14 @@ impl <const N: usize> Vector<N>{
             0: core::array::from_fn(|_| Fq::default() ),
         }
     }
-   
+    /// same as ::init()
+    #[inline]
+    pub fn new() -> Vector<N> {
+        Vector {
+            0: [Fq(0); N],
+        }
+    }
+
     /// same as ::init()
     #[inline]
     pub fn zero(&mut self) {
@@ -79,12 +92,20 @@ impl <const N: usize> Vector<N>{
         }
     }
 
-    /// same as ::init()
-    #[inline]
-    pub fn new() -> Vector<N> {
-        Vector {
-            0: [Fq(0); N],
+    /// NOTE: only for testing
+    /// sample a random vector
+    /// # Examples
+    ///
+    /// ```
+    /// use less::vector::Vector;
+    /// let result: Vector<100> = Vector::rand();
+    /// ```
+    pub fn rand() -> Self {
+        let mut a = Self::init();
+        for i in 0..a.dimension() {
+            a[i] = Fq::rand();
         }
+        a
     }
 
     /// Create an instance from a `Vec`
@@ -94,18 +115,18 @@ impl <const N: usize> Vector<N>{
     /// use less::vector::Vector;
     /// use less::fq::Fq;
     /// let t = core::array::from_fn(|_| Fq::default());
-    /// let result: Vector<100> = Vector::from_vector(t);
+    /// let result: Vector<100> = Vector::from_vector(&t);
     /// assert_eq!(result[0].0, 0);
     /// ```
     ///
     /// # Parameters
-    /// - `coefficients`: The first number.
+    /// - `coefficients`: The input `Vec`.
     ///
     /// # Returns
     /// A new vector element
     #[inline]
-    pub fn from_vector(coefficients: [Fq; N]) -> Self {
-        Self { 0: coefficients }
+    pub fn from_vector(coefficients: &[Fq; N]) -> Self {
+        Self { 0: *coefficients }
     }
 
     /// same as ::init()
@@ -115,11 +136,54 @@ impl <const N: usize> Vector<N>{
         for i in 0..N {
             ret.0[i] = Fq(val);
         }
-
-        return ret;
+        ret
     }
 
-    /// Create an instance from a `Vec`
+    /// partially compares two matrices
+    /// NOTE: not constant time
+    /// # Examples
+    ///
+    /// ```
+    /// use less::vector::Vector;
+    /// let A: Vector<100> = Vector::init();
+    /// let B: Vector<100> = Vector::init();
+    /// A >= B;
+    /// A <= B;
+    /// A > B;
+    /// A < B;
+    /// ```
+    ///
+    /// # Returns
+    ///  0 if a == b
+    ///  x if a  > b
+    /// -x if a  < b
+    fn partial_cmp(a: &Self, b: &Self) -> Option<Ordering>{
+        let mut aa = Multiset::<Q_PAD>::init();
+        let mut bb = Multiset::<Q_PAD>::init();
+        Multiset::from_row(&mut aa, a);
+        Multiset::from_row(&mut bb, b);
+        Multiset::<Q_PAD>::partial_cmp(&aa, &bb)
+    }
+
+    /// checks for equality
+    /// NOTE: not constant time
+    /// # Examples
+    ///
+    /// ```
+    /// use less::vector::Vector;
+    /// let A: Vector<100> = Vector::init();
+    /// let B: Vector<100> = Vector::init();
+    /// A == B;
+    /// A != B;
+    /// ```
+    ///
+    /// # Returns
+    ///  1 if a == b, else 0
+    fn eq(a: &Self, b: &Self) -> bool {
+        Self::partial_cmp(a, b).unwrap().is_eq()
+    }
+
+    /// Create an instance from a `Vector`
     /// # Examples
     ///
     /// ```
@@ -128,11 +192,8 @@ impl <const N: usize> Vector<N>{
     /// assert_eq!(result.dimension(), 100);
     /// ```
     ///
-    /// # Parameters
-    /// - `coefficients`: The first number.
-    ///
     /// # Returns
-    /// A new vector element
+    /// The dimension of the vector
     #[inline]
     pub fn dimension(&self) -> usize {
         N
@@ -158,10 +219,10 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn add(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
-        #[cfg(target_feature = "avx2")]
+        #[cfg(target_arch = "x86_64")]
         {
             if is_x86_feature_detected!("avx512f") {
-                assert!(N % 32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_add_avx512(c, a, b);
                 }
@@ -206,7 +267,7 @@ impl <const N: usize> Vector<N>{
         #[cfg(target_arch = "x86_64")]
         {
             if is_x86_feature_detected!("avx512f") {
-                assert!(N % 32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_add2_avx512(c, a);
                 }
@@ -216,6 +277,7 @@ impl <const N: usize> Vector<N>{
                     gf127_row_add2_avx2(c, a);
                 }
             }
+            return;
         }
 
         #[cfg(target_feature = "neon")]
@@ -251,16 +313,17 @@ impl <const N: usize> Vector<N>{
         #[cfg(target_arch = "x86_64")]
         {
             if is_x86_feature_detected!("avx512f") {
-                assert!(N % 32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_sub_avx512(c, a, b);
                 }
             } else if is_x86_feature_detected!("avx2") {
-                assert!(N % 32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_sub_avx2(c, a, b);
                 }
             }
+            return;
         }
 
         #[cfg(target_feature = "neon")]
@@ -298,16 +361,17 @@ impl <const N: usize> Vector<N>{
         #[cfg(target_arch = "x86_64")]
         {
             if is_x86_feature_detected!("avx512f") {
-                assert!(N%32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_sub2_avx512(c, a);
                 }
             } else if is_x86_feature_detected!("avx2") {
-                assert!(N%32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_sub2_avx2(c, a);
                 }
             }
+            return;
         }
 
         #[cfg(target_feature = "neon")]
@@ -346,12 +410,12 @@ impl <const N: usize> Vector<N>{
         #[cfg(target_arch = "x86_64")]
         {
             if is_x86_feature_detected!("avx512f") {
-                assert!(N % 32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_mul_avx512(c, a, b);
                 }
             } else if is_x86_feature_detected!("avx2") {
-                assert!(N % 32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_mul_avx2(c, a, b);
                 }
@@ -402,6 +466,7 @@ impl <const N: usize> Vector<N>{
                     gf127_row_mul2_avx2(c, a);
                 }
             }
+            return;
         }
 
         #[cfg(target_feature = "neon")]
@@ -418,7 +483,7 @@ impl <const N: usize> Vector<N>{
 
     }
 
-    /// c[i] = c[i]*a[i] mod q,  a[i],b[i] < 127, for i in 0..N
+    /// c[i] = c[i]*a mod q,  a[i],b[i] < 127, for i in 0..N
     /// # Examples
     ///
     /// ```
@@ -428,7 +493,7 @@ impl <const N: usize> Vector<N>{
     /// let mut out = Vector::<N>([Fq(0); N]);
     /// let c = Vector::<N>([Fq(0); N]);
     /// let a = Fq(1);
-    /// Vector::mul(&mut out, &c, a);
+    /// Vector::scalar(&mut out, &c, a);
     /// assert_eq!(c[0].0, 0);
     /// ```
     ///
@@ -438,13 +503,37 @@ impl <const N: usize> Vector<N>{
     /// - `b`: second addend
     #[inline]
     pub fn scalar(out: &mut Vector<N>, c: &Vector<N>, a: Fq) {
-        // TODO simd code
+        #[cfg(target_arch = "x86_64")]
+        {
+            if is_x86_feature_detected!("avx512f") {
+                assert_eq!(N % 32, 0);
+                unsafe {
+                    gf127_row_scalar_mul2_avx512(out, c, a);
+                }
+            } else if is_x86_feature_detected!("avx2") {
+                assert_eq!(N % 32, 0);
+                unsafe {
+                    gf127_row_scalar_mul2_avx2(out, c, a);
+                }
+            }
+
+            return;
+        }
+
+        #[cfg(target_feature = "neon")]
+        {
+            unsafe {
+                gf127_row_scalar_mul_neon(c, a);
+            }
+            return;
+        }
+
         for j in 0..N {
             out[j] = Fq::mul(c[j], a);
         }
     }
 
-    /// c[i] = c[i]*a[i] mod q,  a[i],b[i] < 127, for i in 0..N
+    /// c[i] = c[i]*a mod q,  a,b[i] < 127, for i in 0..N
     /// # Examples
     ///
     /// ```
@@ -453,29 +542,30 @@ impl <const N: usize> Vector<N>{
     /// const N: usize = 64;
     /// let mut c = Vector::<N>([Fq(0); N]);
     /// let a = Fq(1);
-    /// Vector::mul2(&mut c, a);
+    /// Vector::scalar2(&mut c, a);
     /// assert_eq!(c[0].0, 0);
     /// ```
     ///
     /// # Parameters
     /// - `c`: output value
     /// - `a`: first addend
-    /// - `b`: second addend
     #[inline]
     pub fn scalar2(c: &mut Vector<N>, a: Fq) {
         #[cfg(target_arch = "x86_64")]
         {
             if is_x86_feature_detected!("avx512f") {
-                assert!(N % 32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_scalar_mul_avx512(c, a);
                 }
             } else if is_x86_feature_detected!("avx2") {
-                assert!(N % 32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_scalar_mul_avx2(c, a);
                 }
             }
+
+            return;
         }
 
         #[cfg(target_feature = "neon")]
@@ -491,18 +581,31 @@ impl <const N: usize> Vector<N>{
         }
     }
 
-    /// TODO doc
+    /// computes: sum_{i=0}^{N} row[i] mod q,  row[i] < 127, for i in 0..N
+    /// # Examples
+    ///
+    /// ```
+    /// use less::vector::Vector;
+    /// use less::fq::Fq;
+    /// const N: usize = 64;
+    /// let mut c = Vector::<N>([Fq(0); N]);
+    /// let t = Vector::acc(&mut c);
+    /// assert_eq!(t.0, 0);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `row`: row to accumulate
     #[inline]
     pub fn acc(row: &Vector<N>) -> Fq {
         #[cfg(target_arch = "x86_64")]
         {
             if is_x86_feature_detected!("avx512f") {
-                assert!(N % 32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     return Fq(gf127_row_acc_avx512(row));
                 }
             } else if is_x86_feature_detected!("avx2") {
-                assert!(N % 32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     return Fq(gf127_row_acc_avx2(row));
                 }
@@ -532,17 +635,17 @@ impl <const N: usize> Vector<N>{
     /// const N: usize = 128;
     /// let mut row_out = Vector::<N>::new();
     /// let row1 = Vector::<N>::from_u8(1);
-    /// Vector::inv(&mut row_out, &row1);
+    /// Vector::inv_non_ct(&mut row_out, &row1);
     /// ```
     ///
     /// # Parameters
     /// - `a`: row to invert
-    pub fn inv(row_out: &mut Vector<N>,
-               in1: &Vector<N>) {
+    pub fn inv_non_ct(row_out: &mut Vector<N>,
+                      in1: &Vector<N>) {
         #[cfg(target_arch = "x86_64")]
         {
             if is_x86_feature_detected!("avx512f") {
-                assert!(N % 32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_inv_avx512(row_out, in1);
                 }
@@ -561,18 +664,29 @@ impl <const N: usize> Vector<N>{
         }
     }
 
-    /// TODO doc
+    /// computes: sum_{i=0}^{N} a[i]^{-1} mod q, a[i] < 127 for i in 0..N
+    /// # Examples
+    /// ```
+    /// use less::vector::Vector;
+    /// const N: usize = 128;
+    /// let row = Vector::<N>::new();
+    /// let t = Vector::acc_inv(&row);
+    /// assert_eq!(t.0, 0)
+    /// ```
+    ///
+    /// # Parameters
+    /// - `a`: row to invert
     #[inline]
     pub fn acc_inv(row: &Vector<N>) -> Fq {
         #[cfg(target_arch = "x86_64")]
         {
             if is_x86_feature_detected!("avx512f") {
-                assert!(N % 32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     return Fq(gf127_row_acc_inv_avx512(row));
                 }
             } else if is_x86_feature_detected!("avx2") {
-                assert!(N % 32 == 0);
+                assert_eq!(N % 32, 0);
                 unsafe {
                     return Fq(gf127_row_acc_inv_avx2(row));
                 }
@@ -634,13 +748,33 @@ impl <const N: usize> Vector<N>{
     /// -   1 if a zero is in the row
     /// -   0 else
     pub fn contain_zero(row: &Vector<N>) -> bool {
-        // TODO vectorize
+        #[cfg(target_arch = "x86_64")]
+        {
+            if is_x86_feature_detected!("avx512f") {
+                assert_eq!(N % 32, 0);
+                unsafe {
+                    return gf127_row_contains_zero_avx2(row);
+                }
+            } else if is_x86_feature_detected!("avx2") {
+                assert_eq!(N % 32, 0);
+                unsafe {
+                    return gf127_row_contains_zero_avx512(row);
+                }
+            }
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            unsafe {
+                return gf127_row_contains_zero_neon(row);
+            }
+        }
+
         for col in 0..N {
             if row[col] == Fq(0) {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     /// c[i] == 0 for all i  < n
@@ -659,15 +793,44 @@ impl <const N: usize> Vector<N>{
     /// # return 
     /// -   number of zeros in row
     pub fn count_zero(row: &Vector<N>) -> u32 {
+        #[cfg(target_arch = "x86_64")]
+        {
+            if std::is_x86_feature_detected!("avx512f") {
+                assert_eq!(N % 32, 0);
+                unsafe {
+                    return gf127_row_count_zero_avx2(row);
+                }
+            }
+        }
 
-        // TODO vectorize
+        #[cfg(target_feature = "neon")]
+        {
+            unsafe {
+                return gf127_row_count_zero_neon(row);
+            }
+        }
+
         let mut c: u32 = 0;
         for col in 0..N {
             if row[col] == Fq(0) {
                 c += 1;
             }
         }
-        return c;
+        c
+    }
+
+    /// NOTE: assumes the vectors are NOT in multiset/histogram from
+    /// \input row1[in]: pointer to the first row
+    /// \input row2[in]: pointer to the second row
+    /// \return: 0 if (row1) == (row2)
+    ///          x if (row1) > (row2)
+    ///         -x if (row1) < (row2)
+    pub fn cmp(a: &Vector<N>, b: &Vector<N>) -> i32 {
+        let mut i = 0;
+        while i < (N-1) && a[i] == b[i] {
+            i += 1;
+        }
+        (b[i].0 as i32) - (a[i].0 as i32)
     }
 }
 
@@ -760,7 +923,7 @@ impl<const N: usize> Display for Vector<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const N: usize = 128;
+    const N: usize = 32;
     
     #[test]
     fn init() {
@@ -777,7 +940,16 @@ mod tests {
             assert_eq!(c[i].0, 1);
         }
     }
-    
+
+    #[test]
+    fn from_vector() {
+        let t = [Fq(0u8); N];
+        let c = Vector::<N>::from_vector(&t);
+        for i in 0..c.dimension() {
+            assert_eq!(c[i].0, 0);
+        }
+    }
+
     #[test]
     fn dimension() {
         let c = Vector::<N>::new();
@@ -794,7 +966,7 @@ mod tests {
                 let b = Vector::<N>([Fq(j); N]);
                 Vector::add(&mut c, &a, &b);
                 for i in 0..N {
-                    assert!(c[i].0 == t);
+                    assert_eq!(c[i].0, t);
                 }
             }
         }
@@ -810,7 +982,7 @@ mod tests {
                 let b = Vector::<N>([Fq(j); N]);
                 Vector::sub(&mut c, &a, &b);
                 for i in 0..N {
-                    assert!(c[i].0 == t);
+                    assert_eq!(c[i].0, t);
                 }
             }
         }
@@ -826,7 +998,7 @@ mod tests {
                 let b = Vector::<N>([Fq(j as u8); N]);
                 Vector::mul(&mut c, &a, &b);
                 for i in 0..N {
-                    assert!(c[i].0 == t);
+                    assert_eq!(c[i].0, t);
                 }
             }
         }
@@ -841,7 +1013,7 @@ mod tests {
                 let a = Vector::<N>([Fq(i as u8); N]);
                 Vector::scalar(&mut c, &a, Fq(j as u8));
                 for i in 0..N {
-                    assert!(c[i].0 == t);
+                    assert_eq!(c[i].0, t);
                 }
             }
         }
@@ -854,6 +1026,16 @@ mod tests {
 
         let c = Vector::<N>::from_u8(1);
         assert_eq!(Vector::acc(&c), Fq::red(N as u16));
+    }
+
+    #[test]
+    fn inv() {
+        let a = Vector::<N>::new();
+        let mut c = Vector::<N>::new();
+        Vector::inv_non_ct(&mut c, &a);
+        for i in 0..N {
+            assert_eq!(c[i], Fq(0));
+        }
     }
 
     #[test]

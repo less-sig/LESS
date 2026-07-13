@@ -1,15 +1,16 @@
 #![allow(dead_code)]
 
 use crate::config::{
-    N, K, T, W, N8,
+    // N, K, T,
+    W, N8,
     PRIVATE_KEY_SEED_LENGTH_BYTES,
     RREF_MAT_PACKEDBYTES, 
     NUM_KEYPAIRS,
     HASH_DIGEST_LENGTH,
     SEED_TREE_MAX_PUBLISHED_BYTES
 };
-use crate::monomial::Monomial;
-use crate::matrix::Matrix;
+//use crate::monomial::Monomial;
+//use crate::matrix::Matrix;
 use crate::prng::randombytes;
 
 
@@ -36,9 +37,9 @@ pub struct Signature {
 // LESS_keygen
 // \param SK[out]: pointer to an uninitialized secret key data structure
 // \param PK[out]: pointer to an uninitialized public key data structure
-//pub fn less_keygen(sk: &mut PrivateKey, pk: &mut PublicKey) {
-//    /* generating private key from a single seed */
-//    randombytes(&mut sk.compressed_sk);
+pub fn less_keygen(sk: &mut PrivateKey, pk: &mut PublicKey) {
+    /* generating private key from a single seed */
+    randombytes(&mut sk.compressed_sk);
 //
 //    /* expanding it onto private seeds */
 //    let mut sk_shake_state = ShakeState::default();
@@ -80,4 +81,14 @@ pub struct Signature {
 //         * public key element is just a seed */
 //        compress_rref(&mut pk.sf_g[i], &result_g, &is_pivot_column);
 //    }
-//} /* end LESS_keygen */
+} /* end LESS_keygen */
+/// use less::matrix::Matrix;
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keygen() {
+
+    }
+}

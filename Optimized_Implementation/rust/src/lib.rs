@@ -8,8 +8,11 @@ pub mod matrix;
 pub mod monomial;
 pub mod opt;
 pub mod less;
-mod sort;
-mod utils;
+pub mod sort;
+pub mod utils;
+pub mod transpose;
+pub mod multiset;
+pub mod constants;
 //#[cfg(test)]
 //mod tests {
 //    use super::*;
