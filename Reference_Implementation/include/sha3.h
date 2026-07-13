@@ -6,6 +6,7 @@
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
+ * @author Floyd Zweydinger <floyd.zweydinger+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -26,21 +27,20 @@
 #pragma once
 
 #include "fips202.h"
-#include <stddef.h>
 
-/* standalone SHA-3 implementation has no visible state for single-call SHA-3 */
-// #define SHA3_STATE_STRUCT shake256ctx
-/* and has different states for SHAKE depending on security level*/
+#include <stddef.h>
+#include <stdint.h>
+
 #if CATEGORY == 252
 #define SHAKE_STATE_STRUCT shake128incctx
 #else
 #define SHAKE_STATE_STRUCT shake256incctx
 #endif
-// %%%%%%%%%%%%%%%%%% Self-contained SHAKE Wrappers %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+/// initialized the shake structure
+/// \param state[out]: pointer to a uninitialized state 
 static inline
-void xof_shake_init(SHAKE_STATE_STRUCT *state, int val) {
-	(void)val;
+void xof_shake_init(SHAKE_STATE_STRUCT *state) {
 #if CATEGORY == 252
    shake128_inc_init(state);
 #else
@@ -48,10 +48,14 @@ void xof_shake_init(SHAKE_STATE_STRUCT *state, int val) {
 #endif
 }
 
+/// absorbs some bytes into the shake struct
+/// \param state[in/out]: pointer to an initialized state 
+/// \param input[in]: data to fed into shake 
+/// \param inputByteLen[in]: length of the input in bytes
 static inline
 void xof_shake_update(SHAKE_STATE_STRUCT *state,
-                      const unsigned char *input,
-                      size_t inputByteLen) {
+                      const uint8_t *input,
+                      const size_t inputByteLen) {
 #if CATEGORY == 252
    shake128_inc_absorb(state,
                        (const uint8_t *)input,
@@ -63,6 +67,9 @@ void xof_shake_update(SHAKE_STATE_STRUCT *state,
 #endif
 }
 
+/// finalizes the absorb phase. After this function call, one can extract 
+/// random bytes from the shake state.
+/// \param state[in]: pointer to an initialized state 
 static inline
 void xof_shake_final(SHAKE_STATE_STRUCT *state) {
 #if CATEGORY == 252
@@ -72,10 +79,13 @@ void xof_shake_final(SHAKE_STATE_STRUCT *state) {
 #endif
 }
 
+/// \param state[in/out]: pointer to an initialized state 
+/// \param output[out]: pointer to the output byte buffer 
+/// \param outputByteLen[in]: number of bytes to extract from the state
 static inline
 void xof_shake_extract(SHAKE_STATE_STRUCT *state,
-                       unsigned char *output,
-                       unsigned int outputByteLen) {
+                       uint8_t *output,
+                       const size_t outputByteLen) {
 #if CATEGORY == 252
    shake128_inc_squeeze(output, outputByteLen, state);
 #else

@@ -4,6 +4,9 @@
 #mkdir -p build 
 #cd build 
 #cmake ..
+# #cmake -DUSE_AVX2=1 ..
+# #cmake -DUSE_AVX512=1 ..
+# #cmake -DUSE_NEON=1 ..
 #make 
 #cd ..
 

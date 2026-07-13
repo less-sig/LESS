@@ -8,24 +8,29 @@
 #include "sort.h"
 #include "../test/test_helpers.c"
 
-#define ITERS (1u << 15u)
+#define ITERS (1u << 22u)
 
 
 int bench_sorting(void) {
     printf("int : \n");
     const size_t s = K;
+    uint32_t ctr = 0;
     FQ_ELEM *d1 = (FQ_ELEM *) malloc(sizeof(FQ_ELEM) * s);
+    FQ_ELEM *d2 = (FQ_ELEM *) malloc(sizeof(FQ_ELEM) * s);
 
-    unsigned c = 0, c1;
+    unsigned c = 0, c1 = 0;
+    c=0; ctr=0;
     for (unsigned i = 0; i < ITERS; i++) {
-        for (unsigned j = 0; j < s; j++) { d1[j] = s-1-i; }
+        for (unsigned j = 0; j < s; j++) { d1[j] = fq_red(j+s-1-i); }
 
         c -= read_cycle_counter();
-        counting_sort_u8(d1, s);
+        sort(d2, d1, s);
         c += read_cycle_counter();
+        ctr += d2[7];
     }
-    c1 = c / ITERS;
-    printf("int8_sort: %u cyc\n", c1);
+    c = c / ITERS;
+    printf("histo : %u cyc, %d\n", c, ctr);
+    printf("factor %lf\n", ((double) c1) / (double) c);
 
     free(d1);
     return 0;
@@ -94,8 +99,8 @@ int bench_col_sorting(void) {
 }
 
 int main(void) {
-    // if (bench_sorting()) return 1;
+    if (bench_sorting()) return 1;
     // if (bench_row_sorting()) return 1;
-    if (bench_col_sorting()) return 1;
+    // if (bench_col_sorting()) return 1;
     return 0;
 }

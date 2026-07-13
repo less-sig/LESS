@@ -29,33 +29,29 @@
 #include "parameters.h"
 #include "fq_arith.h"
 
-/* Structure representing a monomial matrix */
-/* consider the example n=3
- *     [ 2  0  0 ]   [             ]
- * M = [ 0  0  1 ] = [ m_0 m_1 m_2 ]
- *     [ 0  3  0 ]   [             ]
- *
- * Computing GM shuffles the columns of G and rescales them. Assume G is:
- *     [             ]            [                   ]
- * G = [ g_0 g_1 g_2 ]  then GM = [ 2*g_0 3*g_2 1*g_1 ]
- *     [             ]            [                   ]
- *
- * M is stored in compact form as two arrays, the first one stores the scaling
- * coefficients of the columns (i.e., [2 3 1] in the example), while the second
- * stores, for each element, the position of the column placed at its index
- * after the permutation.
- * In the example we have g_0 -> 0, g_1 -> 2, g_2 -> 1 hence we obtain [0 2 1]
- *
- */
-
+/// Structure representing a monomial matrix */
+/// consider the example n=3
+///     [ 2  0  0 ]   [             ]
+/// M = [ 0  0  1 ] = [ m_0 m_1 m_2 ]
+///     [ 0  3  0 ]   [             ]
+/// 
+/// Computing GM shuffles the columns of G and rescales them. Assume G is:
+///     [             ]            [                   ]
+/// G = [ g_0 g_1 g_2 ]  then GM = [ 2*g_0 3*g_2 1*g_1 ]
+///     [             ]            [                   ]
+/// 
+/// M is stored in compact form as two arrays, the first one stores the scaling
+/// coefficients of the columns (i.e., [2 3 1] in the example), while the second
+/// stores, for each element, the position of the column placed at its index
+/// after the permutation.
+/// In the example we have g_0 -> 0, g_1 -> 2, g_2 -> 1 hence we obtain [0 2 1]
 typedef struct {
-   /* coefficients listed in order of appearance column-wise */
-   FQ_ELEM coefficients[N];
-   /* considering the product GQ, permutation[...] stores into the cell with
-    * index 0, the position of the DESTINATION of column 0 in G after the
-    * computation of GQ.
-    */
-   POSITION_T permutation[N];
+    /// coefficients listed in order of appearance column-wise
+    FQ_ELEM coefficients[N];
+    /// considering the product GQ, permutation[...] stores into the cell with
+    /// index 0, the position of the DESTINATION of column 0 in G after the
+    /// computation of GQ.
+    POSITION_T permutation[N_pad];
 } monomial_t;
 
 typedef struct {
@@ -65,54 +61,65 @@ typedef struct {
     POSITION_T permutation[K];
 } monomial_action_IS_t;
 
-typedef struct {
-   unsigned char value[SEED_LENGTH_BYTES];
-} monomial_seed_t;
-
-void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
-                            POSITION_T *permutation,
-                            const uint32_t n);
-void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state,
-                      POSITION_T permutation[N]);
-void yt_shuffle(POSITION_T permutation[N]);
-
-/* multiplies two monomial matrices */
-void monomial_mat_mul(monomial_t *res,
-                      const monomial_t *const A,
-                      const monomial_t *const B);
-
-/* computes the inverse of the monomial matrix */
-void monomial_inv(monomial_t *res,
-                  const monomial_t *const to_invert);
-
-/* expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
- * monomial matrices */
+/// expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
+/// monomial matrices
+/// \param res[out]: pointer to an allocated, but not initialized monomial
+/// \param seed[in]: byte buffer fed into the prng
+/// \param salt[in]: byte buffer additionally fed into the prng
+/// \param round_index[in]: round index additionally fed into prng
 void monomial_sample_salt(monomial_t *res,
                           const unsigned char seed[SEED_LENGTH_BYTES],
                           const unsigned char salt[HASH_DIGEST_LENGTH],
-                          const uint16_t round_index);
+                          uint16_t round_index);
 
-/* expands a monomial matrix, given a double length PRNG seed (used to prevent
- * multikey attacks) */
+/// expands a monomial matrix, given a double length PRNG seed (used to prevent
+/// multikey attacks)
+/// \param res[out]: pointer to an allocated, but not initialized monomial
+/// \param seed[in]: input seed.
 void monomial_sample_prikey(monomial_t *res,
                             const unsigned char seed[PRIVATE_KEY_SEED_LENGTH_BYTES]);
 
-///
-void monomial_mat_seed_expand_rnd(monomial_t *res,
-                                  const unsigned char seed[SEED_LENGTH_BYTES],
-                                  const uint16_t round_index);
+/// computes the inverse of the monomial matrix
+/// \param res[out]: pointer to an allocated but not initialized monomial matrix
+/// \param to_invert[in]: pointer to an initialized monomial matrix
+void monomial_inv(monomial_t *res,
+                  const monomial_t *to_invert);
 
-/* composes a compressed action on an IS with the action of a monomial
- * matrix */
+/// composes a compactly stored action of a monomial on an IS with a regular
+/// monomial.
+/// NOTE: Only the permutation is computed, as this is the only thing we need
+/// since the adaption of canonical forms.
+/// \param out[out]: output monomial
+/// \param Q_in[in]: input monomial
+/// \param in[in]: input monomial
 void monomial_compose_action(monomial_action_IS_t * out, 
-                             const monomial_t * to_compose, 
-                             const monomial_action_IS_t * in);
+                             const monomial_t *Q_in,
+                             const monomial_action_IS_t *in);
 
-void CosetRep(uint8_t *b, const monomial_action_IS_t *Q_star);
 
-/* Decompress byte array to MonomialAction object */
-void expand_to_monom_action(monomial_action_IS_t *mono,
-                            const uint8_t *compressed);
+/// NOTE: Only the permutation is computed, as this is the only thing we need
+/// since the adaption of canonical forms.
+/// \param pi_tilde[out]: mu_tilde * information set
+/// \param mu_tilde[in]: input monomial matrix.
+/// \param is_pivot_column[in]: information set, where a 1 in the array
+///         symbolizes that the corresponding columns is a pivot column.
+void monomial_compose_action_information_set(monomial_action_IS_t *pi_tilde,
+                                             const monomial_t *mu_tilde,
+                                             const uint8_t *is_pivot_column);
 
-/* Validate MonomialAction object */
-int CheckCanonicalAction(const uint8_t* const mono);
+
+
+/// canonical form compression
+/// \param b[out]: N bits in which K bits will be sed
+/// \param Q_star[in]: canonical action matrix
+void CosetRep(uint8_t *b,
+              const monomial_action_IS_t *Q_star);
+
+/// checks if the given (N+7/8) bytes are a valid
+/// canonical form action. E.g. this function checks
+/// if exactly `K` ones ares in the input.
+/// \param b[in]: compressed canonical form output from
+///         `CosetRep`
+/// \return true: if the hamming weight is K
+///         false: if the hamming weight is not K
+int CheckCanonicalAction(const uint8_t *b);

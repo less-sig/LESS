@@ -51,8 +51,8 @@
 
 /********************************* Category 1 *********************************/
 #elif CATEGORY == 252
-#define N (252)
-#define K (126)
+#define N (252u)
+#define K (126u)
 
 #define SEED_LENGTH_BYTES (16)
 #define SIGN_PIVOT_REUSE_LIMIT (25) // Ensures probability of non-CT operation is < 2^-64
@@ -177,8 +177,6 @@
 #error define category for parameters
 #endif
 
-#define VERIFY_PIVOT_REUSE_LIMIT K
-
 /* number of bytes needed to store K or N bits */
 #define K8 ((K+7u)/8u)
 #define N8 ((N+7u)/8u)
@@ -186,7 +184,7 @@
 /// rounds x to the next multiple of n
 #define NEXT_MULTIPLE(x,n) ((((x)+((n)-1u))/(n))*(n))
 
-#if defined(USE_AVX2) || defined(USE_NEON)
+#if defined(USE_AVX512) || defined(USE_AVX2) || defined(USE_NEON)
 /// In case of the optimized implementation, we need that all vectors
 /// are of a length, which is a multiple of 32
 #define N_K_pad NEXT_MULTIPLE(N-K, 32)
@@ -199,24 +197,28 @@
 #define K_pad   K
 #endif
 
+/// always round up Q to 128, to make the histogram computation memory aligned
 #define Q_pad   NEXT_MULTIPLE(Q, 8)
 
+
 /***************** Derived parameters *****************************************/
-/*length of the output of the cryptographic hash, in bytes */
+
+/// length of the output of the cryptographic hash, in bytes
 #define HASH_DIGEST_LENGTH (2*SEED_LENGTH_BYTES)
 #define SALT_LENGTH_BYTES HASH_DIGEST_LENGTH
 
-
-/* length of the private key seed doubled to avoid multikey attacks */
+/// length of the private key seed is doubled to avoid multikey attacks
 #define PRIVATE_KEY_SEED_LENGTH_BYTES (2*SEED_LENGTH_BYTES)
 
+/// bit mask for Q and N
 #define MASK_Q ((1 << BITS_TO_REPRESENT(Q)) - 1)
 #define MASK_N ((1 << BITS_TO_REPRESENT(N)) - 1)
 
-
+/// helper macro to compute the bit size of a number
 #define IS_REPRESENTABLE_IN_D_BITS(D, N)                \
   (((unsigned long) N>=(1UL << (D-1)) && (unsigned long) N<(1UL << D)) ? D : -1)
 
+/// compute the bit size of a number 
 #define BITS_TO_REPRESENT(N)                            \
   (N == 0 ? 1 : (15                                     \
                  + IS_REPRESENTABLE_IN_D_BITS( 1, N)    \
@@ -252,10 +254,17 @@
 #define LESS_SIGNATURE_SIZE(NR_LEAVES) (HASH_DIGEST_LENGTH*2 + N8*W + NR_LEAVES*SEED_LENGTH_BYTES + 1)
 
 // if defined the gaussian elimination will try to reuse the pivot rows
-// from its last computation, to speed up the computation. Note: this
-// leads to non-constant time code, which is fine in vrfy.
+// from its last computation, to speed up the computation. 
+// NOTE: this leads to non-constant time code, which is fine in vrfy.
 #define LESS_REUSE_PIVOTS_VY
 #define LESS_REUSE_PIVOTS_SG
+
+/// number of columns to reuse in vrfy
+#define LESS_VERIFY_PIVOT_REUSE_LIMIT K
+
+// if defined, enable pre-processing pass in CF function to try
+// to find the best potential candidate before calculating in full CFs
+#define LESS_CF_PREPROC_PASS_ENABLE
 
 #ifdef USE_AVX2
 /// NOTE: only available for optimized implementations if set a custom 4 bucket 
@@ -264,3 +273,9 @@
 #define LESS_USE_CUSTOM_HISTOGRAM
 #endif
 #endif
+
+// NOTE: if set the AVX2 and AVX512 fq arithmetic implementations will use the
+// `blendv` instruction instead of the `minv`, to compute the final reduction.
+// The `blendv` instruction is ~10% faster on zen4 then the `minv` instruction.
+// But on older x86 hardware this is di
+#define LESS_USE_BLEND_IN_ARITH

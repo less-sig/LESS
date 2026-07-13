@@ -23,78 +23,13 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  **/
-#include "monomial_mat.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include "utils.h"
+
 #include <string.h>
 
-///
-#define POS_BITS BITS_TO_REPRESENT(N-1)
-
-///
-#define POS_MASK (((POSITION_T) 1 << POS_BITS) - 1)
-
-/// applies a random permutation between [0, n-1] on the
-/// input permutation
-/// \param shake_monomial_state[in/out]:
-/// \param permutation[in/out]: random permutation. Must be initialized with
-///         [0,....,n-1]
-/// \param n <= N: number of elements in the permutation
-void yt_shuffle_state_limit(SHAKE_STATE_STRUCT *shake_monomial_state,
-                            POSITION_T *permutation,
-                            const uint32_t n) {
-    uint32_t rand_u32[N] = {0};
-    POSITION_T tmp;
-
-    csprng_randombytes((unsigned char *) &rand_u32, sizeof(uint32_t)*n, shake_monomial_state);
-    for (size_t i = 0; i < n - 1; ++i) {
-        rand_u32[i] = i + rand_u32[i] % (n - i);
-    }
-
-    for (size_t i = 0; i < n - 1; ++i) {
-        tmp = permutation[i];
-        permutation[i] = permutation[rand_u32[i]];
-        permutation[rand_u32[i]] = tmp;
-    }
-}
-
-/// \param shake_monomial_state[in/out]:
-/// \param permutation[in/out]: random permutation. Must be initialized with
-///         [0,....,n-1]
-void yt_shuffle_state(SHAKE_STATE_STRUCT *shake_monomial_state, POSITION_T permutation[N]) {
-   uint64_t rand_u64;
-   POSITION_T tmp;
-   POSITION_T x;
-   int c;
-
-   csprng_randombytes((unsigned char *) &rand_u64,
-                             sizeof(rand_u64),
-                             shake_monomial_state);
-   c = 0;
-
-   for (int i = 0; i < N; i++) {
-      do {
-         if (c == (64/POS_BITS)-1) {
-            csprng_randombytes((unsigned char *) &rand_u64,
-                                sizeof(rand_u64),
-                                shake_monomial_state);
-            c = 0;
-         }
-         x = rand_u64 & (POS_MASK);
-         rand_u64 = rand_u64 >> POS_BITS;
-         c = c + 1;
-      } while (x >= N);
-
-      tmp = permutation[i];
-      permutation[i] = permutation[x];
-      permutation[x] = tmp;
-   } 
-}
-/* FY shuffle on the permutation, sampling from the global TRNG state */
-void yt_shuffle(POSITION_T permutation[N]) {
-    yt_shuffle_state(&platform_csprng_state, permutation);
-}
+#include "utils.h"
+#include "rng.h"
+#include "codes.h"
+#include "monomial_mat.h"
 
 /* expands a monomial matrix, given a PRNG seed and a salt (used for ephemeral
  * monomial matrices */
@@ -104,7 +39,7 @@ void monomial_sample_salt(monomial_t *res,
                           const uint16_t round_index) {
     SHAKE_STATE_STRUCT shake_monomial_state = {0};
     const int shake_buffer_len = SEED_LENGTH_BYTES + HASH_DIGEST_LENGTH + sizeof(uint16_t);
-    uint8_t shake_input_buffer[shake_buffer_len];
+    uint8_t shake_input_buffer[SEED_LENGTH_BYTES + HASH_DIGEST_LENGTH + sizeof(uint16_t)];
     memcpy(shake_input_buffer, seed, SEED_LENGTH_BYTES);
     memcpy(shake_input_buffer + SEED_LENGTH_BYTES, salt, HASH_DIGEST_LENGTH);
     memcpy(shake_input_buffer + SEED_LENGTH_BYTES + HASH_DIGEST_LENGTH, &round_index, sizeof(uint16_t));
@@ -115,9 +50,8 @@ void monomial_sample_salt(monomial_t *res,
         res->permutation[i] = i;
     }
 
-    /* FY shuffle on the permutation */
-    yt_shuffle_state(&shake_monomial_state, res->permutation);
-} /* end monomial_mat_seed_expand */
+    merge_exchange(res->permutation, N, &shake_monomial_state);
+} /* end monomial_sample_salt */
 
 /// expands a monomial matrix, given a double length PRNG seed (used to prevent
 /// multikey attacks)
@@ -131,10 +65,11 @@ void monomial_sample_prikey(monomial_t *res,
     for (uint32_t i = 0; i < N; i++) {
         res->permutation[i] = i;
     }
-    /* FY shuffle on the permutation */
-    yt_shuffle_state(&shake_monomial_state, res->permutation);
-} /* end monomial_mat_seed_expand */
+    merge_exchange(res->permutation, N, &shake_monomial_state);
+} /* end monomial_sample_prikey */
 
+/// NOTE: non constant time implementation. But thats ok as its only
+///     used in `keygen`
 /// \param res[out]: = to_invert**-1
 /// \param to_invert[in]:
 void monomial_inv(monomial_t *res,
@@ -142,44 +77,141 @@ void monomial_inv(monomial_t *res,
     for(uint32_t i = 0; i < N; i++) {
         res->permutation[to_invert->permutation[i]] = i;
         res->coefficients[to_invert->permutation[i]] =
-            fq_inv(to_invert->coefficients[i]);
+            fq_inv_non_ct(to_invert->coefficients[i]);
     }
 } /* end monomial_inv */
 
-/* composes a compactly stored action of a monomial on an IS with a regular
- * monomial.
- * NOTE: Only the permutation is computed, as this is the only thing we need
- * since the adaption of canonical forms.
- */
+/// NOTE: constant time implementation
+/// composes a compactly stored action of a monomial on an IS with a regular
+/// monomial.
+/// NOTE: Only the permutation is computed, as this is the only thing we need
+/// since the adaption of canonical forms.
+/// \param out[out]: output monomial
+/// \param Q_in[in]: input monomial
+/// \param in[in]: input monomial
 void monomial_compose_action(monomial_action_IS_t *out,
                              const monomial_t *Q_in,
                              const monomial_action_IS_t *in) {
-    /* to compose with monomial_action_IS_t, reverse the convention
-     * for Q storage: store in permutation[i] the idx of the source column landing
-     * as the i-th after the GQ product, and in coefficients[i] the coefficient
-     * by which the column is multiplied upon landing */
+    /// to compose with monomial_action_IS_t, reverse the convention
+    /// for Q storage: store in permutation[i] the idx of the source column landing
+    /// as the i-th after the GQ product, and in coefficients[i] the coefficient
+    /// by which the column is multiplied upon landing
     monomial_t reverse_Q;
-    for (uint32_t i = 0; i < N; i++) {
-        reverse_Q.permutation[Q_in->permutation[i]] = i;
+    for (uint16_t i = 0; i < N; i++) {
+        // we want to compute:
+        // reverse_Q.permutation[Q_in->permutation[i]] = i;
+
+        /// NOTE: the type `uint16_t` is rather important. Otherwise the compiler is needed to emit
+        /// costly zero-extend mov instructions. At least on a ryzen 5 7600X the resulting code
+        /// is ~2x slower.
+        const uint16_t pos = Q_in->permutation[i];
+        for (uint16_t j = 0; j < N; j++) {
+            const uint16_t mask = COMPUTE_CT_MASK(j, pos);
+            const uint16_t not_mask = ~mask;
+            const uint16_t value = (reverse_Q.permutation[j] & not_mask) ^ (i & mask);
+            reverse_Q.permutation[j] = value;
+        }
     }
-    /* compose actions out = Q_in*in */
-    for (uint32_t i = 0; i < K; i++) {
-        out->permutation[i] = reverse_Q.permutation[in->permutation[i]];
+
+    for (uint16_t i = 0; i < K; i++) {
+        // we want to compute:
+        // out->permutation[i] = reverse_Q.permutation[in->permutation[i]];
+        const uint16_t pos = in->permutation[i];
+        uint16_t value = 0;
+        for (uint16_t j = 0; j < N; j++) {
+            const uint16_t mask = COMPUTE_CT_MASK(j, pos);
+            value ^= reverse_Q.permutation[j] & mask;
+        }
+        out->permutation[i] = value;
+    }
+} /* end monomial_compose_action */
+
+/// NOTE: constant time implementation
+/// NOTE: Only the permutation is computed, as this is the only thing we need
+/// since the adaption of canonical forms.
+/// \param pi_tilde[out]: mu_tilde^{-1} * information set
+/// \param mu_tilde[in]: input monomial matrix.
+/// \param is_pivot_column[in]: information set, where a 1 in the array
+///         symbolizes that the corresponding columns is a pivot column.
+void monomial_compose_action_information_set(monomial_action_IS_t *pi_tilde,
+                                             const monomial_t *mu_tilde,
+                                             const uint8_t *is_pivot_column) {
+
+    uint16_t piv_idx = 0;
+    for(uint16_t col_idx = 0; col_idx < N; col_idx++) {
+        uint16_t row_idx = 0;
+        for(uint16_t t = 0; t < N; t++) {
+            // NOTE: do not break here.
+            // NOTE: the compiler should not be able to optimize a break here. As it doesnt know that each
+            //      value in `permutation` is unique, hence it "could" be that there are multiple position == col_idx
+            if (mu_tilde->permutation[t] == col_idx) {
+                row_idx = t;
+            }
+        }
+        /// NOTE: this should not leak information.
+        if(is_pivot_column[col_idx] == 1) {
+            pi_tilde->permutation[piv_idx] = row_idx;
+            piv_idx++;
+        }
     }
 }
 
-/// cf type5 compression
+/// NOTE: not constant time implementation.
+/// NOTE: implementation of `CosetRep` of the specification
+/// canonical form compression
 /// \param b[out]: N bits in which K bits will be sed
 /// \param Q_star[in]: canonical action matrix
 void CosetRep(uint8_t *b,
               const monomial_action_IS_t *Q_star) {
     memset(b, 0, N8);
     for (uint32_t i = 0; i < K; i++) {
-        const uint32_t limb = (Q_star->permutation[i])/8;
-        const uint32_t pos  = (Q_star->permutation[i])%8;
+        const uint32_t limb = Q_star->permutation[i] / 8;
+        const uint32_t pos  = Q_star->permutation[i] % 8;
         b[limb] ^= 1u << pos;
     }
-}
+} /* end CosetRep */
+
+/// NOTE: implementation of `UnpackCosetRep` of the specification
+/// NOTE: not constant time
+/// \param res[out]: G*c: a generator matrix: K \times N-K
+/// \param G[in]: current generator matrix: K \times N-K
+/// \param c[in]: compressed cf action
+/// \param initial_G_col_pivot[in]: input IS
+/// \param permuted_G_col_pivot[out]: output IS, to keep track of the pivot cols
+void UnpackCosetRep(generator_mat_t* res,
+                    const generator_mat_t *G,
+                    const uint8_t *const c,
+                    const uint8_t initial_G_col_pivot[N],
+                    uint8_t permuted_G_col_pivot[N]) {
+    uint32_t l = 0, r = 0;
+    for (uint32_t i = 0; i < N8; i++) {
+        for (uint32_t j = 0; j < 8; j++) {
+            if ((i*8 + j) >= N) { goto finish; }
+
+            const uint8_t bit = (c[i] >> j) & 1u;
+            uint32_t pos;
+            if (bit) {
+                pos = l;
+                l += 1;
+            } else {
+                pos = K + r;
+                r += 1;
+            }
+
+            permuted_G_col_pivot[pos] = initial_G_col_pivot[i*8+j];
+
+            // copy the column
+            for (uint32_t k = 0; k < K; k++) {
+                res->values[k][pos] = G->values[k][i*8 + j];
+            }
+        }
+    }
+
+    /// NOTE: the return is only needed to please the compiler.
+    /// Its not valid C to have a `label` without a following operation.
+finish:
+    return;
+} /* end UnpackCosetRep*/
 
 /// checks if the given (N+7/8) bytes are a valid
 /// canonical form action.
@@ -194,4 +226,4 @@ int CheckCanonicalAction(const uint8_t* const b) {
     }
 
     return w == K;
-}
+} /* end CheckCanonicalAction */

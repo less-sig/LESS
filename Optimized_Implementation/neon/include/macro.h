@@ -36,6 +36,9 @@
 #include <_types/_uint64_t.h>
 #include <arm_neon.h>
 
+#include "lookup_table.h"
+
+
 #ifndef __clang__
 #include <arm_bf16.h>
 #include <arm_fp16.h>
@@ -59,6 +62,7 @@ typedef __attribute__((neon_vector_type(1))) uint64_t __uint64x1_t;
 typedef __attribute__((neon_vector_type(2))) uint64_t __uint64x2_t;
 #endif
 
+/// helper definition, to bundle two registers into a single type
 typedef union {
 	uint8_t  v8 [32];
 	uint16_t v16[16];
@@ -151,89 +155,12 @@ static inline uint32_t vmovemask8(const vec256_t a) {
 // Set vector to 0
 #define vzero(c) c.v[0] = 0; v.v[1] = 0;
 
-// Shuffle vector a according to vector b
-#define vshuffle8(c, a, b) c.v[0] = vqtbl1q_s8(a.v[0], b.v[0]); c.v[1] = vqtbl1q_s8(a.v[1], b.v[1]);
-
-// Permute 128-bit, combine 2 128-bit low from
-// a and b to c
-// c = a[0..127] | b[0..127]
-#define vpermute(c, a, b) c.v[0] = a.v[0]; c.v[1] = b.v[0];
-#define vpermute2(c, a, b, d) 							\
-	if (d & (1u << 3u)) {								\
-		c.v[0] = vdupq_n_u8(0);							\
-	} else { 											\
-		c.v[0] = (d&3u) <= 1u ? a.v[d&1u] : b.v[(d>>2u)&1u];		\
-	}													\
-	if (d & (1u << 7u)) {								\
-		c.v[1] = vdupq_n_u8(0);							\
-	} else { 											\
-		c.v[1] = ((d>>4)&3u) <= 1 ? a.v[d>>4u] : b.v[d>>6u];\
-	}
-
-#define vpermute_4x64(c, a, b) 												\
-	{																		\
-		vec256_t vpermute_4x64_tmp;											\
-		for (uint32_t ijk = 0; ijk < 4; ijk++) {							\
-			vpermute_4x64_tmp.v64[ijk] = a.v64[(b >> (2*ijk)) & 0x3];		\
-		}																	\
-		c.v[0] = vpermute_4x64_tmp.v[0];									\
-		c.v[1] = vpermute_4x64_tmp.v[1];									\
-	}
-
-/*
- * Fix width 8-bit Barrett modulo reduction Q = 127
- * c = a % q
- */
-#define barrett_red8(a, t, c127, c1) 	\
-	vsr16(t, a, 7)						\
-	vand(t, t, c1)						\
-	vadd8(a, a, t)						\
-	vand(a, a, c127)
-
-
-
-/*
- * Fix width 16-bit Barrett multiplication Q = 127
- * c = (a * b) % q
- */
-#define barrett_mul_u16(c, a, b, t)        \
-    vmul_lo16(a, a, b); /* lo = (a * b)  */  \
-    vsr16(t, a, 7);     /* hi = (lo >> 7) */ \
-    vadd16(a, a, t);    /* lo = (lo + hi) */ \
-    vsl16(t, t, 7);     /* hi = (hi << 7) */ \
-    vsub16(c, a, t);    /* c  = (lo - hi) */
-
 /// number of 8 bit elements in an avx register
 #define LESS_WSZ 32
 
 /// number of avx registers needed for a full row in a generator matrix
 #define NW ((N + LESS_WSZ - 1) / LESS_WSZ)
 
-/// original reduction formula
-#define W_RED127(x)     \
-	vsr16(t, x, 7)		\
-	vand(t, t, c01)		\
-	vadd8(x, x, t)		\
-	vand(x, x, c7f)
-
-
-/// new reduction formula, catches the case where input is q=127
-#define W_RED127_(x)     \
-	x.v[0] = vandq_u8(vaddq_u8(vandq_u8(vshrq_n_u16(vaddq_u8(x.v[0], c01.v[0]), 7), c01.v[0]), x.v[0]), c7f.v[0]); \
-	x.v[1] = vandq_u8(vaddq_u8(vandq_u8(vshrq_n_u16(vaddq_u8(x.v[1], c01.v[1]), 7), c01.v[1]), x.v[1]), c7f.v[1]);
-
-// Extend from 8-bit to 16-bit type
-extern const uint8_t shuff_low_half[32];
-
-void print256_num(vec256_t var, const char *string);
-
-static inline uint8_t vhadd8(const vec256_t t) {
-	vec128_t v;
-	v.v = vaddq_u8(t.v[0], t.v[1]);
-	uint8_t r = fq_red(v.v8[0]);
-	for (uint32_t i = 1; i < 16; i++) {
-		r = fq_add(r, fq_red(v.v8[i]));
-	}
-
-	return r;
-}
+#define vred8(x,xx,c7f)														\
+	xx.v[0] = vsubq_u8(x.v[0], c7f); xx.v[1] = vsubq_u8(x.v[1], c7f);		\
+	x.v[0] = vminq_u8(xx.v[0], x.v[0]); x.v[1] = vminq_u8(xx.v[1], x.v[1]);

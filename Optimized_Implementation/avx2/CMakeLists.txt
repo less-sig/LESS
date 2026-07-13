@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 project(less_avx2)
 enable_language(C ASM)
 set(CMAKE_C_STANDARD 99)
-set(CMAKE_VERBOSE_MAKEFILE OFF)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 enable_testing()
 find_package(OpenSSL)
@@ -23,8 +23,8 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
 endif()
 
 set(ALLOWED_WARNINGS      " -Wno-type-limits")
-set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -g -Og -DDEBUG  -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi ${ALLOWED_WARNINGS}")
-set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -flto -ftree-vectorize -funroll-loops ${ALLOWED_WARNINGS}")
+set(CMAKE_C_FLAGS_DEBUG   " -DUSE_AVX2 -g -O0 -DDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -fsanitize=address,leak ${ALLOWED_WARNINGS}")
+set(CMAKE_C_FLAGS_RELEASE " -DUSE_AVX2 -O3 -DNDEBUG -Wall -Wextra -Wpedantic -mavx2 -mavx -mbmi2 -mbmi -flto ${ALLOWED_WARNINGS}")
 
 
 set(SOURCES

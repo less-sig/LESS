@@ -31,22 +31,29 @@
  * clock_gettime. Input seed assumed to be a C convention string */
 SHAKE_STATE_STRUCT platform_csprng_state;
 
-/// \param shake_state[in/out]
-/// \param seed[in]
-/// \param seed_len_bytes[in]
-void initialize_csprng(SHAKE_STATE_STRUCT *shake_state, const unsigned char *seed, const uint32_t seed_len_bytes) {
+/// \param shake_state[out] uninitialized shake structure
+/// \param seed[in]: seed which is fed into the prng
+/// \param seed_len_bytes[in]: length of the seed
+void initialize_csprng(SHAKE_STATE_STRUCT *shake_state,
+                       const uint8_t *seed,
+                       const uint32_t seed_len_bytes) {
     // the second parameter is the security level of the SHAKE instance
-    xof_shake_init(shake_state, SEED_LENGTH_BYTES * 8);
+    xof_shake_init(shake_state);
     xof_shake_update(shake_state, seed, seed_len_bytes);
     xof_shake_final(shake_state);
 } /* end initialize_csprng */
 
+/// \param shake_state[out] uninitialized shake structure
+/// \param seed[in]: seed which is feed into the prng
+/// \param seed_len_bytes[in]: length of the seed
+/// \param domain_sep_constant[in]: domain seperator as defined in the spec, 
+///         which is fed into the prng after the seed
 void initialize_csprng_ds(SHAKE_STATE_STRUCT *shake_state,
-                       const unsigned char *seed,
+                       const uint8_t *seed,
                        const uint32_t seed_len_bytes,
                        const uint16_t domain_sep_constant ){
     // the second parameter is the security level of the SHAKE instance
-    xof_shake_init(shake_state, SEED_LENGTH_BYTES * 8);
+    xof_shake_init(shake_state);
     xof_shake_update(shake_state, seed, seed_len_bytes);
 #if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
     unsigned char domain_sep[] = {domain_sep_constant >> 8, domain_sep_constant & 0xff};

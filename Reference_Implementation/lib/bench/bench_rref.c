@@ -17,10 +17,11 @@ void generator_copy(generator_mat_t *V1,
 
 void generator_rnd_fullrank(generator_mat_t *G,
                             uint8_t *is_pivot_column) {
+    uint8_t was_pivot_column[N_pad] = {0};
      do {
          generator_rnd(G);
          memset(is_pivot_column, 0, N);
-     } while ( generator_RREF(G,is_pivot_column) == 0);
+     } while ( generator_RREF_pivot_reuse_ct(G, is_pivot_column, was_pivot_column, 0) == 0);
 }
 
 int bench_rref(void) {
@@ -35,8 +36,9 @@ int bench_rref(void) {
     generator_rnd_fullrank(&G2, is_pivot_column);
 
     setup_cycle_counter();
-	printf("rref:\n");
     uint64_t c1 = 0, c2 = 0, ctr = 0, start_cycle;
+#if !defined(LESS_REUSE_PIVOTS_SG) && !defined(LESS_REUSE_PIVOTS_VY)
+	printf("rref:\n");
 
     for (unsigned i = 0; i < ITERS; i++) {
         monomial_mat_rnd(&q);
@@ -44,9 +46,23 @@ int bench_rref(void) {
 
     	start_cycle = read_cycle_counter();
         ctr += generator_RREF(&G1, is_pivot_column);
-        c1 += (read_cycle_counter() - start_cycle);
+        c1 += read_cycle_counter() - start_cycle;
     }
     printf("normal: %0.2f cycles, ctr: %" PRIu64 "\n", (double) c1 / (double) ITERS, ctr);
+#else
+    printf("rref_ct:\n");
+
+    uint8_t was_pivot_column[N_pad] = {0};
+    for (unsigned i = 0; i < ITERS; i++) {
+        monomial_mat_rnd(&q);
+        generator_monomial_mul(&G1, &G2, &q);
+
+        start_cycle = read_cycle_counter();
+        ctr += generator_RREF_pivot_reuse_ct(&G1, is_pivot_column, was_pivot_column, 0);
+        c1 += read_cycle_counter() - start_cycle;
+    }
+    printf("normal: %0.2f cycles, ctr: %" PRIu64 "\n", (double) c1 / (double) ITERS, ctr);
+#endif
 
     init_randombytes((const unsigned char *) "rref_123", 8);
     generator_rnd_fullrank(&G2, g_initial_pivot_flags);
@@ -61,7 +77,7 @@ int bench_rref(void) {
 
         start_cycle = read_cycle_counter();
         ctr += generator_RREF_pivot_reuse(&G1, is_pivot_column, g_permuted_pivot_flags, VERIFY_PIVOT_REUSE_LIMIT);
-        c2 += (read_cycle_counter() - start_cycle);
+        c2 += read_cycle_counter() - start_cycle);
     }
 
     printf("reuse: %0.2f cycles, ctr: %" PRIu64 "\n", (double) c2 / (double) ITERS, ctr);

@@ -6,7 +6,7 @@
  *
  * @author Alessandro Barenghi <alessandro.barenghi@polimi.it>
  * @author Gerardo Pelosi <gerardo.pelosi@polimi.it>
- * @author Floyd Zweydinge <zweydfg8+github@rub.de>
+ * @author Floyd Zweydinger <zweydfg8+github@rub.de>
  *
  * This code is hereby placed in the public domain.
  *
@@ -25,25 +25,59 @@
  **/
 
 #include "utils.h"
-#include <stdlib.h>
+#include "sha3.h"
+#include "rng.h"
 
-/// swaps a and b if mask == -1ull
-void cswap(uintptr_t *a,
-           uintptr_t *b,
-           const uintptr_t mask) {
-    *a ^= (mask & *b);
-    *b ^= (mask & *a);
-    *a ^= (mask & *b);
+#include <stdint.h>
+
+/// needed randomness: n * 1/4 * \floor(log n) * (\floor(log n) + 1)
+/// \param P[out]
+/// \param n[in]:
+/// \param state[in]:
+void merge_exchange(uint16_t *P,
+                    const uint32_t n,
+                    SHAKE_STATE_STRUCT *state) {
+    uint64_t rand = 0;
+    uint32_t ctr = 0;
+
+    uint32_t t = 1;
+    while (t < n - t) t += t;
+
+    for (uint32_t p = t; p > 0; p>>=1) {
+        uint32_t q = t<<1u;
+        uint32_t r = 0;
+        uint32_t d = p;
+        do {
+            q >>= 1;
+            for (uint32_t i = 0; i < (n - d); i++) {
+                if ((i & p) == r) {
+                    if (ctr == 0) {
+                        csprng_randombytes((unsigned char *)&rand, 8, state);
+                        ctr = 64;
+                    }
+
+                    // select random bit
+                    const uint16_t mask = COMPUTE_CT_MASK((rand&1), 1);
+                    MASKED_SWAP(P[i], P[i+d], mask);
+
+                    // update random counter
+                    rand >>= 1;
+                    ctr -= 1;
+                }
+            }
+            d = q - p;
+            r = p;
+        } while(q != p);
+    }
 }
 
-/// taken from the kyber impl.
-/// Description: Compare two arrays for equality in constant time.
-///
-/// Arguments:   const uint8_t *a: pointer to first byte array
-///              const uint8_t *b: pointer to second byte array
-///              size_t len:       length of the byte arrays
-///
-/// Returns 0 if the byte arrays are equal, 1 otherwise
+
+
+/// Compare two arrays for equality in constant time.
+/// \param a[in]: pointer to the first byte array
+/// \param b[in]: pointer to the second byte array
+/// \param len[in]: length of the byte array
+/// \returns 0 if the byte arrays are equal, 1 otherwise
 int verify(const uint8_t *a,
            const uint8_t *b,
            const size_t len) {
@@ -56,15 +90,18 @@ int verify(const uint8_t *a,
     return (-(uint64_t)r) >> 63;
 }
 
-///
+/// max value in the fixed weight string
 #define MAX_KEYPAIR_INDEX (NUM_KEYPAIRS-1)
-///
+/// bit mask for the MAX_KEYPAIR_INDEX
 #define KEYPAIR_INDEX_MASK (((uint16_t)1u << BITS_TO_REPRESENT(MAX_KEYPAIR_INDEX)) - 1u)
-/* bitmask for rejection sampling of the position */
-#define  POSITION_MASK (( (uint16_t)1 << BITS_TO_REPRESENT(T-1))-1)
+/// bitmask for rejection sampling of the position
+#define POSITION_MASK (( (uint16_t)1 << BITS_TO_REPRESENT(T-1))-1)
 
-/* Expands a digest expanding it into a fixed weight string with elements in
- * Z_{NUM_KEYPAIRS}. */
+/// Expands a digest expanding it into a fixed weight string with elements in
+/// Z_{NUM_KEYPAIRS}.
+/// \param fixed_weight_string[out]: array of length T, with hamming weight W,
+///     where the values > 0 are between [1, MAX_KEYPAIR_INDEX)
+/// \param digest[in]: commitment hash
 void SampleChallenge(uint8_t fixed_weight_string[T],
                      const uint8_t digest[HASH_DIGEST_LENGTH]) {
     SHAKE_STATE_STRUCT shake_state;
