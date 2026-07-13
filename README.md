@@ -108,3 +108,5 @@ the address sanitizer.
 Status:
 =======
 All [proposed improvements](https://eprint.iacr.org/2025/1424.pdf) are implemented.
+
+NOTE: the KATS have changes with the 2.1.0 Release. 
