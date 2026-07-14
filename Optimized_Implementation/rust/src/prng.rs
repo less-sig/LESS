@@ -10,7 +10,6 @@ use std::sync::{LazyLock, Mutex};
 use crate::fq::Fq;
 
 use crate::error::LESSError;
-use rand_core::*;
 use sha3::digest::core_api::CoreWrapper;
 
 static PLATFORM_CSPRNG_STATE: LazyLock<Mutex<CoreWrapper<Shake128Core>>> = LazyLock::new(||
@@ -37,8 +36,8 @@ pub fn csprng_randombytes<R>(buf: &mut [u8], state: &mut  R) where R: XofReader 
     state.read(buf);
 }
 fn rand_range_impl<const MIN_V: u8, R>(
-    state: &mut R,
     buffer: &mut [Fq],
+    state: &mut R,
 )
 where 
     R: XofReader
@@ -69,20 +68,20 @@ where
 }
 
 pub fn rand_range_q_state_elements<R>(
-    state: &mut R,
     buffer: &mut [Fq],
+    state: &mut R,
 )
 where 
     R: XofReader
 {
-    rand_range_impl::<0, R>(state, buffer);
+    rand_range_impl::<0, R>(buffer, state);
 }
 
 
 
 pub fn merge_exchange<R>(
-    state: &mut R,
     buffer: &mut [u16],
+    state: &mut R,
 )
 where
     R: XofReader
@@ -160,7 +159,7 @@ mod tests {
         hasher.update(b"123");
         let mut reader = hasher.finalize_xof();
         let mut buffer = [Fq(0); 32];
-        rand_range_impl::<1, XofReaderCoreWrapper<Shake128ReaderCore>>(&mut reader, &mut buffer);
+        rand_range_impl::<1, XofReaderCoreWrapper<Shake128ReaderCore>>(&mut buffer, &mut reader);
         for i in 0..32 {
             assert_ne!(buffer[i], Fq(0));
         }
@@ -172,7 +171,7 @@ mod tests {
         hasher.update(b"123");
         let mut reader = hasher.finalize_xof();
         let mut buffer: [u16; 128] = (0..128).collect::<Vec<_>>().try_into().unwrap();
-        merge_exchange(&mut reader, &mut buffer);
+        merge_exchange(&mut buffer, &mut reader);
 
         let mut cnt = 0u32;
         for i in 0..128 {

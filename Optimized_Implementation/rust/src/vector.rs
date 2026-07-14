@@ -1,13 +1,13 @@
 #![allow(dead_code)]
 #![allow(unreachable_code)]
+
+use sha3::digest::XofReader;
 use std::ops:: {
     Add, AddAssign, Sub, SubAssign, Mul, MulAssign,
     Index, IndexMut, Deref, DerefMut
 };
 use std::cmp::Ordering;
 use std::{ fmt::Display, fmt::Formatter, fmt::Result };
-use sha3::digest::ExtendableOutput;
-use sha3::Shake128;
 use crate::constants::{
     Q_PAD,
 };
@@ -92,19 +92,13 @@ impl <const N: usize> Vector<N>{
         }
     }
 
-    /// NOTE: only for testing
     /// sample a random vector
-    /// # Examples
-    ///
-    /// ```
-    /// use less::vector::Vector;
-    /// let result: Vector<100> = Vector::rand();
-    /// ```
-    pub fn rand() -> Self {
+    pub fn rand<S>(state: &mut S) -> Self
+    where
+        S: XofReader
+    {
         let mut a = Self::init();
-        for i in 0..a.dimension() {
-            a[i] = Fq::rand();
-        }
+        rand_range_q_state_elements(&mut a.0, state);
         a
     }
 
@@ -753,12 +747,12 @@ impl <const N: usize> Vector<N>{
             if is_x86_feature_detected!("avx512f") {
                 assert_eq!(N % 32, 0);
                 unsafe {
-                    return gf127_row_contains_zero_avx2(row);
+                    return gf127_row_contains_zero_avx512(row);
                 }
             } else if is_x86_feature_detected!("avx2") {
                 assert_eq!(N % 32, 0);
                 unsafe {
-                    return gf127_row_contains_zero_avx512(row);
+                    return gf127_row_contains_zero_avx2(row);
                 }
             }
         }

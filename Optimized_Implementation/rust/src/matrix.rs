@@ -1,16 +1,17 @@
 // TODO remove
 #![allow(dead_code)]
+#![allow(unused_imports)]
 
 use std::{
     cmp,
     fmt,
     ops::{
-        Add, Sub, Index, IndexMut
+        Add, Sub, Mul, Index, IndexMut
     },
 };
 use std::{ fmt::Display, fmt::Formatter, fmt::Result };
 use sha3::{
-    Digest, Shake128, //Sha3_256, Sha3_512, Shake256, Shake128ReaderCore,
+    Digest, Shake128,
     digest::{ExtendableOutput, Update, XofReader},
 };
 
@@ -18,7 +19,7 @@ use crate::constants::{
     Q, Q_PAD,
 };
 use crate::fq::Fq;
-use crate::monomial::Monomial;
+use crate::monomial::{Monomial, Permutation};
 use crate::vector::Vector;
 use crate::multiset::Multiset;
 use crate::prng::rand_range_q_state_elements;
@@ -95,21 +96,15 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     }
 
     /// sample a random matrix
-    /// # Examples
-    ///
-    /// ```
-    /// use less::matrix::Matrix;
-    /// let result: Matrix<100, 100> = Matrix::rand();
-    /// ```
-    ///
     /// # Parameters
-    /// - `seed`: NxM matrix
-    pub fn rand() -> Self {
+    /// - `seed`: a already initializzed XofReader
+    pub fn rand<S>(state: &mut S) -> Self
+    where
+        S: XofReader
+    {
         let mut a = Self::init();
-        for row in 0..a.nrows() {
-            for col in 0..a.ncols() {
-                a[row][col] = Fq::rand();
-            }
+        for i in 0..N {
+            rand_range_q_state_elements(&mut a.rows[i].0, state);
         }
         a
     }
@@ -129,14 +124,10 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     where 
         S: ExtendableOutput + Default + Clone
     {
-        let mut a = Self::init();
-        let mut hasher = Shake128::default();
+        let mut hasher = S::default();
         hasher.update(seed.as_slice());
         let mut reader = hasher.finalize_xof();
-        for i in 0..N {
-            rand_range_q_state_elements(&mut reader, &mut a.rows[i].0);
-        }
-        a
+        Self::rand(&mut reader)
     }
 
     /// compares two matrices
@@ -328,7 +319,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     }
 
     /// TODO not ct
-    /// constant time row swap
+    /// row swap
     /// # Examples
     ///
     /// ```
@@ -748,6 +739,14 @@ impl<'a, const N: usize, const M: usize> Sub for &'a mut Matrix<N, M> {
         self
     }
 }
+impl<const N: usize, const M: usize> Mul<Monomial<N>> for Matrix<N, M> {
+    type Output = Matrix<N, M>;
+    fn mul(self, r: Monomial<N>) -> Self::Output {
+        let mut t = Matrix::init();
+        Self::monomial_mul(&mut t, &self, &r);
+        t
+    }
+}
 
 
 /// Direct access to a row
@@ -897,23 +896,39 @@ impl<const N: usize> MatrixNormalized<N> {
     }
 
     /// sample a random matrix
+    ///
+    /// # Parameters
+    /// - `state`: already init Xof
+    pub fn rand<S>(state: &mut S) -> Self
+    where
+        S: XofReader
+    {
+        let mut a = Self::init();
+        for row in 0..a.nrows() {
+            a[row] = Vector::rand(state);
+        }
+        a
+    }
+
+    /// sample a random matrix
     /// # Examples
     ///
     /// ```
+    /// use sha3::Shake128;
     /// use less::matrix::MatrixNormalized;
-    /// let result: MatrixNormalized<100> = MatrixNormalized::rand();
+    /// let result: MatrixNormalized<100> = MatrixNormalized::rand_from_seed::<Shake128>(&[0u8; 32]);
     /// ```
     ///
     /// # Parameters
     /// - `seed`: NxM matrix
-    pub fn rand() -> Self {
-        let mut a = Self::init();
-        for row in 0..a.nrows() {
-            for col in 0..a.ncols() {
-                a[row][col] = Fq::rand();
-            }
-        }
-        a
+    pub fn rand_from_seed<S>(seed: &[u8; 32]) -> Self
+    where
+        S: ExtendableOutput + Default + Clone
+    {
+        let mut hasher = S::default();
+        hasher.update(seed.as_slice());
+        let mut reader = hasher.finalize_xof();
+        Self::rand(&mut reader)
     }
 
     /// The size/dimension of the matrix
@@ -1070,7 +1085,6 @@ impl<const N: usize> MatrixNormalized<N> {
         Vector::<N>::scalar2(&mut self.rows[i], s);
     }
 
-    /// TODO test
     /// transpose: a = b^T
     /// # Examples
     ///
@@ -1080,7 +1094,6 @@ impl<const N: usize> MatrixNormalized<N> {
     /// let mut B: MatrixNormalized<64> = MatrixNormalized::init();
     /// MatrixNormalized::transpose(&mut B, &A);
     /// ```
-    ///
     pub fn transpose(a: &mut Self, b: &Self) {
         // TODO optimize
         for row in 0..a.ncols() {
@@ -1089,53 +1102,51 @@ impl<const N: usize> MatrixNormalized<N> {
             }
         }
     }
-    /// TODO doc
-    fn sort_rows(&mut self) -> i32 {
-        //elet mut tmp: [Multiset<Q_PAD>; N] = Multiset::<Q_PAD>::from_matrix::<N>(self);
-        //for i in 1..N {
-        //    let mut j = i;
-        //    while (j > 0) && (Self::compare_rows(&tmp[j-1], &tmp[j]) < 0) {
-        //        if let Ok([a, b]) = &mut tmp.get_disjoint_mut([j-1, j]) {
-        //            std::mem::swap(a, b);
-        //        }
-        //        j -= 1;
-        //     }
-        //}
-        0
-    }
 
-    /// TODO example and test
-    fn sort_cols(&mut self) -> i32 {
-        0
-    }
-
-    /// TODO example and test
-    fn sort_cf(&mut self) -> i32 {
-        if self.sort_rows() != 0 {
-            return 0;
-        }
-        self.sort_cols();
-        1
-    }
-
-    ///
-    /// TODO example and test
-    fn scale_cf(&mut self) -> i32 {
-        for i in 0..N  {
-            let mut s = Vector::<N>::acc(&self.rows[i]);
-            if s.0 != 0 {
-                s = Fq::inv(s);
-            } else {
-                s = Vector::<N>::acc_inv(&self.rows[i]);
-                if s.0 == 0 {
-                    continue;
+    /// NOTE: absolutely not constant time.
+    /// NOTE: only operates on ptrs
+    /// NOTE: not constant time
+    /// \param G[in/out]: generator matrix to sort
+    /// \param n[in] number of elements to sort
+    /// \param L[in]: pointer to the currently shortest row
+    /// \return 1 on success
+    ///			0 if two rows generate the same multiset
+    fn SortRows(&mut self, z: usize, L: &mut Multiset<Q_PAD>) -> i32 {
+        /// TODO L is ignored,
+        let mut tmp: [Multiset<Q_PAD>; N] = Multiset::<Q_PAD>::from_matrix::<N>(self);
+        for i in 1..z {
+            let mut j = i;
+            while (j > 0) && (tmp[j-1] < tmp[j]) {
+                if let Ok([a, b]) = &mut tmp.get_disjoint_mut([j-1, j]) {
+                    std::mem::swap(a, b);
+                    if let Ok([a, b]) = &mut self.rows.get_disjoint_mut([j-1, j]) {
+                        std::mem::swap(a, b);
+                    }
                 }
+                j -= 1;
+             }
+        }
+        0
+    }
+
+    /// TODO example and test
+    fn SortCols(&mut self, z: usize) -> i32 {
+        let mut VT = MatrixNormalized::init();
+        MatrixNormalized::transpose(&mut VT, &self);
+
+        for i in 1..z {
+            let mut j = i;
+            while (j > 0) && (VT[j-1] < VT[j]) {
+                if let Ok([a, b]) = &mut VT.rows.get_disjoint_mut([j-1, j]) {
+                    std::mem::swap(a, b);
+                }
+                j -= 1;
             }
+        }
 
-            self.row_scalar(i as usize, s);
-        };
 
-        return self.sort_cf();
+        MatrixNormalized::transpose(self, &VT);
+        1
     }
 
     /// by floyd
@@ -1160,12 +1171,12 @@ impl<const N: usize> MatrixNormalized<N> {
             }
         };
 
-        return 0;
+        0
     }
 
     /// by luke
     /// TODO example and test
-    fn scale_cf_preprocess_v2(&mut self, z: usize, m: &mut Multiset<Q_PAD>) -> i32 {
+    fn ScaleCFSubPreprocess(&mut self, z: usize, m: &mut Multiset<Q_PAD>) -> i32 {
         let mut tmp = Multiset::<Q_PAD>::init();
         let mut ret = 0;
         for i in 0..z  {
@@ -1192,6 +1203,54 @@ impl<const N: usize> MatrixNormalized<N> {
         ret
     }
 
+    /// Implementation of the `SortCF` algorithm from the specification.
+    /// NOTE: non-constant time
+    /// NOTE: computes the result inplace
+    /// NOTE: early exist from the `SortRows` function if `L` is already shorter.
+    /// NOTE: first sort the rows, then the columns
+    /// \param G[in/out]: pointer to the non IS-part of a generator matrix.
+    /// The rows and then the columns are sorted inplace.
+    /// \param L[in]: pointer the currently shortest row.
+    /// \return 0 on failure (identical rows, which create the same multiset)
+    /// 		1 on success
+    fn SortCF(&mut self, L: &mut Multiset<Q_PAD>) -> i32 {
+        if self.SortRows(N, L) == 0 {
+            return 0;
+        }
+        self.SortCols(N); // NOTE: must be N_PAD
+        1
+    }
+
+    /// Implementation of the `ScaleCF` algorithm from the specification.
+    /// NOTE: non-constant time
+    /// NOTE: computes the result inplace
+    /// NOTE: does not early exit. Only `SortCF` can do that.
+    /// \param G[in/out]: pointer to the non IS-part of a generator matrix.
+    /// \param L[in]: pointer the currently shortest row, in histogram form.
+    /// \return 0 on failure:
+    /// 			- compute_power_column fails.
+    /// 			- identical rows, which create the same multiset
+    /// 		1 on success
+    fn ScaleCF(&mut self, L: &mut Multiset<Q_PAD>) -> i32 {
+        for row in 0..N {
+            if Vector::all_same(&self[row]) {
+                continue;
+            }
+
+            let mut s = Vector::acc(&self[row]);
+            if s.0 != 0 {
+                s = Fq::inv_non_ct(s);
+            } else {
+                s = Vector::<N>::acc_inv(&self.rows[row]);
+                if s.0 == 0 {
+                    return 0;
+                }
+            }
+            Vector::scalar2(&mut self[row], s);
+        }
+        self.SortCF(L)
+    }
+
     //pub fn cf_opt1(&mut self) {
     //    let mut M = Self::new_large();
     //    let mut J = [0; N];
@@ -1199,6 +1258,15 @@ impl<const N: usize> MatrixNormalized<N> {
     //    let mut num_zeros = 0;
     //}
 
+    /// res = g * monom
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::MatrixNormalized;
+    /// let mut A: MatrixNormalized<64> = MatrixNormalized::init();
+    /// let mut B: MatrixNormalized<64> = MatrixNormalized::init();
+    /// // TODO
+    /// ```
     pub fn monomial_mul(res: &mut Self, g: &Self, monom: &Monomial<N>) {
         for src_col_idx in 0..N {
             for row_idx in 0..N {
@@ -1210,14 +1278,181 @@ impl<const N: usize> MatrixNormalized<N> {
         }
     }
 
+    /// res = g * monom
+    /// # Examples
     ///
-    pub fn blind<S>(&mut self, state: S) {
-        // TODO
+    /// ```
+    /// use less::matrix::MatrixNormalized;
+    /// let mut A: MatrixNormalized<64> = MatrixNormalized::init();
+    /// let mut B: MatrixNormalized<64> = MatrixNormalized::init();
+    /// // TODO
+    /// ```
+    pub fn permutation_mul(res: &mut Self, g: &Self, perm: &Permutation<N>) {
+        for src_col_idx in 0..N {
+            for row_idx in 0..N {
+                let pos = perm.perms[src_col_idx];
+                res.rows[row_idx][pos as usize] = g.rows[row_idx][src_col_idx];
+            }
+        }
     }
 
-    ///
-    pub fn cf(&mut self) {
-        // TODO
+    /// TODO doc
+    pub fn blind<S>(&mut self, state: &mut S)
+    where
+        S: XofReader
+    {
+        let left = Monomial::<N>::rand(state);
+        let right = Monomial::<N>::rand(state);
+
+        // right multiplication
+        let mut tmp = MatrixNormalized::init();
+        Self::monomial_mul(&mut tmp, self, &right);
+
+        // left multiplication
+        for i in 0..N {
+            let pos = left.perms[i] as usize;
+            let val = left.coeffs[i];
+            Vector::scalar(&mut self[i], &tmp[pos], val);
+        }
+    }
+
+    /// NOTE: non-constant time
+    /// NOTE: computes the result inplace
+    /// This is the second-fastest implementation of the canonical form function.
+    /// Fallback implementation if `cf` fails
+    /// \param G[in/out] non IS part of a generator matrix
+    /// \return 0 on failure
+    /// 		1 on success
+    pub fn ImprovedCFBase(&mut self) -> i32 {
+        let mut M = MatrixNormalized::<N>::new_large();
+        let mut touched = 0i32;
+        let mut J = [0u32; N];
+        let mut z = 0usize;
+
+        // count zeros in each row;
+        let mut max_zeros = 0u32;
+        let mut Z = [false; N];
+
+        for row in 0..N {
+            let num_zeros = Vector::count_zero(&self[row]);
+            Z[row] = num_zeros > 0;
+            if num_zeros < max_zeros {
+                continue
+            }
+            if num_zeros > max_zeros {
+                z = 1;                      // reset z
+                J[0] = row as u32;
+                max_zeros = num_zeros;
+                continue;
+            }
+            // num_zeros == max+zeros
+            J[z] = row as u32;
+            z += 1;
+        }
+
+        if z == N {
+            // TODO return self.CFOriginal();
+        }
+
+        let mut row_inv_data = Vector::<N>::init();
+        // NOTE: this is already "sorted"
+        let mut L = Multiset::<Q_PAD>::init();
+
+        // Check smallest rows of all matrices to find the smallest candidate
+        for row in 0..N {
+            if Z[row] { continue; }
+
+            let mut B = MatrixNormalized::<N>::init();
+            Vector::inv_non_ct(&mut row_inv_data, &self[row]);
+            for row2 in 0..z {
+                Vector::mul(&mut B[row2], &self[J[row2] as usize], &row_inv_data);
+            }
+
+            let ret = B.ScaleCF(&mut L);
+            if ret == 1 && B < M {
+                // TODO sort(B[0])
+                touched = 1;
+                M = B;
+            }
+        }
+
+        touched
+    }
+
+    /// translation of `ImprovedCF`
+    /// NOTE: non-constant time
+    /// NOTE: computes the result inplace
+    /// This is the fastest implementation of the canonical form function.
+    /// This function scans the matrix for the rows which probably lead
+    /// to the shortest canonical form. If this process fails it falls
+    /// back to either `CFOriginal` or `ImprovedCF`. The very slow `CFOriginal`
+    /// is only called if every row in the matrix contains zeros.
+    /// \param G[in/out] non IS part of a generator matrix
+    /// \return 0 on failure
+    /// 		1 on success/
+    pub fn cf(&mut self) -> i32 {
+        let mut J = [0u32; N];
+        let mut z = 0usize;
+        let mut smallest_scaling_row = 0usize;
+
+        // count zeros in each row;
+        let mut max_zeros = 0u32;
+        let mut Z = [false; N];
+
+        for row in 0..N {
+            let num_zeros = Vector::count_zero(&self[row]);
+            Z[row] = num_zeros > 0;
+            if num_zeros < max_zeros {
+                continue
+            }
+            if num_zeros > max_zeros {
+                z = 1;                      // reset z
+                J[0] = row as u32;
+                max_zeros = num_zeros;
+                continue;
+            }
+            // num_zeros == max+zeros
+            J[z as usize] = row as u32;
+            z += 1;
+        }
+
+        if z == N {
+            // TODO
+        }
+
+        let mut B = MatrixNormalized::<N>::init();
+        let mut row_inv_data = Vector::<N>::init();
+        // NOTE: this is already "sorted"
+        let mut L = Multiset::<Q_PAD>::init();
+
+        // Check smallest rows of all matricies to find the smallest candidate
+        for row in 0..N {
+            if Z[row] { continue; }
+
+            Vector::inv_non_ct(&mut row_inv_data, &self[row]);
+            for row2 in 0..z {
+                Vector::mul(&mut B[row2], &self[J[row2] as usize], &row_inv_data);
+            }
+
+            if B.ScaleCFSubPreprocess(z, &mut L) == 0 {
+                smallest_scaling_row = row;
+            }
+        }
+
+        // Calculate CF for best candidate
+        Vector::inv_non_ct(&mut row_inv_data, &self[smallest_scaling_row]);
+        for row2 in 0..N {
+            Vector::mul(&mut B[row2], &self[row2], &row_inv_data);
+        }
+        let ret = B.ScaleCF(&mut L);
+        // If candidate was not valid, fall back to regular approach
+        if ret != 1 {
+            // Best scaled row was not valid;
+            return self.ImprovedCFBase();
+        }
+
+        // TODO self = B;
+        ret
     }
 }
 
@@ -1252,6 +1487,14 @@ impl<'a, const N: usize> Sub for &'a mut MatrixNormalized<N> {
     }
 }
 
+impl<const N: usize> Mul<Permutation<N>> for MatrixNormalized<N> {
+    type Output = MatrixNormalized<N>;
+    fn mul(self, r: Permutation<N>) -> Self::Output {
+        let mut t = MatrixNormalized::init();
+        Self::permutation_mul(&mut t, &self, &r);
+        t
+    }
+}
 
 /// Direct access to a row
 impl<const N: usize> Index<usize> for MatrixNormalized<N> {
@@ -1267,11 +1510,6 @@ impl<const N: usize> IndexMut<usize> for MatrixNormalized<N> {
         &mut self.rows[index]
     }
 }
-//impl<const N: usize> fmt::Debug for MatrixNormalized<N> {
-//    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//        writeln!(f, "{:?}", self.rows)
-//    }
-//}
 
 
 /// use less::matrix::Matrix;
@@ -1301,7 +1539,7 @@ mod tests {
 
     #[test]
     fn rand() {
-        let a = Matrix::<N, M>::rand();
+        let a = Matrix::<N, M>::rand_from_seed::<Shake128>(&[0u8; 32]);
         println!("{}", a);
         for row in 0..a.nrows() {
             for col in 0..a.ncols() {
@@ -1394,7 +1632,7 @@ mod tests {
 
     #[test]
     fn rref() {
-        let mut a = Matrix::<N, M>::rand();
+        let mut a = Matrix::<N, M>::rand_from_seed::<Shake128>(&[0u8; 32]);
         let mut is_pivot_column = [0u8; M];
         let mut was_pivot_column = [0u8; M];
         let pvt_reuse_limit = M as u32;
@@ -1411,6 +1649,7 @@ mod normalized_tests {
     fn init() {
         let _ = MatrixNormalized::<N>::init();
     }
+
     #[test]
     fn from_u8() {
         let a = MatrixNormalized::<N>::from_u8(1);
@@ -1423,7 +1662,7 @@ mod normalized_tests {
 
     #[test]
     fn transpose() {
-        let a = MatrixNormalized::<N>::rand();
+        let a = MatrixNormalized::<N>::rand_from_seed::<Shake128>(&[0u8; 32]);
         let mut b = MatrixNormalized::<N>::init();
         MatrixNormalized::transpose(&mut b, &a);
 
@@ -1432,5 +1671,16 @@ mod normalized_tests {
                 assert_eq!(a[col][row], b[row][col]);
             }
         }
+    }
+
+    #[test]
+    fn blind() {
+        let mut hasher = Shake128::default();
+        hasher.update(b"123");
+        let mut reader = hasher.finalize_xof();
+
+        let mut a = MatrixNormalized::<N>::new();
+        MatrixNormalized::blind(&mut a, &mut reader);
+
     }
 }

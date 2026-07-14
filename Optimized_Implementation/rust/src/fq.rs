@@ -1,8 +1,7 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign, Mul, MulAssign, Div, DivAssign};
 use std::ops::Deref;
 use std::fmt::{ Display, Formatter, Result };
-use rand;
-
+use sha3::digest::XofReader;
 use crate::helper::compute_ct_mask;
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
@@ -20,11 +19,13 @@ impl Fq {
     pub const Q_BITS: u8 = 7;
     pub const ZERO: Fq   = Fq(0);
 
+    /// NOTE: just for debugging
     #[must_use]
     #[inline]
     pub fn rand() -> Self {
-        Fq(rand::random_range(0..(Fq::Q)))
+        Fq(17)
     }
+
 
     /// a mod q, a < 256
     #[must_use]
@@ -33,7 +34,7 @@ impl Fq {
         let sub_q = a.overflowing_sub(Fq::Q).0;
         let mask = (-((sub_q >> Fq::Q_BITS) as i8)) as u8;
         let ret = (mask & Fq::Q).overflowing_add(sub_q).0;
-        return ret;
+        ret
     }
 
     /// constant time reduction
