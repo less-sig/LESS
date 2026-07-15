@@ -14,7 +14,7 @@ edition = "2024"
 
 
 [dependencies]
-sha3 = "0.10.8"
+sha3 = "0.10.9"
 num-traits = "0.2.19"
 
 [profile.release]

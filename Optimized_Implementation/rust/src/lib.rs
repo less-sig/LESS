@@ -15,6 +15,7 @@ pub mod utils;
 pub mod transpose;
 pub mod multiset;
 pub mod constants;
+pub mod tree;
 //#[cfg(test)]
 //mod tests {
 //    use super::*;

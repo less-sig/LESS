@@ -21,8 +21,7 @@ pub fn sample_challenge(
     digest: &[u8; HASH_DIGEST_LENGTH],
 ) {
     // Initialize CSPRNG from the digest
-    let mut shake_state = Shake128::default();
-    csprng_initialize(&mut shake_state, digest);
+    let mut shake_state = csprng_initialize::<Shake128>(digest);
 
     let max_keypair_idx: u32 = NUM_KEYPAIRS as u32 - 1;
     let keypair_bits: u32 = (max_keypair_idx.ilog2() + 1) as u32;
@@ -46,8 +45,8 @@ pub fn sample_challenge(
         for i in (T - W)..T {
             loop {
                 if c == 0 {
-                    let buf: [u8; 8] = [0u8; 8];
-                    // TODO csprng_randombytes(&mut buf, &mut shake_state);
+                    let mut buf: [u8; 8] = [0u8; 8];
+                    csprng_randombytes(&mut buf, &mut shake_state);
                     rnd_buf = u64::from_le_bytes(buf);
                     c = 64 / keypair_bits;
                 }
@@ -78,8 +77,8 @@ pub fn sample_challenge(
         let mut pos: usize;
         loop {
             if c == 0 {
-                let buf: [u8; 8] = [0u8; 8];
-                // TODO csprng_randombytes(&mut buf, &mut shake_state);
+                let mut buf: [u8; 8] = [0u8; 8];
+                csprng_randombytes(&mut buf, &mut shake_state);
                 rnd_buf = u64::from_le_bytes(buf);
                 c = 64 / position_bits;
             }

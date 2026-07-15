@@ -13,6 +13,10 @@ use crate::constants::{
 };
 use crate::fq::Fq;
 use crate::multiset::Multiset;
+use crate::prng::{
+    rand_range_q_state_elements,fq_star_rnd_state_elements
+};
+
 #[cfg(target_arch = "x86_64")]
 use crate::opt::{
     gf127_row_add_avx2, gf127_row_add2_avx2,
@@ -44,7 +48,6 @@ use crate::opt::{
     gf127_row_acc_neon, gf127_row_acc_inv_neon,
     gf127_row_contains_zero_neon, gf127_row_count_zero_avx2,
 };
-use crate::prng::rand_range_q_state_elements;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(align(32))] // NOTE alignment only for avx2/avx512
@@ -60,7 +63,7 @@ impl <const N: usize> Vector<N>{
     /// ```
     /// use less::vector::Vector;
     /// use less::fq::Fq;
-    /// let result: Vector<100> = Vector::init();
+    /// let result: Vector<100> = Vector::default();
     /// assert_eq!(result[0].0, 0);
     /// assert_eq!(result.dimension(), 100);
     /// ```
@@ -71,25 +74,14 @@ impl <const N: usize> Vector<N>{
     /// # Returns
     /// A new vector element
     #[inline]
-    pub fn init() -> Self {
+    pub fn default() -> Self {
         Self {
             0: core::array::from_fn(|_| Fq::default() ),
         }
-    }
-    /// same as ::init()
-    #[inline]
-    pub fn new() -> Vector<N> {
-        Vector {
-            0: [Fq(0); N],
-        }
-    }
-
-    /// same as ::init()
-    #[inline]
-    pub fn zero(&mut self) {
-        for i in 0..N {
-            self.0[i] = Fq(0);
-        }
+        // both valid
+        // Vector {
+        //     0: [Fq(0); N],
+        // }
     }
 
     /// sample a random vector
@@ -97,8 +89,18 @@ impl <const N: usize> Vector<N>{
     where
         S: XofReader
     {
-        let mut a = Self::init();
+        let mut a = Self::default();
         rand_range_q_state_elements(&mut a.0, state);
+        a
+    }
+
+    /// sample a random vector
+    pub fn rand_star<S>(state: &mut S) -> Self
+    where
+        S: XofReader
+    {
+        let mut a = Self::default();
+        fq_star_rnd_state_elements(&mut a.0, state);
         a
     }
 
@@ -126,7 +128,7 @@ impl <const N: usize> Vector<N>{
     /// same as ::init()
     #[inline]
     pub fn from_u8(val: u8) -> Self {
-        let mut ret = Self::new();
+        let mut ret = Self::default();
         for i in 0..N {
             ret.0[i] = Fq(val);
         }
@@ -139,8 +141,8 @@ impl <const N: usize> Vector<N>{
     ///
     /// ```
     /// use less::vector::Vector;
-    /// let A: Vector<100> = Vector::init();
-    /// let B: Vector<100> = Vector::init();
+    /// let A: Vector<100> = Vector::default();
+    /// let B: Vector<100> = Vector::default();
     /// A >= B;
     /// A <= B;
     /// A > B;
@@ -152,8 +154,8 @@ impl <const N: usize> Vector<N>{
     ///  x if a  > b
     /// -x if a  < b
     fn partial_cmp(a: &Self, b: &Self) -> Option<Ordering>{
-        let mut aa = Multiset::<Q_PAD>::init();
-        let mut bb = Multiset::<Q_PAD>::init();
+        let mut aa = Multiset::<Q_PAD>::default();
+        let mut bb = Multiset::<Q_PAD>::default();
         Multiset::from_row(&mut aa, a);
         Multiset::from_row(&mut bb, b);
         Multiset::<Q_PAD>::partial_cmp(&aa, &bb)
@@ -165,8 +167,8 @@ impl <const N: usize> Vector<N>{
     ///
     /// ```
     /// use less::vector::Vector;
-    /// let A: Vector<100> = Vector::init();
-    /// let B: Vector<100> = Vector::init();
+    /// let A: Vector<100> = Vector::default();
+    /// let B: Vector<100> = Vector::default();
     /// A == B;
     /// A != B;
     /// ```
@@ -182,7 +184,7 @@ impl <const N: usize> Vector<N>{
     ///
     /// ```
     /// use less::vector::Vector;
-    /// let result: Vector<100> = Vector::init();
+    /// let result: Vector<100> = Vector::default();
     /// assert_eq!(result.dimension(), 100);
     /// ```
     ///
@@ -627,7 +629,7 @@ impl <const N: usize> Vector<N>{
     /// ```
     /// use less::vector::Vector;
     /// const N: usize = 128;
-    /// let mut row_out = Vector::<N>::new();
+    /// let mut row_out = Vector::<N>::default();
     /// let row1 = Vector::<N>::from_u8(1);
     /// Vector::inv_non_ct(&mut row_out, &row1);
     /// ```
@@ -833,7 +835,7 @@ impl <const N: usize> Add for Vector<N> {
     type Output = Vector<N>;
     #[inline]
     fn add(self, r: Vector<N>) -> Vector<N> {
-        let mut ret = Vector::new();
+        let mut ret = Vector::default();
         Vector::<N>::add(&mut ret, &self, &r);
         ret
     }
@@ -849,7 +851,7 @@ impl <const N: usize> Sub for Vector<N> {
     type Output = Vector<N>;
     #[inline]
     fn sub(self, r: Vector<N>) -> Vector<N> {
-        let mut ret = Vector::new();
+        let mut ret = Vector::default();
         Vector::<N>::sub(&mut ret, &self, &r);
         ret
     }
@@ -865,7 +867,7 @@ impl <const N: usize> Mul for Vector<N> {
     type Output = Vector<N>;
     #[inline]
     fn mul(self, r: Vector<N>) -> Vector<N> {
-        let mut ret = Vector::new();
+        let mut ret = Vector::default();
         Vector::<N>::mul(&mut ret, &self, &r);
         ret
     }
@@ -921,7 +923,7 @@ mod tests {
     
     #[test]
     fn init() {
-        let c = Vector::<N>::new();
+        let c = Vector::<N>::default();
         for i in 0..c.dimension() {
             assert_eq!(c[i].0, 0);
         }
@@ -946,7 +948,7 @@ mod tests {
 
     #[test]
     fn dimension() {
-        let c = Vector::<N>::new();
+        let c = Vector::<N>::default();
         assert_eq!(c.dimension(), N);
     }
 
@@ -1015,7 +1017,7 @@ mod tests {
 
     #[test]
     fn acc() {
-        let c = Vector::<N>::new();
+        let c = Vector::<N>::default();
         assert_eq!(Vector::acc(&c).0, 0);
 
         let c = Vector::<N>::from_u8(1);
@@ -1024,8 +1026,8 @@ mod tests {
 
     #[test]
     fn inv() {
-        let a = Vector::<N>::new();
-        let mut c = Vector::<N>::new();
+        let a = Vector::<N>::default();
+        let mut c = Vector::<N>::default();
         Vector::inv_non_ct(&mut c, &a);
         for i in 0..N {
             assert_eq!(c[i], Fq(0));
@@ -1034,7 +1036,7 @@ mod tests {
 
     #[test]
     fn all_same() {
-        let c = Vector::<N>::new();
+        let c = Vector::<N>::default();
         assert_eq!(Vector::all_same(&c), true);
         let c = Vector::<N>::from_u8(1);
         assert_eq!(Vector::all_same(&c), true);
@@ -1045,9 +1047,9 @@ mod tests {
 
     #[test]
     fn contain_zero() {
-        let c = Vector::<N>::new();
+        let c = Vector::<N>::default();
         assert_eq!(Vector::contain_zero(&c), true);
-        let c = Vector::<N>::from_u8(1);
+        let c = Vector::<128>::from_u8(1);
         assert_eq!(Vector::contain_zero(&c), false);
         let mut c = Vector::<N>::from_u8(1);
         c[N-1] = Fq(0);
@@ -1056,7 +1058,7 @@ mod tests {
 
     #[test]
     fn count_zero() {
-        let c = Vector::<N>::new();
+        let c = Vector::<N>::default();
         assert_eq!(Vector::count_zero(&c), N as u32);
         let c = Vector::<N>::from_u8(1);
         assert_eq!(Vector::count_zero(&c), 0);

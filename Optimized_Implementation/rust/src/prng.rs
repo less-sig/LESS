@@ -28,10 +28,31 @@ pub fn randombytes(buf: &mut [u8]) {
 }
 
 
-pub fn csprng_initialize<R>(state: &mut R, buf: &[u8]) where R: ExtendableOutput {
-    state.update(buf);
-    // TODO state.finalize_xof();
+pub fn csprng_initialize<H>(seed: &[u8]) -> H::Reader
+where
+    H: Default + Update + ExtendableOutput,
+{
+    let mut hasher = H::default();
+    hasher.update(seed);
+    hasher.finalize_xof()
 }
+
+
+/// \param shake_state[out] uninitialized shake structure
+/// \param seed[in]: seed which is feed into the prng
+/// \param domain_seperator[in]: domain seperator as defined in the spec,
+///         which is fed into the prng after the seed
+pub fn csprng_initialize_ds<H>(seed: &[u8], domain_seperator: u16) -> H::Reader
+where
+    H: Default + Update + ExtendableOutput,
+{
+    let mut hasher = H::default();
+    hasher.update(seed);
+    hasher.update(&domain_seperator.to_le_bytes());
+    hasher.finalize_xof()
+}
+
+
 pub fn csprng_randombytes<R>(buf: &mut [u8], state: &mut  R) where R: XofReader {
     state.read(buf);
 }
@@ -71,10 +92,21 @@ pub fn rand_range_q_state_elements<R>(
     buffer: &mut [Fq],
     state: &mut R,
 )
-where 
+where
     R: XofReader
 {
     rand_range_impl::<0, R>(buffer, state);
+}
+
+
+pub fn fq_star_rnd_state_elements<R>(
+    buffer: &mut [Fq],
+    state: &mut R,
+)
+where 
+    R: XofReader
+{
+    rand_range_impl::<1, R>(buffer, state);
 }
 
 

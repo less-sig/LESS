@@ -17,7 +17,7 @@ impl<const N:usize> Multiset<N> {
     ///
     /// ```
     /// use less::multiset::Multiset;
-    /// let result: Multiset<100> = Multiset::init();
+    /// let result: Multiset<100> = Multiset::default();
     /// assert_eq!(result[0], 0);
     /// assert_eq!(result.dimension(), 100);
     /// ```
@@ -28,7 +28,7 @@ impl<const N:usize> Multiset<N> {
     /// # Returns
     /// A new multiset element
     #[inline]
-    pub fn init() -> Self {
+    pub fn default() -> Self {
         Self([0; N])
     }
 
@@ -46,7 +46,7 @@ impl<const N:usize> Multiset<N> {
     /// A new multiset element
     #[inline]
     pub fn from_vector(coefficients: &[u8; N]) -> Self {
-        let mut ret = Self::init();
+        let mut ret = Self::default();
         for i in 0..N {
             ret[coefficients[i] as usize] += 1;
         }
@@ -60,7 +60,7 @@ impl<const N:usize> Multiset<N> {
     /// use less::multiset::Multiset;
     /// use less::vector::Vector;
     /// let t = Vector::<100>::from_u8(1);
-    /// let mut c = Multiset::<100>::init();
+    /// let mut c = Multiset::<100>::default();
     /// Multiset::<100>::from_row(&mut c, &t);
     /// assert_eq!(c[0], 0);
     /// assert_eq!(c[1], 100);
@@ -90,7 +90,7 @@ impl<const N:usize> Multiset<N> {
     /// A new multiset element
     #[inline]
     pub fn from_matrix<const M: usize>(m: &MatrixNormalized<M>) -> [Self; M] {
-        let mut tmp: [Multiset<N>; M] = core::array::from_fn(|_| Multiset::<N>::init() );
+        let mut tmp: [Multiset<N>; M] = core::array::from_fn(|_| Multiset::<N>::default() );
         for i in 0..N {
             Self::from_row::<M>(&mut tmp[i], &m.rows[i]);
         }
@@ -104,8 +104,8 @@ impl<const N:usize> Multiset<N> {
     ///
     /// ```
     /// use less::multiset::Multiset;
-    /// let A: Multiset<100> = Multiset::init();
-    /// let B: Multiset<100> = Multiset::init();
+    /// let A: Multiset<100> = Multiset::default();
+    /// let B: Multiset<100> = Multiset::default();
     /// A >= B;
     /// A <= B;
     /// A > B;
@@ -130,8 +130,8 @@ impl<const N:usize> Multiset<N> {
     ///
     /// ```
     /// use less::multiset::Multiset;
-    /// let A: Multiset<100> = Multiset::init();
-    /// let B: Multiset<100> = Multiset::init();
+    /// let A: Multiset<100> = Multiset::default();
+    /// let B: Multiset<100> = Multiset::default();
     /// A == B;
     /// A != B;
     /// ```
@@ -144,7 +144,7 @@ impl<const N:usize> Multiset<N> {
     ///
     /// ```
     /// use less::multiset::Multiset;
-    /// let result: Multiset<100> = Multiset::init();
+    /// let result: Multiset<100> = Multiset::default();
     /// assert_eq!(result.dimension(), 100);
     /// ```
     /// # Returns
@@ -159,7 +159,7 @@ impl<const N:usize> Multiset<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let result: MatrixNormalized<100> = MatrixNormalized::init();
+    /// let result: MatrixNormalized<100> = MatrixNormalized::default();
     /// ```
     /// static internal function implementing the histogram function
     #[inline]
@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn init() {
-        let c = Multiset::<N>::init();
+        let c = Multiset::<N>::default();
         for i in 0..N {
             assert_eq!(c[i], 0);
         }
@@ -216,7 +216,7 @@ mod tests {
     #[test]
     fn from_row() {
         let t = Vector::<N>::from_u8(1);
-        let mut c = Multiset::<N>::init();
+        let mut c = Multiset::<N>::default();
 
         Multiset::<N>::from_row(&mut c, &t);
         assert_eq!(c[0], 0);

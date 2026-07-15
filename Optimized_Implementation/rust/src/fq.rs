@@ -1,7 +1,6 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign, Mul, MulAssign, Div, DivAssign};
 use std::ops::Deref;
 use std::fmt::{ Display, Formatter, Result };
-use sha3::digest::XofReader;
 use crate::helper::compute_ct_mask;
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
