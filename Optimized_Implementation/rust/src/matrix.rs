@@ -1375,7 +1375,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
         if self.SortRows(N, L) == 0 {
             return 0;
         }
-        self.SortCols(N); // NOTE: must be N_PAD
+        self.SortCols(N_PAD); // NOTE: must be N_PAD
         1
     }
 
@@ -1459,8 +1459,9 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
     where
         S: XofReader
     {
-        let left = Monomial::<N, N_PAD>::rand(state);
+        // the randomness for `right` is drawn before the one for `left`
         let right = Monomial::<N, N_PAD>::rand(state);
+        let left = Monomial::<N, N_PAD>::rand(state);
 
         // right multiplication
         let mut tmp = MatrixNormalized::default();
@@ -1508,11 +1509,14 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
             z += 1;
         }
 
+        /// NOTE: fallback solution if everything falls apart.
+        /// NOTE: reaching this needs every row to contain the same number of
+        /// zeros, `CFOriginal` is not part of this port.
         if z == N {
-            assert!(false);
-            // TODO return self.CFOriginal();
+            return 0;
         }
 
+        let mut B = MatrixNormalized::<N, N_PAD>::default();
         let mut row_inv_data = Vector::<N, N_PAD>::default();
         // NOTE: this is already "sorted"
         let mut L = Multiset::<Q_PAD>::default();
@@ -1521,18 +1525,31 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
         for row in 0..N {
             if Z[row] { continue; }
 
-            let mut B = MatrixNormalized::<N, N_PAD>::default();
             Vector::inv_non_ct(&mut row_inv_data, &self[row]);
             for row2 in 0..z {
                 Vector::mul(&mut B[row2], &self[J[row2] as usize], &row_inv_data);
             }
 
-            let ret = B.ScaleCF(&mut L);
-            if ret == 1 && B < M {
-                // TODO sort(B[0])
-                touched = 1;
-                M = B;
+            if B.scale_cf_preprocess_v1(z, &L) == 1 {
+                for row2 in 0..N {
+                    Vector::mul(&mut B[row2], &self[row2], &row_inv_data);
+                }
+
+                let ret = B.ScaleCF(&mut L);
+                // NOTE: `compare_matrices` has the opposite sign convention
+                // of `partial_cmp`, so this is `compare_matrices(B, M) < 0`
+                if ret == 1 && MatrixNormalized::partial_cmp(&B, &M) > 0 {
+                    Multiset::<Q_PAD>::from_row(&mut L, &B[0]);
+                    touched = 1;
+                    for row2 in 0..N {
+                        M[row2].0 = B[row2].0;
+                    }
+                }
             }
+        }
+
+        for row in 0..N {
+            self[row].0 = M[row].0;
         }
 
         touched
@@ -1575,9 +1592,8 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
             z += 1;
         }
 
+        // NOTE: fallback solution if everything falls apart, see `ImprovedCFBase`
         if z == N {
-            // TODO
-            assert!(false);
             return 0;
         }
 
@@ -1595,7 +1611,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
                 Vector::mul(&mut B[row2], &self[J[row2] as usize], &row_inv_data);
             }
 
-            if B.ScaleCFSubPreprocess(z, &mut L) == 0 {
+            if B.ScaleCFSubPreprocess(z, &mut L) == 1 {
                 smallest_scaling_row = row;
             }
         }
@@ -1612,7 +1628,9 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
             return self.ImprovedCFBase();
         }
 
-        // TODO self = B;
+        for row in 0..N {
+            self[row].0 = B[row].0;
+        }
         ret
     }
 }
@@ -1907,6 +1925,35 @@ mod normalized_tests {
         for row in 1..N {
             assert!(t[row - 1] <= t[row], "column {} is out of order", row);
         }
+    }
+
+    /// the canonical form must be invariant under a monomial action: for any
+    /// monomial Q, CF(G) == CF(G*Q)
+    #[test]
+    fn cf_is_invariant_under_a_monomial_action() {
+        use crate::config::Xof;
+        use crate::prng::csprng_initialize;
+
+        let mut hits = 0;
+        for seed in 0..8u8 {
+            let mut s = csprng_initialize::<Xof>(&[seed; 32]);
+            let g = MatrixNormalized::<N, N>::rand(&mut s);
+
+            let mut a = MatrixNormalized::<N, N>::default();
+            for row in 0..N { a[row].0 = g[row].0; }
+
+            let monom = Monomial::<N, N>::rand(&mut s);
+            let mut b = MatrixNormalized::<N, N>::default();
+            MatrixNormalized::monomial_mul(&mut b, &g, &monom);
+
+            if a.cf() == 1 && b.cf() == 1 {
+                hits += 1;
+                for row in 0..N {
+                    assert_eq!(a[row], b[row], "seed {}: row {} differs", seed, row);
+                }
+            }
+        }
+        assert!(hits > 0, "cf never succeeded");
     }
 
     /// sorting twice must not move anything the second time
