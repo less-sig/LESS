@@ -73,8 +73,10 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
         // static_assert!(M <= M_PRIME);
         let mut placed_dense_cols = 0usize;
         let mut full = Self::default();
-        for col_idx in 0..M {
-            if (placed_dense_cols < M - N) && (col_idx as u16 == column_pos[placed_dense_cols]) {
+        // only the first `crate::config::N` columns belong to the code, the
+        // remaining ones of the padded row stay zero
+        for col_idx in 0..crate::config::N {
+            if (placed_dense_cols < crate::config::N - crate::config::K) && (col_idx as u16 == column_pos[placed_dense_cols]) {
                 // non-pivot column, restore one full column
                 for row_idx in 0..N {
                     full.rows[row_idx][col_idx] = compact.rows[row_idx][placed_dense_cols];
@@ -356,7 +358,8 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// - `r2`: index of the second row
     pub fn monomial_mul<const M_prime: usize>(res: &mut Self, g: &Self, monom: &Monomial<M_prime>) {
         // static_assert!(M <= M_prime);
-        for src_col_idx in 0..M {
+        // `M_prime` is the length of the code, the padding is not permuted
+        for src_col_idx in 0..M_prime {
             for row_idx in 0..N {
                 let pos = monom.perms[src_col_idx];
                 let a = g.rows[row_idx][src_col_idx];
@@ -390,9 +393,12 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
                                 pvt_reuse_limit: usize) -> bool {
         let mut pvt_reuse_cnt: usize = 0;
 
+        // row swap pre-process - swap previous pivot elements to corresponding
+        // row to reduce likelihood of corruption
         if pvt_reuse_limit != 0 {
-            // TODO: loop boundaries probably not correct
-            for preproc_col in N - 1 .. 0 {
+            // `N` is the number of rows, the scan goes from the last row
+            // down to the first one.
+            for preproc_col in (0..N).rev() {
                 if was_pivot_column[preproc_col as usize] == 1 {
                     let mut pivot_el_row = 0;
                     for row in 0..N {
@@ -452,7 +458,8 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
                 false => Fq::inv_non_ct(self[pivot_row][pivot_column]),
             };
 
-            for col in pivot_column..N {
+            // rescaling and elimination run over all `M` columns
+            for col in pivot_column..M {
                 self[pivot_row][col] = scaling_factor * self[pivot_row][col];
             }
 
@@ -460,7 +467,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
             for row_idx in 0..N {
                 if row_idx != pivot_row {
                     let multiplier = self[row_idx][pivot_column];
-                    for col_idx in 0..N {
+                    for col_idx in 0..M {
                         let tmp = multiplier * self[pivot_row][col_idx];
                         self[row_idx][col_idx] -= tmp;
                     }
@@ -479,12 +486,17 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// # Examples
     ///
     /// ```
+    /// use sha3::Shake128;
     /// use less::matrix::Matrix;
-    /// const N: usize = 32;
-    /// let a = Matrix::<N, N>::from_u8(5);
-    /// let mut is_pivot_column = [0u8; N];
-    /// for i in 0..8 { is_pivot_column[i] = 1; }
-    /// let mut compressed = [0u8; 1024];
+    /// use less::config::{K, N_pad, RREF_MAT_PACKEDBYTES};
+    /// let mut a = Matrix::<K, N_pad>::rand_from_seed::<Shake128>(&[0u8; 32]);
+    /// let mut is_pivot_column = [0u8; N_pad];
+    /// let mut was_pivot_column = [0u8; N_pad];
+    /// assert!(a.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, K));
+    ///
+    /// // an RREF generator has exactly K pivot columns, so the packed form
+    /// // fills RREF_MAT_PACKEDBYTES exactly
+    /// let mut compressed = [0u8; RREF_MAT_PACKEDBYTES];
     /// a.compress(&mut compressed, &is_pivot_column);
     /// ```
     ///
@@ -498,7 +510,8 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
         is_pivot_column: &[u8; M],
     ) {
         /* Compress pivot flags */
-        for col_byte in 0..(M / 8) {
+        // the code has `crate::config::N` columns, the rest of the row is padding
+        for col_byte in 0..(crate::config::N / 8) {
             compressed[col_byte] =
                 (is_pivot_column[8 * col_byte + 0] << 0) |
                 (is_pivot_column[8 * col_byte + 1] << 1) |
@@ -512,23 +525,23 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
 
         /* Handle category-dependent tail */
         let mut compress_idx: usize;
-        if M == 252 || M == 548 {
-            compressed[N / 8] =
-                (is_pivot_column[N - 4] << 0) |
-                (is_pivot_column[N - 3] << 1) |
-                (is_pivot_column[N - 2] << 2) |
-                (is_pivot_column[N - 1] << 3);
+        if crate::config::N == 252 || crate::config::N == 548 {
+            compressed[crate::config::N / 8] =
+                (is_pivot_column[crate::config::N - 4] << 0) |
+                (is_pivot_column[crate::config::N - 3] << 1) |
+                (is_pivot_column[crate::config::N - 2] << 2) |
+                (is_pivot_column[crate::config::N - 1] << 3);
 
-            compress_idx = N / 8 + 1;
+            compress_idx = crate::config::N / 8 + 1;
         } else {
-            compress_idx = N / 8;
+            compress_idx = crate::config::N / 8;
         }
 
         /* Compress non-pivot columns row-by-row */
         let mut encode_state: u8 = 0;
 
         for row_idx in 0..N {
-            for col_idx in 0..M {
+            for col_idx in 0..crate::config::N {
                 if is_pivot_column[col_idx] == 0 {
                     let val: u8 = self[row_idx][col_idx].0;
 
@@ -591,20 +604,24 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// # Examples
     ///
     /// ```
+    /// use sha3::Shake128;
     /// use less::matrix::Matrix;
-    /// const N: usize = 32;
-    /// let a = Matrix::<N, N>::from_u8(5);
-    /// let mut is_pivot_column = [0u8; N];
-    /// for i in 0..8 { is_pivot_column[i] = 1; }
-    /// let mut compressed = [0u8; 1024];
+    /// use less::config::{K, N, N_pad, RREF_MAT_PACKEDBYTES};
+    /// let mut a = Matrix::<K, N_pad>::rand_from_seed::<Shake128>(&[0u8; 32]);
+    /// let mut is_pivot_column = [0u8; N_pad];
+    /// let mut was_pivot_column = [0u8; N_pad];
+    /// assert!(a.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, K));
+    ///
+    /// let mut compressed = [0u8; RREF_MAT_PACKEDBYTES];
     /// a.compress(&mut compressed, &is_pivot_column);
     ///
-    /// let mut b = Matrix::<N, N>::default();
-    /// let mut flags = [0u8; N];
+    /// // expand is the exact inverse of compress on an RREF matrix
+    /// let mut b = Matrix::<K, N_pad>::default();
+    /// let mut flags = [0u8; N_pad];
     /// b.expand(&compressed, &mut flags);
-    /// assert_eq!(flags, is_pivot_column);
-    /// for row in 0..N {
-    ///     for col in 8..N {
+    /// assert_eq!(flags[..N], is_pivot_column[..N]);
+    /// for row in 0..K {
+    ///     for col in 0..N {
     ///         assert_eq!(b[row][col], a[row][col]);
     ///     }
     /// }
@@ -617,14 +634,14 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     pub fn expand(
         &mut self,
         compressed: &[u8],
-        is_pivot_column: &mut [u8; N]) {
+        is_pivot_column: &mut [u8; M]) {
         /* Initialize pivot flags */
-        for i in 0..N {
+        for i in 0..crate::config::N {
             is_pivot_column[i] = 0;
         }
 
         /* Decompress pivot flags */
-        for col_byte in 0..(N / 8) {
+        for col_byte in 0..(crate::config::N / 8) {
             let b = compressed[col_byte];
             is_pivot_column[col_byte * 8 + 0] = (b >> 0) & 0x1;
             is_pivot_column[col_byte * 8 + 1] = (b >> 1) & 0x1;
@@ -638,16 +655,16 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
 
         /* Category-dependent tail */
         let mut compress_idx: usize;
-        if M == 252 || M == 548 {
-            let b = compressed[N / 8];
-            is_pivot_column[N - 4] = (b >> 0) & 0x1;
-            is_pivot_column[N - 3] = (b >> 1) & 0x1;
-            is_pivot_column[N - 2] = (b >> 2) & 0x1;
-            is_pivot_column[N - 1] = (b >> 3) & 0x1;
+        if crate::config::N == 252 || crate::config::N == 548 {
+            let b = compressed[crate::config::N / 8];
+            is_pivot_column[crate::config::N - 4] = (b >> 0) & 0x1;
+            is_pivot_column[crate::config::N - 3] = (b >> 1) & 0x1;
+            is_pivot_column[crate::config::N - 2] = (b >> 2) & 0x1;
+            is_pivot_column[crate::config::N - 1] = (b >> 3) & 0x1;
 
-            compress_idx = N / 8 + 1;
+            compress_idx = crate::config::N / 8 + 1;
         } else {
-            compress_idx = N / 8;
+            compress_idx = crate::config::N / 8;
         }
 
         /* Decompress matrix row-by-row */
@@ -656,7 +673,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
         for row_idx in 0..N {
             let mut pivot_idx: usize = 0;
 
-            for col_idx in 0..M {
+            for col_idx in 0..crate::config::N {
                 if is_pivot_column[col_idx] == 0 {
                     let val: u8 = match decode_state {
                         0 => {

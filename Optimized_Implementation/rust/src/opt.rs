@@ -894,10 +894,12 @@ pub fn gf127_row_add_avx512<const N: usize>(c: &mut Vector<N>,
         let ptr2 = b.as_ptr();
         let ptr_out = c.as_ptr();
 
+        // `N` is a multiple of 32, but not necessarily of 64, so the 64 byte
+        // loop has to stop before the tail
         let mut off: usize = 0;
 
         if N >= 64 {
-            for col in (0..N).step_by(64) {
+            for col in (0..N - (N % 64)).step_by(64) {
                 let ta: __m512i = _mm512_load_si512(ptr1.add(col) as *const __m512i);
                 let tb: __m512i = _mm512_load_si512(ptr2.add(col) as *const __m512i);
                 let tc = gf127_add_u512(ta, tb);
@@ -938,7 +940,7 @@ pub fn gf127_row_add2_avx512<const N: usize>(c: &mut Vector<N>,
 
         let mut off: usize = 0;
         if N >= 64 {
-            for col in (0..N).step_by(64) {
+            for col in (0..N - (N % 64)).step_by(64) {
                 let ta: __m512i = _mm512_load_si512(ptr1.add(col) as *const __m512i);
                 let tb: __m512i = _mm512_load_si512(ptr_out.add(col) as *const __m512i);
                 let tc = gf127_add_u512(ta, tb);
@@ -1111,10 +1113,12 @@ pub fn gf127_row_sub_avx512<const N: usize>(c: &mut Vector<N>,
         let ptr2 = b.as_ptr(); // *const u8
         let ptr_out = c.as_ptr(); // *const u8
 
+        // `N` is a multiple of 32, but not necessarily of 64, so the 64 byte
+        // loop has to stop before the tail
         let mut off: usize = 0;
 
         if N >= 64 {
-            for col in (0..N).step_by(64) {
+            for col in (0..N - (N % 64)).step_by(64) {
                 let ta: __m512i = _mm512_load_si512(ptr1.add(col) as *const __m512i);
                 let tb: __m512i = _mm512_load_si512(ptr2.add(col) as *const __m512i);
                 let tc = gf127_sub_u512(ta, tb);
@@ -1153,10 +1157,12 @@ pub fn gf127_row_sub2_avx512<const N: usize>(c: &mut Vector<N>,
         let ptr1 = a.as_ptr(); // *const u8
         let ptr_out = c.as_ptr(); // *const u8
 
+        // `N` is a multiple of 32, but not necessarily of 64, so the 64 byte
+        // loop has to stop before the tail
         let mut off: usize = 0;
 
         if N >= 64 {
-            for col in (0..N).step_by(64) {
+            for col in (0..N - (N % 64)).step_by(64) {
                 let ta: __m512i = _mm512_load_si512(ptr1.add(col) as *const __m512i);
                 let tb: __m512i = _mm512_load_si512(ptr_out.add(col) as *const __m512i);
                 let tc = gf127_sub_u512(tb, ta);
@@ -1585,7 +1591,7 @@ pub fn gf127_row_acc_inv_avx512<const N: usize>(row: &Vector<N>) -> u8 {
         let mut off = 0;
 
         if N >= 64 {
-            for col in (0..N).step_by(64) {
+            for col in (0..N - (N % 64)).step_by(64) {
                 let a = _mm512_load_si512(ptr.add(col) as *const __m512i);
                 let t = _mm512_permutex2var_epi8(t1, a, t2);
                 _mm512_store_si512(ptr_out.add(col) as *mut __m512i, t);
@@ -1593,7 +1599,7 @@ pub fn gf127_row_acc_inv_avx512<const N: usize>(row: &Vector<N>) -> u8 {
             }
         }
         
-        for col in (off..N).step_by(64) {
+        for col in (off..N).step_by(32) {
             let b = _mm256_load_si256(ptr.add(col) as *const __m256i);
             let a = _mm512_castsi256_si512(b);
             let t = _mm512_permutex2var_epi8(t1, a, t2);
@@ -1803,10 +1809,12 @@ pub fn gf127_row_scalar_mul_avx512_non_ct<const N: usize>(row: &mut Vector<N>,
         let tab = gf127_scalar_mul_gen_avx512(s);
         let ptr = row.as_ptr();
 
+        // `N` is a multiple of 32, but not necessarily of 64, so the 64 byte
+        // loop has to stop before the tail
         let mut off: usize = 0;
 
         if N >= 64 {
-            for col in (0..N).step_by(64) {
+            for col in (0..N - (N % 64)).step_by(64) {
                 let a0: __m512i = _mm512_load_si512(ptr.add(col + 0) as *const __m512i);
                 let a1 = gf127_scalar_mul_avx512(a0, tab);
                 _mm512_store_si512(ptr.add(col) as *mut __m512i, a1);
@@ -1972,7 +1980,7 @@ pub fn gf127_row_scalar_mul2_avx512_non_ct<const N: usize>(row_out: &mut Vector<
 
         let mut off: usize = 0;
         if N >= 64 {
-            for col in (0..N).step_by(64) {
+            for col in (0..N - (N % 64)).step_by(64) {
                 let a0: __m512i = _mm512_load_si512(ptr_in.add(col + 0) as *const __m512i);
                 let a1 = gf127_scalar_mul_avx512(a0, tab);
                 _mm512_store_si512(ptr_out.add(col) as *mut __m512i, a1);
@@ -2056,7 +2064,7 @@ pub fn gf127_row_inv_avx512<const N: usize>(row_out: &mut Vector<N>,
        
         let mut off: usize = 0;
         if N >= 64 {
-            for col in (0..N).step_by(64) {
+            for col in (0..N - (N % 64)).step_by(64) {
                 let a: __m512i = _mm512_load_si512(ptr.add(col) as *const __m512i);
                 let t = _mm512_permutex2var_epi8(t0, a, t1);
                 _mm512_store_si512(ptr_out.add(col) as *mut __m512i, t);
@@ -2174,7 +2182,7 @@ pub fn gf127_row_contains_zero_avx512<const N: usize>(row: &Vector<N>) -> bool {
         let mut acc: __mmask64 = 0;
 
         if N >= 64 {
-            for col in (0..N).step_by(64) {
+            for col in (0..N - (N % 64)).step_by(64) {
                 let t0: __m512i = _mm512_load_si512(ptr1.add(col) as *const __m512i);
                 acc |= _mm512_cmp_epu8_mask(t0, zero, _MM_CMPINT_EQ);
                 off += 64;
@@ -2318,7 +2326,7 @@ pub fn gf127_row_count_zero_neon<const N: usize>(row: &Vector<N>) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const N: usize = 128;
+    const N: usize = 96;
 
     #[test]
     #[cfg(target_arch = "x86_64")]

@@ -5,12 +5,12 @@
 
 /// TODO:
 /// type alias: MatrixRREF = Matrix<K, N_pad>
-/// type alias: XOF = Shake128
+/// type alias: XOF = Xof
 
 use sha3::{
-    Digest, Shake128, Sha3_256,
+    Digest,
 };
-use crate::config::{N, K, T, N_pad, K_pad, N_K_pad, W, N8, PRIVATE_KEY_SEED_LENGTH_BYTES, RREF_MAT_PACKEDBYTES, NUM_KEYPAIRS, HASH_DIGEST_LENGTH, SEED_TREE_MAX_PUBLISHED_BYTES, SEED_LENGTH_BYTES, NUM_NODES_SEED_TREE, SIGN_PIVOT_REUSE_LIMIT};
+use crate::config::{Xof, Hash, N, K, T, N_pad, K_pad, N_K_pad, W, N8, PRIVATE_KEY_SEED_LENGTH_BYTES, RREF_MAT_PACKEDBYTES, NUM_KEYPAIRS, HASH_DIGEST_LENGTH, SEED_TREE_MAX_PUBLISHED_BYTES, SEED_LENGTH_BYTES, NUM_NODES_SEED_TREE, SIGN_PIVOT_REUSE_LIMIT};
 use crate::matrix::{Matrix, MatrixNormalized};
 use crate::monomial::{Monomial, Permutation};
 use crate::prng::{
@@ -47,12 +47,12 @@ pub fn less_keygen(sk: &mut PrivateKey, pk: &mut PublicKey) {
     randombytes(&mut sk.compressed_sk);
 
     /* expanding it onto private seeds */
-    let mut sk_shake_state = csprng_initialize::<Shake128>(&sk.compressed_sk);
+    let mut sk_shake_state = csprng_initialize::<Xof>(&sk.compressed_sk);
 
     /* Generating public code G_0 */
     csprng_randombytes(&mut pk.g0_seed, &mut sk_shake_state);
 
-    let g0_rref = Matrix::<K, N_K_pad>::rand_from_seed::<Shake128>(&pk.g0_seed);
+    let g0_rref = Matrix::<K, N_K_pad>::rand_from_seed::<Xof>(&pk.g0_seed);
     let g0_column_pos: [u16; N_K_pad] = std::array::from_fn(|i| (i + K) as u16);
 
     let tmp_full_g = Matrix::<K, N_pad>::from_compressed_rref(&g0_column_pos, &g0_rref);
@@ -71,7 +71,7 @@ pub fn less_keygen(sk: &mut PrivateKey, pk: &mut PublicKey) {
         let mut is_pivot_column = [0u8; N_pad];
         /* expand inverse monomial from seed */
         let mut private_q = Monomial::<N>::default();
-        let private_q_inv = Monomial::<N>::rand_from_seed::<Shake128>(&private_monomial_seeds[i]);
+        let private_q_inv = Monomial::<N>::rand_from_seed::<Xof>(&private_monomial_seeds[i]);
         // NOTE: the inversion is not implemented in constant time.
         Monomial::<N>::inv_non_ct(&mut private_q, &private_q_inv);
 
@@ -91,7 +91,7 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
 
     /*         Private key expansion        */
     /* expand sequence of seeds for private inverse-monomial matrices */
-    let mut sk_shake_state = csprng_initialize::<Shake128>(&sk.compressed_sk);
+    let mut sk_shake_state = csprng_initialize::<Xof>(&sk.compressed_sk);
 
     /* Generating seed for public code G_0 */
     let mut G_0_seed = [0u8; SEED_LENGTH_BYTES];
@@ -114,7 +114,7 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
     /* create the prng for the "blinding" monomials for the canonical form computation */
     let mut cf_seed = [0u8; SEED_LENGTH_BYTES];
     csprng_randombytes(&mut cf_seed, &mut sk_shake_state);
-    let mut cf_shake_state = csprng_initialize::<Shake128>(&cf_seed);
+    let mut cf_shake_state = csprng_initialize::<Xof>(&cf_seed);
 
     let mut seed_tree = [0u8; NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES];
     build_ggm(&mut seed_tree, &ephem_monomials_seed, &sig.salt);
@@ -123,7 +123,7 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
     seed_leaves(&mut linearized_rounds_seeds, &seed_tree);
 
     // /*         Public G_0 expansion                  */
-    let g0_rref = Matrix::<K, N_K_pad>::rand_from_seed::<Shake128>(&G_0_seed);
+    let g0_rref = Matrix::<K, N_K_pad>::rand_from_seed::<Xof>(&G_0_seed);
     let g0_column_pos: [u16; N_K_pad] = std::array::from_fn(|i| (i + K) as u16);
     for i in 0..K {
         g0_initial_pivot_flags[i] = 0;
@@ -131,10 +131,10 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
     let full_g0 = Matrix::<K, N_pad>::from_compressed_rref::<N_K_pad>(&g0_column_pos, &g0_rref);
 
     let mut G0 = Matrix::<K, N_pad>::default();
-    let mut hasher = Sha3_256::new();
+    let mut hasher = Hash::new();
     let mut pi_tilde: [Permutation::<K>; T] = core::array::from_fn(|_| Permutation::<K>::default());
     for i in 0..T {
-        let mu_tilde = Monomial::<N>::rand_from_seed::<Shake128>(&linearized_rounds_seeds[i*SEED_LENGTH_BYTES..(i+1)*SEED_LENGTH_BYTES]);
+        let mu_tilde = Monomial::<N>::rand_from_seed::<Xof>(&linearized_rounds_seeds[i*SEED_LENGTH_BYTES..(i+1)*SEED_LENGTH_BYTES]);
         Matrix::monomial_mul(&mut G0, &full_g0, &mu_tilde);
 
         let mut permuted_pivot_flag: [u8; N_pad] = [0u8; N_pad];
@@ -174,7 +174,7 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
     for i in 0..T {
         if fixed_weight_string[i] != 0 {
             let j = fixed_weight_string[i] as usize;
-            let Q_to_multiply = Monomial::<N>::rand_from_seed::<Shake128>(&private_monomial_seeds[j]);
+            let Q_to_multiply = Monomial::<N>::rand_from_seed::<Xof>(&private_monomial_seeds[j]);
             let mono_action = Permutation::<K>::from_composition_action(&Q_to_multiply, &pi_tilde[i]);
             sig.cf_monom_actions[emitted_monoms] = mono_action.bytes();
 

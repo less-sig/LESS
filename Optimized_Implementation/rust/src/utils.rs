@@ -1,9 +1,5 @@
-use sha3::{
-    Shake128
-};
-
 use crate::config::{
-    T, W,
+    T, W, Xof,
     HASH_DIGEST_LENGTH,
     NUM_KEYPAIRS,
 };
@@ -21,7 +17,7 @@ pub fn sample_challenge(
     digest: &[u8; HASH_DIGEST_LENGTH],
 ) {
     // Initialize CSPRNG from the digest
-    let mut shake_state = csprng_initialize::<Shake128>(digest);
+    let mut shake_state = csprng_initialize::<Xof>(digest);
 
     let max_keypair_idx: u32 = NUM_KEYPAIRS as u32 - 1;
     let keypair_bits: u32 = (max_keypair_idx.ilog2() + 1) as u32;

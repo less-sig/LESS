@@ -57,17 +57,24 @@ impl<const N: usize> Monomial<N> {
 
 
     /// NOTE: TODO
+    /// NOTE: a monomial matrix has to be invertible, so the coefficients are
+    /// drawn from F_q^*.
+    /// NOTE: the coefficients are drawn before the permutation is shuffled,
+    /// this is the order in which the randomness is requested.
     pub fn rand<S>(state: &mut S) -> Self
     where
         S: XofReader
     {
+        let coeffs = Vector::<N>::rand_star(state);
+
         let mut t: [u16; N] = [0u16; N];
         for i in 0..N {
             t[i] = i as u16;
         }
         merge_exchange(&mut t, state);
+
         Monomial {
-            coeffs: Vector::<N>::rand(state),
+            coeffs: coeffs,
             perms: t,
         }
     }
@@ -99,7 +106,7 @@ impl<const N: usize> Monomial<N> {
             t[i] = i as u16;
         }
         let mut ret = Monomial {
-            coeffs: Vector::<N>::rand(&mut state),
+            coeffs: Vector::<N>::rand_star(&mut state),
             perms: t,
         };
 
@@ -163,9 +170,13 @@ impl<const N: usize> Monomial<N> {
     /// ```
     pub fn mul_non_ct(l: &mut Self, r: &Self) {
         for i in 0..N {
-            let t: usize = r.perms[i] as usize;
-            l.perms[i] = l.perms[t] ;
-            l.coeffs[i] = Fq::mul(l.coeffs[t], r.coeffs[i]);
+            // `perms[i]` is the destination of column i, so applying `l` and
+            // then `r` sends column i to `r.perms[l.perms[i]]`.
+            // NOTE: only index `i` of `l` is written and only the already
+            // read index `t` is used, so this is safe in place.
+            let t: usize = l.perms[i] as usize;
+            l.perms[i] = r.perms[t];
+            l.coeffs[i] = Fq::mul(l.coeffs[i], r.coeffs[t]);
         }
     }
 
@@ -239,9 +250,11 @@ impl<const N: usize> Permutation<N> {
         let mut ret = Permutation::default();
 
         let mut piv_idx = 0usize;
-        for col_idx in 0..N {
+        // the scan runs over all M_PRIME columns of the code, not over the
+        // N columns of the information set
+        for col_idx in 0..M_PRIME {
             let mut row_idx = 0u16;
-            for t in 0..N {
+            for t in 0..M_PRIME {
                 // NOTE: do not break here.
                 // NOTE: the compiler should not be able to optimize a break here. As it doesnt know that each
                 //      value in `permutation` is unique, hence it "could" be that there are multiple position == col_idx
@@ -284,7 +297,8 @@ impl<const N: usize> Permutation<N> {
             // costly zero-extend mov instructions. At least on a ryzen 5 7600X the resulting code
             // is ~2x slower.
             let pos = Q_in.perms[i];
-            for j in 0..N {
+            // `reverse_Q` has N_PRIME entries, all of them have to be scanned
+            for j in 0..N_PRIME {
                 let mask: u16 = (-((j as u16 == pos) as i16)) as u16; // TODO COMPUTE_CT_MASK(j, pos);
                 let not_mask: u16 = !mask;
                 let value: u16 = (reverse_Q.perms[j] & not_mask) ^ ((i as u16) & mask);
@@ -383,8 +397,9 @@ impl<const N: usize> Permutation<N> {
     /// ```
     pub fn mul_non_ct(l: &mut Self, r: &Self) {
         for i in 0..N {
-            let t: usize = r.perms[i] as usize;
-            l.perms[i] = l.perms[t] ;
+            // see `Monomial::mul_non_ct`
+            let t: usize = l.perms[i] as usize;
+            l.perms[i] = r.perms[t];
         }
     }
 

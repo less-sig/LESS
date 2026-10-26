@@ -1,6 +1,5 @@
-use sha3::Shake128;
 use crate::config::{
-    T, T_LOG2,
+    T, T_LOG2, Xof,
     SEED_LENGTH_BYTES, SALT_LENGTH_BYTES, NUM_NODES_SEED_TREE,
     TREE_NODES_PER_LEVEL, TREE_LEAVES_PER_LEVEL, TREE_OFFSETS, TREE_SUBROOTS, TREE_LEAVES_START_INDICES, TREE_CONSECUTIVE_LEAVES
 };
@@ -84,7 +83,7 @@ pub fn build_ggm(
             csprng_input[..SEED_LENGTH_BYTES]
                 .copy_from_slice(&seed_tree[seed_range(father)]);
 
-            let mut state = csprng_initialize_ds::<Shake128>(&csprng_input, father as u16);
+            let mut state = csprng_initialize_ds::<Xof>(&csprng_input, father as u16);
 
             csprng_randombytes(
                 &mut seed_tree[left * SEED_LENGTH_BYTES
