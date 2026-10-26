@@ -31,19 +31,19 @@ use crate::prng::rand_range_q_state_elements;
 /// N: number of rows
 /// M: number of cols
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Matrix<const N: usize, const M: usize> {
-    rows: [Vector<M, M>; N],
+pub struct Matrix<const N: usize, const M: usize, const M_PAD: usize> {
+    rows: [Vector<M, M_PAD>; N],
 }
 
 
-impl<const N: usize, const M: usize> Matrix<N, M> {
+impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
 
     /// Zero Initialised
     /// # Examples
     ///
     /// ```
     /// use less::matrix::Matrix;
-    /// let result: Matrix<100, 100> = Matrix::default();
+    /// let result: Matrix<100, 100, 100> = Matrix::default();
     /// assert_eq!(result[0][0].0, 0);
     /// assert_eq!(result.dimension(), (100, 100));
     /// ```
@@ -53,15 +53,15 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     #[inline]
     pub fn default() -> Self {
         Self {
-            rows: core::array::from_fn(|_| Vector::<M, M>::default() ),
+            rows: core::array::from_fn(|_| Vector::<M, M_PAD>::default() ),
         }
     }
 
     /// same as init, but inits all values with `v`
     #[inline]
-    pub fn from_u8(v: u8) -> Matrix<N, M> {
+    pub fn from_u8(v: u8) -> Matrix<N, M, M_PAD> {
         Matrix {
-            rows: core::array::from_fn(|_| Vector::<M, M>::from_u8(v) ),
+            rows: core::array::from_fn(|_| Vector::<M, M_PAD>::from_u8(v) ),
         }
     }
 
@@ -69,7 +69,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// Expands a compressed RREF generator matrix into a full one
     /// \param full[out]: output generator matrix (K \times N)
     /// \param compact[out]: input compressed generator matrix (K \times N-K)
-    pub fn from_compressed_rref<const M_PRIME: usize>(column_pos: &[u16; M_PRIME],compact: &Matrix<N, M_PRIME>) -> Self {
+    pub fn from_compressed_rref<const M_PRIME: usize, const M_PRIME_PAD: usize>(column_pos: &[u16; M_PRIME_PAD],compact: &Matrix<N, M_PRIME, M_PRIME_PAD>) -> Self {
         // static_assert!(M <= M_PRIME);
         let mut placed_dense_cols = 0usize;
         let mut full = Self::default();
@@ -98,7 +98,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// ```
     /// use less::matrix::Matrix;
-    /// let result: Matrix<100, 100> = Matrix::id();
+    /// let result: Matrix<100, 100, 100> = Matrix::id();
     /// assert_eq!(result[0][0].0, 1);
     /// assert_eq!(result.dimension(), (100, 100));
     /// ```
@@ -122,7 +122,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     {
         let mut a = Self::default();
         for i in 0..N {
-            rand_range_q_state_elements(&mut a.rows[i].0, state);
+            rand_range_q_state_elements(&mut a.rows[i].0[..M], state);
         }
         a
     }
@@ -133,7 +133,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// ```
     /// use sha3::Shake128;
     /// use less::matrix::Matrix;
-    /// let result: Matrix<100, 100> = Matrix::rand_from_seed::<Shake128>(&[0u8; 32]);
+    /// let result: Matrix<100, 100, 100> = Matrix::rand_from_seed::<Shake128>(&[0u8; 32]);
     /// ```
     ///
     /// # Parameters
@@ -155,8 +155,8 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// ```
     /// use less::matrix::Matrix;
-    /// let A: Matrix<100, 100> = Matrix::default();
-    /// let B: Matrix<100, 100> = Matrix::default();
+    /// let A: Matrix<100, 100, 100> = Matrix::default();
+    /// let B: Matrix<100, 100, 100> = Matrix::default();
     /// A == B;
     /// A <= B;
     /// A >= B;
@@ -190,8 +190,8 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// ```
     /// use less::matrix::Matrix;
-    /// let A: Matrix<100, 100> = Matrix::default();
-    /// let B: Matrix<100, 100> = Matrix::default();
+    /// let A: Matrix<100, 100, 100> = Matrix::default();
+    /// let B: Matrix<100, 100, 100> = Matrix::default();
     /// A == B;
     /// ```
     ///
@@ -206,7 +206,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// ```
     /// use less::matrix::Matrix;
-    /// let result: Matrix<100, 100> = Matrix::default();
+    /// let result: Matrix<100, 100, 100> = Matrix::default();
     /// assert_eq!(result.is_zero(), true);
     /// ```
     ///
@@ -231,7 +231,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// ```
     /// use less::matrix::Matrix;
-    /// let result: Matrix<100, 100> = Matrix::default();
+    /// let result: Matrix<100, 100, 100> = Matrix::default();
     /// assert_eq!(result.dimension(), (100, 100));
     /// ```
     ///
@@ -248,7 +248,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// ```
     /// use less::matrix::Matrix;
-    /// let result: Matrix<100, 100> = Matrix::default();
+    /// let result: Matrix<100, 100, 100> = Matrix::default();
     /// assert_eq!(result.ncols(), 100);
     /// ```
     ///
@@ -265,7 +265,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// ```
     /// use less::matrix::Matrix;
-    /// let result: Matrix<100, 100> = Matrix::default();
+    /// let result: Matrix<100, 100, 100> = Matrix::default();
     /// assert_eq!(result.nrows(), 100);
     /// ```
     ///
@@ -289,7 +289,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     #[inline]
     pub fn add(r: &mut Self, l: &Self) {
         for i in 0..N {
-            Vector::<M, M>::add2(&mut r[i],&l[i]);
+            Vector::<M, M_PAD>::add2(&mut r[i],&l[i]);
         }
     }
 
@@ -311,7 +311,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     #[inline]
     pub fn sub(r: &mut Self, l: &Self) {
         for i in 0..N {
-            Vector::<M, M>::sub2(&mut r[i],&l[i]);
+            Vector::<M, M_PAD>::sub2(&mut r[i],&l[i]);
         }
     }
 
@@ -320,7 +320,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// ```
     /// use less::matrix::Matrix;
-    /// let mut a = Matrix::<32, 32>::default();
+    /// let mut a = Matrix::<32, 32, 32>::default();
     /// a.swap_rows(10, 11);
     /// ```
     ///
@@ -489,7 +489,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// use sha3::Shake128;
     /// use less::matrix::Matrix;
     /// use less::config::{K, N_pad, RREF_MAT_PACKEDBYTES};
-    /// let mut a = Matrix::<K, N_pad>::rand_from_seed::<Shake128>(&[0u8; 32]);
+    /// let mut a = Matrix::<K, N, N_pad>::rand_from_seed::<Shake128>(&[0u8; 32]);
     /// let mut is_pivot_column = [0u8; N_pad];
     /// let mut was_pivot_column = [0u8; N_pad];
     /// assert!(a.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, K));
@@ -607,7 +607,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// use sha3::Shake128;
     /// use less::matrix::Matrix;
     /// use less::config::{K, N, N_pad, RREF_MAT_PACKEDBYTES};
-    /// let mut a = Matrix::<K, N_pad>::rand_from_seed::<Shake128>(&[0u8; 32]);
+    /// let mut a = Matrix::<K, N, N_pad>::rand_from_seed::<Shake128>(&[0u8; 32]);
     /// let mut is_pivot_column = [0u8; N_pad];
     /// let mut was_pivot_column = [0u8; N_pad];
     /// assert!(a.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, K));
@@ -616,7 +616,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// a.compress(&mut compressed, &is_pivot_column);
     ///
     /// // expand is the exact inverse of compress on an RREF matrix
-    /// let mut b = Matrix::<K, N_pad>::default();
+    /// let mut b = Matrix::<K, N, N_pad>::default();
     /// let mut flags = [0u8; N_pad];
     /// b.expand(&compressed, &mut flags);
     /// assert_eq!(flags[..N], is_pivot_column[..N]);
@@ -748,39 +748,39 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
 }
 
 
-impl<const N: usize, const M: usize> Add for Matrix<N, M> {
-    type Output = Matrix<N, M>;
+impl<const N: usize, const M: usize, const M_PAD: usize> Add for Matrix<N, M, M_PAD> {
+    type Output = Matrix<N, M, M_PAD>;
     fn add(self, r: Self) -> Self::Output {
         let mut t = self;
         Self::add(&mut t, &r);
         t
     }
 }
-impl<'a, const N: usize, const M: usize> Add for &'a mut Matrix<N, M> {
-    type Output = &'a mut Matrix<N, M>;
+impl<'a, const N: usize, const M: usize, const M_PAD: usize> Add for &'a mut Matrix<N, M, M_PAD> {
+    type Output = &'a mut Matrix<N, M, M_PAD>;
     fn add(self, r: Self) -> Self::Output {
-        Matrix::<N, M>::add(self, r);
+        Matrix::<N, M, M_PAD>::add(self, r);
         self
     }
 }
-impl<const N: usize, const M: usize> Sub for Matrix<N, M> {
-    type Output = Matrix<N, M>;
+impl<const N: usize, const M: usize, const M_PAD: usize> Sub for Matrix<N, M, M_PAD> {
+    type Output = Matrix<N, M, M_PAD>;
     fn sub(self, r: Self) -> Self::Output {
         let mut t = self;
         Self::sub(&mut t, &r);
         t
     }
 }
-impl<'a, const N: usize, const M: usize> Sub for &'a mut Matrix<N, M> {
-    type Output = &'a mut Matrix<N, M>;
+impl<'a, const N: usize, const M: usize, const M_PAD: usize> Sub for &'a mut Matrix<N, M, M_PAD> {
+    type Output = &'a mut Matrix<N, M, M_PAD>;
     fn sub(self, r: Self) -> Self::Output {
-        Matrix::<N, M>::sub(self, r);
+        Matrix::<N, M, M_PAD>::sub(self, r);
         self
     }
 }
-impl<const N: usize, const M: usize> Mul<Monomial<M, M>> for Matrix<N, M> {
-    type Output = Matrix<N, M>;
-    fn mul(self, r: Monomial<M, M>) -> Self::Output {
+impl<const N: usize, const M: usize, const M_PAD: usize> Mul<Monomial<M, M_PAD>> for Matrix<N, M, M_PAD> {
+    type Output = Matrix<N, M, M_PAD>;
+    fn mul(self, r: Monomial<M, M_PAD>) -> Self::Output {
         let mut t = Matrix::default();
         Self::monomial_mul(&mut t, &self, &r);
         t
@@ -789,26 +789,26 @@ impl<const N: usize, const M: usize> Mul<Monomial<M, M>> for Matrix<N, M> {
 
 
 /// Direct access to a row
-impl<const N: usize, const M: usize> Index<usize> for Matrix<N, M> {
-    type Output = Vector<M, M>;
+impl<const N: usize, const M: usize, const M_PAD: usize> Index<usize> for Matrix<N, M, M_PAD> {
+    type Output = Vector<M, M_PAD>;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.rows[index]
     }
 }
 /// Direct access to a row (mutable)
-impl<const N: usize, const M: usize> IndexMut<usize> for Matrix<N, M> {
+impl<const N: usize, const M: usize, const M_PAD: usize> IndexMut<usize> for Matrix<N, M, M_PAD> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.rows[index]
     }
 }
-impl<const N: usize, const M: usize> fmt::Debug for Matrix<N, M> {
+impl<const N: usize, const M: usize, const M_PAD: usize> fmt::Debug for Matrix<N, M, M_PAD> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "{:?}", self.rows)
     }
 }
 
-impl<const N: usize, const M: usize> Display for Matrix<N, M> {
+impl<const N: usize, const M: usize, const M_PAD: usize> Display for Matrix<N, M, M_PAD> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         for i in 0..N {
             write!(f, "{}", self[i])?;
@@ -861,7 +861,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
     /// \param G[in]: generator matrix to extract the non-IS from.
     /// \param is_pivot_column[in]: array identifying a pivot column via a 1
     #[inline]
-    pub fn from_information_set<const N_PRIME: usize, const M_PRIME: usize>(g: &Matrix<N_PRIME, M_PRIME>, is_pivot_column: &[u8; M_PRIME]) -> MatrixNormalized<N, N_PAD> {
+    pub fn from_information_set<const N_PRIME: usize, const M_PRIME: usize, const M_PRIME_PAD: usize>(g: &Matrix<N_PRIME, M_PRIME, M_PRIME_PAD>, is_pivot_column: &[u8; M_PRIME]) -> MatrixNormalized<N, N_PAD> {
         let mut ret = MatrixNormalized::default();
         // we simply copy the last N-K columns even if they are not the information set.
         for i in 0..N {
@@ -1700,11 +1700,11 @@ mod tests {
     
     #[test]
     fn init() {
-        let _ = Matrix::<N, M>::default();
+        let _ = Matrix::<N, M, M>::default();
     }
     #[test]
     fn from_u8() {
-        let a = Matrix::<N, M>::from_u8(1);
+        let a = Matrix::<N, M, M>::from_u8(1);
         for row in 0..a.nrows() {
             for col in 0..a.ncols() {
                 assert_eq!(a[row][col].0, 1);
@@ -1714,7 +1714,7 @@ mod tests {
 
     #[test]
     fn rand() {
-        let a = Matrix::<N, M>::rand_from_seed::<Shake128>(&[0u8; 32]);
+        let a = Matrix::<N, M, M>::rand_from_seed::<Shake128>(&[0u8; 32]);
         println!("{}", a);
         for row in 0..a.nrows() {
             for col in 0..a.ncols() {
@@ -1727,7 +1727,7 @@ mod tests {
     #[test]
     fn rand_from_seed() {
         let seed = [0u8; 32];
-        let a = Matrix::<N, M>::rand_from_seed::<Shake128>(&seed);
+        let a = Matrix::<N, M, M>::rand_from_seed::<Shake128>(&seed);
         println!("{}", a);
         for row in 0..a.nrows() {
             for col in 0..a.ncols() {
@@ -1740,7 +1740,7 @@ mod tests {
 
     #[test]
     fn id() {
-        let a = Matrix::<N, M>::id();
+        let a = Matrix::<N, M, M>::id();
         for row in 0..a.nrows() {
             for col in 0..a.ncols() {
                 let b = (row == col) as u8;
@@ -1750,19 +1750,19 @@ mod tests {
     }
     #[test]
     fn ncols() {
-        let a = Matrix::<N, M>::default();
+        let a = Matrix::<N, M, M>::default();
         assert_eq!(a.ncols(), M);
     }
     #[test]
     fn nrows() {
-        let a = Matrix::<N, M>::default();
+        let a = Matrix::<N, M, M>::default();
         assert_eq!(a.nrows(), N);
     }
 
     #[test]
     fn add() {
-        let a = Matrix::<N, M>::default();
-        let b = Matrix::<N, M>::from_u8(1);
+        let a = Matrix::<N, M, M>::default();
+        let b = Matrix::<N, M, M>::from_u8(1);
         let c = a.clone().add(b.clone());
         for i in 0..N {
             assert_eq!(c[i][i].0, 1);
@@ -1775,8 +1775,8 @@ mod tests {
 
     #[test]
     fn sub() {
-        let a = Matrix::<N, M>::default();
-        let b = Matrix::<N, M>::from_u8(1);
+        let a = Matrix::<N, M, M>::default();
+        let b = Matrix::<N, M, M>::from_u8(1);
         let c = b - a;
         for i in 0..N {
             assert_eq!(c[i][i].0, 1);
@@ -1785,14 +1785,14 @@ mod tests {
 
     #[test]
     fn monomial_mul() {
-        let mut a = Matrix::<N, M>::default();
+        let mut a = Matrix::<N, M, M>::default();
         let t = Monomial::<N, N>::default();
         // TODO
     }
 
     #[test]
     fn swap_rows() {
-        let mut a = Matrix::<N, M>::default();
+        let mut a = Matrix::<N, M, M>::default();
         let i1 = 0; let i2 = N/2;
         for i in 0..a.ncols() {
             a[i1][i] = Fq(1);
@@ -1807,7 +1807,7 @@ mod tests {
 
     #[test]
     fn rref() {
-        let mut a = Matrix::<N, M>::rand_from_seed::<Shake128>(&[0u8; 32]);
+        let mut a = Matrix::<N, M, M>::rand_from_seed::<Shake128>(&[0u8; 32]);
         let mut is_pivot_column = [0u8; M];
         let mut was_pivot_column = [0u8; M];
         let b = a.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, M);

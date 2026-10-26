@@ -30,6 +30,11 @@ pub fn randombytes(buf: &mut [u8]) {
     reader.read(buf);
 }
 
+/// NOTE: `PLATFORM_CSPRNG_STATE` is global, so every test that re-seeds it has
+/// to hold this lock, otherwise the tests race with each other.
+#[cfg(test)]
+pub(crate) static PRNG_TEST_LOCK: Mutex<()> = Mutex::new(());
+
 
 pub fn csprng_initialize<H>(seed: &[u8]) -> H::Reader
 where
@@ -177,6 +182,7 @@ mod tests {
 
     #[test]
     fn test_init_randombytes() {
+        let _guard = PRNG_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let seed = [0u8; 32];
         init_randombytes(&seed);
 
@@ -202,6 +208,7 @@ mod tests {
 
     #[test]
     fn test_randombytes_continues_the_stream() {
+        let _guard = PRNG_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let seed = [0u8; 32];
         init_randombytes(&seed);
         let mut a = [0u8; 32];
