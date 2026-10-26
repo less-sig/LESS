@@ -203,6 +203,72 @@ pub fn ggm_path(
     num_seeds_published
 }
 
+/// regenerates the seed tree from the seeds which were published by
+/// `ggm_path`. The root is never disclosed, so the rebuild starts at level 1.
+/// \param seed_tree[out]: the rebuilt tree
+/// \param indices[in]: binary array, 0 for the leaves whose seed was released
+/// \param stored_seeds[in]: the published seeds
+/// \param salt[in]: salt which was used to build the tree
+/// \return 1 on success
+///         0 on failure
+pub fn rebuild_ggm(
+    seed_tree: &mut [u8; NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES],
+    indices: &[u8; T],
+    stored_seeds: &[u8],
+    salt: &[u8; SALT_LENGTH_BYTES],
+) -> u32 {
+    let mut flags = [0u8; NUM_NODES_SEED_TREE];
+    compute_seeds_to_publish(&mut flags, indices);
+
+    let mut csprng_input = [0u8; SEED_LENGTH_BYTES + SALT_LENGTH_BYTES];
+    csprng_input[SEED_LENGTH_BYTES..].copy_from_slice(salt);
+
+    let mut nodes_used = 0usize;
+    let mut start = 1usize;
+
+    for level in 1..=T_LOG2 {
+        for node_in_level in 0..TREE_NODES_PER_LEVEL[level] {
+            let current = start + node_in_level;
+            let father = parent(current) + (TREE_OFFSETS[level - 1] >> 1);
+            let left = left_child(current) - TREE_OFFSETS[level];
+
+            /* if the current node is a seed which was published (thus its father
+             * was not), memcpy it in place */
+            if flags[current] == TO_PUBLISH && flags[father] == NOT_TO_PUBLISH {
+                let src = nodes_used * SEED_LENGTH_BYTES;
+                if src + SEED_LENGTH_BYTES > stored_seeds.len() {
+                    return 0;
+                }
+                let s: [u8; SEED_LENGTH_BYTES] =
+                    stored_seeds[src..src + SEED_LENGTH_BYTES].try_into().unwrap();
+                seed_tree[seed_range(current)].copy_from_slice(&s);
+                nodes_used += 1;
+            }
+
+            /* If the current node is published and not a leaf, CSPRNG-expand its
+             * children. */
+            if flags[current] == TO_PUBLISH
+                && node_in_level < TREE_NODES_PER_LEVEL[level] - TREE_LEAVES_PER_LEVEL[level]
+            {
+                csprng_input[..SEED_LENGTH_BYTES]
+                    .copy_from_slice(&seed_tree[seed_range(current)]);
+
+                let mut state = csprng_initialize_ds::<Xof>(&csprng_input, current as u16);
+
+                csprng_randombytes(
+                    &mut seed_tree[left * SEED_LENGTH_BYTES
+                        ..left * SEED_LENGTH_BYTES + 2 * SEED_LENGTH_BYTES],
+                    &mut state,
+                );
+            }
+        }
+
+        start += TREE_NODES_PER_LEVEL[level];
+    }
+
+    1
+}
+
 pub fn seed_leaves(
     out: &mut [u8; T * SEED_LENGTH_BYTES],
     tree: &[u8; NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES],

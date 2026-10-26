@@ -9,6 +9,20 @@ use crate::prng::{
     csprng_initialize
 };
 
+/// Compare two arrays for equality in constant time.
+/// \param a[in]: pointer to the first byte array
+/// \param b[in]: pointer to the second byte array
+/// \returns 0 if the byte arrays are equal, 1 otherwise
+pub fn verify(a: &[u8], b: &[u8]) -> u32 {
+    let mut r = 0u8;
+
+    for i in 0..a.len() {
+        r |= a[i] ^ b[i];
+    }
+
+    (((r as u64).wrapping_neg()) >> 63) as u32
+}
+
 /// Expands a digest into a fixed weight string with elements in Z_{NUM_KEYPAIRS}.
 /// \param fixed_weight_string[out]: array of length T, with hamming weight W,
 ///     where values > 0 are between [1, NUM_KEYPAIRS-1)

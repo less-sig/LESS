@@ -85,7 +85,7 @@ impl<const N: usize, const N_PAD: usize> Monomial<N, N_PAD> {
     /// ```
     /// use sha3::Shake128;
     /// use less::matrix::Matrix;
-    /// let result: Matrix<100, 100> = Matrix::rand_from_seed::<Shake128>(&[0u8; 32]);
+    /// let result: Matrix<100, 100, 100> = Matrix::rand_from_seed::<Shake128>(&[0u8; 32]);
     /// ```
     ///
     /// # Parameters
@@ -345,6 +345,20 @@ impl<const N: usize> Permutation<N> {
     #[inline]
     pub fn dimension(&self) -> usize {
         N
+    }
+
+    /// checks if the given (N+7)/8 bytes are a valid canonical form action,
+    /// e.g. this function checks if exactly `N` ones are in the input.
+    /// \param b[in]: compressed canonical form output from `bytes`
+    /// \return true: if the hamming weight is N
+    ///         false: if the hamming weight is not N
+    pub fn check_canonical_action(b: &[u8; N8]) -> bool {
+        let mut w = 0u32;
+        for i in 0..N8 {
+            w += b[i].count_ones();
+        }
+
+        w == (N as u32)
     }
 
     /// translate form `CheckCanonicalAction`

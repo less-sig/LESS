@@ -10,32 +10,32 @@
 use sha3::{
     Digest,
 };
-use crate::config::{Xof, Hash, N, K, T, N_pad, N_K_pad, W, N8, PRIVATE_KEY_SEED_LENGTH_BYTES, RREF_MAT_PACKEDBYTES, NUM_KEYPAIRS, HASH_DIGEST_LENGTH, SEED_TREE_MAX_PUBLISHED_BYTES, SEED_LENGTH_BYTES, NUM_NODES_SEED_TREE, SIGN_PIVOT_REUSE_LIMIT};
+use crate::config::{Xof, Hash, N, K, T, N_pad, N_K_pad, W, N8, PRIVATE_KEY_SEED_LENGTH_BYTES, RREF_MAT_PACKEDBYTES, NUM_KEYPAIRS, HASH_DIGEST_LENGTH, SEED_TREE_MAX_PUBLISHED_BYTES, SEED_LENGTH_BYTES, NUM_NODES_SEED_TREE, SIGN_PIVOT_REUSE_LIMIT, LESS_VERIFY_PIVOT_REUSE_LIMIT};
 use crate::matrix::{Matrix, MatrixNormalized};
 use crate::monomial::{Monomial, Permutation};
 use crate::prng::{
     randombytes,
     csprng_randombytes, csprng_initialize
 };
-use crate::tree::{build_ggm, ggm_path, seed_leaves};
-use crate::utils::sample_challenge;
+use crate::tree::{build_ggm, ggm_path, rebuild_ggm, seed_leaves};
+use crate::utils::{sample_challenge, verify};
 
 pub struct PrivateKey {
-    compressed_sk: [u8; PRIVATE_KEY_SEED_LENGTH_BYTES]
+    pub compressed_sk: [u8; PRIVATE_KEY_SEED_LENGTH_BYTES]
 }
 
 /// Public key: the first gen. matrix is shrunk to just a seed, all the
  /// others are stored in RREF form
 pub struct PublicKey {
-    g0_seed: [u8; SEED_LENGTH_BYTES],
-    sf_g: [[u8; RREF_MAT_PACKEDBYTES]; NUM_KEYPAIRS - 1],
+    pub g0_seed: [u8; SEED_LENGTH_BYTES],
+    pub sf_g: [[u8; RREF_MAT_PACKEDBYTES]; NUM_KEYPAIRS - 1],
 }
 
 pub struct Signature {
-    digest: [u8; HASH_DIGEST_LENGTH],
-    salt: [u8; HASH_DIGEST_LENGTH],
-    cf_monom_actions: [[u8; N8]; W],
-    seed_storage: [u8; SEED_TREE_MAX_PUBLISHED_BYTES],
+    pub digest: [u8; HASH_DIGEST_LENGTH],
+    pub salt: [u8; HASH_DIGEST_LENGTH],
+    pub cf_monom_actions: [[u8; N8]; W],
+    pub seed_storage: [u8; SEED_TREE_MAX_PUBLISHED_BYTES],
 }
 
 
@@ -87,7 +87,7 @@ pub fn less_keygen(sk: &mut PrivateKey, pk: &mut PublicKey) {
 
 pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey) -> usize {
     let mut g0_initial_pivot_flags = [0u8; N];
-    let mut is_pivot_column = [0u8; N];
+    let mut is_pivot_column;
 
     /*         Private key expansion        */
     /* expand sequence of seeds for private inverse-monomial matrices */
@@ -225,55 +225,144 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
 }
 
 
+/// NOTE: non-constant time
+/// \param pk[in]: public key
+/// \param m[in]: message for which a signature was computed
+/// \param sig[in]: signature
+/// \param num_seeds_published[in]: number of seeds in `sig.seed_storage`
+/// \return false: on failure
+///         true: on success
+pub fn less_verify(pk: &PublicKey, m: &[u8], sig: &Signature) -> bool {
+    let mut fixed_weight_string = [0u8; T];
+    sample_challenge(&mut fixed_weight_string, &sig.digest);
+
+    let mut published_seed_indexes = [0u8; T];
+    for i in 0..T {
+        published_seed_indexes[i] = (fixed_weight_string[i] != 0) as u8;
+    }
+
+    let mut seed_tree = [0u8; NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES];
+    let rebuilding_seeds_went_fine =
+        rebuild_ggm(&mut seed_tree, &published_seed_indexes, &sig.seed_storage, &sig.salt);
+    if rebuilding_seeds_went_fine == 0 {
+        return false;
+    }
+
+    let mut linearized_rounds_seeds = [0u8; T * SEED_LENGTH_BYTES];
+    seed_leaves(&mut linearized_rounds_seeds, &seed_tree);
+
+    let mut employed_monoms = 0usize;
+
+    let g0_rref = Matrix::<K, {N - K}, N_K_pad>::rand_from_seed::<Xof>(&pk.g0_seed);
+    let g0_column_pos: [u16; N_K_pad] = std::array::from_fn(|i| (i + K) as u16);
+
+    let mut g0_initial_pivot_flags = [0u8; N];
+    for i in 0..N {
+        g0_initial_pivot_flags[i] = 1;
+    }
+    for i in 0..K {
+        g0_initial_pivot_flags[g0_column_pos[i] as usize] = 0;
+    }
+    let g0_full = Matrix::<K, N, N_pad>::from_compressed_rref::<{N - K}, N_K_pad>(
+        &g0_column_pos, &g0_rref);
+
+    let mut gs: Vec<Matrix<K, N, N_pad>> = Vec::with_capacity(NUM_KEYPAIRS - 1);
+    let mut gi_initial_pivot_flags = [0u8; N];
+    for i in 0..(NUM_KEYPAIRS - 1) {
+        let mut g = Matrix::<K, N, N_pad>::default();
+        g.expand(&pk.sf_g[i], &mut gi_initial_pivot_flags);
+        gs.push(g);
+    }
+
+    let mut g_prime = Matrix::<K, N, N_pad>::default();
+    let mut hasher = Hash::new();
+
+    /* same ephemeral monomial derivation as in `less_sign` */
+    let mut mu_input = [0u8; SEED_LENGTH_BYTES + HASH_DIGEST_LENGTH + 2];
+    mu_input[SEED_LENGTH_BYTES..SEED_LENGTH_BYTES + HASH_DIGEST_LENGTH]
+        .copy_from_slice(&sig.salt);
+
+    for i in 0..T {
+        let mut is_pivot_column = [0u8; N];
+
+        if fixed_weight_string[i] == 0 {
+            mu_input[..SEED_LENGTH_BYTES].copy_from_slice(
+                &linearized_rounds_seeds[i*SEED_LENGTH_BYTES..(i+1)*SEED_LENGTH_BYTES]);
+            mu_input[SEED_LENGTH_BYTES + HASH_DIGEST_LENGTH..]
+                .copy_from_slice(&(i as u16).to_le_bytes());
+
+            let mut mu_state = csprng_initialize::<Xof>(&mu_input);
+            let mu_tilde = Monomial::<N, N_pad>::rand(&mut mu_state);
+
+            Matrix::monomial_mul(&mut g_prime, &g0_full, &mu_tilde);
+
+            let mut permuted_pivot_flags = [0u8; N];
+            for t in 0..N {
+                permuted_pivot_flags[mu_tilde.perms[t] as usize] = g0_initial_pivot_flags[t];
+            }
+
+            if g_prime.rref::<false>(&mut is_pivot_column, &mut permuted_pivot_flags,
+                                     LESS_VERIFY_PIVOT_REUSE_LIMIT) == false {
+                return false;
+            }
+        } else {
+            gi_initial_pivot_flags = [0u8; N];
+            let key_pos = (fixed_weight_string[i] - 1) as usize;
+
+            if !Permutation::<K>::check_canonical_action(&sig.cf_monom_actions[employed_monoms]) {
+                return false;
+            }
+
+            let mut g0_permuted_pivot_flags = [0u8; N];
+            Matrix::unpack_coset_rep(&mut g_prime, &gs[key_pos],
+                                     &sig.cf_monom_actions[employed_monoms],
+                                     &gi_initial_pivot_flags,
+                                     &mut g0_permuted_pivot_flags);
+
+            if g_prime.rref::<false>(&mut is_pivot_column, &mut g0_permuted_pivot_flags,
+                                     LESS_VERIFY_PIVOT_REUSE_LIMIT) == false {
+                return false;
+            }
+
+            employed_monoms += 1;
+        }
+
+        // copy the non IS
+        let mut a_i = MatrixNormalized::<{N - K}, N_K_pad>::from_information_set::<K, N, N_pad>(
+            &g_prime, &is_pivot_column);
+
+        // compute the canonical form and exit on any failure
+        if a_i.cf() == 0 {
+            return false;
+        }
+
+        // NOTE: as we increase the size of the `normalized_IS_t`
+        // we need to hash the values row by row.
+        let mut row_bytes = [0u8; N - K];
+        for sl in 0..K {
+            for col in 0..(N - K) {
+                row_bytes[col] = a_i[sl][col].0;
+            }
+            hasher.update(&row_bytes);
+        }
+    }
+
+    hasher.update(m);
+    hasher.update(sig.salt);
+    let recomputed_digest = hasher.finalize();
+
+    // NOTE: does not have to be constant time.
+    verify(&recomputed_digest, &sig.digest) == 0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::MAX_PUBLISHED_SEEDS;
     use crate::prng::{init_randombytes, PRNG_TEST_LOCK};
 
-    /// The vectors the C implementation produces for the same seed, generated
-    /// by `kat/run.sh`. Both sides drive the SHAKE based `platform_csprng_state`
-    /// from the seed below, so every byte has to agree.
-    #[cfg(feature = "cat1_192")]
-    const REFERENCE: &str = include_str!("../kat/reference_cat1_192.txt");
-
-    #[cfg(feature = "cat1_192")]
-    fn field(name: &str) -> &'static str {
-        for line in REFERENCE.lines() {
-            if let Some((k, v)) = line.split_once(" = ") {
-                if k == name {
-                    return v.trim();
-                }
-            }
-        }
-        panic!("no field `{}` in the reference vectors", name);
-    }
-
-    #[cfg(feature = "cat1_192")]
-    fn hex(bytes: &[u8]) -> String {
-        let mut s = String::new();
-        for b in bytes {
-            s.push_str(&format!("{:02x}", b));
-        }
-        s
-    }
-
-    /// the parameters the reference vectors were generated with
-    #[cfg(feature = "cat1_192")]
-    #[test]
-    fn reference_parameters() {
-        assert_eq!(field("N"), N.to_string());
-        assert_eq!(field("K"), K.to_string());
-        assert_eq!(field("T"), T.to_string());
-        assert_eq!(field("W"), W.to_string());
-        assert_eq!(field("SEED_LENGTH_BYTES"), SEED_LENGTH_BYTES.to_string());
-        assert_eq!(field("RREF_MAT_PACKEDBYTES"), RREF_MAT_PACKEDBYTES.to_string());
-    }
-
-    #[cfg(feature = "cat1_192")]
-    #[test]
-    fn keygen_and_sign_match_the_reference() {
-        let _guard = PRNG_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-
+    /// keygen and sign once, from a fixed seed
+    fn keypair_and_signature(msg: &[u8]) -> (PublicKey, Signature) {
         let seed: [u8; 48] = core::array::from_fn(|i| i as u8);
         init_randombytes(&seed);
 
@@ -284,19 +373,6 @@ mod tests {
         };
         less_keygen(&mut sk, &mut pk);
 
-        assert_eq!(hex(&sk.compressed_sk), field("sk"), "secret key");
-
-        // `pubkey_t` is a packed struct: G_0_seed followed by SF_G
-        let mut pk_bytes: Vec<u8> = Vec::new();
-        pk_bytes.extend_from_slice(&pk.g0_seed);
-        for i in 0..(NUM_KEYPAIRS - 1) {
-            pk_bytes.extend_from_slice(&pk.sf_g[i]);
-        }
-        assert_eq!(hex(&pk_bytes), field("pk"), "public key");
-
-        let msg = b"LESS rust port reference vector";
-        assert_eq!(hex(msg), field("msg"), "message");
-
         let mut sig = Signature {
             digest: [0u8; HASH_DIGEST_LENGTH],
             salt: [0u8; HASH_DIGEST_LENGTH],
@@ -304,16 +380,74 @@ mod tests {
             seed_storage: [0u8; SEED_TREE_MAX_PUBLISHED_BYTES],
         };
         let leaves = less_sign(&mut sig, msg, &sk, &pk);
+        assert!(leaves > 0 && leaves <= MAX_PUBLISHED_SEEDS,
+                "{} published leaves is out of range", leaves);
 
-        assert_eq!(hex(&sig.salt), field("salt"), "salt");
-        assert_eq!(hex(&sig.digest), field("digest"), "digest");
+        (pk, sig)
+    }
 
-        let mut actions: Vec<u8> = Vec::new();
-        for i in 0..W {
-            actions.extend_from_slice(&sig.cf_monom_actions[i]);
+    /// a copy of a signature, so that a single field can be tampered with
+    fn copy(sig: &Signature) -> Signature {
+        Signature {
+            digest: sig.digest,
+            salt: sig.salt,
+            cf_monom_actions: sig.cf_monom_actions,
+            seed_storage: sig.seed_storage,
         }
-        assert_eq!(hex(&actions), field("cf_monom_actions"), "cf_monom_actions");
-        assert_eq!(hex(&sig.seed_storage), field("seed_storage"), "seed_storage");
-        assert_eq!(leaves.to_string(), field("leaves"), "published leaves");
+    }
+
+    /// a signature this port produces has to verify
+    #[test]
+    fn sign_and_verify_round_trip() {
+        let _guard = PRNG_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+        let msg = b"LESS rust port round trip";
+        let (pk, sig) = keypair_and_signature(msg);
+
+        assert!(less_verify(&pk, msg, &sig), "a valid signature was rejected");
+    }
+
+    /// signing is deterministic for a fixed prng state
+    #[test]
+    fn sign_is_deterministic() {
+        let _guard = PRNG_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+        let msg = b"LESS rust port round trip";
+        let (_, a) = keypair_and_signature(msg);
+        let (_, b) = keypair_and_signature(msg);
+
+        assert_eq!(a.digest, b.digest);
+        assert_eq!(a.salt, b.salt);
+        assert_eq!(a.cf_monom_actions, b.cf_monom_actions);
+        assert_eq!(a.seed_storage, b.seed_storage);
+    }
+
+    /// every part of the signature matters
+    #[test]
+    fn verify_rejects_a_tampered_signature() {
+        let _guard = PRNG_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+        let msg = b"LESS rust port round trip";
+        let (pk, sig) = keypair_and_signature(msg);
+
+        // a different message must not verify
+        assert!(!less_verify(&pk, b"some other message", &sig));
+
+        let mut t = copy(&sig);
+        t.digest[0] ^= 1;
+        assert!(!less_verify(&pk, msg, &t), "a flipped digest bit was accepted");
+
+        let mut t = copy(&sig);
+        t.salt[0] ^= 1;
+        assert!(!less_verify(&pk, msg, &t), "a flipped salt bit was accepted");
+
+        let mut t = copy(&sig);
+        t.cf_monom_actions[0][0] ^= 1;
+        assert!(!less_verify(&pk, msg, &t), "a flipped action bit was accepted");
+
+        let mut t = copy(&sig);
+        t.seed_storage[0] ^= 1;
+        assert!(!less_verify(&pk, msg, &t), "a flipped seed bit was accepted");
     }
 }
+

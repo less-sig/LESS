@@ -218,6 +218,15 @@ pub const PRIVATE_KEY_SEED_LENGTH_BYTES: usize = 2*SEED_LENGTH_BYTES;
 /// number of columns to reuse in vrfy
 pub const LESS_VERIFY_PIVOT_REUSE_LIMIT: usize = K;
 
+/// size of `PublicKey` in bytes, this is what `CRYPTO_PUBLICKEYBYTES` of
+/// `api.h` resolves to and what names the KAT files
+pub const LESS_CRYPTO_PUBLICKEYBYTES: usize = SEED_LENGTH_BYTES + (NUM_KEYPAIRS-1)*RREF_MAT_PACKEDBYTES;
+/// size of `PrivateKey` in bytes
+pub const LESS_CRYPTO_SECRETKEYBYTES: usize = PRIVATE_KEY_SEED_LENGTH_BYTES;
+/// `LESS_SIGNATURE_SIZE(MAX_PUBLISHED_SEEDS)`
+pub const LESS_SIGNATURE_MAX_SIZE: usize =
+    HASH_DIGEST_LENGTH*2 + N8*W + MAX_PUBLISHED_SEEDS*SEED_LENGTH_BYTES + 1;
+
 #[cfg(test)]
 mod tests {
     use super::*;

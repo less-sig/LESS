@@ -18,6 +18,9 @@ use sha3::{
     digest::{ExtendableOutput, Update, XofReader},
 };
 
+use crate::config::{
+    K, N8,
+};
 use crate::constants::{
     Q, Q_PAD,
 };
@@ -300,8 +303,8 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
     /// ```
     /// use less::matrix::Matrix;
     /// const N: usize = 128;
-    /// let mut C = Matrix::<N, N>::default();
-    /// let A = Matrix::<N, N>::default();
+    /// let mut C = Matrix::<N, N, N>::default();
+    /// let A = Matrix::<N, N, N>::default();
     /// Matrix::sub(&mut C, &A)
     /// ```
     ///
@@ -346,9 +349,9 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
     /// use less::matrix::Matrix;
     /// use less::monomial::Monomial;
     /// const N: usize = 32;
-    /// let g = Matrix::<N, N>::rand_from_seed::<Shake128>(&[0u8; 32]);
+    /// let g = Matrix::<N, N, N>::rand_from_seed::<Shake128>(&[0u8; 32]);
     /// let monom = Monomial::<N, N>::rand_from_seed::<Shake128>(&[1u8; 32]);
-    /// let mut res = Matrix::<N, N>::default();
+    /// let mut res = Matrix::<N, N, N>::default();
     /// Matrix::monomial_mul(&mut res, &g, &monom);
     /// ```
     ///
@@ -376,7 +379,7 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
     /// use sha3::Shake128;
     /// use less::matrix::Matrix;
     /// const N: usize = 32;
-    /// let mut a = Matrix::<N, N>::rand_from_seed::<Shake128>(&[0u8; 32]);
+    /// let mut a = Matrix::<N, N, N>::rand_from_seed::<Shake128>(&[0u8; 32]);
     /// let mut is_pivot_column = [0u8; N];
     /// let mut was_pivot_column = [0u8; N];
     /// assert!(a.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, 0));
@@ -478,6 +481,46 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
         true
     }
 
+    /// translation of `UnpackCosetRep`
+    /// NOTE: not constant time
+    /// \param res[out]: G*c: a generator matrix: K \times N-K
+    /// \param g[in]: current generator matrix: K \times N-K
+    /// \param c[in]: compressed cf action
+    /// \param initial_g_col_pivot[in]: input IS
+    /// \param permuted_g_col_pivot[out]: output IS, to keep track of the pivot cols
+    pub fn unpack_coset_rep(res: &mut Self,
+                            g: &Self,
+                            c: &[u8; N8],
+                            initial_g_col_pivot: &[u8; M],
+                            permuted_g_col_pivot: &mut [u8; M]) {
+        let mut l = 0usize;
+        let mut r = 0usize;
+
+        'outer: for i in 0..N8 {
+            for j in 0..8 {
+                if (i*8 + j) >= M { break 'outer; }
+
+                let bit = (c[i] >> j) & 1u8;
+                let pos = if bit != 0 {
+                    let p = l;
+                    l += 1;
+                    p
+                } else {
+                    let p = K + r;
+                    r += 1;
+                    p
+                };
+
+                permuted_g_col_pivot[pos] = initial_g_col_pivot[i*8 + j];
+
+                // copy the column
+                for k in 0..N {
+                    res[k][pos] = g[k][i*8 + j];
+                }
+            }
+        }
+    }
+
     /// Compresses a generator matrix in RREF into a byte array
     ///
     /// * `compressed` – output buffer (RREF_MAT_PACKEDBYTES bytes)
@@ -488,10 +531,10 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
     /// ```
     /// use sha3::Shake128;
     /// use less::matrix::Matrix;
-    /// use less::config::{K, N_pad, RREF_MAT_PACKEDBYTES};
+    /// use less::config::{K, N, N_pad, RREF_MAT_PACKEDBYTES};
     /// let mut a = Matrix::<K, N, N_pad>::rand_from_seed::<Shake128>(&[0u8; 32]);
-    /// let mut is_pivot_column = [0u8; N_pad];
-    /// let mut was_pivot_column = [0u8; N_pad];
+    /// let mut is_pivot_column = [0u8; N];
+    /// let mut was_pivot_column = [0u8; N];
     /// assert!(a.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, K));
     ///
     /// // an RREF generator has exactly K pivot columns, so the packed form
@@ -608,8 +651,8 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
     /// use less::matrix::Matrix;
     /// use less::config::{K, N, N_pad, RREF_MAT_PACKEDBYTES};
     /// let mut a = Matrix::<K, N, N_pad>::rand_from_seed::<Shake128>(&[0u8; 32]);
-    /// let mut is_pivot_column = [0u8; N_pad];
-    /// let mut was_pivot_column = [0u8; N_pad];
+    /// let mut is_pivot_column = [0u8; N];
+    /// let mut was_pivot_column = [0u8; N];
     /// assert!(a.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, K));
     ///
     /// let mut compressed = [0u8; RREF_MAT_PACKEDBYTES];
@@ -617,9 +660,9 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
     ///
     /// // expand is the exact inverse of compress on an RREF matrix
     /// let mut b = Matrix::<K, N, N_pad>::default();
-    /// let mut flags = [0u8; N_pad];
+    /// let mut flags = [0u8; N];
     /// b.expand(&compressed, &mut flags);
-    /// assert_eq!(flags[..N], is_pivot_column[..N]);
+    /// assert_eq!(flags, is_pivot_column);
     /// for row in 0..K {
     ///     for col in 0..N {
     ///         assert_eq!(b[row][col], a[row][col]);
@@ -864,31 +907,29 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
     pub fn from_information_set<const N_PRIME: usize, const M_PRIME: usize, const M_PRIME_PAD: usize>(g: &Matrix<N_PRIME, M_PRIME, M_PRIME_PAD>, is_pivot_column: &[u8; M_PRIME]) -> MatrixNormalized<N, N_PAD> {
         let mut ret = MatrixNormalized::default();
         // we simply copy the last N-K columns even if they are not the information set.
-        for i in 0..N {
+        for i in 0..K {
             for j in 0..N {
-                ret[i][j] = g[i][j];
+                ret[i][j] = g[i][K + j];
             }
         }
         // now we scan if we need to fix the non information set
         let mut ctr = 0;
-        for _ in 0.. N {
-            if is_pivot_column[ctr] == 1 {
-                ctr += 1;
-            }
+        while ctr < K && is_pivot_column[ctr] == 1 {
+            ctr += 1;
         }
 
         // easy part: the last N-K columns are the non IS
-        if ctr == N { return ret; }
+        if ctr == K { return ret; }
 
         // "hard" part: copy all remaining columns < K into the non information set part
-        for i in 0..N {
-            if is_pivot_column[ctr] == 0 { break; }
-
+        let mut j = 0;
+        while j < N && is_pivot_column[ctr] == 0 {
             // copy column
-            for j in 0..N {
-                ret[j][i] = g[j][ctr];
+            for k in 0..K {
+                ret[k][j] = g[k][ctr];
             }
-            ctr += 1
+            ctr += 1;
+            j += 1;
         }
 
         ret
@@ -1509,9 +1550,9 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
             z += 1;
         }
 
-        /// NOTE: fallback solution if everything falls apart.
-        /// NOTE: reaching this needs every row to contain the same number of
-        /// zeros, `CFOriginal` is not part of this port.
+        // NOTE: fallback solution if everything falls apart.
+        // NOTE: reaching this needs every row to contain the same number of
+        // zeros, `CFOriginal` is not part of this port.
         if z == N {
             return 0;
         }
@@ -1783,11 +1824,50 @@ mod tests {
         }
     }
 
+    /// res = g*monom permutes the columns of `g` and scales them
     #[test]
     fn monomial_mul() {
-        let mut a = Matrix::<N, M, M>::default();
-        let t = Monomial::<N, N>::default();
-        // TODO
+        use crate::prng::csprng_initialize;
+        use crate::config::Xof;
+
+        let g = Matrix::<N, M, M>::rand_from_seed::<Xof>(&[0u8; 32]);
+        let monom = Monomial::<M, M>::rand_from_seed::<Xof>(&[1u8; 32]);
+
+        let mut res = Matrix::<N, M, M>::default();
+        Matrix::monomial_mul(&mut res, &g, &monom);
+
+        // column `col` of `g` lands on column `monom.perms[col]`, scaled by
+        // `monom.coeffs[col]`
+        for col in 0..M {
+            let dst = monom.perms[col] as usize;
+            for row in 0..N {
+                assert_eq!(res[row][dst], Fq::mul(g[row][col], monom.coeffs[col]),
+                           "row {} col {} -> {}", row, col, dst);
+            }
+        }
+
+        // multiplying with the identity monomial only scales
+        let mut id = Monomial::<M, M>::default();
+        for i in 0..M { id.coeffs[i] = Fq(1); }
+        let mut res = Matrix::<N, M, M>::default();
+        Matrix::monomial_mul(&mut res, &g, &id);
+        for row in 0..N {
+            for col in 0..M {
+                assert_eq!(res[row][col], g[row][col]);
+            }
+        }
+
+        // and the result is a permutation of the columns, nothing is lost
+        let mut s = csprng_initialize::<Xof>(&[2u8; 32]);
+        let monom = Monomial::<M, M>::rand(&mut s);
+        let mut res = Matrix::<N, M, M>::default();
+        Matrix::monomial_mul(&mut res, &g, &monom);
+        let mut seen = [false; M];
+        for col in 0..M {
+            let dst = monom.perms[col] as usize;
+            assert!(!seen[dst]);
+            seen[dst] = true;
+        }
     }
 
     #[test]
