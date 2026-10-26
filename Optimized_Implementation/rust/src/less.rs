@@ -70,10 +70,10 @@ pub fn less_keygen(sk: &mut PrivateKey, pk: &mut PublicKey) {
     for i in 0..(NUM_KEYPAIRS - 1) {
         let mut is_pivot_column = [0u8; N_pad];
         /* expand inverse monomial from seed */
-        let mut private_q = Monomial::<N>::default();
-        let private_q_inv = Monomial::<N>::rand_from_seed::<Xof>(&private_monomial_seeds[i]);
+        let mut private_q = Monomial::<N, N_pad>::default();
+        let private_q_inv = Monomial::<N, N_pad>::rand_from_seed::<Xof>(&private_monomial_seeds[i]);
         // NOTE: the inversion is not implemented in constant time.
-        Monomial::<N>::inv_non_ct(&mut private_q, &private_q_inv);
+        Monomial::<N, N_pad>::inv_non_ct(&mut private_q, &private_q_inv);
 
         let mut result_g = Matrix::<K, N_pad>::default();
         Matrix::monomial_mul(&mut result_g, &tmp_full_g, &private_q); // TODO replace with `*` operator
@@ -134,7 +134,7 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
     let mut hasher = Hash::new();
     let mut pi_tilde: [Permutation::<K>; T] = core::array::from_fn(|_| Permutation::<K>::default());
     for i in 0..T {
-        let mu_tilde = Monomial::<N>::rand_from_seed::<Xof>(&linearized_rounds_seeds[i*SEED_LENGTH_BYTES..(i+1)*SEED_LENGTH_BYTES]);
+        let mu_tilde = Monomial::<N, N_pad>::rand_from_seed::<Xof>(&linearized_rounds_seeds[i*SEED_LENGTH_BYTES..(i+1)*SEED_LENGTH_BYTES]);
         Matrix::monomial_mul(&mut G0, &full_g0, &mu_tilde);
 
         let mut permuted_pivot_flag: [u8; N_pad] = [0u8; N_pad];
@@ -145,8 +145,8 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
         if G0.rref::<true>(&mut is_pivot_column, &mut permuted_pivot_flag, SIGN_PIVOT_REUSE_LIMIT) == false {
             return 0;
         }
-        let mut a_j = MatrixNormalized::<K_pad>::from_information_set::<K, N_pad>(&G0, &is_pivot_column);
-        pi_tilde[i] = Permutation::<K>::from_information_set_composition::<N, N_pad>(&mu_tilde, &is_pivot_column);
+        let mut a_j = MatrixNormalized::<{N - K}, N_K_pad>::from_information_set::<K, N_pad>(&G0, &is_pivot_column);
+        pi_tilde[i] = Permutation::<K>::from_information_set_composition::<N, N_pad, N_pad>(&mu_tilde, &is_pivot_column);
 
 
         a_j.blind(&mut cf_shake_state);
@@ -174,7 +174,7 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
     for i in 0..T {
         if fixed_weight_string[i] != 0 {
             let j = fixed_weight_string[i] as usize;
-            let Q_to_multiply = Monomial::<N>::rand_from_seed::<Xof>(&private_monomial_seeds[j]);
+            let Q_to_multiply = Monomial::<N, N_pad>::rand_from_seed::<Xof>(&private_monomial_seeds[j]);
             let mono_action = Permutation::<K>::from_composition_action(&Q_to_multiply, &pi_tilde[i]);
             sig.cf_monom_actions[emitted_monoms] = mono_action.bytes();
 

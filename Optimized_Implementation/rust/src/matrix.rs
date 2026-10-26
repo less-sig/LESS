@@ -32,7 +32,7 @@ use crate::prng::rand_range_q_state_elements;
 /// M: number of cols
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Matrix<const N: usize, const M: usize> {
-    rows: [Vector<M>; N],
+    rows: [Vector<M, M>; N],
 }
 
 
@@ -53,7 +53,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     #[inline]
     pub fn default() -> Self {
         Self {
-            rows: core::array::from_fn(|_| Vector::<M>::default() ),
+            rows: core::array::from_fn(|_| Vector::<M, M>::default() ),
         }
     }
 
@@ -61,7 +61,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     #[inline]
     pub fn from_u8(v: u8) -> Matrix<N, M> {
         Matrix {
-            rows: core::array::from_fn(|_| Vector::<M>::from_u8(v) ),
+            rows: core::array::from_fn(|_| Vector::<M, M>::from_u8(v) ),
         }
     }
 
@@ -289,7 +289,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     #[inline]
     pub fn add(r: &mut Self, l: &Self) {
         for i in 0..N {
-            Vector::<M>::add2(&mut r[i],&l[i]);
+            Vector::<M, M>::add2(&mut r[i],&l[i]);
         }
     }
 
@@ -311,7 +311,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     #[inline]
     pub fn sub(r: &mut Self, l: &Self) {
         for i in 0..N {
-            Vector::<M>::sub2(&mut r[i],&l[i]);
+            Vector::<M, M>::sub2(&mut r[i],&l[i]);
         }
     }
 
@@ -347,7 +347,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// use less::monomial::Monomial;
     /// const N: usize = 32;
     /// let g = Matrix::<N, N>::rand_from_seed::<Shake128>(&[0u8; 32]);
-    /// let monom = Monomial::<N>::rand_from_seed::<Shake128>(&[1u8; 32]);
+    /// let monom = Monomial::<N, N>::rand_from_seed::<Shake128>(&[1u8; 32]);
     /// let mut res = Matrix::<N, N>::default();
     /// Matrix::monomial_mul(&mut res, &g, &monom);
     /// ```
@@ -356,7 +356,7 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// - `r`: NxM matrix
     /// - `r1`: index of the first row
     /// - `r2`: index of the second row
-    pub fn monomial_mul<const M_prime: usize>(res: &mut Self, g: &Self, monom: &Monomial<M_prime>) {
+    pub fn monomial_mul<const M_prime: usize, const M_prime_PAD: usize>(res: &mut Self, g: &Self, monom: &Monomial<M_prime, M_prime_PAD>) {
         // static_assert!(M <= M_prime);
         // `M_prime` is the length of the code, the padding is not permuted
         for src_col_idx in 0..M_prime {
@@ -778,9 +778,9 @@ impl<'a, const N: usize, const M: usize> Sub for &'a mut Matrix<N, M> {
         self
     }
 }
-impl<const N: usize, const M: usize> Mul<Monomial<M>> for Matrix<N, M> {
+impl<const N: usize, const M: usize> Mul<Monomial<M, M>> for Matrix<N, M> {
     type Output = Matrix<N, M>;
-    fn mul(self, r: Monomial<M>) -> Self::Output {
+    fn mul(self, r: Monomial<M, M>) -> Self::Output {
         let mut t = Matrix::default();
         Self::monomial_mul(&mut t, &self, &r);
         t
@@ -790,7 +790,7 @@ impl<const N: usize, const M: usize> Mul<Monomial<M>> for Matrix<N, M> {
 
 /// Direct access to a row
 impl<const N: usize, const M: usize> Index<usize> for Matrix<N, M> {
-    type Output = Vector<M>;
+    type Output = Vector<M, M>;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.rows[index]
@@ -820,38 +820,38 @@ impl<const N: usize, const M: usize> Display for Matrix<N, M> {
 
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MatrixNormalized<const N: usize> {
-    pub rows: [Vector<N>; N],
+pub struct MatrixNormalized<const N: usize, const N_PAD: usize> {
+    pub rows: [Vector<N, N_PAD>; N_PAD],
 }
 
-impl<const N: usize> MatrixNormalized<N> {
+impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
     /// generates a new matrix init with 0
     /// # Examples
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let result: MatrixNormalized<100> = MatrixNormalized::default();
+    /// let result: MatrixNormalized<100, 100> = MatrixNormalized::default();
     /// assert_eq!(result[0][0].0, 0);
     /// assert_eq!(result.dimension(), 100);
     /// ```
-    pub fn default() -> MatrixNormalized<N> {
+    pub fn default() -> MatrixNormalized<N, N_PAD> {
         MatrixNormalized {
-            rows: core::array::from_fn(|_| Vector::<N>::default() ),
+            rows: core::array::from_fn(|_| Vector::<N, N_PAD>::default() ),
         }
     }
    
     /// generates a new matrix init with q-1
-    pub fn default_large() -> MatrixNormalized<N> {
+    pub fn default_large() -> MatrixNormalized<N, N_PAD> {
         MatrixNormalized {
-            rows: core::array::from_fn(|_| Vector::<N>::from_u8(Q-1) ),
+            rows: core::array::from_fn(|_| Vector::<N, N_PAD>::from_u8(Q-1) ),
         }
     }
 
     /// same as init, but inits all values with `v`
     #[inline]
-    pub fn from_u8(v: u8) -> MatrixNormalized<N> {
+    pub fn from_u8(v: u8) -> MatrixNormalized<N, N_PAD> {
         MatrixNormalized {
-            rows: core::array::from_fn(|_| Vector::<N>::from_u8(v) ),
+            rows: core::array::from_fn(|_| Vector::<N, N_PAD>::from_u8(v) ),
         }
     }
 
@@ -861,7 +861,7 @@ impl<const N: usize> MatrixNormalized<N> {
     /// \param G[in]: generator matrix to extract the non-IS from.
     /// \param is_pivot_column[in]: array identifying a pivot column via a 1
     #[inline]
-    pub fn from_information_set<const N_PRIME: usize, const M_PRIME: usize>(g: &Matrix<N_PRIME, M_PRIME>, is_pivot_column: &[u8; M_PRIME]) -> MatrixNormalized<N> {
+    pub fn from_information_set<const N_PRIME: usize, const M_PRIME: usize>(g: &Matrix<N_PRIME, M_PRIME>, is_pivot_column: &[u8; M_PRIME]) -> MatrixNormalized<N, N_PAD> {
         let mut ret = MatrixNormalized::default();
         // we simply copy the last N-K columns even if they are not the information set.
         for i in 0..N {
@@ -899,8 +899,8 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let A: MatrixNormalized<100> = MatrixNormalized::id();
-    /// let B: MatrixNormalized<100> = MatrixNormalized::id();
+    /// let A: MatrixNormalized<100, 100> = MatrixNormalized::id();
+    /// let B: MatrixNormalized<100, 100> = MatrixNormalized::id();
     /// A >= B;
     /// A <= B;
     /// A > B;
@@ -933,8 +933,8 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let A: MatrixNormalized<100> = MatrixNormalized::id();
-    /// let B: MatrixNormalized<100> = MatrixNormalized::id();
+    /// let A: MatrixNormalized<100, 100> = MatrixNormalized::id();
+    /// let B: MatrixNormalized<100, 100> = MatrixNormalized::id();
     /// A == B;
     /// ```
     ///
@@ -949,7 +949,7 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let result: MatrixNormalized<100> = MatrixNormalized::id();
+    /// let result: MatrixNormalized<100, 100> = MatrixNormalized::id();
     /// assert_eq!(result[0][0].0, 1);
     /// assert_eq!(result.dimension(), 100);
     /// ```
@@ -985,7 +985,7 @@ impl<const N: usize> MatrixNormalized<N> {
     /// ```
     /// use sha3::Shake128;
     /// use less::matrix::MatrixNormalized;
-    /// let result: MatrixNormalized<100> = MatrixNormalized::rand_from_seed::<Shake128>(&[0u8; 32]);
+    /// let result: MatrixNormalized<100, 100> = MatrixNormalized::rand_from_seed::<Shake128>(&[0u8; 32]);
     /// ```
     ///
     /// # Parameters
@@ -1005,7 +1005,7 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let result: MatrixNormalized<100> = MatrixNormalized::default();
+    /// let result: MatrixNormalized<100, 100> = MatrixNormalized::default();
     /// assert_eq!(result.dimension(), 100);
     /// ```
     ///
@@ -1021,7 +1021,7 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let result: MatrixNormalized<100> = MatrixNormalized::default();
+    /// let result: MatrixNormalized<100, 100> = MatrixNormalized::default();
     /// assert_eq!(result.ncols(), 100);
     /// ```
     ///
@@ -1037,7 +1037,7 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let result: MatrixNormalized<100> = MatrixNormalized::default();
+    /// let result: MatrixNormalized<100, 100> = MatrixNormalized::default();
     /// assert_eq!(result.nrows(), 100);
     /// ```
     ///
@@ -1054,14 +1054,14 @@ impl<const N: usize> MatrixNormalized<N> {
     /// ```
     /// use less::matrix::MatrixNormalized;
     /// const N: usize = 128;
-    /// let mut C: MatrixNormalized<N> = MatrixNormalized::default();
-    /// let A : MatrixNormalized<N> = MatrixNormalized::default();
+    /// let mut C: MatrixNormalized<N, N> = MatrixNormalized::default();
+    /// let A : MatrixNormalized<N, N> = MatrixNormalized::default();
     /// MatrixNormalized::add(&mut C, &A);
     /// ```
     ///
     pub fn add(r: &mut Self, l: &Self) {
         for i in 0..N {
-            Vector::<N>::add2(&mut r[i], &l[i]);
+            Vector::<N, N_PAD>::add2(&mut r[i], &l[i]);
         }
     }
 
@@ -1071,14 +1071,14 @@ impl<const N: usize> MatrixNormalized<N> {
     /// ```
     /// use less::matrix::MatrixNormalized;
     /// const N: usize = 128;
-    /// let mut C: MatrixNormalized<N> = MatrixNormalized::default();
-    /// let A : MatrixNormalized<N> = MatrixNormalized::default();
+    /// let mut C: MatrixNormalized<N, N> = MatrixNormalized::default();
+    /// let A : MatrixNormalized<N, N> = MatrixNormalized::default();
     /// MatrixNormalized::add(&mut C, &A);
     /// ```
     ///
     pub fn sub(r: &mut Self, l: &Self) {
         for i in 0..N {
-            Vector::<N>::sub2(&mut r[i], &l[i]);
+            Vector::<N, N_PAD>::sub2(&mut r[i], &l[i]);
         }
     }
 
@@ -1089,13 +1089,13 @@ impl<const N: usize> MatrixNormalized<N> {
     /// use less::matrix::MatrixNormalized;
     /// use less::fq::Fq;
     /// const N: usize = 128;
-    /// let mut C: MatrixNormalized<N> = MatrixNormalized::default();
+    /// let mut C: MatrixNormalized<N, N> = MatrixNormalized::default();
     /// MatrixNormalized::scalar(&mut C, Fq(1));
     /// ```
     ///
     pub fn scalar(r: &mut Self, l: Fq) {
         for i in 0..N {
-            Vector::<N>::scalar2(&mut r[i], l);
+            Vector::<N, N_PAD>::scalar2(&mut r[i], l);
         }
     }
 
@@ -1105,19 +1105,19 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let mut result: MatrixNormalized<64> = MatrixNormalized::default();
+    /// let mut result: MatrixNormalized<64, 64> = MatrixNormalized::default();
     /// MatrixNormalized::row_add(&mut result, 0, 1);
     /// ```
     ///
     pub fn row_add(&mut self, i: usize, j: usize) {
         // what we want to implement
-        // Vector::<N>::add2(&mut self.rows[i], &mut self.rows[j]);
+        // Vector::<N, N_PAD>::add2(&mut self.rows[i], &mut self.rows[j]);
         if i == j {
             return;
         }
 
         let [a, b] = self.rows.get_disjoint_mut([i, j]).unwrap();
-        Vector::<N>::add2(a, b);
+        Vector::<N, N_PAD>::add2(a, b);
     }
 
     /// row subtraction
@@ -1126,7 +1126,7 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let mut result: MatrixNormalized<64> = MatrixNormalized::default();
+    /// let mut result: MatrixNormalized<64, 64> = MatrixNormalized::default();
     /// MatrixNormalized::row_sub(&mut result, 0, 1);
     /// ```
     ///
@@ -1136,7 +1136,7 @@ impl<const N: usize> MatrixNormalized<N> {
         }
 
         let [a, b] = self.rows.get_disjoint_mut([i, j]).unwrap();
-        Vector::<N>::sub2(a, b);
+        Vector::<N, N_PAD>::sub2(a, b);
     }
 
     /// row scalar multiplication
@@ -1146,12 +1146,12 @@ impl<const N: usize> MatrixNormalized<N> {
     /// ```
     /// use less::matrix::MatrixNormalized;
     /// use less::fq::Fq;
-    /// let mut result: MatrixNormalized<64> = MatrixNormalized::default();
+    /// let mut result: MatrixNormalized<64, 64> = MatrixNormalized::default();
     /// MatrixNormalized::row_scalar(&mut result, 0, Fq(1));
     /// ```
     ///
     pub fn row_scalar(&mut self, i: usize, s: Fq) {
-        Vector::<N>::scalar2(&mut self.rows[i], s);
+        Vector::<N, N_PAD>::scalar2(&mut self.rows[i], s);
     }
 
     /// transpose: a = b^T
@@ -1159,8 +1159,8 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let mut A: MatrixNormalized<64> = MatrixNormalized::default();
-    /// let mut B: MatrixNormalized<64> = MatrixNormalized::default();
+    /// let mut A: MatrixNormalized<64, 64> = MatrixNormalized::default();
+    /// let mut B: MatrixNormalized<64, 64> = MatrixNormalized::default();
     /// MatrixNormalized::transpose(&mut B, &A);
     /// ```
     pub fn transpose(a: &mut Self, b: &Self) {
@@ -1182,12 +1182,12 @@ impl<const N: usize> MatrixNormalized<N> {
     ///			0 if two rows generate the same multiset
     fn SortRows(&mut self, z: usize, L: &mut Multiset<Q_PAD>) -> i32 {
         // first sort each row into a tmp buffer
-        let tmp: [Multiset<Q_PAD>; N] = Multiset::<Q_PAD>::from_matrix::<N>(self);
+        let tmp: [Multiset<Q_PAD>; N_PAD] = Multiset::<Q_PAD>::from_matrix::<N, N_PAD>(self);
 
         // the sorting is done on a list of pointers into `tmp` alongside the
         // permutation `P`, both are swapped together, so `ptr[i] == tmp[P[i]]`
         // holds at any time and `P` alone is enough here.
-        let mut p: [usize; N] = core::array::from_fn(|i| i);
+        let mut p: [usize; N_PAD] = core::array::from_fn(|i| i);
 
         let mut max_zeros = 0u8;
         for i in 0..z {
@@ -1253,7 +1253,7 @@ impl<const N: usize> MatrixNormalized<N> {
         MatrixNormalized::transpose(&mut VT, &self);
 
         // same pointer/permutation trick as in `SortRows`
-        let mut p: [usize; N] = core::array::from_fn(|i| i);
+        let mut p: [usize; N_PAD] = core::array::from_fn(|i| i);
 
         // quick sort with an explicit stack
         let mut stack = [0i64; 64];
@@ -1309,11 +1309,11 @@ impl<const N: usize> MatrixNormalized<N> {
     fn scale_cf_preprocess_v1(&mut self, z: usize, m: &Multiset<Q_PAD>) -> i32 {
         let mut tmp = Multiset::<Q_PAD>::default();
         for i in 0..z  {
-            let mut s = Vector::<N>::acc(&self.rows[i]);
+            let mut s = Vector::<N, N_PAD>::acc(&self.rows[i]);
             if s != Fq(0) {
                 s = Fq::inv_non_ct(s);
             } else {
-                s = Vector::<N>::acc_inv(&self.rows[i]);
+                s = Vector::<N, N_PAD>::acc_inv(&self.rows[i]);
                 if s.0 == 0 {
                     return 0;
                 }
@@ -1336,11 +1336,11 @@ impl<const N: usize> MatrixNormalized<N> {
         let mut tmp = Multiset::<Q_PAD>::default();
         let mut ret = 0;
         for i in 0..z  {
-            let mut s = Vector::<N>::acc(&self.rows[i]);
+            let mut s = Vector::<N, N_PAD>::acc(&self.rows[i]);
             if s.0 != 0 {
                 s = Fq::inv_non_ct(s);
             } else {
-                s = Vector::<N>::acc_inv(&self.rows[i]);
+                s = Vector::<N, N_PAD>::acc_inv(&self.rows[i]);
                 if s.0 == 0 {
                     continue;
                 }
@@ -1391,7 +1391,7 @@ impl<const N: usize> MatrixNormalized<N> {
     /// 		1 on success
     fn ScaleCF(&mut self, L: &mut Multiset<Q_PAD>) -> i32 {
         for row in 0..N {
-            if Vector::all_same(&self[row], crate::config::N - crate::config::K) {
+            if Vector::all_same(&self[row]) {
                 continue;
             }
 
@@ -1399,7 +1399,7 @@ impl<const N: usize> MatrixNormalized<N> {
             if s.0 != 0 {
                 s = Fq::inv_non_ct(s);
             } else {
-                s = Vector::<N>::acc_inv(&self.rows[row]);
+                s = Vector::<N, N_PAD>::acc_inv(&self.rows[row]);
                 if s.0 == 0 {
                     return 0;
                 }
@@ -1421,11 +1421,11 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let mut A: MatrixNormalized<64> = MatrixNormalized::default();
-    /// let mut B: MatrixNormalized<64> = MatrixNormalized::default();
+    /// let mut A: MatrixNormalized<64, 64> = MatrixNormalized::default();
+    /// let mut B: MatrixNormalized<64, 64> = MatrixNormalized::default();
     /// // TODO
     /// ```
-    pub fn monomial_mul(res: &mut Self, g: &Self, monom: &Monomial<N>) {
+    pub fn monomial_mul(res: &mut Self, g: &Self, monom: &Monomial<N, N_PAD>) {
         for src_col_idx in 0..N {
             for row_idx in 0..N {
                 let pos = monom.perms[src_col_idx];
@@ -1441,8 +1441,8 @@ impl<const N: usize> MatrixNormalized<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let mut A: MatrixNormalized<64> = MatrixNormalized::default();
-    /// let mut B: MatrixNormalized<64> = MatrixNormalized::default();
+    /// let mut A: MatrixNormalized<64, 64> = MatrixNormalized::default();
+    /// let mut B: MatrixNormalized<64, 64> = MatrixNormalized::default();
     /// // TODO
     /// ```
     pub fn permutation_mul(res: &mut Self, g: &Self, perm: &Permutation<N>) {
@@ -1459,8 +1459,8 @@ impl<const N: usize> MatrixNormalized<N> {
     where
         S: XofReader
     {
-        let left = Monomial::<N>::rand(state);
-        let right = Monomial::<N>::rand(state);
+        let left = Monomial::<N, N_PAD>::rand(state);
+        let right = Monomial::<N, N_PAD>::rand(state);
 
         // right multiplication
         let mut tmp = MatrixNormalized::default();
@@ -1482,7 +1482,7 @@ impl<const N: usize> MatrixNormalized<N> {
     /// \return 0 on failure
     /// 		1 on success
     pub fn ImprovedCFBase(&mut self) -> i32 {
-        let mut M = MatrixNormalized::<N>::default_large();
+        let mut M = MatrixNormalized::<N, N_PAD>::default_large();
         let mut touched = 0i32;
         let mut J = [0u32; N];
         let mut z = 0usize;
@@ -1492,7 +1492,7 @@ impl<const N: usize> MatrixNormalized<N> {
         let mut Z = [false; N];
 
         for row in 0..N {
-            let num_zeros = Vector::count_zero(&self[row], crate::config::N - crate::config::K);
+            let num_zeros = Vector::count_zero(&self[row]);
             Z[row] = num_zeros > 0;
             if num_zeros < max_zeros {
                 continue
@@ -1513,7 +1513,7 @@ impl<const N: usize> MatrixNormalized<N> {
             // TODO return self.CFOriginal();
         }
 
-        let mut row_inv_data = Vector::<N>::default();
+        let mut row_inv_data = Vector::<N, N_PAD>::default();
         // NOTE: this is already "sorted"
         let mut L = Multiset::<Q_PAD>::default();
 
@@ -1521,7 +1521,7 @@ impl<const N: usize> MatrixNormalized<N> {
         for row in 0..N {
             if Z[row] { continue; }
 
-            let mut B = MatrixNormalized::<N>::default();
+            let mut B = MatrixNormalized::<N, N_PAD>::default();
             Vector::inv_non_ct(&mut row_inv_data, &self[row]);
             for row2 in 0..z {
                 Vector::mul(&mut B[row2], &self[J[row2] as usize], &row_inv_data);
@@ -1559,7 +1559,7 @@ impl<const N: usize> MatrixNormalized<N> {
         let mut Z = [false; N];
 
         for row in 0..N {
-            let num_zeros = Vector::count_zero(&self[row], crate::config::N - crate::config::K);
+            let num_zeros = Vector::count_zero(&self[row]);
             Z[row] = num_zeros > 0;
             if num_zeros < max_zeros {
                 continue
@@ -1581,8 +1581,8 @@ impl<const N: usize> MatrixNormalized<N> {
             return 0;
         }
 
-        let mut B = MatrixNormalized::<N>::default();
-        let mut row_inv_data = Vector::<N>::default();
+        let mut B = MatrixNormalized::<N, N_PAD>::default();
+        let mut row_inv_data = Vector::<N, N_PAD>::default();
         // NOTE: this is already "sorted"
         let mut L = Multiset::<Q_PAD>::default();
 
@@ -1617,39 +1617,39 @@ impl<const N: usize> MatrixNormalized<N> {
     }
 }
 
-impl<const N: usize> Add for MatrixNormalized<N> {
-    type Output = MatrixNormalized<N>;
+impl<const N: usize, const N_PAD: usize> Add for MatrixNormalized<N, N_PAD> {
+    type Output = MatrixNormalized<N, N_PAD>;
     fn add(self, r: Self) -> Self::Output {
         let mut t = self;
         Self::add(&mut t, &r);
         t
     }
 }
-impl<'a, const N: usize> Add for &'a mut MatrixNormalized<N> {
-    type Output = &'a mut MatrixNormalized<N>;
+impl<'a, const N: usize, const N_PAD: usize> Add for &'a mut MatrixNormalized<N, N_PAD> {
+    type Output = &'a mut MatrixNormalized<N, N_PAD>;
     fn add(self, r: Self) -> Self::Output {
-        MatrixNormalized::<N>::add(self, r);
+        MatrixNormalized::<N, N_PAD>::add(self, r);
         self
     }
 }
-impl<const N: usize> Sub for MatrixNormalized<N> {
-    type Output = MatrixNormalized<N>;
+impl<const N: usize, const N_PAD: usize> Sub for MatrixNormalized<N, N_PAD> {
+    type Output = MatrixNormalized<N, N_PAD>;
     fn sub(self, r: Self) -> Self::Output {
         let mut t = self;
         Self::sub(&mut t, &r);
         t
     }
 }
-impl<'a, const N: usize> Sub for &'a mut MatrixNormalized<N> {
-    type Output = &'a mut MatrixNormalized<N>;
+impl<'a, const N: usize, const N_PAD: usize> Sub for &'a mut MatrixNormalized<N, N_PAD> {
+    type Output = &'a mut MatrixNormalized<N, N_PAD>;
     fn sub(self, r: Self) -> Self::Output {
-        MatrixNormalized::<N>::sub(self, r);
+        MatrixNormalized::<N, N_PAD>::sub(self, r);
         self
     }
 }
 
-impl<const N: usize> Mul<Permutation<N>> for MatrixNormalized<N> {
-    type Output = MatrixNormalized<N>;
+impl<const N: usize, const N_PAD: usize> Mul<Permutation<N>> for MatrixNormalized<N, N_PAD> {
+    type Output = MatrixNormalized<N, N_PAD>;
     fn mul(self, r: Permutation<N>) -> Self::Output {
         let mut t = MatrixNormalized::default();
         Self::permutation_mul(&mut t, &self, &r);
@@ -1658,15 +1658,15 @@ impl<const N: usize> Mul<Permutation<N>> for MatrixNormalized<N> {
 }
 
 /// Direct access to a row
-impl<const N: usize> Index<usize> for MatrixNormalized<N> {
-    type Output = Vector<N>;
+impl<const N: usize, const N_PAD: usize> Index<usize> for MatrixNormalized<N, N_PAD> {
+    type Output = Vector<N, N_PAD>;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.rows[index]
     }
 }
 /// Direct access to a row (mutable)
-impl<const N: usize> IndexMut<usize> for MatrixNormalized<N> {
+impl<const N: usize, const N_PAD: usize> IndexMut<usize> for MatrixNormalized<N, N_PAD> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.rows[index]
     }
@@ -1768,7 +1768,7 @@ mod tests {
     #[test]
     fn monomial_mul() {
         let mut a = Matrix::<N, M>::default();
-        let t = Monomial::<N>::default();
+        let t = Monomial::<N, N>::default();
         // TODO
     }
 
@@ -1803,12 +1803,12 @@ mod normalized_tests {
 
     #[test]
     fn init() {
-        let _ = MatrixNormalized::<N>::default();
+        let _ = MatrixNormalized::<N, N>::default();
     }
 
     #[test]
     fn from_u8() {
-        let a = MatrixNormalized::<N>::from_u8(1);
+        let a = MatrixNormalized::<N, N>::from_u8(1);
         for row in 0..a.nrows() {
             for col in 0..a.ncols() {
                 assert_eq!(a[row][col], Fq(1));
@@ -1818,8 +1818,8 @@ mod normalized_tests {
 
     #[test]
     fn transpose() {
-        let a = MatrixNormalized::<N>::rand_from_seed::<Shake128>(&[0u8; 32]);
-        let mut b = MatrixNormalized::<N>::default();
+        let a = MatrixNormalized::<N, N>::rand_from_seed::<Shake128>(&[0u8; 32]);
+        let mut b = MatrixNormalized::<N, N>::default();
         MatrixNormalized::transpose(&mut b, &a);
 
         for row in 0..a.nrows() {
@@ -1835,14 +1835,14 @@ mod normalized_tests {
         hasher.update(b"123");
         let mut reader = hasher.finalize_xof();
 
-        let mut a = MatrixNormalized::<N>::default();
+        let mut a = MatrixNormalized::<N, N>::default();
         MatrixNormalized::blind(&mut a, &mut reader);
 
     }
 
     /// a matrix whose rows all have a distinct histogram
-    fn distinct_rows() -> MatrixNormalized<N> {
-        let mut a = MatrixNormalized::<N>::default();
+    fn distinct_rows() -> MatrixNormalized<N, N> {
+        let mut a = MatrixNormalized::<N, N>::default();
         for row in 0..N {
             for col in 0..N {
                 a[row][col] = Fq(if col <= row { 1 } else { 2 });
@@ -1858,7 +1858,7 @@ mod normalized_tests {
         assert_eq!(a.SortRows(N, &mut l), 1);
 
         // the rows end up in descending histogram order
-        let h = Multiset::<Q_PAD>::from_matrix::<N>(&a);
+        let h = Multiset::<Q_PAD>::from_matrix::<N, N>(&a);
         for row in 1..N {
             assert!(h[row - 1] >= h[row], "row {} is out of order", row);
         }
@@ -1902,7 +1902,7 @@ mod normalized_tests {
         assert_eq!(a.SortCols(N), 1);
 
         // the columns end up in ascending order
-        let mut t = MatrixNormalized::<N>::default();
+        let mut t = MatrixNormalized::<N, N>::default();
         MatrixNormalized::transpose(&mut t, &a);
         for row in 1..N {
             assert!(t[row - 1] <= t[row], "column {} is out of order", row);
@@ -1915,7 +1915,7 @@ mod normalized_tests {
         let mut a = distinct_rows();
         assert_eq!(a.SortCols(N), 1);
 
-        let mut b = MatrixNormalized::<N>::default();
+        let mut b = MatrixNormalized::<N, N>::default();
         for row in 0..N { b[row].0 = a[row].0; }
 
         assert_eq!(a.SortCols(N), 1);

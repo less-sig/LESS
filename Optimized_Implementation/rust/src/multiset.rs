@@ -59,7 +59,7 @@ impl<const N:usize> Multiset<N> {
     /// ```
     /// use less::multiset::Multiset;
     /// use less::vector::Vector;
-    /// let t = Vector::<100>::from_u8(1);
+    /// let t = Vector::<100, 100>::from_u8(1);
     /// let mut c = Multiset::<100>::default();
     /// Multiset::<100>::from_row(&mut c, &t);
     /// assert_eq!(c[0], 0);
@@ -69,7 +69,7 @@ impl<const N:usize> Multiset<N> {
     /// # Returns
     /// A new multiset element
     #[inline]
-    pub fn from_row<const M: usize>(out: &mut Multiset<N>, row: &Vector<M>) {
+    pub fn from_row<const M: usize, const M_PAD: usize>(out: &mut Multiset<N>, row: &Vector<M, M_PAD>) {
         Self::sort(out, row);
     }
 
@@ -79,7 +79,7 @@ impl<const N:usize> Multiset<N> {
     /// ```
     /// use less::multiset::Multiset;
     /// use less::matrix::MatrixNormalized;
-    /// let t = MatrixNormalized::<100>::from_u8(1);
+    /// let t = MatrixNormalized::<100, 100>::from_u8(1);
     /// let c = Multiset::<100>::from_matrix(&t);
     /// ```
     ///
@@ -89,11 +89,11 @@ impl<const N:usize> Multiset<N> {
     /// # Returns
     /// A new multiset element
     #[inline]
-    pub fn from_matrix<const M: usize>(m: &MatrixNormalized<M>) -> [Self; M] {
-        let mut tmp: [Multiset<N>; M] = core::array::from_fn(|_| Multiset::<N>::default() );
+    pub fn from_matrix<const M: usize, const M_PAD: usize>(m: &MatrixNormalized<M, M_PAD>) -> [Self; M_PAD] {
+        let mut tmp: [Multiset<N>; M_PAD] = core::array::from_fn(|_| Multiset::<N>::default() );
         // one histogram per row of the matrix, `N` is the width of a histogram
-        for i in 0..M {
-            Self::from_row::<M>(&mut tmp[i], &m.rows[i]);
+        for i in 0..M_PAD {
+            Self::from_row::<M, M_PAD>(&mut tmp[i], &m.rows[i]);
         }
         tmp
     }
@@ -162,11 +162,11 @@ impl<const N:usize> Multiset<N> {
     ///
     /// ```
     /// use less::matrix::MatrixNormalized;
-    /// let result: MatrixNormalized<100> = MatrixNormalized::default();
+    /// let result: MatrixNormalized<100, 100> = MatrixNormalized::default();
     /// ```
     /// static internal function implementing the histogram function
     #[inline]
-    fn sort<const M: usize>(out: &mut Multiset<N>, row: &Vector<M>) {
+    fn sort<const M: usize, const M_PAD: usize>(out: &mut Multiset<N>, row: &Vector<M, M_PAD>) {
         // first clear the buffer
         for i in 0..N {
             out[i] = 0;
@@ -219,7 +219,7 @@ mod tests {
 
     #[test]
     fn from_row() {
-        let t = Vector::<N>::from_u8(1);
+        let t = Vector::<N, N>::from_u8(1);
         let mut c = Multiset::<N>::default();
 
         Multiset::<N>::from_row(&mut c, &t);
@@ -230,7 +230,7 @@ mod tests {
         }
 
         // the buffer is cleared before the histogram is written
-        let t = Vector::<N>::from_u8(2);
+        let t = Vector::<N, N>::from_u8(2);
         Multiset::<N>::from_row(&mut c, &t);
         assert_eq!(c[1], 0);
         assert_eq!(c[2], N as u8);
@@ -239,14 +239,14 @@ mod tests {
     #[test]
     fn from_matrix() {
         const M: usize = 126;
-        let mut m = MatrixNormalized::<M>::default();
+        let mut m = MatrixNormalized::<M, M>::default();
         for row in 0..M {
             for col in 0..M {
                 m[row][col] = Fq((row % 7) as u8);
             }
         }
 
-        let h = Multiset::<N>::from_matrix::<M>(&m);
+        let h = Multiset::<N>::from_matrix::<M, M>(&m);
         assert_eq!(h.len(), M);
         for row in 0..M {
             assert_eq!(h[row][row % 7], M as u8);
@@ -266,7 +266,7 @@ mod tests {
 
     #[test]
     fn sort() {
-        let mut t = Vector::<N>::default();
+        let mut t = Vector::<N, N>::default();
         for i in 0..N {
             t[i] = Fq((i % 5) as u8);
         }

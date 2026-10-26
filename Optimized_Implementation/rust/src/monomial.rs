@@ -11,8 +11,8 @@ use crate::prng::{merge_exchange, rand_range_q_state_elements, randombytes};
 use crate::vector::Vector;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Monomial<const N: usize> {
-    pub coeffs: Vector<N>,
+pub struct Monomial<const N: usize, const N_PAD: usize> {
+    pub coeffs: Vector<N, N_PAD>,
     pub perms: [u16; N],
 }
 
@@ -21,14 +21,14 @@ pub struct Permutation<const N: usize> {
     pub perms: [u16; N],
 }
 
-impl<const N: usize> Monomial<N> {
+impl<const N: usize, const N_PAD: usize> Monomial<N, N_PAD> {
     /// creates a new Monomial, initialized with as id
     /// # Examples
     ///
     /// ```
     /// use less::monomial::Monomial;
     /// use less::fq::Fq;
-    /// let t = Monomial::<100>::default();
+    /// let t = Monomial::<100, 100>::default();
     /// assert_eq!(t.coeffs[0].0, 0);
     /// ```
     #[inline]
@@ -39,7 +39,7 @@ impl<const N: usize> Monomial<N> {
         }
 
         Monomial {
-            coeffs: Vector::<N>::default(),
+            coeffs: Vector::<N, N_PAD>::default(),
             perms: t,
         }
     }
@@ -50,7 +50,7 @@ impl<const N: usize> Monomial<N> {
     pub fn zero() -> Self {
         let t: [u16; N] = [0u16; N];
         Monomial {
-            coeffs: Vector::<N>::default(),
+            coeffs: Vector::<N, N_PAD>::default(),
             perms: t,
         }
     }
@@ -65,7 +65,7 @@ impl<const N: usize> Monomial<N> {
     where
         S: XofReader
     {
-        let coeffs = Vector::<N>::rand_star(state);
+        let coeffs = Vector::<N, N_PAD>::rand_star(state);
 
         let mut t: [u16; N] = [0u16; N];
         for i in 0..N {
@@ -106,7 +106,7 @@ impl<const N: usize> Monomial<N> {
             t[i] = i as u16;
         }
         let mut ret = Monomial {
-            coeffs: Vector::<N>::rand_star(&mut state),
+            coeffs: Vector::<N, N_PAD>::rand_star(&mut state),
             perms: t,
         };
 
@@ -120,8 +120,8 @@ impl<const N: usize> Monomial<N> {
     ///
     /// ```
     /// use less::monomial::Monomial;
-    /// let A: Monomial<100> = Monomial::default();
-    /// let B: Monomial<100> = Monomial::default();
+    /// let A: Monomial<100, 100> = Monomial::default();
+    /// let B: Monomial<100, 100> = Monomial::default();
     /// A == B;
     /// A != B;
     /// ```
@@ -145,7 +145,7 @@ impl<const N: usize> Monomial<N> {
     ///
     /// ```
     /// use less::monomial::Monomial;
-    /// let result: Monomial<100> = Monomial::default();
+    /// let result: Monomial<100, 100> = Monomial::default();
     /// assert_eq!(result.dimension(), 100);
     /// ```
     ///
@@ -164,8 +164,8 @@ impl<const N: usize> Monomial<N> {
     ///
     /// ```
     /// use less::monomial::Monomial;
-    /// let a: Monomial<100> = Monomial::default();
-    /// let mut b: Monomial<100> = Monomial::default();
+    /// let a: Monomial<100, 100> = Monomial::default();
+    /// let mut b: Monomial<100, 100> = Monomial::default();
     /// Monomial::mul_non_ct(&mut b, &a);
     /// ```
     pub fn mul_non_ct(l: &mut Self, r: &Self) {
@@ -186,8 +186,8 @@ impl<const N: usize> Monomial<N> {
     ///
     /// ```
     /// use less::monomial::Monomial;
-    /// let a: Monomial<100> = Monomial::default();
-    /// let mut b: Monomial<100> = Monomial::default();
+    /// let a: Monomial<100, 100> = Monomial::default();
+    /// let mut b: Monomial<100, 100> = Monomial::default();
     /// Monomial::inv_non_ct(&mut b, &a);
     /// ```
     pub fn inv_non_ct(l: &mut Self, r: &Self) {
@@ -199,19 +199,19 @@ impl<const N: usize> Monomial<N> {
     }
 }
 
-impl <const N: usize> Mul for Monomial<N> {
-    type Output = Monomial<N>;
+impl <const N: usize, const N_PAD: usize> Mul for Monomial<N, N_PAD> {
+    type Output = Monomial<N, N_PAD>;
     #[inline]
-    fn mul(self, r: Monomial<N>) -> Monomial<N> {
+    fn mul(self, r: Monomial<N, N_PAD>) -> Monomial<N, N_PAD> {
         let mut ret = self;
-        Monomial::<N>::mul_non_ct(&mut ret, &r);
+        Monomial::<N, N_PAD>::mul_non_ct(&mut ret, &r);
         ret
     }
 }
-impl <const N: usize> MulAssign for Monomial<N> {
+impl <const N: usize, const N_PAD: usize> MulAssign for Monomial<N, N_PAD> {
     #[inline]
     fn mul_assign(&mut self, other: Self) {
-        Monomial::<N>::mul_non_ct(self, &other);
+        Monomial::<N, N_PAD>::mul_non_ct(self, &other);
     }
 }
 
@@ -246,7 +246,7 @@ impl<const N: usize> Permutation<N> {
     /// \param is_pivot_column[in]: information set, where a 1 in the array
     ///         symbolizes that the corresponding columns is a pivot column.
     #[inline]
-    pub fn from_information_set_composition<const M_PRIME: usize, const N_PRIME: usize>(mu_tilde: &Monomial<M_PRIME>, is_pivot_column: &[u8; N_PRIME]) -> Self {
+    pub fn from_information_set_composition<const M_PRIME: usize, const M_PRIME_PAD: usize, const N_PRIME: usize>(mu_tilde: &Monomial<M_PRIME, M_PRIME_PAD>, is_pivot_column: &[u8; N_PRIME]) -> Self {
         let mut ret = Permutation::default();
 
         let mut piv_idx = 0usize;
@@ -282,13 +282,13 @@ impl<const N: usize> Permutation<N> {
     /// \param Q_in[in]: input monomial
     /// \param in[in]: input monomial
     #[inline]
-    pub fn from_composition_action<const N_PRIME: usize>(Q_in: &Monomial<N_PRIME>, in_: &Permutation<N>) -> Self {
+    pub fn from_composition_action<const N_PRIME: usize, const N_PRIME_PAD: usize>(Q_in: &Monomial<N_PRIME, N_PRIME_PAD>, in_: &Permutation<N>) -> Self {
         let mut ret = Permutation::default();
         // to compose with monomial_action_IS_t, reverse the convention
         // for Q storage: store in permutation[i] the idx of the source column landing
         // as the i-th after the GQ product, and in coefficients[i] the coefficient
         // by which the column is multiplied upon landing
-        let mut reverse_Q = Monomial::<N_PRIME>::default();
+        let mut reverse_Q = Monomial::<N_PRIME, N_PRIME_PAD>::default();
         for i in 0..N_PRIME {
             // we want to compute:
             // reverse_Q.permutation[Q_in->permutation[i]] = i;
@@ -336,7 +336,7 @@ impl<const N: usize> Permutation<N> {
     ///
     /// ```
     /// use less::monomial::Monomial;
-    /// let result: Monomial<100> = Monomial::default();
+    /// let result: Monomial<100, 100> = Monomial::default();
     /// assert_eq!(result.dimension(), 100);
     /// ```
     ///
@@ -460,7 +460,7 @@ mod tests {
 
     #[test]
     fn new() {
-        let c = Monomial::<N>::default();
+        let c = Monomial::<N, N>::default();
         for i in 0..c.dimension() {
             assert_eq!(c.coeffs[i].0, 0);
             assert_eq!(c.perms[i], i as u16);
@@ -469,8 +469,8 @@ mod tests {
 
     #[test]
     fn mul() {
-        let a = Monomial::<N>::default();
-        let mut b = Monomial::<N>::zero();
+        let a = Monomial::<N, N>::default();
+        let mut b = Monomial::<N, N>::zero();
         Monomial::mul_non_ct(&mut b, &a);
 
         for i in 0..N {
@@ -478,22 +478,22 @@ mod tests {
             assert_eq!(b.perms[i], 0u16);
         }
 
-        b = Monomial::<N>::default();
+        b = Monomial::<N, N>::default();
         Monomial::mul_non_ct(&mut b, &a);
         assert_eq!(b, a);
     }
 
     #[test]
     fn inv() {
-        let a = Monomial::<N>::default();
-        let mut b = Monomial::<N>::zero();
+        let a = Monomial::<N, N>::default();
+        let mut b = Monomial::<N, N>::zero();
         Monomial::inv_non_ct(&mut b, &a);
         assert_eq!(b, a);
     }
 
     #[test]
     fn zero() {
-        let c = Monomial::<N>::zero();
+        let c = Monomial::<N, N>::zero();
         for i in 0..N {
             assert_eq!(c.coeffs[i].0, 0);
             assert_eq!(c.perms[i], 0);
@@ -502,15 +502,15 @@ mod tests {
 
     #[test]
     fn dimension() {
-        assert_eq!(Monomial::<N>::default().dimension(), N);
+        assert_eq!(Monomial::<N, N>::default().dimension(), N);
     }
 
     #[test]
     fn eq() {
-        let a = Monomial::<N>::default();
-        let b = Monomial::<N>::default();
+        let a = Monomial::<N, N>::default();
+        let b = Monomial::<N, N>::default();
         assert!(Monomial::eq(&a, &b));
-        assert!(!Monomial::eq(&a, &Monomial::<N>::zero()));
+        assert!(!Monomial::eq(&a, &Monomial::<N, N>::zero()));
     }
 
     /// a monomial matrix must be invertible, so no coefficient may be zero
@@ -519,7 +519,7 @@ mod tests {
     fn rand_is_a_monomial() {
         for seed in 0..64u8 {
             let mut s = csprng_initialize::<Xof>(&[seed; 32]);
-            let a = Monomial::<N>::rand(&mut s);
+            let a = Monomial::<N, N>::rand(&mut s);
 
             let mut seen = [false; N];
             for i in 0..N {
@@ -534,7 +534,7 @@ mod tests {
     #[test]
     fn rand_from_seed_is_a_monomial() {
         for seed in 0..64u8 {
-            let a = Monomial::<N>::rand_from_seed::<Xof>(&[seed; 32]);
+            let a = Monomial::<N, N>::rand_from_seed::<Xof>(&[seed; 32]);
 
             let mut seen = [false; N];
             for i in 0..N {
@@ -544,10 +544,10 @@ mod tests {
             }
         }
 
-        let a = Monomial::<N>::rand_from_seed::<Xof>(&[3u8; 32]);
-        let b = Monomial::<N>::rand_from_seed::<Xof>(&[3u8; 32]);
+        let a = Monomial::<N, N>::rand_from_seed::<Xof>(&[3u8; 32]);
+        let b = Monomial::<N, N>::rand_from_seed::<Xof>(&[3u8; 32]);
         assert_eq!(a, b);
-        let c = Monomial::<N>::rand_from_seed::<Xof>(&[4u8; 32]);
+        let c = Monomial::<N, N>::rand_from_seed::<Xof>(&[4u8; 32]);
         assert_ne!(a, c);
     }
 
@@ -555,19 +555,19 @@ mod tests {
     #[test]
     fn rand_matches_rand_from_seed() {
         let mut s = csprng_initialize::<Xof>(&[9u8; 32]);
-        let a = Monomial::<N>::rand(&mut s);
-        let b = Monomial::<N>::rand_from_seed::<Xof>(&[9u8; 32]);
+        let a = Monomial::<N, N>::rand(&mut s);
+        let b = Monomial::<N, N>::rand_from_seed::<Xof>(&[9u8; 32]);
         assert_eq!(a, b);
     }
 
     /// m * m^-1 must be the identity monomial
     #[test]
     fn mul_inv_is_identity() {
-        let a = Monomial::<N>::rand_from_seed::<Xof>(&[5u8; 32]);
-        let mut a_inv = Monomial::<N>::zero();
+        let a = Monomial::<N, N>::rand_from_seed::<Xof>(&[5u8; 32]);
+        let mut a_inv = Monomial::<N, N>::zero();
         Monomial::inv_non_ct(&mut a_inv, &a);
 
-        let mut t = Monomial::<N>::zero();
+        let mut t = Monomial::<N, N>::zero();
         for i in 0..N {
             t.perms[i] = a.perms[i];
             t.coeffs[i] = a.coeffs[i];
@@ -638,7 +638,7 @@ mod tests_MonomialInformationSet {
     fn from_information_set_composition() {
         use crate::config::{K, N, N_pad, Xof};
 
-        let mu_tilde = Monomial::<N>::rand_from_seed::<Xof>(&[2u8; 32]);
+        let mu_tilde = Monomial::<N, N_pad>::rand_from_seed::<Xof>(&[2u8; 32]);
 
         // the first K columns are the information set
         let mut is_pivot_column = [0u8; N_pad];
@@ -646,7 +646,7 @@ mod tests_MonomialInformationSet {
             is_pivot_column[i] = 1;
         }
 
-        let pi = Permutation::<K>::from_information_set_composition::<N, N_pad>(
+        let pi = Permutation::<K>::from_information_set_composition::<N, N_pad, N_pad>(
             &mu_tilde, &is_pivot_column);
 
         // pi.perms[j] is the source column that mu_tilde maps onto pivot j
@@ -663,11 +663,11 @@ mod tests_MonomialInformationSet {
     /// composing with the identity monomial must leave the action unchanged
     #[test]
     fn from_composition_action_identity() {
-        use crate::config::{K, N};
+        use crate::config::{K, N, N_pad};
 
-        let id = Monomial::<N>::default();
+        let id = Monomial::<N, N_pad>::default();
         let input = Permutation::<K>::default();
-        let out = Permutation::<K>::from_composition_action::<N>(&id, &input);
+        let out = Permutation::<K>::from_composition_action::<N, N_pad>(&id, &input);
         assert_eq!(out.perms, input.perms);
     }
 
