@@ -117,7 +117,7 @@ impl<const N:usize> Multiset<N> {
     ///  0 if multiset(row1) == multiset(row2)
     ///  x if multiset(row1) > multiset(row2)
     /// -x if multiset(row1) < multiset(row2)
-    fn partial_cmp(a: &Self, b: &Self) -> i32 {
+    pub fn partial_cmp(a: &Self, b: &Self) -> i32 {
         let mut i: usize = 0;
         // stop at the last index, so that two equal histograms do not run
         // past the end of the array

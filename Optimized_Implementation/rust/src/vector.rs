@@ -158,7 +158,9 @@ impl <const N: usize> Vector<N>{
         let mut bb = Multiset::<Q_PAD>::default();
         Multiset::from_row(&mut aa, a);
         Multiset::from_row(&mut bb, b);
-        Multiset::<Q_PAD>::partial_cmp(&aa, &bb)
+        // `Multiset::partial_cmp` keeps the `compare_rows` convention, a
+        // negative result means `a` is the greater one
+        Some(0.cmp(&Multiset::<Q_PAD>::partial_cmp(&aa, &bb)))
     }
 
     /// checks for equality

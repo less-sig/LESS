@@ -1181,38 +1181,124 @@ impl<const N: usize> MatrixNormalized<N> {
     /// \return 1 on success
     ///			0 if two rows generate the same multiset
     fn SortRows(&mut self, z: usize, L: &mut Multiset<Q_PAD>) -> i32 {
-        // TODO L is ignored,
-        let mut tmp: [Multiset<Q_PAD>; N] = Multiset::<Q_PAD>::from_matrix::<N>(self);
-        for i in 1..z {
-            let mut j = i;
-            while (j > 0) && (tmp[j-1] < tmp[j]) {
-                if let Ok([a, b]) = &mut tmp.get_disjoint_mut([j-1, j]) {
-                    std::mem::swap(a, b);
-                    if let Ok([a, b]) = &mut self.rows.get_disjoint_mut([j-1, j]) {
-                        std::mem::swap(a, b);
-                    }
-                }
-                j -= 1;
-             }
+        // first sort each row into a tmp buffer
+        let tmp: [Multiset<Q_PAD>; N] = Multiset::<Q_PAD>::from_matrix::<N>(self);
+
+        // the sorting is done on a list of pointers into `tmp` alongside the
+        // permutation `P`, both are swapped together, so `ptr[i] == tmp[P[i]]`
+        // holds at any time and `P` alone is enough here.
+        let mut p: [usize; N] = core::array::from_fn(|i| i);
+
+        let mut max_zeros = 0u8;
+        for i in 0..z {
+            if tmp[i][0] > max_zeros { max_zeros = tmp[i][0]; }
         }
-        0
+
+        // early exit if the shortest row of this matrix is already longer
+        // than the currently shortest one
+        if max_zeros < L[0] { return 0; }
+
+        // quick sort with an explicit stack
+        let mut stack = [0i64; 128];
+        let mut s: i64 = -1;
+        s += 1; stack[s as usize] = 0;
+        s += 1; stack[s as usize] = (z as i64) - 1;
+
+        while s >= 0 {
+            let h = stack[s as usize]; s -= 1;
+            let l = stack[s as usize]; s -= 1;
+
+            // hoare partition
+            let pivot = p[h as usize];
+            let mut i: i64 = l - 1;
+            for j in l..h {
+                if Multiset::<Q_PAD>::partial_cmp(&tmp[p[j as usize]], &tmp[pivot]) < 0 {
+                    i += 1;
+                    if i == j { continue; }
+                    p.swap(i as usize, j as usize);
+                }
+            }
+            if i + 1 != h {
+                p.swap((i + 1) as usize, h as usize);
+            }
+            let q = i + 1;
+
+            if q - 1 > l {
+                s += 1; stack[s as usize] = l;
+                s += 1; stack[s as usize] = q - 1;
+            }
+            if q + 1 < h {
+                s += 1; stack[s as usize] = q + 1;
+                s += 1; stack[s as usize] = h;
+            }
+        }
+
+        // apply the permutation
+        for t in 0..z {
+            let mut ind = p[t];
+            while ind < t { ind = p[ind]; }
+
+            if t != ind {
+                self.rows.swap(t, ind);
+            }
+        }
+
+        1
     }
 
     /// TODO example and test
     fn SortCols(&mut self, z: usize) -> i32 {
+        let _ = z;
         let mut VT = MatrixNormalized::default();
         MatrixNormalized::transpose(&mut VT, &self);
 
-        for i in 1..z {
-            let mut j = i;
-            while (j > 0) && (VT[j-1] < VT[j]) {
-                if let Ok([a, b]) = &mut VT.rows.get_disjoint_mut([j-1, j]) {
-                    std::mem::swap(a, b);
+        // same pointer/permutation trick as in `SortRows`
+        let mut p: [usize; N] = core::array::from_fn(|i| i);
+
+        // quick sort with an explicit stack
+        let mut stack = [0i64; 64];
+        let mut s: i64 = -1;
+        s += 1; stack[s as usize] = 0;
+        s += 1; stack[s as usize] = (N as i64) - 1;
+
+        while s >= 0 {
+            let h = stack[s as usize]; s -= 1;
+            let l = stack[s as usize]; s -= 1;
+
+            // hoare partition
+            let pivot = p[h as usize];
+            let mut i: i64 = l - 1;
+            for j in l..h {
+                if Vector::cmp(&VT[p[j as usize]], &VT[pivot]) > 0 {
+                    i += 1;
+                    if i == j { continue; }
+                    p.swap(i as usize, j as usize);
                 }
-                j -= 1;
+            }
+            if i + 1 != h {
+                p.swap((i + 1) as usize, h as usize);
+            }
+            let q = i + 1;
+
+            if q - 1 > l {
+                s += 1; stack[s as usize] = l;
+                s += 1; stack[s as usize] = q - 1;
+            }
+            if q + 1 < h {
+                s += 1; stack[s as usize] = q + 1;
+                s += 1; stack[s as usize] = h;
             }
         }
 
+        // apply the permutation
+        for t in 0..N {
+            let mut ind = p[t];
+            while ind < t { ind = p[ind]; }
+
+            if t != ind {
+                VT.rows.swap(t, ind);
+            }
+        }
 
         MatrixNormalized::transpose(self, &VT);
         1
@@ -1225,18 +1311,19 @@ impl<const N: usize> MatrixNormalized<N> {
         for i in 0..z  {
             let mut s = Vector::<N>::acc(&self.rows[i]);
             if s != Fq(0) {
-                s = Fq::inv(s);
+                s = Fq::inv_non_ct(s);
             } else {
                 s = Vector::<N>::acc_inv(&self.rows[i]);
                 if s.0 == 0 {
-                    continue;
+                    return 0;
                 }
             }
 
             self.row_scalar(i as usize, s);
+            // compute the histogram
             Multiset::<Q_PAD>::from_row(&mut tmp, &self.rows[i]);
-            if tmp < *m {
-                return 0;
+            if Multiset::<Q_PAD>::partial_cmp(&tmp, m) < 0 {
+                return 1;
             }
         };
 
@@ -1251,7 +1338,7 @@ impl<const N: usize> MatrixNormalized<N> {
         for i in 0..z  {
             let mut s = Vector::<N>::acc(&self.rows[i]);
             if s.0 != 0 {
-                s = Fq::inv(s);
+                s = Fq::inv_non_ct(s);
             } else {
                 s = Vector::<N>::acc_inv(&self.rows[i]);
                 if s.0 == 0 {
@@ -1260,9 +1347,11 @@ impl<const N: usize> MatrixNormalized<N> {
             }
 
             self.row_scalar(i as usize, s);
+            // compute the histogram
             Multiset::<Q_PAD>::from_row(&mut tmp, &self.rows[i]);
-            if tmp < *m  {
+            if Multiset::<Q_PAD>::partial_cmp(&tmp, m) < 0  {
                 ret = 1;
+                // copy new smallest row
                 for i in 0..Q_PAD {
                     m[i] = tmp[i];
                 }
@@ -1749,5 +1838,89 @@ mod normalized_tests {
         let mut a = MatrixNormalized::<N>::default();
         MatrixNormalized::blind(&mut a, &mut reader);
 
+    }
+
+    /// a matrix whose rows all have a distinct histogram
+    fn distinct_rows() -> MatrixNormalized<N> {
+        let mut a = MatrixNormalized::<N>::default();
+        for row in 0..N {
+            for col in 0..N {
+                a[row][col] = Fq(if col <= row { 1 } else { 2 });
+            }
+        }
+        a
+    }
+
+    #[test]
+    fn SortRows() {
+        let mut a = distinct_rows();
+        let mut l = Multiset::<Q_PAD>::default();
+        assert_eq!(a.SortRows(N, &mut l), 1);
+
+        // the rows end up in descending histogram order
+        let h = Multiset::<Q_PAD>::from_matrix::<N>(&a);
+        for row in 1..N {
+            assert!(h[row - 1] >= h[row], "row {} is out of order", row);
+        }
+    }
+
+    /// sorting is a permutation of the rows, nothing is lost or duplicated
+    #[test]
+    fn SortRows_is_a_permutation() {
+        let a = distinct_rows();
+        let mut b = distinct_rows();
+        let mut l = Multiset::<Q_PAD>::default();
+        assert_eq!(b.SortRows(N, &mut l), 1);
+
+        for row in 0..N {
+            let mut found = false;
+            for other in 0..N {
+                if a[other] == b[row] { found = true; break; }
+            }
+            assert!(found, "row {} is not a row of the input", row);
+        }
+    }
+
+    /// `L` is the early exit bound: if the shortest row of this matrix is
+    /// already longer than the best one so far, give up
+    #[test]
+    fn SortRows_early_exit() {
+        let mut a = distinct_rows();
+
+        let mut l = Multiset::<Q_PAD>::default();
+        l[0] = (N + 1) as u8;
+        assert_eq!(a.SortRows(N, &mut l), 0);
+
+        // a bound that cannot be beaten lets the sort run
+        let mut l = Multiset::<Q_PAD>::default();
+        assert_eq!(a.SortRows(N, &mut l), 1);
+    }
+
+    #[test]
+    fn SortCols() {
+        let mut a = distinct_rows();
+        assert_eq!(a.SortCols(N), 1);
+
+        // the columns end up in ascending order
+        let mut t = MatrixNormalized::<N>::default();
+        MatrixNormalized::transpose(&mut t, &a);
+        for row in 1..N {
+            assert!(t[row - 1] <= t[row], "column {} is out of order", row);
+        }
+    }
+
+    /// sorting twice must not move anything the second time
+    #[test]
+    fn SortCols_is_idempotent() {
+        let mut a = distinct_rows();
+        assert_eq!(a.SortCols(N), 1);
+
+        let mut b = MatrixNormalized::<N>::default();
+        for row in 0..N { b[row].0 = a[row].0; }
+
+        assert_eq!(a.SortCols(N), 1);
+        for row in 0..N {
+            assert_eq!(a[row], b[row], "row {} moved on the second sort", row);
+        }
     }
 }
