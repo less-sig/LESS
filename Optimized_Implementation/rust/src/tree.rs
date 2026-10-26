@@ -18,6 +18,7 @@ const fn left_child(i: usize) -> usize {
 }
 
 #[inline(always)]
+#[allow(dead_code)]
 const fn right_child(i: usize) -> usize {
     2 * i + 2
 }
@@ -176,25 +177,31 @@ pub fn ggm_path(
 
     compute_seeds_to_publish(&mut flags, indices);
 
-    // TODO out.clear();
+    out.fill(0);
 
+    /* no sense in trying to publish the root node, start examining from level 1 */
     let mut start = 1usize;
+    let mut num_seeds_published = 0usize;
 
     for level in 1..=T_LOG2 {
         for node in 0..TREE_NODES_PER_LEVEL[level] {
             let current = start + node;
             let father = parent(current) + (TREE_OFFSETS[level - 1] >> 1);
 
+            /* if seed is to be published and its ancestor/parent node is not,
+             * add it to the seed storage */
             if flags[current] == TO_PUBLISH  && flags[father] == NOT_TO_PUBLISH  {
-                out.copy_from_slice(&seed_tree[seed_range(current)]
-                );
+                let dst = num_seeds_published * SEED_LENGTH_BYTES;
+                out[dst..dst + SEED_LENGTH_BYTES]
+                    .copy_from_slice(&seed_tree[seed_range(current)]);
+                num_seeds_published += 1;
             }
         }
 
         start += TREE_NODES_PER_LEVEL[level];
     }
 
-    out.len() / SEED_LENGTH_BYTES
+    num_seeds_published
 }
 
 pub fn seed_leaves(
@@ -214,5 +221,188 @@ pub fn seed_leaves(
 
             cnt += 1;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{MAX_PUBLISHED_SEEDS, SEED_TREE_MAX_PUBLISHED_BYTES, W};
+
+    fn build() -> [u8; NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES] {
+        let mut tree = [0u8; NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES];
+        let root = [0x42u8; SEED_LENGTH_BYTES];
+        let salt = [0x17u8; SALT_LENGTH_BYTES];
+        build_ggm(&mut tree, &root, &salt);
+        tree
+    }
+
+    #[test]
+    fn node_indices() {
+        for i in 1..64usize {
+            assert_eq!(parent(left_child(i)), i);
+            assert_eq!(parent(right_child(i)), i);
+            assert_eq!(sibling(left_child(i)), right_child(i));
+            assert_eq!(sibling(right_child(i)), left_child(i));
+        }
+        assert_eq!(left_child(0), 1);
+        assert_eq!(right_child(0), 2);
+        assert_eq!(parent(1), 0);
+        assert_eq!(parent(2), 0);
+    }
+
+    #[test]
+    fn seed_range_is_one_seed() {
+        let r = seed_range(0);
+        assert_eq!(r.start, 0);
+        assert_eq!(r.end, SEED_LENGTH_BYTES);
+        let r = seed_range(5);
+        assert_eq!(r.start, 5 * SEED_LENGTH_BYTES);
+        assert_eq!(r.len(), SEED_LENGTH_BYTES);
+    }
+
+    #[test]
+    fn build_ggm_root_and_expansion() {
+        let tree = build();
+        assert_eq!(&tree[..SEED_LENGTH_BYTES], &[0x42u8; SEED_LENGTH_BYTES]);
+
+        // every node that is reachable from the root must have been written
+        let mut zero_nodes = 0;
+        for node in 0..NUM_NODES_SEED_TREE {
+            if tree[seed_range(node)].iter().all(|&b| b == 0) {
+                zero_nodes += 1;
+            }
+        }
+        assert_eq!(zero_nodes, 0, "{} nodes were never expanded", zero_nodes);
+    }
+
+    #[test]
+    fn build_ggm_is_deterministic_and_salted() {
+        let a = build();
+
+        let mut b = [0u8; NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES];
+        build_ggm(&mut b, &[0x42u8; SEED_LENGTH_BYTES], &[0x17u8; SALT_LENGTH_BYTES]);
+        assert_eq!(a, b);
+
+        let mut c = [0u8; NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES];
+        build_ggm(&mut c, &[0x42u8; SEED_LENGTH_BYTES], &[0x18u8; SALT_LENGTH_BYTES]);
+        assert_ne!(a[SEED_LENGTH_BYTES..], c[SEED_LENGTH_BYTES..]);
+
+        let mut d = [0u8; NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES];
+        build_ggm(&mut d, &[0x43u8; SEED_LENGTH_BYTES], &[0x17u8; SALT_LENGTH_BYTES]);
+        assert_ne!(a[SEED_LENGTH_BYTES..], d[SEED_LENGTH_BYTES..]);
+    }
+
+    #[test]
+    fn seed_leaves_collects_t_distinct_seeds() {
+        let tree = build();
+        let mut leaves = [0u8; T * SEED_LENGTH_BYTES];
+        seed_leaves(&mut leaves, &tree);
+
+        let mut seen = std::collections::HashSet::new();
+        for i in 0..T {
+            let s = &leaves[i * SEED_LENGTH_BYTES..(i + 1) * SEED_LENGTH_BYTES];
+            assert!(s.iter().any(|&b| b != 0));
+            assert!(seen.insert(s.to_vec()), "leaf {} is a duplicate", i);
+        }
+    }
+
+    #[test]
+    fn label_leaves_places_every_index() {
+        let mut flags = [0xffu8; NUM_NODES_SEED_TREE];
+        let indices: [u8; T] = core::array::from_fn(|i| (i % 2) as u8);
+        label_leaves(&mut flags, &indices);
+
+        let mut cnt = 0;
+        for i in 0..TREE_SUBROOTS {
+            for j in 0..TREE_CONSECUTIVE_LEAVES[i] {
+                assert_eq!(flags[TREE_LEAVES_START_INDICES[i] + j], indices[cnt]);
+                cnt += 1;
+            }
+        }
+        assert_eq!(cnt, T);
+    }
+
+    #[test]
+    fn compute_seeds_to_publish_all_or_nothing() {
+        // every leaf published => the root is published
+        let mut flags = [NOT_TO_PUBLISH; NUM_NODES_SEED_TREE];
+        compute_seeds_to_publish(&mut flags, &[TO_PUBLISH; T]);
+        assert_eq!(flags[0], TO_PUBLISH);
+
+        // no leaf published => the root is not published
+        let mut flags = [NOT_TO_PUBLISH; NUM_NODES_SEED_TREE];
+        compute_seeds_to_publish(&mut flags, &[NOT_TO_PUBLISH; T]);
+        assert_eq!(flags[0], NOT_TO_PUBLISH);
+    }
+
+    #[test]
+    fn ggm_path_publishes_nothing_when_all_leaves_are_kept() {
+        let tree = build();
+        let mut out = [0u8; SEED_TREE_MAX_PUBLISHED_BYTES];
+        let n = ggm_path(&tree, &[NOT_TO_PUBLISH; T], &mut out);
+        assert_eq!(n, 0);
+        assert!(out.iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn ggm_path_publishes_nothing_when_all_leaves_are_published() {
+        let tree = build();
+        let mut out = [0u8; SEED_TREE_MAX_PUBLISHED_BYTES];
+        let n = ggm_path(&tree, &[TO_PUBLISH; T], &mut out);
+
+        // the whole tree collapses into the root, and the root is never
+        // emitted, so there is nothing to publish
+        assert_eq!(n, 0);
+        assert!(out.iter().all(|&b| b == 0));
+    }
+
+    /// keeping a single leaf secret costs one seed per level on the path from
+    /// that leaf to the root
+    #[test]
+    fn ggm_path_publishes_the_siblings_of_one_kept_leaf() {
+        let tree = build();
+
+        let mut indices = [TO_PUBLISH; T];
+        indices[0] = NOT_TO_PUBLISH;
+
+        let mut out = [0u8; SEED_TREE_MAX_PUBLISHED_BYTES];
+        let n = ggm_path(&tree, &indices, &mut out);
+
+        assert!(n >= 1);
+        assert!(n <= T_LOG2, "{} > T_LOG2", n);
+        assert!(n <= MAX_PUBLISHED_SEEDS);
+
+        // every emitted seed is a real node of the tree
+        for i in 0..n {
+            let s = &out[i * SEED_LENGTH_BYTES..(i + 1) * SEED_LENGTH_BYTES];
+            assert!(s.iter().any(|&b| b != 0));
+        }
+        // and nothing past the reported count was written
+        assert!(out[n * SEED_LENGTH_BYTES..].iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn ggm_path_respects_max_published_seeds() {
+        let tree = build();
+
+        // a challenge of weight W, i.e. W leaves kept and T-W published
+        let mut indices = [TO_PUBLISH; T];
+        for i in 0..W {
+            indices[(i * T) / W] = NOT_TO_PUBLISH;
+        }
+
+        let mut out = [0u8; SEED_TREE_MAX_PUBLISHED_BYTES];
+        let n = ggm_path(&tree, &indices, &mut out);
+        assert!(n > 0);
+        assert!(n <= MAX_PUBLISHED_SEEDS, "{} > MAX_PUBLISHED_SEEDS", n);
+
+        // every published seed must be a real node of the tree
+        for i in 0..n {
+            let s = &out[i * SEED_LENGTH_BYTES..(i + 1) * SEED_LENGTH_BYTES];
+            assert!(s.iter().any(|&b| b != 0));
+        }
+        // and nothing past the reported count was touched
+        assert!(out[n * SEED_LENGTH_BYTES..].iter().all(|&b| b == 0));
     }
 }

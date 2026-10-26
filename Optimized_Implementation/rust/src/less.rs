@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+#![allow(non_snake_case)]
+#![allow(unused_variables)]
 
 
 /// TODO:
@@ -76,7 +78,7 @@ pub fn less_keygen(sk: &mut PrivateKey, pk: &mut PublicKey) {
         let mut result_g = Matrix::<K, N_pad>::default();
         Matrix::monomial_mul(&mut result_g, &tmp_full_g, &private_q); // TODO replace with `*` operator
 
-        result_g.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, K);
+        let _ = result_g.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, K);
         // note that the result is stored at i-1 as the first
         // public key element is just a seed
         result_g.compress(&mut pk.sf_g[i], &is_pivot_column);
@@ -121,7 +123,7 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
     seed_leaves(&mut linearized_rounds_seeds, &seed_tree);
 
     // /*         Public G_0 expansion                  */
-    let mut g0_rref = Matrix::<K, N_K_pad>::rand_from_seed::<Shake128>(&G_0_seed);
+    let g0_rref = Matrix::<K, N_K_pad>::rand_from_seed::<Shake128>(&G_0_seed);
     let g0_column_pos: [u16; N_K_pad] = std::array::from_fn(|i| (i + K) as u16);
     for i in 0..K {
         g0_initial_pivot_flags[i] = 0;
@@ -140,7 +142,9 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
             permuted_pivot_flag[mu_tilde.perms[t] as usize] = g0_initial_pivot_flags[t];
         }
 
-        G0.rref::<true>(&mut is_pivot_column, &mut permuted_pivot_flag, SIGN_PIVOT_REUSE_LIMIT);
+        if G0.rref::<true>(&mut is_pivot_column, &mut permuted_pivot_flag, SIGN_PIVOT_REUSE_LIMIT) == false {
+            return 0;
+        }
         let mut a_j = MatrixNormalized::<K_pad>::from_information_set::<K, N_pad>(&G0, &is_pivot_column);
         pi_tilde[i] = Permutation::<K>::from_information_set_composition::<N, N_pad>(&mu_tilde, &is_pivot_column);
 

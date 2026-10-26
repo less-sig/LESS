@@ -7,23 +7,26 @@ use sha3::{
 };
 
 use std::sync::{LazyLock, Mutex};
+use crate::config::{Xof, XofState};
 use crate::fq::Fq;
 
 use crate::error::LESSError;
 use sha3::digest::core_api::CoreWrapper;
 
-static PLATFORM_CSPRNG_STATE: LazyLock<Mutex<CoreWrapper<Shake128Core>>> = LazyLock::new(||
-    Mutex::new(Shake128::default())
+/// NOTE: this holds the squeezing state, not the absorbing one. Consecutive
+/// calls to `randombytes` have to return consecutive bytes of the same
+/// stream, so the state must not be re-finalized on every call.
+static PLATFORM_CSPRNG_STATE: LazyLock<Mutex<XofState>> = LazyLock::new(||
+    Mutex::new(Xof::default().finalize_xof())
 );
 
 pub fn init_randombytes(buf: &[u8]) {
-    let mut hasher = PLATFORM_CSPRNG_STATE.lock().unwrap();
+    let mut hasher = Xof::default();
     hasher.update(buf);
-
+    *PLATFORM_CSPRNG_STATE.lock().unwrap() = hasher.finalize_xof();
 }
 pub fn randombytes(buf: &mut [u8]) {
-    let hasher = PLATFORM_CSPRNG_STATE.lock().unwrap();
-    let mut reader = hasher.clone().finalize_xof();
+    let mut reader = PLATFORM_CSPRNG_STATE.lock().unwrap();
     reader.read(buf);
 }
 
@@ -194,6 +197,105 @@ mod tests {
         rand_range_impl::<1, XofReaderCoreWrapper<Shake128ReaderCore>>(&mut buffer, &mut reader);
         for i in 0..32 {
             assert_ne!(buffer[i], Fq(0));
+        }
+    }
+
+    #[test]
+    fn test_randombytes_continues_the_stream() {
+        let seed = [0u8; 32];
+        init_randombytes(&seed);
+        let mut a = [0u8; 32];
+        let mut b = [0u8; 32];
+        randombytes(&mut a);
+        randombytes(&mut b);
+        assert_ne!(a, b, "consecutive calls must not repeat the same bytes");
+
+        // 64 bytes at once must equal 2x32 bytes in a row
+        init_randombytes(&seed);
+        let mut d = [0u8; 64];
+        randombytes(&mut d);
+        assert_eq!(&d[..32], &a[..]);
+        assert_eq!(&d[32..], &b[..]);
+    }
+
+    #[test]
+    fn test_csprng_initialize() {
+        let mut s1 = csprng_initialize::<Shake128>(b"123");
+        let mut s2 = csprng_initialize::<Shake128>(b"123");
+        let mut s3 = csprng_initialize::<Shake128>(b"124");
+
+        let mut a = [0u8; 32];
+        let mut b = [0u8; 32];
+        let mut c = [0u8; 32];
+        csprng_randombytes(&mut a, &mut s1);
+        csprng_randombytes(&mut b, &mut s2);
+        csprng_randombytes(&mut c, &mut s3);
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn test_csprng_initialize_ds() {
+        let seed = [7u8; 16];
+        let mut s1 = csprng_initialize_ds::<Shake128>(&seed, 0x0102);
+        let mut s2 = csprng_initialize_ds::<Shake128>(&seed, 0x0201);
+
+        let mut a = [0u8; 32];
+        let mut b = [0u8; 32];
+        csprng_randombytes(&mut a, &mut s1);
+        csprng_randombytes(&mut b, &mut s2);
+        assert_ne!(a, b);
+
+        // the domain separator is appended as two little endian bytes
+        let mut input = [0u8; 18];
+        input[..16].copy_from_slice(&seed);
+        input[16] = 0x02;
+        input[17] = 0x01;
+        let mut s3 = csprng_initialize::<Shake128>(&input);
+        let mut c = [0u8; 32];
+        csprng_randombytes(&mut c, &mut s3);
+        assert_eq!(a, c);
+    }
+
+    #[test]
+    fn test_csprng_randombytes() {
+        let mut s = csprng_initialize::<Shake128>(b"abc");
+        let mut a = [0u8; 16];
+        let mut b = [0u8; 16];
+        csprng_randombytes(&mut a, &mut s);
+        csprng_randombytes(&mut b, &mut s);
+        assert_ne!(a, b);
+
+        let mut s = csprng_initialize::<Shake128>(b"abc");
+        let mut c = [0u8; 32];
+        csprng_randombytes(&mut c, &mut s);
+        assert_eq!(&c[..16], &a[..]);
+        assert_eq!(&c[16..], &b[..]);
+    }
+
+    #[test]
+    fn test_rand_range_q_state_elements() {
+        let mut state = csprng_initialize::<Shake128>(b"seed");
+        let mut buffer = [Fq(0); 256];
+        rand_range_q_state_elements(&mut buffer, &mut state);
+        for i in 0..buffer.len() {
+            assert!(buffer[i].0 < 127);
+        }
+
+        let mut state = csprng_initialize::<Shake128>(b"seed");
+        let mut buffer2 = [Fq(0); 256];
+        rand_range_q_state_elements(&mut buffer2, &mut state);
+        assert_eq!(buffer, buffer2);
+    }
+
+    #[test]
+    fn test_fq_star_rnd_state_elements() {
+        let mut state = csprng_initialize::<Shake128>(b"seed");
+        let mut buffer = [Fq(0); 256];
+        fq_star_rnd_state_elements(&mut buffer, &mut state);
+        for i in 0..buffer.len() {
+            assert!(buffer[i].0 >= 1, "a monomial coefficient must not be zero");
+            assert!(buffer[i].0 < 127);
         }
     }
 

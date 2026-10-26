@@ -1,6 +1,7 @@
 // TODO remove
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(non_snake_case)]
 
 use std::ops::{Index, IndexMut, Mul, MulAssign};
 use sha3::digest::{ExtendableOutput, XofReader};
@@ -438,6 +439,8 @@ impl <const N: usize> MulAssign for Permutation<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::Xof;
+    use crate::prng::csprng_initialize;
     const N: usize = 32;
 
     #[test]
@@ -472,6 +475,95 @@ mod tests {
         Monomial::inv_non_ct(&mut b, &a);
         assert_eq!(b, a);
     }
+
+    #[test]
+    fn zero() {
+        let c = Monomial::<N>::zero();
+        for i in 0..N {
+            assert_eq!(c.coeffs[i].0, 0);
+            assert_eq!(c.perms[i], 0);
+        }
+    }
+
+    #[test]
+    fn dimension() {
+        assert_eq!(Monomial::<N>::default().dimension(), N);
+    }
+
+    #[test]
+    fn eq() {
+        let a = Monomial::<N>::default();
+        let b = Monomial::<N>::default();
+        assert!(Monomial::eq(&a, &b));
+        assert!(!Monomial::eq(&a, &Monomial::<N>::zero()));
+    }
+
+    /// a monomial matrix must be invertible, so no coefficient may be zero
+    /// and the permutation must be a permutation
+    #[test]
+    fn rand_is_a_monomial() {
+        for seed in 0..64u8 {
+            let mut s = csprng_initialize::<Xof>(&[seed; 32]);
+            let a = Monomial::<N>::rand(&mut s);
+
+            let mut seen = [false; N];
+            for i in 0..N {
+                assert_ne!(a.coeffs[i].0, 0, "seed {}: coefficient {} is zero", seed, i);
+                assert!(a.coeffs[i].0 < 127);
+                assert!(!seen[a.perms[i] as usize], "permutation is not injective");
+                seen[a.perms[i] as usize] = true;
+            }
+        }
+    }
+
+    #[test]
+    fn rand_from_seed_is_a_monomial() {
+        for seed in 0..64u8 {
+            let a = Monomial::<N>::rand_from_seed::<Xof>(&[seed; 32]);
+
+            let mut seen = [false; N];
+            for i in 0..N {
+                assert_ne!(a.coeffs[i].0, 0, "seed {}: coefficient {} is zero", seed, i);
+                assert!(!seen[a.perms[i] as usize]);
+                seen[a.perms[i] as usize] = true;
+            }
+        }
+
+        let a = Monomial::<N>::rand_from_seed::<Xof>(&[3u8; 32]);
+        let b = Monomial::<N>::rand_from_seed::<Xof>(&[3u8; 32]);
+        assert_eq!(a, b);
+        let c = Monomial::<N>::rand_from_seed::<Xof>(&[4u8; 32]);
+        assert_ne!(a, c);
+    }
+
+    /// rand and rand_from_seed must request the randomness in the same order
+    #[test]
+    fn rand_matches_rand_from_seed() {
+        let mut s = csprng_initialize::<Xof>(&[9u8; 32]);
+        let a = Monomial::<N>::rand(&mut s);
+        let b = Monomial::<N>::rand_from_seed::<Xof>(&[9u8; 32]);
+        assert_eq!(a, b);
+    }
+
+    /// m * m^-1 must be the identity monomial
+    #[test]
+    fn mul_inv_is_identity() {
+        let a = Monomial::<N>::rand_from_seed::<Xof>(&[5u8; 32]);
+        let mut a_inv = Monomial::<N>::zero();
+        Monomial::inv_non_ct(&mut a_inv, &a);
+
+        let mut t = Monomial::<N>::zero();
+        for i in 0..N {
+            t.perms[i] = a.perms[i];
+            t.coeffs[i] = a.coeffs[i];
+        }
+        Monomial::mul_non_ct(&mut t, &a_inv);
+
+        for i in 0..N {
+            assert_eq!(t.perms[i], i as u16, "permutation at {}", i);
+            assert_eq!(t.coeffs[i].0, 1, "coefficient at {}", i);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -492,6 +584,76 @@ mod tests_MonomialInformationSet {
         let d = c.compress((N/2) as u32);
         let e = Permutation::from_bytes(d);
         // NOTE only the first k assert_eq!(e, c);
+
+        // compress marks the first k images, from_bytes recovers them
+        for i in 0..N/2 {
+            assert!(d[i]);
+            assert_eq!(e.perms[i], i as u16);
+        }
+        for i in N/2..N {
+            assert!(!d[i]);
+        }
+    }
+
+    #[test]
+    fn dimension() {
+        assert_eq!(Permutation::<N>::default().dimension(), N);
+    }
+
+    #[test]
+    fn index() {
+        let mut c = Permutation::<N>::default();
+        c[3] = 17;
+        assert_eq!(c[3], 17);
+    }
+
+    /// CosetRep: exactly K bits are set, one per image of the permutation
+    #[test]
+    fn bytes() {
+        use crate::config::{K, N8};
+        let c = Permutation::<K>::default();
+        let b = c.bytes();
+        let weight: u32 = b.iter().map(|x| x.count_ones()).sum();
+        assert_eq!(weight, K as u32);
+        assert_eq!(b.len(), N8);
+    }
+
+    /// pi_tilde must select exactly the K pivot columns
+    #[test]
+    fn from_information_set_composition() {
+        use crate::config::{K, N, N_pad, Xof};
+
+        let mu_tilde = Monomial::<N>::rand_from_seed::<Xof>(&[2u8; 32]);
+
+        // the first K columns are the information set
+        let mut is_pivot_column = [0u8; N_pad];
+        for i in 0..K {
+            is_pivot_column[i] = 1;
+        }
+
+        let pi = Permutation::<K>::from_information_set_composition::<N, N_pad>(
+            &mu_tilde, &is_pivot_column);
+
+        // pi.perms[j] is the source column that mu_tilde maps onto pivot j
+        let mut seen = [false; N];
+        for j in 0..K {
+            let src = pi.perms[j] as usize;
+            assert!(src < N);
+            assert!(!seen[src], "pi_tilde is not injective");
+            seen[src] = true;
+            assert_eq!(mu_tilde.perms[src] as usize, j);
+        }
+    }
+
+    /// composing with the identity monomial must leave the action unchanged
+    #[test]
+    fn from_composition_action_identity() {
+        use crate::config::{K, N};
+
+        let id = Monomial::<N>::default();
+        let input = Permutation::<K>::default();
+        let out = Permutation::<K>::from_composition_action::<N>(&id, &input);
+        assert_eq!(out.perms, input.perms);
     }
 
     #[test]

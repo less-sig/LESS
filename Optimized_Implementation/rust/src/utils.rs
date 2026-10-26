@@ -34,15 +34,18 @@ pub fn sample_challenge(
         *entry = 0;
     }
 
+    // NOTE: `rnd_buf` and `c` are shared between the two loops below, the
+    // shuffle keeps consuming the bits the value loop left over.
+    let mut rnd_buf: u64 = 0;
+    let mut c: u32 = 0;
+
     if NUM_KEYPAIRS != 2 {
         // Rejection sampling for values in [1, NUM_KEYPAIRS-1)
         let keypair_mask: u64 = ((1u64 << keypair_bits) - 1) & !(0xFF << keypair_bits);
         let limit: u8 = NUM_KEYPAIRS as u8 - 1;
 
-        let mut rnd_buf: u64 = 0;
-        let mut c: u32 = 64 / keypair_bits;
-
         for i in (T - W)..T {
+            let value: u8;
             loop {
                 if c == 0 {
                     let mut buf: [u8; 8] = [0u8; 8];
@@ -51,26 +54,25 @@ pub fn sample_challenge(
                     c = 64 / keypair_bits;
                 }
 
-                let value: u8 = (rnd_buf & keypair_mask) as u8;
+                let v: u8 = (rnd_buf & keypair_mask) as u8;
                 rnd_buf >>= keypair_bits;
                 c -= 1;
 
-                if value < limit {
+                if v < limit {
+                    value = v;
                     break;
                 }
-                fixed_weight_string[i] = value + 1;
             }
+            fixed_weight_string[i] = value + 1;
         }
     } else {
-        // NUM_KEYPAIRS == 2: all values are 1
-        for entry in fixed_weight_string.iter_mut() {
+        // NUM_KEYPAIRS == 2: the last W values are 1
+        for entry in fixed_weight_string[T - W..].iter_mut() {
             *entry = 1;
         }
     }
 
     // Fisher-Yates-like shuffle into the first T-W zero positions
-    let mut rnd_buf: u64 = 0;
-    let mut c: u32 = 0;
     let position_mask: u64 = ((1u64 << position_bits) - 1) & !(0xFF << position_bits);
 
     for p in (T - W)..T {
@@ -96,5 +98,66 @@ pub fn sample_challenge(
         let tmp = fixed_weight_string[p];
         fixed_weight_string[p] = fixed_weight_string[pos];
         fixed_weight_string[pos] = tmp;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sample_challenge_weight() {
+        let digest = [0x5au8; HASH_DIGEST_LENGTH];
+        let mut fws = [0u8; T];
+        sample_challenge(&mut fws, &digest);
+
+        let weight = fws.iter().filter(|&&v| v != 0).count();
+        assert_eq!(weight, W, "the challenge must have hamming weight W");
+    }
+
+    #[test]
+    fn sample_challenge_range() {
+        let digest = [0x11u8; HASH_DIGEST_LENGTH];
+        let mut fws = [0u8; T];
+        sample_challenge(&mut fws, &digest);
+
+        for i in 0..T {
+            assert!((fws[i] as usize) < NUM_KEYPAIRS);
+        }
+    }
+
+    #[test]
+    fn sample_challenge_deterministic() {
+        let digest = [0x7fu8; HASH_DIGEST_LENGTH];
+        let mut a = [0u8; T];
+        let mut b = [0u8; T];
+        sample_challenge(&mut a, &digest);
+        sample_challenge(&mut b, &digest);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn sample_challenge_depends_on_digest() {
+        let mut a = [0u8; T];
+        let mut b = [0u8; T];
+        sample_challenge(&mut a, &[0x00u8; HASH_DIGEST_LENGTH]);
+        sample_challenge(&mut b, &[0x01u8; HASH_DIGEST_LENGTH]);
+        assert_ne!(a, b);
+    }
+
+    /// the non zero entries must not all sit in the last W positions, the
+    /// shuffle has to spread them over the full length
+    #[test]
+    fn sample_challenge_is_shuffled() {
+        let mut spread = false;
+        for d in 0..8u8 {
+            let mut fws = [0u8; T];
+            sample_challenge(&mut fws, &[d; HASH_DIGEST_LENGTH]);
+            if fws[..T - W].iter().any(|&v| v != 0) {
+                spread = true;
+                break;
+            }
+        }
+        assert!(spread);
     }
 }

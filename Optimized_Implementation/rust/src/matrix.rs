@@ -1,6 +1,8 @@
 // TODO remove
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(non_snake_case)]
+#![allow(non_upper_case_globals)]
 
 use std::{
     cmp,
@@ -338,8 +340,14 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// # Examples
     ///
     /// ```
+    /// use sha3::Shake128;
     /// use less::matrix::Matrix;
-    /// TODO
+    /// use less::monomial::Monomial;
+    /// const N: usize = 32;
+    /// let g = Matrix::<N, N>::rand_from_seed::<Shake128>(&[0u8; 32]);
+    /// let monom = Monomial::<N>::rand_from_seed::<Shake128>(&[1u8; 32]);
+    /// let mut res = Matrix::<N, N>::default();
+    /// Matrix::monomial_mul(&mut res, &g, &monom);
     /// ```
     ///
     /// # Parameters
@@ -362,8 +370,13 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     /// # Examples
     ///
     /// ```
+    /// use sha3::Shake128;
     /// use less::matrix::Matrix;
-    /// TODO
+    /// const N: usize = 32;
+    /// let mut a = Matrix::<N, N>::rand_from_seed::<Shake128>(&[0u8; 32]);
+    /// let mut is_pivot_column = [0u8; N];
+    /// let mut was_pivot_column = [0u8; N];
+    /// assert!(a.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, 0));
     /// ```
     ///
     /// # Parameters
@@ -467,7 +480,12 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// ```
     /// use less::matrix::Matrix;
-    /// TODO
+    /// const N: usize = 32;
+    /// let a = Matrix::<N, N>::from_u8(5);
+    /// let mut is_pivot_column = [0u8; N];
+    /// for i in 0..8 { is_pivot_column[i] = 1; }
+    /// let mut compressed = [0u8; 1024];
+    /// a.compress(&mut compressed, &is_pivot_column);
     /// ```
     ///
     /// # Parameters
@@ -574,7 +592,22 @@ impl<const N: usize, const M: usize> Matrix<N, M> {
     ///
     /// ```
     /// use less::matrix::Matrix;
-    /// TODO
+    /// const N: usize = 32;
+    /// let a = Matrix::<N, N>::from_u8(5);
+    /// let mut is_pivot_column = [0u8; N];
+    /// for i in 0..8 { is_pivot_column[i] = 1; }
+    /// let mut compressed = [0u8; 1024];
+    /// a.compress(&mut compressed, &is_pivot_column);
+    ///
+    /// let mut b = Matrix::<N, N>::default();
+    /// let mut flags = [0u8; N];
+    /// b.expand(&compressed, &mut flags);
+    /// assert_eq!(flags, is_pivot_column);
+    /// for row in 0..N {
+    ///     for col in 8..N {
+    ///         assert_eq!(b[row][col], a[row][col]);
+    ///     }
+    /// }
     /// ```
     ///
     /// # Parameters
@@ -1252,7 +1285,7 @@ impl<const N: usize> MatrixNormalized<N> {
     /// 		1 on success
     fn ScaleCF(&mut self, L: &mut Multiset<Q_PAD>) -> i32 {
         for row in 0..N {
-            if Vector::all_same(&self[row]) {
+            if Vector::all_same(&self[row], crate::config::N - crate::config::K) {
                 continue;
             }
 
@@ -1353,7 +1386,7 @@ impl<const N: usize> MatrixNormalized<N> {
         let mut Z = [false; N];
 
         for row in 0..N {
-            let num_zeros = Vector::count_zero(&self[row]);
+            let num_zeros = Vector::count_zero(&self[row], crate::config::N - crate::config::K);
             Z[row] = num_zeros > 0;
             if num_zeros < max_zeros {
                 continue
@@ -1420,7 +1453,7 @@ impl<const N: usize> MatrixNormalized<N> {
         let mut Z = [false; N];
 
         for row in 0..N {
-            let num_zeros = Vector::count_zero(&self[row]);
+            let num_zeros = Vector::count_zero(&self[row], crate::config::N - crate::config::K);
             Z[row] = num_zeros > 0;
             if num_zeros < max_zeros {
                 continue

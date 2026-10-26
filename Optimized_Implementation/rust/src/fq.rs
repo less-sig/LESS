@@ -143,9 +143,9 @@ impl Fq {
         assert!(a.0 < 127);
         let j = a.0;
         let mut r: u8 = 0;
-        for i in 1..127u8{
+        for i in 0..127u8{
             let mask = compute_ct_mask(i, j);
-            r ^= FQ127_INV_TABLE.0[a.0 as usize] & mask;
+            r ^= FQ127_INV_TABLE.0[i as usize] & mask;
         }
         Fq(r)
     }
@@ -318,5 +318,95 @@ mod tests {
     fn print() {
         let a = Fq(10);
         println!("{}", a);
+        assert_eq!(format!("{}", a), "10");
+    }
+
+    #[test]
+    fn red() {
+        for i in 0..(127u16 * 127u16) {
+            assert_eq!(Fq::red(i).0, (i % 127) as u8);
+        }
+    }
+
+    #[test]
+    fn inv_non_ct() {
+        // 0^-1 is defined as 0
+        assert_eq!(Fq::inv_non_ct(Fq(0)).0, 0);
+        for i in 1..127u8 {
+            assert_eq!(Fq::mul(Fq(i), Fq::inv_non_ct(Fq(i))).0, 1);
+        }
+        // and it must agree with the constant time version
+        for i in 0..127u8 {
+            assert_eq!(Fq::inv_non_ct(Fq(i)), Fq::inv(Fq(i)));
+        }
+    }
+
+    #[test]
+    fn inv_of_zero() {
+        assert_eq!(Fq::inv(Fq(0)).0, 0);
+    }
+
+    #[test]
+    fn is_zero() {
+        assert!(Fq::is_zero(Fq(0)));
+        for i in 1..127u8 {
+            assert!(!Fq::is_zero(Fq(i)));
+        }
+    }
+
+    #[test]
+    fn rand() {
+        assert!(Fq::rand().0 < Fq::Q);
+    }
+
+    #[test]
+    fn operators() {
+        for i in 0..127u16 {
+            for j in 0..127u16 {
+                let a = Fq(i as u8);
+                let b = Fq(j as u8);
+                assert_eq!((a + b).0, ((i + j) % 127) as u8);
+                assert_eq!((a - b).0, (((i + 127) - j) % 127) as u8);
+                assert_eq!((a * b).0, ((i * j) % 127) as u8);
+
+                let mut c = a; c += b;
+                assert_eq!(c.0, ((i + j) % 127) as u8);
+                let mut c = a; c -= b;
+                assert_eq!(c.0, (((i + 127) - j) % 127) as u8);
+                let mut c = a; c *= b;
+                assert_eq!(c.0, ((i * j) % 127) as u8);
+            }
+        }
+    }
+
+    #[test]
+    fn div() {
+        for i in 0..127u8 {
+            for j in 1..127u8 {
+                assert_eq!(Fq(i) / Fq(j), Fq::mul(Fq(i), Fq::inv(Fq(j))));
+                let mut c = Fq(i); c /= Fq(j);
+                assert_eq!(c, Fq::mul(Fq(i), Fq::inv(Fq(j))));
+            }
+        }
+        // (a/b)*b == a
+        for i in 0..127u8 {
+            for j in 1..127u8 {
+                assert_eq!(Fq::mul(Fq(i) / Fq(j), Fq(j)), Fq(i));
+            }
+        }
+    }
+
+    #[test]
+    fn deref() {
+        assert_eq!(*Fq(13), 13u8);
+    }
+
+    #[test]
+    fn inv_table() {
+        assert_eq!(FQ127_INV_TABLE.0[0], 0);
+        assert_eq!(FQ127_INV_TABLE.0[127], 0);
+        for i in 1..127usize {
+            assert_eq!((i as u16 * FQ127_INV_TABLE.0[i] as u16) % 127, 1);
+        }
     }
 }

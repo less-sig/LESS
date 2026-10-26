@@ -50,7 +50,7 @@ use crate::opt::{
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(align(32))] // NOTE alignment only for avx2/avx512
+#[repr(align(64))] // NOTE alignment only for avx2/avx512
 pub struct Vector<const N: usize>(pub [Fq; N]);
 
 impl <const N: usize> Vector<N>{
@@ -217,12 +217,12 @@ impl <const N: usize> Vector<N>{
     pub fn add(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("avx512f") {
+            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_add_avx512(c, a, b);
                 }
-            } else if is_x86_feature_detected!("avx2") {
+            } else if cfg!(target_feature = "avx2") {
                 assert!(N % 32 == 0);
                 unsafe {
                     gf127_row_add_avx2(c, a, b);
@@ -262,12 +262,12 @@ impl <const N: usize> Vector<N>{
     pub fn add2(c: &mut Vector<N>, a: &Vector<N>) {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("avx512f") {
+            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_add2_avx512(c, a);
                 }
-            } else if is_x86_feature_detected!("avx2") {
+            } else if cfg!(target_feature = "avx2") {
                 assert!(N % 32 == 0);
                 unsafe {
                     gf127_row_add2_avx2(c, a);
@@ -308,12 +308,12 @@ impl <const N: usize> Vector<N>{
     pub fn sub(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("avx512f") {
+            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_sub_avx512(c, a, b);
                 }
-            } else if is_x86_feature_detected!("avx2") {
+            } else if cfg!(target_feature = "avx2") {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_sub_avx2(c, a, b);
@@ -356,12 +356,12 @@ impl <const N: usize> Vector<N>{
     pub fn sub2(c: &mut Vector<N>, a: &Vector<N>) {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("avx512f") {
+            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_sub2_avx512(c, a);
                 }
-            } else if is_x86_feature_detected!("avx2") {
+            } else if cfg!(target_feature = "avx2") {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_sub2_avx2(c, a);
@@ -405,12 +405,12 @@ impl <const N: usize> Vector<N>{
     pub fn mul(c: &mut Vector<N>, a: &Vector<N>, b: &Vector<N>) {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("avx512f") {
+            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_mul_avx512(c, a, b);
                 }
-            } else if is_x86_feature_detected!("avx2") {
+            } else if cfg!(target_feature = "avx2") {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_mul_avx2(c, a, b);
@@ -451,12 +451,12 @@ impl <const N: usize> Vector<N>{
     pub fn mul2(c: &mut Vector<N>, a: &Vector<N>) {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("avx512f") {
+            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
                 assert!(N % 32 == 0);
                 unsafe {
                     gf127_row_mul2_avx512(c, a);
                 }
-            } else if is_x86_feature_detected!("avx2") {
+            } else if cfg!(target_feature = "avx2") {
                 assert!(N % 32 == 0);
                 unsafe {
                     gf127_row_mul2_avx2(c, a);
@@ -501,12 +501,12 @@ impl <const N: usize> Vector<N>{
     pub fn scalar(out: &mut Vector<N>, c: &Vector<N>, a: Fq) {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("avx512f") {
+            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_scalar_mul2_avx512(out, c, a);
                 }
-            } else if is_x86_feature_detected!("avx2") {
+            } else if cfg!(target_feature = "avx2") {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_scalar_mul2_avx2(out, c, a);
@@ -549,12 +549,12 @@ impl <const N: usize> Vector<N>{
     pub fn scalar2(c: &mut Vector<N>, a: Fq) {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("avx512f") {
+            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_scalar_mul_avx512(c, a);
                 }
-            } else if is_x86_feature_detected!("avx2") {
+            } else if cfg!(target_feature = "avx2") {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_scalar_mul_avx2(c, a);
@@ -595,12 +595,12 @@ impl <const N: usize> Vector<N>{
     pub fn acc(row: &Vector<N>) -> Fq {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("avx512f") {
+            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     return Fq(gf127_row_acc_avx512(row));
                 }
-            } else if is_x86_feature_detected!("avx2") {
+            } else if cfg!(target_feature = "avx2") {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     return Fq(gf127_row_acc_avx2(row));
@@ -640,7 +640,7 @@ impl <const N: usize> Vector<N>{
                       in1: &Vector<N>) {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("avx512f") {
+            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     gf127_row_inv_avx512(row_out, in1);
@@ -665,7 +665,7 @@ impl <const N: usize> Vector<N>{
     /// ```
     /// use less::vector::Vector;
     /// const N: usize = 128;
-    /// let row = Vector::<N>::new();
+    /// let row = Vector::<N>::default();
     /// let t = Vector::acc_inv(&row);
     /// assert_eq!(t.0, 0)
     /// ```
@@ -676,12 +676,12 @@ impl <const N: usize> Vector<N>{
     pub fn acc_inv(row: &Vector<N>) -> Fq {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("avx512f") {
+            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     return Fq(gf127_row_acc_inv_avx512(row));
                 }
-            } else if is_x86_feature_detected!("avx2") {
+            } else if cfg!(target_feature = "avx2") {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     return Fq(gf127_row_acc_inv_avx2(row));
@@ -709,18 +709,19 @@ impl <const N: usize> Vector<N>{
     /// use less::vector::Vector;
     /// const N: usize = 128;
     /// let row1 = Vector::<N>::from_u8(1);
-    /// Vector::<N>::all_same(&row1);
+    /// Vector::<N>::all_same(&row1, N);
     /// ```
     ///
     /// # Parameters
     /// - `a`: row to check if all elements are equal
+    /// - `n`: number of elements to look at, the rest of the row is padding
     ///
-    /// # Return 
+    /// # Return
     /// -   1 if all elements are the same
     /// -   0 else
-    pub fn all_same(row: &Vector<N>) -> bool {
+    pub fn all_same(row: &Vector<N>, n: usize) -> bool {
         let v = row[0];
-        for col in 1..N {
+        for col in 1..n {
             if row[col] != v {
                 return false;
             }
@@ -734,24 +735,25 @@ impl <const N: usize> Vector<N>{
     /// use less::vector::Vector;
     /// const N: usize = 128;
     /// let row1 = Vector::<N>::from_u8(1);
-    /// Vector::<N>::contain_zero(&row1);
+    /// Vector::<N>::contain_zero(&row1, N);
     /// ```
     ///
     /// # Parameters
-    /// - `a`: row 
+    /// - `a`: row
+    /// - `n`: number of elements to look at, the rest of the row is padding
     ///
-    /// # Return 
+    /// # Return
     /// -   1 if a zero is in the row
     /// -   0 else
-    pub fn contain_zero(row: &Vector<N>) -> bool {
+    pub fn contain_zero(row: &Vector<N>, n: usize) -> bool {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("avx512f") {
+            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     return gf127_row_contains_zero_avx512(row);
                 }
-            } else if is_x86_feature_detected!("avx2") {
+            } else if cfg!(target_feature = "avx2") {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     return gf127_row_contains_zero_avx2(row);
@@ -765,7 +767,7 @@ impl <const N: usize> Vector<N>{
             }
         }
 
-        for col in 0..N {
+        for col in 0..n {
             if row[col] == Fq(0) {
                 return true;
             }
@@ -780,18 +782,19 @@ impl <const N: usize> Vector<N>{
     /// use less::vector::Vector;
     /// const N: usize = 128;
     /// let row1 = Vector::<N>::from_u8(1);
-    /// Vector::<N>::count_zero(&row1);
+    /// Vector::<N>::count_zero(&row1, N);
     /// ```
     ///
     /// # Parameters
-    /// - `a`: row 
+    /// - `a`: row
+    /// - `n`: number of elements to look at, the rest of the row is padding
     ///
-    /// # return 
+    /// # return
     /// -   number of zeros in row
-    pub fn count_zero(row: &Vector<N>) -> u32 {
+    pub fn count_zero(row: &Vector<N>, n: usize) -> u32 {
         #[cfg(target_arch = "x86_64")]
         {
-            if std::is_x86_feature_detected!("avx512f") {
+            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
                 assert_eq!(N % 32, 0);
                 unsafe {
                     return gf127_row_count_zero_avx2(row);
@@ -807,7 +810,7 @@ impl <const N: usize> Vector<N>{
         }
 
         let mut c: u32 = 0;
-        for col in 0..N {
+        for col in 0..n {
             if row[col] == Fq(0) {
                 c += 1;
             }
@@ -919,6 +922,8 @@ impl<const N: usize> Display for Vector<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::Xof;
+    use crate::prng::csprng_initialize;
     const N: usize = 32;
     
     #[test]
@@ -1037,33 +1042,214 @@ mod tests {
     #[test]
     fn all_same() {
         let c = Vector::<N>::default();
-        assert_eq!(Vector::all_same(&c), true);
+        assert_eq!(Vector::all_same(&c, N), true);
         let c = Vector::<N>::from_u8(1);
-        assert_eq!(Vector::all_same(&c), true);
+        assert_eq!(Vector::all_same(&c, N), true);
         let mut c = Vector::<N>::from_u8(1);
         c[N-1] = Fq(0);
-        assert_eq!(Vector::all_same(&c), false);
+        assert_eq!(Vector::all_same(&c, N), false);
     }
 
     #[test]
     fn contain_zero() {
         let c = Vector::<N>::default();
-        assert_eq!(Vector::contain_zero(&c), true);
+        assert_eq!(Vector::contain_zero(&c, c.dimension()), true);
         let c = Vector::<128>::from_u8(1);
-        assert_eq!(Vector::contain_zero(&c), false);
+        assert_eq!(Vector::contain_zero(&c, c.dimension()), false);
         let mut c = Vector::<N>::from_u8(1);
         c[N-1] = Fq(0);
-        assert_eq!(Vector::contain_zero(&c), true);
+        assert_eq!(Vector::contain_zero(&c, c.dimension()), true);
     }
 
     #[test]
     fn count_zero() {
         let c = Vector::<N>::default();
-        assert_eq!(Vector::count_zero(&c), N as u32);
+        assert_eq!(Vector::count_zero(&c, c.dimension()), N as u32);
         let c = Vector::<N>::from_u8(1);
-        assert_eq!(Vector::count_zero(&c), 0);
+        assert_eq!(Vector::count_zero(&c, c.dimension()), 0);
         let mut c = Vector::<N>::from_u8(1);
         c[N-1] = Fq(0);
-        assert_eq!(Vector::count_zero(&c), 1);
+        assert_eq!(Vector::count_zero(&c, c.dimension()), 1);
+
+        // a length which is not a multiple of 32, the scalar fallback
+        let mut c = Vector::<126>::from_u8(5);
+        c[0] = Fq(0);
+        c[125] = Fq(0);
+        assert_eq!(Vector::count_zero(&c, c.dimension()), 2);
+    }
+
+
+    #[test]
+    fn rand() {
+        let mut s = csprng_initialize::<Xof>(b"rand");
+        let a = Vector::<N>::rand(&mut s);
+        for i in 0..N {
+            assert!(a[i].0 < 127);
+        }
+
+        let mut s = csprng_initialize::<Xof>(b"rand");
+        let b = Vector::<N>::rand(&mut s);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn rand_star() {
+        for seed in 0..32u8 {
+            let mut s = csprng_initialize::<Xof>(&[seed; 32]);
+            let a = Vector::<N>::rand_star(&mut s);
+            for i in 0..N {
+                assert!(a[i].0 >= 1);
+                assert!(a[i].0 < 127);
+            }
+        }
+    }
+
+    #[test]
+    fn add2() {
+        let a = Vector::<N>::rand(&mut csprng_initialize::<Xof>(&[3u8; 32]));
+        let b = Vector::<N>::rand(&mut csprng_initialize::<Xof>(&[4u8; 32]));
+        let mut c = Vector::<N>::from_vector(&a.0);
+        Vector::add2(&mut c, &b);
+        for i in 0..N {
+            assert_eq!(c[i], Fq::add(a[i], b[i]));
+        }
+    }
+
+    #[test]
+    fn sub2() {
+        let a = Vector::<N>::rand(&mut csprng_initialize::<Xof>(&[5u8; 32]));
+        let b = Vector::<N>::rand(&mut csprng_initialize::<Xof>(&[6u8; 32]));
+        let mut c = Vector::<N>::from_vector(&a.0);
+        Vector::sub2(&mut c, &b);
+        for i in 0..N {
+            assert_eq!(c[i], Fq::sub(a[i], b[i]));
+        }
+    }
+
+    #[test]
+    fn mul2() {
+        let a = Vector::<N>::rand(&mut csprng_initialize::<Xof>(&[7u8; 32]));
+        let b = Vector::<N>::rand(&mut csprng_initialize::<Xof>(&[8u8; 32]));
+        let mut c = Vector::<N>::from_vector(&a.0);
+        Vector::mul2(&mut c, &b);
+        for i in 0..N {
+            assert_eq!(c[i], Fq::mul(a[i], b[i]));
+        }
+    }
+
+    #[test]
+    fn scalar2() {
+        let a = Vector::<N>::rand(&mut csprng_initialize::<Xof>(&[9u8; 32]));
+        for s in 0..127u8 {
+            let mut c = Vector::<N>::from_vector(&a.0);
+            Vector::scalar2(&mut c, Fq(s));
+            for i in 0..N {
+                assert_eq!(c[i], Fq::mul(a[i], Fq(s)));
+            }
+        }
+    }
+
+    #[test]
+    fn acc_inv() {
+        let a = Vector::<N>::default();
+        assert_eq!(Vector::acc_inv(&a).0, 0);
+
+        let a = Vector::<N>::from_u8(1);
+        assert_eq!(Vector::acc_inv(&a), Fq::red(N as u16));
+
+        // every element is inverted, the accumulator starts at zero
+        let a = Vector::<N>::rand(&mut csprng_initialize::<Xof>(&[11u8; 32]));
+        let mut s = Fq(0);
+        for i in 0..N {
+            s = Fq::add(s, Fq::inv_non_ct(a[i]));
+        }
+        assert_eq!(Vector::acc_inv(&a), s);
+    }
+
+    #[test]
+    fn cmp() {
+        let a = Vector::<N>::from_u8(1);
+        let b = Vector::<N>::from_u8(1);
+        assert_eq!(Vector::cmp(&a, &b), 0);
+
+        let mut c = Vector::<N>::from_u8(1);
+        c[0] = Fq(2);
+        assert!(Vector::cmp(&a, &c) > 0);
+        assert!(Vector::cmp(&c, &a) < 0);
+    }
+
+    #[test]
+    fn partial_cmp_and_eq() {
+        let a = Vector::<N>::from_u8(1);
+        let mut b = Vector::<N>::from_u8(1);
+        assert!(Vector::eq(&a, &b));
+
+        b[0] = Fq(2);
+        b[1] = Fq(2);
+        assert!(!Vector::eq(&a, &b));
+        assert_eq!(Vector::partial_cmp(&b, &a), Some(Ordering::Less));
+        assert_eq!(Vector::partial_cmp(&a, &b), Some(Ordering::Greater));
+
+        // a permutation does not change the multiset
+        let mut c = Vector::<N>::default();
+        for i in 0..N { c[i] = Fq(i as u8 % 3); }
+        let mut d = Vector::<N>::default();
+        for i in 0..N { d[N - 1 - i] = c[i]; }
+        assert!(Vector::eq(&c, &d));
+    }
+
+    #[test]
+    fn operators() {
+        let a = Vector::<N>::rand(&mut csprng_initialize::<Xof>(&[13u8; 32]));
+        let b = Vector::<N>::rand(&mut csprng_initialize::<Xof>(&[14u8; 32]));
+
+        let c = Vector::<N>::from_vector(&a.0) + Vector::<N>::from_vector(&b.0);
+        for i in 0..N { assert_eq!(c[i], Fq::add(a[i], b[i])); }
+
+        let c = Vector::<N>::from_vector(&a.0) - Vector::<N>::from_vector(&b.0);
+        for i in 0..N { assert_eq!(c[i], Fq::sub(a[i], b[i])); }
+
+        let c = Vector::<N>::from_vector(&a.0) * Vector::<N>::from_vector(&b.0);
+        for i in 0..N { assert_eq!(c[i], Fq::mul(a[i], b[i])); }
+
+        let mut c = Vector::<N>::from_vector(&a.0);
+        c += Vector::<N>::from_vector(&b.0);
+        for i in 0..N { assert_eq!(c[i], Fq::add(a[i], b[i])); }
+
+        let mut c = Vector::<N>::from_vector(&a.0);
+        c -= Vector::<N>::from_vector(&b.0);
+        for i in 0..N { assert_eq!(c[i], Fq::sub(a[i], b[i])); }
+
+        let mut c = Vector::<N>::from_vector(&a.0);
+        c *= Vector::<N>::from_vector(&b.0);
+        for i in 0..N { assert_eq!(c[i], Fq::mul(a[i], b[i])); }
+    }
+
+    #[test]
+    fn index_and_deref() {
+        let mut a = Vector::<N>::default();
+        a[3] = Fq(17);
+        assert_eq!(a[3].0, 17);
+        assert_eq!(a.len(), N);
+        assert_eq!(a.iter().filter(|x| x.0 == 17).count(), 1);
+        a.iter_mut().for_each(|x| *x = Fq(1));
+        assert_eq!(a[3].0, 1);
+    }
+
+    #[test]
+    fn display() {
+        let a = Vector::<3>::from_u8(7);
+        assert_eq!(format!("{}", a), "777");
+    }
+
+    /// the derived Ord is the plain lexicographic order, the column sort
+    /// relies on it
+    #[test]
+    fn derived_ord() {
+        let a = Vector::<N>::from_u8(1);
+        let mut b = Vector::<N>::from_u8(1);
+        b[5] = Fq(2);
+        assert!(a < b);
+        assert!(b > a);
     }
 }

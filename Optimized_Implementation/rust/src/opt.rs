@@ -3,6 +3,7 @@
 
 use crate::{
     fq::Fq,
+    fq::Aligned,
     fq::FQ127_INV_TABLE,
     vector::Vector
 };
@@ -15,8 +16,9 @@ use std::arch::x86_64::{
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::{
     __mmask64,
-    __m512i, 
+    __m512i,
     _MM_CMPINT_EQ,
+    _mm512_loadu_si512, _mm512_zextsi256_si512,
     _mm512_set1_epi8, _mm512_set1_epi16,
     _mm512_add_epi8, _mm512_add_epi16,
     _mm512_sub_epi8, _mm512_sub_epi16,
@@ -53,7 +55,7 @@ use std::arch::aarch64::{
     vceqq_u8, 
 };
 
-const FQ127_MUL_TABLE: [u8; 16256] = [
+const FQ127_MUL_TABLE: Aligned<[u8; 16256]> = Aligned([
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 0,
         0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124, 126, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59, 61, 63, 65, 67, 69, 71, 73, 75, 77, 79, 81, 83, 85, 87, 89, 91, 93, 95, 97, 99, 101, 103, 105, 107, 109, 111, 113, 115, 117, 119, 121, 123, 125, 0,
@@ -181,7 +183,7 @@ const FQ127_MUL_TABLE: [u8; 16256] = [
         0, 124, 121, 118, 115, 112, 109, 106, 103, 100, 97, 94, 91, 88, 85, 82, 79, 76, 73, 70, 67, 64, 61, 58, 55, 52, 49, 46, 43, 40, 37, 34, 31, 28, 25, 22, 19, 16, 13, 10, 7, 4, 1, 125, 122, 119, 116, 113, 110, 107, 104, 101, 98, 95, 92, 89, 86, 83, 80, 77, 74, 71, 68, 65, 62, 59, 56, 53, 50, 47, 44, 41, 38, 35, 32, 29, 26, 23, 20, 17, 14, 11, 8, 5, 2, 126, 123, 120, 117, 114, 111, 108, 105, 102, 99, 96, 93, 90, 87, 84, 81, 78, 75, 72, 69, 66, 63, 60, 57, 54, 51, 48, 45, 42, 39, 36, 33, 30, 27, 24, 21, 18, 15, 12, 9, 6, 3, 0,
         0, 125, 123, 121, 119, 117, 115, 113, 111, 109, 107, 105, 103, 101, 99, 97, 95, 93, 91, 89, 87, 85, 83, 81, 79, 77, 75, 73, 71, 69, 67, 65, 63, 61, 59, 57, 55, 53, 51, 49, 47, 45, 43, 41, 39, 37, 35, 33, 31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1, 126, 124, 122, 120, 118, 116, 114, 112, 110, 108, 106, 104, 102, 100, 98, 96, 94, 92, 90, 88, 86, 84, 82, 80, 78, 76, 74, 72, 70, 68, 66, 64, 62, 60, 58, 56, 54, 52, 50, 48, 46, 44, 42, 40, 38, 36, 34, 32, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0,
         0, 126, 125, 124, 123, 122, 121, 120, 119, 118, 117, 116, 115, 114, 113, 112, 111, 110, 109, 108, 107, 106, 105, 104, 103, 102, 101, 100, 99, 98, 97, 96, 95, 94, 93, 92, 91, 90, 89, 88, 87, 86, 85, 84, 83, 82, 81, 80, 79, 78, 77, 76, 75, 74, 73, 72, 71, 70, 69, 68, 67, 66, 65, 64, 63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
-];
+]);
 
 /// using blend instruction
 /// c[i] = a[i] mod q,  a[i] < 2*127, for i in 0..32
@@ -1482,13 +1484,21 @@ pub fn gf127_row_acc_avx512<const N: usize>(row: &Vector<N>) -> u8 {
 
     unsafe {
         let ptr = row.as_ptr();
-        let t0: __m256i = _mm256_loadu_si256(ptr as *const __m256i);
-        let mut acc = _mm512_cvtepu8_epi16(t0);
+        // `gf127_hadd_avx512` reduces 64 u8 lanes, so the accumulator has to
+        // be kept in u8 lanes as well.
+        let mut acc = _mm512_setzero_si512();
 
-        for col in (32..N).step_by(32) {
-            let t0: __m256i = _mm256_loadu_si256(ptr.add(col) as *const __m256i);
-            let t1 = _mm512_cvtepu8_epi16(t0);
-            acc = _mm512_add_epi16(acc, t1);
+        let mut off = 0;
+        while off + 64 <= N {
+            let t0 = _mm512_loadu_si512(ptr.add(off) as *const __m512i);
+            acc = gf127_add_u512(acc, t0);
+            off += 64;
+        }
+
+        // N is a multiple of 32, so at most one 32 byte tail is left
+        if off < N {
+            let t0: __m256i = _mm256_loadu_si256(ptr.add(off) as *const __m256i);
+            acc = gf127_add_u512(acc, _mm512_zextsi256_si512(t0));
         }
 
         return gf127_hadd_avx512(acc);
@@ -1654,7 +1664,7 @@ pub fn gf127_row_acc_inv_neon<const N: usize>(row: &Vector<N>) -> u8 {
 #[target_feature(enable = "avx512f,avx512bw")]
 unsafe fn gf127_scalar_mul_gen_avx512(s: Fq) -> [__m512i; 2]{
     unsafe {
-        let ptr = FQ127_MUL_TABLE.as_ptr();
+        let ptr = FQ127_MUL_TABLE.0.as_ptr();
         let ret: [__m512i; 2] = [
             _mm512_load_si512(ptr.add( 0 + 128 * s.0 as usize) as *const __m512i),
             _mm512_load_si512(ptr.add(64 + 128 * s.0 as usize) as *const __m512i)
@@ -1741,12 +1751,14 @@ pub fn gf127_row_scalar_mul_avx512<const N: usize>(row: &mut Vector<N>,
     assert_eq!(N % 32, 0);
     unsafe {
         let ptr = row.as_ptr();
-        let b = _mm512_set1_epi8(s.0 as i8);
+        // `gf127_mul_u16_avx512` operates on 16 bit lanes, broadcasting into
+        // 8 bit lanes would multiply by `s*257 == 3*s mod 127`.
+        let b = _mm512_set1_epi16(s.0 as i16);
 
         for col in (0..N).step_by(32) {
             let a0: __m256i = _mm256_load_si256(ptr.add(col +  0) as *const __m256i);
             let a1 = _mm512_cvtepu8_epi16(a0);
-            let t0: __m256i = gf127_mul_u16_avx512(a1, b); 
+            let t0: __m256i = gf127_mul_u16_avx512(a1, b);
             _mm256_storeu_si256(ptr.add(col) as *mut __m256i, t0);
         }
     }
@@ -1819,7 +1831,7 @@ pub fn gf127_row_scalar_mul_neon_non_ct<const N: usize>(row: &mut Vector<N>,
                                                         s: Fq) {
     assert_eq!(N % 32, 0);
     unsafe {
-        let p = FQ127_MUL_TABLE.as_ptr();
+        let p = FQ127_MUL_TABLE.0.as_ptr();
         let ptr = row.as_ptr();
         let zero = vdupq_n_u8(0);
         let mask = vdupq_n_u8(64);
@@ -3078,11 +3090,184 @@ mod tests {
             let t1 = gf127_row_count_zero_neon(&mut row_out,);
             assert_eq!(0, t1);
         }
-       
+
         row_out[17] = Fq(0);
         unsafe {
             let t1 = gf127_row_count_zero_neon(&mut row_out,);
             assert_eq!(1, t1);
+        }
+    }
+
+    /// deterministic pseudo random row, this is not the prng of the scheme
+    #[cfg(target_arch = "x86_64")]
+    fn pseudo_random(seed: u64) -> Vector<N> {
+        let mut s = seed | 1;
+        let mut r = Vector::<N>::default();
+        for i in 0..N {
+            s = s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            r[i] = Fq(((s >> 33) % 127) as u8);
+        }
+        r
+    }
+
+    #[cfg(target_arch = "x86_64")]
+    fn has_avx512() -> bool {
+        std::is_x86_feature_detected!("avx512f") && std::is_x86_feature_detected!("avx512bw")
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_gf127_row_scalar_mul_avx512() {
+        if !has_avx512() { return; }
+        let a = pseudo_random(1);
+        for s in 0..127u8 {
+            let mut row = Vector::<N>::from_vector(&a.0);
+            unsafe { gf127_row_scalar_mul_avx512(&mut row, Fq(s)); }
+            for i in 0..N {
+                assert_eq!(row[i], Fq::mul(a[i], Fq(s)), "s={} i={}", s, i);
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_gf127_row_scalar_mul2_avx512() {
+        if !has_avx512() { return; }
+        let a = pseudo_random(2);
+        for s in 0..127u8 {
+            let mut out = Vector::<N>::default();
+            unsafe { gf127_row_scalar_mul2_avx512(&mut out, &a, Fq(s)); }
+            for i in 0..N {
+                assert_eq!(out[i], Fq::mul(a[i], Fq(s)), "s={} i={}", s, i);
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_gf127_row_scalar_mul_avx512_non_ct() {
+        if !has_avx512() { return; }
+        let a = pseudo_random(3);
+        for s in 0..127u8 {
+            let mut row = Vector::<N>::from_vector(&a.0);
+            unsafe { gf127_row_scalar_mul_avx512_non_ct(&mut row, Fq(s)); }
+            for i in 0..N {
+                assert_eq!(row[i], Fq::mul(a[i], Fq(s)), "s={} i={}", s, i);
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_gf127_row_scalar_mul2_avx512_non_ct() {
+        if !has_avx512() { return; }
+        let a = pseudo_random(4);
+        for s in 0..127u8 {
+            let mut out = Vector::<N>::default();
+            unsafe { gf127_row_scalar_mul2_avx512_non_ct(&mut out, &a, Fq(s)); }
+            for i in 0..N {
+                assert_eq!(out[i], Fq::mul(a[i], Fq(s)), "s={} i={}", s, i);
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_gf127_row_mul2_avx2() {
+        if !std::is_x86_feature_detected!("avx2") { return; }
+        let a = pseudo_random(5);
+        let b = pseudo_random(6);
+        let mut c = Vector::<N>::from_vector(&a.0);
+        unsafe { gf127_row_mul2_avx2(&mut c, &b); }
+        for i in 0..N {
+            assert_eq!(c[i], Fq::mul(a[i], b[i]), "i={}", i);
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_gf127_row_mul2_avx512() {
+        if !has_avx512() { return; }
+        let a = pseudo_random(7);
+        let b = pseudo_random(8);
+        let mut c = Vector::<N>::from_vector(&a.0);
+        unsafe { gf127_row_mul2_avx512(&mut c, &b); }
+        for i in 0..N {
+            assert_eq!(c[i], Fq::mul(a[i], b[i]), "i={}", i);
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_gf127_row_acc_avx2() {
+        if !std::is_x86_feature_detected!("avx2") { return; }
+        for seed in 1..16u64 {
+            let a = pseudo_random(seed);
+            let mut s = Fq(0);
+            for i in 0..N { s = Fq::add(s, a[i]); }
+            unsafe { assert_eq!(Fq(gf127_row_acc_avx2(&a)), s, "seed={}", seed); }
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_gf127_row_acc_avx512() {
+        if !has_avx512() { return; }
+        for seed in 1..16u64 {
+            let a = pseudo_random(seed);
+            let mut s = Fq(0);
+            for i in 0..N { s = Fq::add(s, a[i]); }
+            unsafe { assert_eq!(Fq(gf127_row_acc_avx512(&a)), s, "seed={}", seed); }
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_gf127_row_acc_inv_avx2() {
+        if !std::is_x86_feature_detected!("avx2") { return; }
+        for seed in 1..16u64 {
+            let a = pseudo_random(seed);
+            let mut s = Fq(0);
+            for i in 0..N { s = Fq::add(s, Fq::inv_non_ct(a[i])); }
+            unsafe { assert_eq!(Fq(gf127_row_acc_inv_avx2(&a)), s, "seed={}", seed); }
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_gf127_row_acc_inv_avx512() {
+        if !has_avx512() { return; }
+        for seed in 1..16u64 {
+            let a = pseudo_random(seed);
+            let mut s = Fq(0);
+            for i in 0..N { s = Fq::add(s, Fq::inv_non_ct(a[i])); }
+            unsafe { assert_eq!(Fq(gf127_row_acc_inv_avx512(&a)), s, "seed={}", seed); }
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_gf127_row_inv_avx512() {
+        if !has_avx512() { return; }
+        let a = pseudo_random(9);
+        let mut out = Vector::<N>::default();
+        unsafe { gf127_row_inv_avx512(&mut out, &a); }
+        for i in 0..N {
+            assert_eq!(out[i], Fq::inv_non_ct(a[i]), "i={}", i);
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn test_gf127_row_contains_zero_avx512() {
+        if !has_avx512() { return; }
+        let row = Vector::<N>::from_u8(1);
+        unsafe { assert_eq!(gf127_row_contains_zero_avx512(&row), false); }
+
+        for pos in [0usize, 1, 31, 32, 63, 64, N - 1] {
+            let mut row = Vector::<N>::from_u8(1);
+            row[pos] = Fq(0);
+            unsafe { assert_eq!(gf127_row_contains_zero_avx512(&row), true, "pos={}", pos); }
         }
     }
 }
