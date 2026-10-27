@@ -5,12 +5,16 @@
 
 /// TODO:
 /// type alias: MatrixRREF = Matrix<K, N_pad>
-/// type alias: XOF = Xof
 
 use sha3::{
     Digest,
 };
-use crate::config::{Xof, Hash, N, K, T, N_pad, N_K_pad, W, N8, PRIVATE_KEY_SEED_LENGTH_BYTES, RREF_MAT_PACKEDBYTES, NUM_KEYPAIRS, HASH_DIGEST_LENGTH, SEED_TREE_MAX_PUBLISHED_BYTES, SEED_LENGTH_BYTES, NUM_NODES_SEED_TREE, SIGN_PIVOT_REUSE_LIMIT, LESS_VERIFY_PIVOT_REUSE_LIMIT};
+use crate::config::{
+    Xof, Hash, N, K, T, N_pad, N_K_pad, W, N8, 
+    PRIVATE_KEY_SEED_LENGTH_BYTES, RREF_MAT_PACKEDBYTES, NUM_KEYPAIRS, 
+    HASH_DIGEST_LENGTH, SEED_TREE_MAX_PUBLISHED_BYTES, SEED_LENGTH_BYTES, 
+    NUM_NODES_SEED_TREE, SIGN_PIVOT_REUSE_LIMIT, LESS_VERIFY_PIVOT_REUSE_LIMIT
+};
 use crate::matrix::{Matrix, MatrixNormalized};
 use crate::monomial::{Monomial, Permutation};
 use crate::prng::{
@@ -167,7 +171,7 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
         }
         // just copy the non IS
         let mut a_j = MatrixNormalized::<{N - K}, N_K_pad>::from_information_set::<K, N, N_pad>(&G0, &is_pivot_column);
-        pi_tilde[i] = Permutation::<K>::from_information_set_composition::<N, N_pad, N>(&mu_tilde, &is_pivot_column);
+        pi_tilde[i] = Permutation::<K>::from_information_set_composition::<N, N_pad>(&mu_tilde, &is_pivot_column);
 
 
         a_j.blind(&mut cf_shake_state);

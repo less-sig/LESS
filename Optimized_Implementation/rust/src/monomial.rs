@@ -10,6 +10,8 @@ use crate::fq::Fq;
 use crate::prng::{merge_exchange, rand_range_q_state_elements, randombytes};
 use crate::vector::Vector;
 
+/// N: actual size
+/// N_pad: padded size
 #[derive(Debug, PartialEq, Eq)]
 pub struct Monomial<const N: usize, const N_PAD: usize> {
     pub coeffs: Vector<N, N_PAD>,
@@ -22,6 +24,8 @@ pub struct Permutation<const N: usize> {
 }
 
 impl<const N: usize, const N_PAD: usize> Monomial<N, N_PAD> {
+    const _ASSERT_PAD: () = assert!(N_PAD >= N, "N_PAD must be >= N");
+
     /// creates a new Monomial, initialized with as id
     /// # Examples
     ///
@@ -33,6 +37,8 @@ impl<const N: usize, const N_PAD: usize> Monomial<N, N_PAD> {
     /// ```
     #[inline]
     pub fn default() -> Self {
+        let () = Self::_ASSERT_PAD;
+
         let mut t: [u16; N] = [0u16; N];
         for i in 0..N {
             t[i] = i as u16;
@@ -44,6 +50,7 @@ impl<const N: usize, const N_PAD: usize> Monomial<N, N_PAD> {
         }
     }
 
+    /// NOTE: TODO doc test
     /// creates a fully zero monomial matrix.
     /// NOTE: technically that's not a matrix.
     #[inline]
@@ -56,11 +63,10 @@ impl<const N: usize, const N_PAD: usize> Monomial<N, N_PAD> {
     }
 
 
-    /// NOTE: TODO
+    /// NOTE: TODO doc test
     /// NOTE: a monomial matrix has to be invertible, so the coefficients are
     /// drawn from F_q^*.
-    /// NOTE: the coefficients are drawn before the permutation is shuffled,
-    /// this is the order in which the randomness is requested.
+    /// NOTE: constant time
     pub fn rand<S>(state: &mut S) -> Self
     where
         S: XofReader
@@ -79,6 +85,7 @@ impl<const N: usize, const N_PAD: usize> Monomial<N, N_PAD> {
         }
     }
 
+    /// NOTE: constant time
     /// sample a random monomial matrix. This means the Fq elements must be != 0
     /// # Examples
     ///
@@ -89,7 +96,7 @@ impl<const N: usize, const N_PAD: usize> Monomial<N, N_PAD> {
     /// ```
     ///
     /// # Parameters
-    /// - `seed`: NxM matrix
+    /// - `seed`: 32/64 byts to seed the prng
     pub fn rand_from_seed<S>(seed: &[u8]) -> Self
     where
         S: ExtendableOutput + Default + Clone
@@ -98,20 +105,7 @@ impl<const N: usize, const N_PAD: usize> Monomial<N, N_PAD> {
         let mut hasher = S::default();
         hasher.update(seed);
         let mut state = hasher.finalize_xof();
-        // Self::rand(&mut reader)
-
-
-        let mut t: [u16; N] = [0u16; N];
-        for i in 0..N {
-            t[i] = i as u16;
-        }
-        let mut ret = Monomial {
-            coeffs: Vector::<N, N_PAD>::rand_star(&mut state),
-            perms: t,
-        };
-
-        merge_exchange(&mut ret.perms, &mut state);
-        ret
+        Self::rand(&mut state)
     }
 
     /// checks for equality
@@ -145,7 +139,7 @@ impl<const N: usize, const N_PAD: usize> Monomial<N, N_PAD> {
     ///
     /// ```
     /// use less::monomial::Monomial;
-    /// let result: Monomial<100, 100> = Monomial::default();
+    /// let result: Monomial<100, 128> = Monomial::default();
     /// assert_eq!(result.dimension(), 100);
     /// ```
     ///
@@ -241,12 +235,16 @@ impl<const N: usize> Permutation<N> {
     /// NOTE: constant time implementation
     /// NOTE: Only the permutation is computed, as this is the only thing we need
     /// since the adaption of canonical forms.
+    /// \tparam M_PRIME[in]: number of elements in mu_tilde and is_pivot_cilumn
+    /// \tparam M_PRIME_PAD[in]: padded number of elements
     /// \param pi_tilde[out]: mu_tilde^{-1} * information set
     /// \param mu_tilde[in]: input monomial matrix.
     /// \param is_pivot_column[in]: information set, where a 1 in the array
     ///         symbolizes that the corresponding columns is a pivot column.
     #[inline]
-    pub fn from_information_set_composition<const M_PRIME: usize, const M_PRIME_PAD: usize, const N_PRIME: usize>(mu_tilde: &Monomial<M_PRIME, M_PRIME_PAD>, is_pivot_column: &[u8; N_PRIME]) -> Self {
+    pub fn from_information_set_composition
+        <const M_PRIME: usize, const M_PRIME_PAD: usize>
+        (mu_tilde: &Monomial<M_PRIME, M_PRIME_PAD>, is_pivot_column: &[u8; M_PRIME]) -> Self {
         let mut ret = Permutation::default();
 
         let mut piv_idx = 0usize;
@@ -256,12 +254,11 @@ impl<const N: usize> Permutation<N> {
             let mut row_idx = 0u16;
             for t in 0..M_PRIME {
                 // NOTE: do not break here.
-                // NOTE: the compiler should not be able to optimize a break here. As it doesnt know that each
-                //      value in `permutation` is unique, hence it "could" be that there are multiple position == col_idx
-                if mu_tilde.perms[t] == col_idx as u16 {
+                if mu_tilde.perms[t] == col_idx as u16 { // TODO COMPUTE_CT_MASK(j, pos);
                     row_idx = t as u16;
                 }
             }
+
             // NOTE: this should not leak information.
             if is_pivot_column[col_idx] == 1 {
                 ret.perms[piv_idx] = row_idx;
@@ -282,7 +279,8 @@ impl<const N: usize> Permutation<N> {
     /// \param Q_in[in]: input monomial
     /// \param in[in]: input monomial
     #[inline]
-    pub fn from_composition_action<const N_PRIME: usize, const N_PRIME_PAD: usize>(Q_in: &Monomial<N_PRIME, N_PRIME_PAD>, in_: &Permutation<N>) -> Self {
+    pub fn from_composition_action
+        <const N_PRIME: usize, const N_PRIME_PAD: usize>(Q_in: &Monomial<N_PRIME, N_PRIME_PAD>, in_: &Permutation<N>) -> Self {
         let mut ret = Permutation::default();
         // to compose with monomial_action_IS_t, reverse the convention
         // for Q storage: store in permutation[i] the idx of the source column landing
@@ -290,12 +288,6 @@ impl<const N: usize> Permutation<N> {
         // by which the column is multiplied upon landing
         let mut reverse_Q = Monomial::<N_PRIME, N_PRIME_PAD>::default();
         for i in 0..N_PRIME {
-            // we want to compute:
-            // reverse_Q.permutation[Q_in->permutation[i]] = i;
-
-            // NOTE: the type `uint16_t` is rather important. Otherwise the compiler is needed to emit
-            // costly zero-extend mov instructions. At least on a ryzen 5 7600X the resulting code
-            // is ~2x slower.
             let pos = Q_in.perms[i];
             // `reverse_Q` has N_PRIME entries, all of them have to be scanned
             for j in 0..N_PRIME {
@@ -307,8 +299,6 @@ impl<const N: usize> Permutation<N> {
         }
 
         for i in 0..N { 
-            // we want to compute:
-            // out->permutation[i] = reverse_Q.permutation[in->permutation[i]];
             let pos: u16 = in_.perms[i];
             let mut value = 0u16;
             for j in 0..N_PRIME {
@@ -320,6 +310,8 @@ impl<const N: usize> Permutation<N> {
         ret
     }
 
+    /// TODO doc test
+    /// compress a permutation to a byte string
     #[inline]
     pub fn bytes(&self) -> [u8; N8] {
         let mut ret = [0u8; N8];
@@ -426,6 +418,7 @@ impl<const N: usize> Permutation<N> {
     /// let a: Permutation<100> = Permutation::default();
     /// let mut b: Permutation<100> = Permutation::default();
     /// Permutation::inv_non_ct(&mut b, &a);
+    /// ```
     pub fn inv_non_ct(l: &mut Self, r: &Self) {
         for i in 0..N {
             let t = r.perms[i] as usize;
@@ -466,7 +459,7 @@ impl <const N: usize> MulAssign for Permutation<N> {
 
 
 #[cfg(test)]
-mod tests {
+mod tests_Monomial {
     use super::*;
     use crate::config::Xof;
     use crate::prng::csprng_initialize;
@@ -499,10 +492,14 @@ mod tests {
 
     #[test]
     fn inv() {
-        let a = Monomial::<N, N>::default();
-        let mut b = Monomial::<N, N>::zero();
+        let mut s = csprng_initialize::<Xof>(&[1u8; 32]);
+        let a = Monomial::<N, N>::rand(&mut s);
+        let mut b = Monomial::<N, N>::rand(&mut s);
+        let mut c = Monomial::<N, N>::rand(&mut s);
         Monomial::inv_non_ct(&mut b, &a);
-        assert_eq!(b, a);
+        Monomial::inv_non_ct(&mut c, &b);
+        assert_ne!(b, a);
+        assert_eq!(c, a);
     }
 
     #[test]
@@ -596,7 +593,7 @@ mod tests {
 }
 
 #[cfg(test)]
-mod tests_MonomialInformationSet {
+mod tests_Permutation {
     use super::*;
     const N: usize = 32;
 
@@ -607,13 +604,12 @@ mod tests_MonomialInformationSet {
             assert_eq!(c.perms[i], i as u16);
         }
     }
+
     #[test]
     fn compress() {
         let c = Permutation::<N>::default();
         let d = c.compress((N/2) as u32);
         let e = Permutation::from_bytes(d);
-        // NOTE only the first k assert_eq!(e, c);
-
         // compress marks the first k images, from_bytes recovers them
         for i in 0..N/2 {
             assert!(d[i]);
@@ -655,12 +651,12 @@ mod tests_MonomialInformationSet {
         let mu_tilde = Monomial::<N, N_pad>::rand_from_seed::<Xof>(&[2u8; 32]);
 
         // the first K columns are the information set
-        let mut is_pivot_column = [0u8; N_pad];
+        let mut is_pivot_column = [0u8; N];
         for i in 0..K {
             is_pivot_column[i] = 1;
         }
 
-        let pi = Permutation::<K>::from_information_set_composition::<N, N_pad, N_pad>(
+        let pi = Permutation::<K>::from_information_set_composition::<N, N_pad>(
             &mu_tilde, &is_pivot_column);
 
         // pi.perms[j] is the source column that mu_tilde maps onto pivot j
