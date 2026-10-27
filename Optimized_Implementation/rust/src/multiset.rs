@@ -1,0 +1,328 @@
+// TODO remove
+#![allow(dead_code)]
+
+use std::ops::{Index, IndexMut};
+use crate::vector::Vector;
+use crate::matrix::MatrixNormalized;
+
+/// Multiset is actually a histogram
+/// NOTE: N: is most likely Q_PAD
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Multiset<const N:usize> (pub [u8; N]);
+
+
+impl<const N:usize> Multiset<N> {
+    /// Zero Initialised
+    /// # Examples
+    ///
+    /// ```
+    /// use less::multiset::Multiset;
+    /// let result: Multiset<100> = Multiset::default();
+    /// assert_eq!(result[0], 0);
+    /// assert_eq!(result.dimension(), 100);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `dimension`: Size of the multiset
+    ///
+    /// # Returns
+    /// A new multiset element
+    #[inline]
+    pub fn default() -> Self {
+        Self([0; N])
+    }
+
+    /// Create an instance from a `Vec`
+    /// # Examples
+    ///
+    /// ```
+    /// use less::multiset::Multiset;
+    /// let t = [0u8; 100];
+    /// let result: Multiset<100> = Multiset::from_vector(&t);
+    /// assert_eq!(result[0], 100);
+    /// ```
+    ///
+    /// # Returns
+    /// A new multiset element
+    #[inline]
+    pub fn from_vector(coefficients: &[u8; N]) -> Self {
+        let mut ret = Self::default();
+        for i in 0..N {
+            ret[coefficients[i] as usize] += 1;
+        }
+        ret
+    }
+
+    /// Create an instance from a `Vec`
+    /// # Examples
+    ///
+    /// ```
+    /// use less::multiset::Multiset;
+    /// use less::vector::Vector;
+    /// let t = Vector::<100, 100>::from_u8(1);
+    /// let mut c = Multiset::<100>::default();
+    /// Multiset::<100>::from_row(&mut c, &t);
+    /// assert_eq!(c[0], 0);
+    /// assert_eq!(c[1], 100);
+    /// ```
+    ///
+    /// # Returns
+    /// A new multiset element
+    #[inline]
+    pub fn from_row
+        <const M: usize, const M_PAD: usize>
+        (out: &mut Multiset<N>, row: &Vector<M, M_PAD>) {
+        Self::sort(out, row);
+    }
+
+    /// Create an instance from a `MatrixNormalzied`
+    /// # Examples
+    ///
+    /// ```
+    /// use less::multiset::Multiset;
+    /// use less::matrix::MatrixNormalized;
+    /// let t = MatrixNormalized::<100, 100>::from_u8(1);
+    /// let c = Multiset::<100>::from_matrix(&t);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `m`: The input matrix
+    ///
+    /// # Returns
+    /// A new array of multisets
+    #[inline]
+    pub fn from_matrix
+        <const M: usize, const M_PAD: usize>
+        (m: &MatrixNormalized<M, M_PAD>) -> [Self; M_PAD] {
+        let mut tmp: [Multiset<N>; M_PAD] = core::array::from_fn(|_| Multiset::<N>::default() );
+        // one histogram per row of the matrix, `N` is the width of a histogram
+        for i in 0..M_PAD {
+            Self::from_row::<M, M_PAD>(&mut tmp[i], &m.rows[i]);
+        }
+        tmp
+    }
+
+    /// row1[in]: pointer to the first row in histogram form
+    /// row2[in]: pointer to the second row in histogram form
+    /// NOTE: not constant time
+    /// # Examples
+    ///
+    /// ```
+    /// use less::multiset::Multiset;
+    /// let A: Multiset<100> = Multiset::default();
+    /// let B: Multiset<100> = Multiset::default();
+    /// A >= B;
+    /// A <= B;
+    /// A > B;
+    /// A < B;
+    /// ```
+    ///
+    /// # Returns
+    ///  0 if multiset(row1) == multiset(row2)
+    ///  x if multiset(row1) > multiset(row2)
+    /// -x if multiset(row1) < multiset(row2)
+    pub fn partial_cmp(a: &Self, b: &Self) -> i32 {
+        let mut i: usize = 0;
+        while (i + 1) < N && a[i] == b[i] {
+            i += 1;
+        };
+
+        // NOTE: important we are comparing multisets, not vectors.
+        // Hence, a and b are swapped
+        (b[i] as i32) - (a[i]  as i32)
+    }
+
+    /// checks for equality
+    /// NOTE: not constant time
+    /// # Examples
+    ///
+    /// ```
+    /// use less::multiset::Multiset;
+    /// let A: Multiset<100> = Multiset::default();
+    /// let B: Multiset<100> = Multiset::default();
+    /// A == B;
+    /// A != B;
+    /// ```
+    fn eq(a: &Self, b: &Self) -> bool {
+        Self::partial_cmp(a, b) == 0
+    }
+
+    /// returns the size of the Multiset
+    /// # Examples
+    ///
+    /// ```
+    /// use less::multiset::Multiset;
+    /// let result: Multiset<100> = Multiset::default();
+    /// assert_eq!(result.dimension(), 100);
+    /// ```
+    /// # Returns
+    /// the dimension of a Multiset
+    #[inline]
+    pub fn dimension(&self) -> usize {
+        N
+    }
+
+    /// sorts a row
+    /// NOTE: in theory constant time, its just a histogram computation.
+    /// # Examples
+    ///
+    /// ```
+    /// use less::matrix::MatrixNormalized;
+    /// let result: MatrixNormalized<100, 100> = MatrixNormalized::default();
+    /// ```
+    /// static internal function implementing the histogram function
+    #[inline]
+    fn sort<const M: usize, const M_PAD: usize>(out: &mut Multiset<N>, row: &Vector<M, M_PAD>) {
+        // first clear the buffer
+        for i in 0..N {
+            out[i] = 0;
+        }
+
+        for i in 0..M {
+            out[row[i].0 as usize] += 1;
+        }
+    }
+}
+
+impl<const N: usize> Index<usize> for Multiset<N> {
+    type Output = u8;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+impl<const N: usize> IndexMut<usize> for Multiset<N> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fq::Fq;
+    const N: usize = 128;
+
+    #[test]
+    fn init() {
+        let c = Multiset::<N>::default();
+        for i in 0..N {
+            assert_eq!(c[i], 0);
+        }
+    }
+
+    #[test]
+    fn from_vector() {
+        let t = [1u8; N];
+        let c = Multiset::<N>::from_vector(&t);
+        assert_eq!(c[0], 0);
+        assert_eq!(c[1], N as u8);
+        for i in 2..N {
+            assert_eq!(c[i], 0);
+        }
+    }
+
+    #[test]
+    fn from_row() {
+        let t = Vector::<N, N>::from_u8(1);
+        let mut c = Multiset::<N>::default();
+
+        Multiset::<N>::from_row(&mut c, &t);
+        assert_eq!(c[0], 0);
+        assert_eq!(c[1], N as u8);
+        for i in 2..N {
+            assert_eq!(c[i], 0);
+        }
+
+        // the buffer is cleared before the histogram is written
+        let t = Vector::<N, N>::from_u8(2);
+        Multiset::<N>::from_row(&mut c, &t);
+        assert_eq!(c[1], 0);
+        assert_eq!(c[2], N as u8);
+    }
+
+    #[test]
+    fn from_matrix() {
+        const M: usize = 126;
+        let mut m = MatrixNormalized::<M, M>::default();
+        for row in 0..M {
+            for col in 0..M {
+                m[row][col] = Fq((row % 7) as u8);
+            }
+        }
+
+        let h = Multiset::<N>::from_matrix::<M, M>(&m);
+        assert_eq!(h.len(), M);
+        for row in 0..M {
+            assert_eq!(h[row][row % 7], M as u8);
+            for v in 0..N {
+                if v != row % 7 {
+                    assert_eq!(h[row][v], 0);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn dimension() {
+        let c = Multiset::<N>::default();
+        assert_eq!(c.dimension(), N);
+    }
+
+    #[test]
+    fn sort() {
+        let mut t = Vector::<N, N>::default();
+        for i in 0..N {
+            t[i] = Fq((i % 5) as u8);
+        }
+
+        let mut c = Multiset::<N>::default();
+        Multiset::<N>::sort(&mut c, &t);
+
+        let mut total = 0usize;
+        for v in 0..5 {
+            total += c[v] as usize;
+        }
+        assert_eq!(total, N);
+        for v in 5..N {
+            assert_eq!(c[v], 0);
+        }
+    }
+
+    #[test]
+    fn partial_cmp() {
+        let a = Multiset::<N>::default();
+        let b = Multiset::<N>::default();
+        assert_eq!(Multiset::partial_cmp(&a, &b), 0);
+        assert!(Multiset::eq(&a, &b));
+
+        let mut c = Multiset::<N>::default();
+        c[0] = 1;
+        assert!(Multiset::partial_cmp(&c, &a) < 0);
+        assert!(Multiset::partial_cmp(&a, &c) > 0);
+        assert!(!Multiset::eq(&a, &c));
+
+        // the derived Ord is the plain lexicographic order
+        assert!(c > a);
+        assert!(a < c);
+    }
+
+    /// comparing two identical histograms must not read out of bounds
+    #[test]
+    fn partial_cmp_full_match() {
+        let mut a = Multiset::<N>::default();
+        let mut b = Multiset::<N>::default();
+        for i in 0..N {
+            a[i] = 3;
+            b[i] = 3;
+        }
+        assert_eq!(Multiset::partial_cmp(&a, &b), 0);
+    }
+
+    #[test]
+    fn index() {
+        let mut c = Multiset::<N>::default();
+        c[7] = 42;
+        assert_eq!(c[7], 42);
+    }
+}

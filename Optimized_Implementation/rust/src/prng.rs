@@ -1,0 +1,320 @@
+#![allow(unused_imports)]
+
+use sha3::{
+    Digest, Sha3_256, Sha3_512, Shake128, Shake256, Shake128Core, Shake128ReaderCore,
+    digest::{ExtendableOutput, Update, XofReader},
+    digest::core_api::XofReaderCoreWrapper,
+};
+
+use std::sync::{LazyLock, Mutex};
+use crate::config::{Xof, XofState};
+use crate::fq::Fq;
+
+use crate::error::LESSError;
+use sha3::digest::core_api::CoreWrapper;
+
+/// NOTE: this holds the squeezing state, not the absorbing one. Consecutive
+/// calls to `randombytes` have to return consecutive bytes of the same
+/// stream, so the state must not be re-finalized on every call.
+static PLATFORM_CSPRNG_STATE: LazyLock<Mutex<XofState>> = LazyLock::new(||
+    Mutex::new(Xof::default().finalize_xof())
+);
+
+pub fn init_randombytes(buf: &[u8]) {
+    let mut hasher = Xof::default();
+    hasher.update(buf);
+    *PLATFORM_CSPRNG_STATE.lock().unwrap() = hasher.finalize_xof();
+}
+pub fn randombytes(buf: &mut [u8]) {
+    let mut reader = PLATFORM_CSPRNG_STATE.lock().unwrap();
+    reader.read(buf);
+}
+
+/// NOTE: `PLATFORM_CSPRNG_STATE` is global, so every test that re-seeds it has
+/// to hold this lock, otherwise the tests race with each other.
+#[cfg(test)]
+pub(crate) static PRNG_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+
+pub fn csprng_initialize<H>(seed: &[u8]) -> H::Reader
+where
+    H: Default + Update + ExtendableOutput,
+{
+    let mut hasher = H::default();
+    hasher.update(seed);
+    hasher.finalize_xof()
+}
+
+
+/// \param shake_state[out] uninitialized shake structure
+/// \param seed[in]: seed which is feed into the prng
+/// \param domain_seperator[in]: domain seperator as defined in the spec,
+///         which is fed into the prng after the seed
+pub fn csprng_initialize_ds<H>(seed: &[u8], domain_seperator: u16) -> H::Reader
+where
+    H: Default + Update + ExtendableOutput,
+{
+    let mut hasher = H::default();
+    hasher.update(seed);
+    hasher.update(&domain_seperator.to_le_bytes());
+    hasher.finalize_xof()
+}
+
+
+pub fn csprng_randombytes<R>(state: &mut R, len: usize) -> Vec<u8>
+where
+    R: XofReader,
+{
+    let mut buf = vec![0u8; len];
+    state.read(&mut buf);
+    buf
+}
+fn rand_range_impl<const MIN_V: u8, R>(
+    buffer: &mut [Fq],
+    state: &mut R,
+)
+where 
+    R: XofReader
+{
+    let span = 127 - MIN_V;
+    let req_bits: usize = 7;
+    let el_mask: u8 = (1u8 << req_bits) - 1;
+
+    let mut count: usize = 0;
+    let mut buf = [0u8; 8];
+
+    while count < buffer.len() {
+        state.read(&mut buf);
+        let mut word: u64 = u64::from_ne_bytes(buf);
+        let iters = (size_of::<u64>() * 8) / req_bits;
+        for _ in 0..iters {
+            let rnd_value = word as u8 & el_mask;
+            if rnd_value < span {
+                buffer[count] = Fq(MIN_V + rnd_value);
+                count += 1;
+                if count >= buffer.len() {
+                    return;
+                }
+            }
+            word >>= req_bits;
+        }
+    }
+}
+
+pub fn rand_range_q_state_elements<R>(
+    buffer: &mut [Fq],
+    state: &mut R,
+)
+where
+    R: XofReader
+{
+    rand_range_impl::<0, R>(buffer, state);
+}
+
+
+pub fn fq_star_rnd_state_elements<R>(
+    buffer: &mut [Fq],
+    state: &mut R,
+)
+where 
+    R: XofReader
+{
+    rand_range_impl::<1, R>(buffer, state);
+}
+
+
+
+pub fn merge_exchange<R>(
+    buffer: &mut [u16],
+    state: &mut R,
+)
+where
+    R: XofReader
+{
+    let n = buffer.len() as u32;
+
+    let mut rand: u64 = 0;
+    let mut ctr: u32 = 0;
+
+    // Find the largest power of 2 less than n
+    let mut t: u32 = 1;
+    while t < n - t {
+        t += t;
+    }
+
+    for p_step in (0..).map(|i| t >> i).take_while(|&x| x > 0) {
+        let mut q = t << 1u32;
+        let mut r: u32 = 0;
+        let mut d: u32 = p_step;
+        loop {
+            q >>= 1;
+            for i in 0..(n - d) {
+                if (i & p_step) == r {
+                    // Refill random bits if exhausted
+                    if ctr == 0 {
+                        let mut buf: [u8; 8] = [0u8; 8];
+                        state.read(&mut buf);
+                        rand = u64::from_le_bytes(buf);
+                        ctr = 64;
+                    }
+
+                    // Constant-time mask: 0xFFFF if (rand & 1) == 1, else 0x0000
+                    let mask: u16 = if (rand & 1) == 1 { 0xFFFF } else { 0 };
+
+                    // Conditional swap using masked XOR
+                    let a = buffer[i as usize];
+                    let b = buffer[(i + d) as usize];
+                    buffer[i as usize] = a ^ (mask & (a ^ b));
+                    buffer[(i + d) as usize] = b ^ (mask & (a ^ b));
+
+                    // Drain random bit and counter
+                    rand >>= 1;
+                    ctr -= 1;
+                }
+            }
+            d = q - p_step;
+            r = p_step;
+            if q == p_step {
+                break;
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_init_randombytes() {
+        let _guard = PRNG_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let seed = [0u8; 32];
+        init_randombytes(&seed);
+
+        let mut out_buf = [0u8; 32];
+        randombytes(&mut out_buf);
+        // TODO not really correct
+        for i in 0..32 {
+            assert_ne!(out_buf[i], 0u8);
+        }
+    }
+
+    #[test]
+    fn test_rand_range_impl() {
+        let mut hasher = Shake128::default();
+        hasher.update(b"123");
+        let mut reader = hasher.finalize_xof();
+        let mut buffer = [Fq(0); 32];
+        rand_range_impl::<1, XofReaderCoreWrapper<Shake128ReaderCore>>(&mut buffer, &mut reader);
+        for i in 0..32 {
+            assert_ne!(buffer[i], Fq(0));
+        }
+    }
+
+    #[test]
+    fn test_randombytes_continues_the_stream() {
+        let _guard = PRNG_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let seed = [0u8; 32];
+        init_randombytes(&seed);
+        let mut a = [0u8; 32];
+        let mut b = [0u8; 32];
+        randombytes(&mut a);
+        randombytes(&mut b);
+        assert_ne!(a, b, "consecutive calls must not repeat the same bytes");
+
+        // 64 bytes at once must equal 2x32 bytes in a row
+        init_randombytes(&seed);
+        let mut d = [0u8; 64];
+        randombytes(&mut d);
+        assert_eq!(&d[..32], &a[..]);
+        assert_eq!(&d[32..], &b[..]);
+    }
+
+    #[test]
+    fn test_csprng_initialize() {
+        let mut s1 = csprng_initialize::<Shake128>(b"123");
+        let mut s2 = csprng_initialize::<Shake128>(b"123");
+        let mut s3 = csprng_initialize::<Shake128>(b"124");
+
+        let a = csprng_randombytes(&mut s1, 32);
+        let b = csprng_randombytes(&mut s2, 32);
+        let c = csprng_randombytes(&mut s3, 32);
+        assert_eq!(a, b);
+        assert_ne!(a, c);
+    }
+
+    #[test]
+    fn test_csprng_initialize_ds() {
+        let seed = [7u8; 16];
+        let mut s1 = csprng_initialize_ds::<Shake128>(&seed, 0x0102);
+        let mut s2 = csprng_initialize_ds::<Shake128>(&seed, 0x0201);
+
+        let a = csprng_randombytes(&mut s1, 32);
+        let b = csprng_randombytes(&mut s2, 32);
+        assert_ne!(a, b);
+
+        // the domain separator is appended as two little endian bytes
+        let mut input = [0u8; 18];
+        input[..16].copy_from_slice(&seed);
+        input[16] = 0x02;
+        input[17] = 0x01;
+        let mut s3 = csprng_initialize::<Shake128>(&input);
+        let c = csprng_randombytes(&mut s3, 32);
+        assert_eq!(a, c);
+    }
+
+    #[test]
+    fn test_csprng_randombytes() {
+        let mut s = csprng_initialize::<Shake128>(b"abc");
+        let a = csprng_randombytes(&mut s, 16);
+        let b = csprng_randombytes(&mut s, 16);
+        assert_ne!(a, b);
+
+        let mut s = csprng_initialize::<Shake128>(b"abc");
+        let c = csprng_randombytes(&mut s, 32);
+        assert_eq!(&c[..16], &a[..]);
+        assert_eq!(&c[16..], &b[..]);
+    }
+
+    #[test]
+    fn test_rand_range_q_state_elements() {
+        let mut state = csprng_initialize::<Shake128>(b"seed");
+        let mut buffer = [Fq(0); 256];
+        rand_range_q_state_elements(&mut buffer, &mut state);
+        for i in 0..buffer.len() {
+            assert!(buffer[i].0 < 127);
+        }
+
+        let mut state = csprng_initialize::<Shake128>(b"seed");
+        let mut buffer2 = [Fq(0); 256];
+        rand_range_q_state_elements(&mut buffer2, &mut state);
+        assert_eq!(buffer, buffer2);
+    }
+
+    #[test]
+    fn test_fq_star_rnd_state_elements() {
+        let mut state = csprng_initialize::<Shake128>(b"seed");
+        let mut buffer = [Fq(0); 256];
+        fq_star_rnd_state_elements(&mut buffer, &mut state);
+        for i in 0..buffer.len() {
+            assert!(buffer[i].0 >= 1, "a monomial coefficient must not be zero");
+            assert!(buffer[i].0 < 127);
+        }
+    }
+
+    #[test]
+    fn test_merge_exchange() {
+        let mut hasher = Shake128::default();
+        hasher.update(b"123");
+        let mut reader = hasher.finalize_xof();
+        let mut buffer: [u16; 128] = (0..128).collect::<Vec<_>>().try_into().unwrap();
+        merge_exchange(&mut buffer, &mut reader);
+
+        let mut cnt = 0u32;
+        for i in 0..128 {
+            cnt += (buffer[i] == i as u16) as u32;
+        }
+
+        assert!(cnt < 5);
+    }
+}
