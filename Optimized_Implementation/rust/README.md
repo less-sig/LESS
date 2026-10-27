@@ -1,4 +1,24 @@
-TODO
+TODO List:
+- rewrite 
+```
+    let mut fixed_weight_string = [0u8; T];
+    sample_challenge(&mut fixed_weight_string, &sig.digest);
+```
+to
+```
+    let fixed_weight_string =sample_challenge(&mut fixed_weight_string, &sig.digest, T);
+```
+- simd gaus
+- simd transpose
+- TODOs in the code
+- less_sign/verify should return proper errors
+- `monomoal_from_salt` function is missing
+- CI
+
+
+
+
+
 
 ## KAT
 
@@ -16,6 +36,7 @@ The KAT file is picked by the size of the public key, so the selected
 parameter set decides which `PQCsignKAT_<bytes>.rsp` is read:
 
 ```sh
+cargo run --release --no-default-features --features cat1_192  --example kat
 cargo run --release --no-default-features --features cat1_68  --example kat
 cargo run --release --no-default-features --features cat1_45  --example kat
 cargo run --release --no-default-features --features cat3_220 --example kat

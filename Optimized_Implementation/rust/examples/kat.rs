@@ -1,16 +1,6 @@
 //! Reads the NIST KAT files of `Utilities/KAT_Generation/KAT` and verifies
 //! every signed message in them. This is the verification half of
-//! `Reference_Implementation/lib/nist/PQCgenKAT_sign.c`, which calls
-//! `crypto_sign_open` on each `sm` and compares the recovered message.
-//!
-//! NOTE: the KAT files were generated with the NIST AES-CTR-DRBG, which this
-//! port does not implement. Verifying them does not need it: the public key
-//! and the signed message are read from the file, so only `less_verify` is
-//! exercised. Generating the files would need the DRBG.
-//!
-//! The file is picked by the size of the public key, exactly like
-//! `PQCsignKAT_%ld.rsp` with `CRYPTO_PUBLICKEYBYTES` does, so the parameter
-//! set selected at compile time decides which KAT is read.
+//! `Reference_Implementation/lib/nist/PQCgenKAT_sign.c`
 //!
 //! usage:
 //!     cargo run --release --example kat
