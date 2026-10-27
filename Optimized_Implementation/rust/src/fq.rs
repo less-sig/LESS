@@ -75,7 +75,7 @@ impl Fq {
     #[must_use]
     #[inline]
     pub const fn add(a: Fq, b: Fq) -> Fq {
-        assert!(a.0 < 127); assert!(b.0 < 127);
+        debug_assert!(a.0 < 127); debug_assert!(b.0 < 127);
         return Fq(Fq::conditional_sub_raw(a.0 + b.0));
     }
     
@@ -97,7 +97,7 @@ impl Fq {
     #[must_use]
     #[inline]
     pub const fn sub(a: Fq, b: Fq) -> Fq {
-        assert!(a.0 < 127); assert!(b.0 < 127);
+        debug_assert!(a.0 < 127); debug_assert!(b.0 < 127);
         return Fq(Fq::conditional_sub_raw(a.0 + Fq::Q - b.0));
     }
 
@@ -119,7 +119,7 @@ impl Fq {
     #[must_use]
     #[inline]
     pub const fn mul(a: Fq, b: Fq) -> Fq {
-        assert!(a.0 < 127); assert!(b.0 < 127);
+        debug_assert!(a.0 < 127); debug_assert!(b.0 < 127);
         return Fq::red((a.0 as u16) * (b.0 as u16));
     }
 
@@ -140,7 +140,7 @@ impl Fq {
     #[must_use]
     #[inline]
     pub fn inv(a: Fq) -> Fq {
-        assert!(a.0 < 127);
+        debug_assert!(a.0 < 127);
         let j = a.0;
         let mut r: u8 = 0;
         for i in 0..127u8{
@@ -167,7 +167,7 @@ impl Fq {
     #[must_use]
     #[inline]
     pub const fn inv_non_ct(a: Fq) -> Fq {
-        assert!(a.0 < 127);
+        debug_assert!(a.0 < 127);
         Fq(FQ127_INV_TABLE.0[a.0 as usize])
     }
 
@@ -175,7 +175,7 @@ impl Fq {
     #[must_use]
     #[inline]
     pub const fn is_zero(a: Fq) -> bool {
-        assert!(a.0 < 127);
+        debug_assert!(a.0 < 127);
         a.0 == 0
     }
 }

@@ -358,6 +358,17 @@ impl<const N: usize> Permutation<N> {
             w += b[i].count_ones();
         }
 
+        /* the last byte carries N8*8-N bits that `UnpackCosetRep` never looks
+         * at. if one of them is set, the weight over the columns that are
+         * actually used is below K, and the column index then runs past the
+         * end of the matrix */
+        if crate::config::N % 8 != 0 {
+            let pad = !((1u8 << (crate::config::N % 8)) - 1);
+            if b[N8 - 1] & pad != 0 {
+                return false;
+            }
+        }
+
         w == (N as u32)
     }
 
