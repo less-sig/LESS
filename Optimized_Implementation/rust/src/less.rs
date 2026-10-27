@@ -44,6 +44,8 @@ pub struct Signature {
 
 type MatrixRREF = Matrix<K, {N - K}, N_K_pad>;
 type MatrixFull = Matrix<K, N, N_pad>;
+type MonomialFull = Monomial::<N, N_pad>;
+type NonIS = MatrixNormalized::<{N - K}, N_K_pad>;
 
 
 // LESS_keygen
@@ -77,10 +79,10 @@ pub fn less_keygen(sk: &mut PrivateKey, pk: &mut PublicKey) {
     for i in 0..(NUM_KEYPAIRS - 1) {
         let mut is_pivot_column = [0u8; N];
         /* expand inverse monomial from seed */
-        let mut private_q = Monomial::<N, N_pad>::default();
-        let private_q_inv = Monomial::<N, N_pad>::rand_from_seed::<Xof>(&private_monomial_seeds[i]);
+        let mut private_q = MonomialFull::default();
+        let private_q_inv = MonomialFull::rand_from_seed::<Xof>(&private_monomial_seeds[i]);
         // NOTE: the inversion is not implemented in constant time.
-        Monomial::<N, N_pad>::inv_non_ct(&mut private_q, &private_q_inv);
+        MonomialFull::inv_non_ct(&mut private_q, &private_q_inv);
 
         let mut result_g = MatrixFull::default();
         Matrix::monomial_mul(&mut result_g, &tmp_full_g, &private_q); // TODO replace with `*` operator
@@ -159,7 +161,7 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
             .copy_from_slice(&(i as u16).to_le_bytes());
 
         let mut mu_state = csprng_initialize::<Xof>(&mu_input);
-        let mu_tilde = Monomial::<N, N_pad>::rand(&mut mu_state);
+        let mu_tilde = MonomialFull::rand(&mut mu_state);
         Matrix::monomial_mul(&mut G0, &full_g0, &mu_tilde);
 
         is_pivot_column = [0u8; N];
@@ -173,7 +175,7 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
             return 0;
         }
         // just copy the non IS
-        let mut a_j = MatrixNormalized::<{N - K}, N_K_pad>::from_information_set::<K, N, N_pad>(&G0, &is_pivot_column);
+        let mut a_j = NonIS::from_information_set::<K, N, N_pad>(&G0, &is_pivot_column);
         pi_tilde[i] = Permutation::<K>::from_information_set_composition::<N, N_pad>(&mu_tilde, &is_pivot_column);
 
 
@@ -188,8 +190,7 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
             continue;
         }
 
-        // NOTE: as we increase the size of the `normalized_IS_t`
-        // we need to hash the values row by row.
+        // NOTE: as we added padding: we need to hash the values row by row.
         let mut row_bytes = [0u8; N - K];
         for sl in 0..K {
             for col in 0..(N - K) {
@@ -220,7 +221,7 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
     for i in 0..T {
         if fixed_weight_string[i] != 0 {
             let j = fixed_weight_string[i] as usize;
-            let Q_to_multiply = Monomial::<N, N_pad>::rand_from_seed::<Xof>(&private_monomial_seeds[j - 1]);
+            let Q_to_multiply = MonomialFull::rand_from_seed::<Xof>(&private_monomial_seeds[j - 1]);
             let mono_action = Permutation::<K>::from_composition_action(&Q_to_multiply, &pi_tilde[i]);
             sig.cf_monom_actions[emitted_monoms] = mono_action.bytes();
 
@@ -233,6 +234,7 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
 
 
 /// NOTE: non-constant time
+/// TODO: example
 /// \param pk[in]: public key
 /// \param m[in]: message for which a signature was computed
 /// \param sig[in]: signature
@@ -270,7 +272,7 @@ pub fn less_verify(pk: &PublicKey, m: &[u8], sig: &Signature) -> bool {
     for i in 0..K {
         g0_initial_pivot_flags[g0_column_pos[i] as usize] = 0;
     }
-    let g0_full = Matrix::<K, N, N_pad>::from_compressed_rref::<{N - K}, N_K_pad>(
+    let g0_full = MatrixFull::from_compressed_rref::<{N - K}, N_K_pad>(
         &g0_column_pos, &g0_rref);
 
     let mut gs: Vec<Matrix<K, N, N_pad>> = Vec::with_capacity(NUM_KEYPAIRS - 1);
@@ -299,7 +301,7 @@ pub fn less_verify(pk: &PublicKey, m: &[u8], sig: &Signature) -> bool {
                 .copy_from_slice(&(i as u16).to_le_bytes());
 
             let mut mu_state = csprng_initialize::<Xof>(&mu_input);
-            let mu_tilde = Monomial::<N, N_pad>::rand(&mut mu_state);
+            let mu_tilde = MonomialFull::rand(&mut mu_state);
 
             Matrix::monomial_mul(&mut g_prime, &g0_full, &mu_tilde);
 
@@ -335,7 +337,7 @@ pub fn less_verify(pk: &PublicKey, m: &[u8], sig: &Signature) -> bool {
         }
 
         // copy the non IS
-        let mut a_i = MatrixNormalized::<{N - K}, N_K_pad>::from_information_set::<K, N, N_pad>(
+        let mut a_i = NonIS::from_information_set::<K, N, N_pad>(
             &g_prime, &is_pivot_column);
 
         // compute the canonical form and exit on any failure
