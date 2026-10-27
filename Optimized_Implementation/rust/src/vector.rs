@@ -8,7 +8,7 @@ use std::ops:: {
 };
 use std::cmp::Ordering;
 use std::{ fmt::Display, fmt::Formatter, fmt::Result };
-use crate::constants::{
+use crate::config::{
     Q_PAD,
 };
 use crate::fq::Fq;
@@ -135,7 +135,7 @@ impl <const N: usize, const N_PAD: usize> Vector<N, N_PAD>{
         ret
     }
 
-    /// partially compares two matrices
+    /// partially compares two vectors
     /// NOTE: not constant time
     /// # Examples
     ///
@@ -153,13 +153,11 @@ impl <const N: usize, const N_PAD: usize> Vector<N, N_PAD>{
     ///  0 if a == b
     ///  x if a  > b
     /// -x if a  < b
-    fn partial_cmp(a: &Self, b: &Self) -> Option<Ordering>{
+    fn partial_cmp(a: &Self, b: &Self) -> Option<Ordering> {
         let mut aa = Multiset::<Q_PAD>::default();
         let mut bb = Multiset::<Q_PAD>::default();
         Multiset::from_row(&mut aa, a);
         Multiset::from_row(&mut bb, b);
-        // `Multiset::partial_cmp` keeps the `compare_rows` convention, a
-        // negative result means `a` is the greater one
         Some(0.cmp(&Multiset::<Q_PAD>::partial_cmp(&aa, &bb)))
     }
 
@@ -181,7 +179,7 @@ impl <const N: usize, const N_PAD: usize> Vector<N, N_PAD>{
         Self::partial_cmp(a, b).unwrap().is_eq()
     }
 
-    /// Create an instance from a `Vector`
+    /// returns the dimension of the vector
     /// # Examples
     ///
     /// ```
@@ -243,7 +241,7 @@ impl <const N: usize, const N_PAD: usize> Vector<N, N_PAD>{
         }
     }
 
-    /// c[i] = c[i]+a[i] mod q,  a[i],b[i] < 127, for i in 0..N
+    /// c[i] += a[i] mod q,  a[i],b[i] < 127, for i in 0..N
     /// # Examples
     ///
     /// ```
@@ -352,8 +350,7 @@ impl <const N: usize, const N_PAD: usize> Vector<N, N_PAD>{
     ///
     /// # Parameters
     /// - `c`: output value
-    /// - `a`: first addend
-    /// - `b`: second addend
+    /// - `a`: minuend
     #[inline]
     pub fn sub2(c: &mut Vector<N, N_PAD>, a: &Vector<N, N_PAD>) {
         #[cfg(target_arch = "x86_64")]
@@ -401,8 +398,8 @@ impl <const N: usize, const N_PAD: usize> Vector<N, N_PAD>{
     ///
     /// # Parameters
     /// - `c`: output value
-    /// - `a`: first addend
-    /// - `b`: second addend
+    /// - `a`: first multiplier
+    /// - `b`: second multiplier
     #[inline]
     pub fn mul(c: &mut Vector<N, N_PAD>, a: &Vector<N, N_PAD>, b: &Vector<N, N_PAD>) {
         #[cfg(target_arch = "x86_64")]
@@ -447,8 +444,8 @@ impl <const N: usize, const N_PAD: usize> Vector<N, N_PAD>{
     ///
     /// # Parameters
     /// - `c`: output value
-    /// - `a`: first addend
-    /// - `b`: second addend
+    /// - `a`: first multiplier
+    /// - `b`: second multiplier
     #[inline]
     pub fn mul2(c: &mut Vector<N, N_PAD>, a: &Vector<N, N_PAD>) {
         #[cfg(target_arch = "x86_64")]
@@ -498,7 +495,7 @@ impl <const N: usize, const N_PAD: usize> Vector<N, N_PAD>{
     /// # Parameters
     /// - `c`: output value
     /// - `a`: first addend
-    /// - `b`: second addend
+    /// - `b`: scalar
     #[inline]
     pub fn scalar(out: &mut Vector<N, N_PAD>, c: &Vector<N, N_PAD>, a: Fq) {
         #[cfg(target_arch = "x86_64")]
@@ -546,7 +543,7 @@ impl <const N: usize, const N_PAD: usize> Vector<N, N_PAD>{
     ///
     /// # Parameters
     /// - `c`: output value
-    /// - `a`: first addend
+    /// - `a`: scalar value
     #[inline]
     pub fn scalar2(c: &mut Vector<N, N_PAD>, a: Fq) {
         #[cfg(target_arch = "x86_64")]
@@ -637,7 +634,8 @@ impl <const N: usize, const N_PAD: usize> Vector<N, N_PAD>{
     /// ```
     ///
     /// # Parameters
-    /// - `a`: row to invert
+    /// - `row_out`: output row
+    /// - `in1`: row to invert
     pub fn inv_non_ct(row_out: &mut Vector<N, N_PAD>,
                       in1: &Vector<N, N_PAD>) {
         #[cfg(target_arch = "x86_64")]
@@ -1053,7 +1051,7 @@ mod tests {
     fn contain_zero() {
         let c = Vector::<N, N>::default();
         assert_eq!(Vector::contain_zero(&c), true);
-        let c = Vector::<128, 128>::from_u8(1);
+        let c = Vector::<N, N>::from_u8(1);
         assert_eq!(Vector::contain_zero(&c), false);
         let mut c = Vector::<N, N>::from_u8(1);
         c[N-1] = Fq(0);
@@ -1077,16 +1075,15 @@ mod tests {
         assert_eq!(Vector::count_zero(&c), 2);
     }
 
-
     #[test]
     fn rand() {
-        let mut s = csprng_initialize::<Xof>(b"rand");
+        let mut s = csprng_initialize::<Xof>(&[1u8; 32]);
         let a = Vector::<N, N>::rand(&mut s);
         for i in 0..N {
             assert!(a[i].0 < 127);
         }
 
-        let mut s = csprng_initialize::<Xof>(b"rand");
+        let mut s = csprng_initialize::<Xof>(&[1u8; 32]);
         let b = Vector::<N, N>::rand(&mut s);
         assert_eq!(a, b);
     }
@@ -1186,8 +1183,8 @@ mod tests {
         b[0] = Fq(2);
         b[1] = Fq(2);
         assert!(!Vector::eq(&a, &b));
-        assert_eq!(Vector::partial_cmp(&b, &a), Some(Ordering::Less));
-        assert_eq!(Vector::partial_cmp(&a, &b), Some(Ordering::Greater));
+        assert_eq!(Vector::partial_cmp(&b, &a), Some(Ordering::Greater));
+        assert_eq!(Vector::partial_cmp(&a, &b), Some(Ordering::Less));
 
         // a permutation does not change the multiset
         let mut c = Vector::<N, N>::default();
@@ -1199,8 +1196,8 @@ mod tests {
 
     #[test]
     fn operators() {
-        let a = Vector::<N, N>::rand(&mut csprng_initialize::<Xof>(&[13u8; 32]));
-        let b = Vector::<N, N>::rand(&mut csprng_initialize::<Xof>(&[14u8; 32]));
+        let a = Vector::<N, N>::rand(&mut csprng_initialize::<Xof>(&[0u8; 32]));
+        let b = Vector::<N, N>::rand(&mut csprng_initialize::<Xof>(&[1u8; 32]));
 
         let c = Vector::<N, N>::from_vector(&a.0) + Vector::<N, N>::from_vector(&b.0);
         for i in 0..N { assert_eq!(c[i], Fq::add(a[i], b[i])); }

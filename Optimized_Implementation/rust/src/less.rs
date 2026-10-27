@@ -42,6 +42,9 @@ pub struct Signature {
     pub seed_storage: [u8; SEED_TREE_MAX_PUBLISHED_BYTES],
 }
 
+type MatrixRREF = Matrix<K, {N - K}, N_K_pad>;
+type MatrixFull = Matrix<K, N, N_pad>;
+
 
 // LESS_keygen
 // \param SK[out]: pointer to an uninitialized secret key data structure
@@ -56,10 +59,10 @@ pub fn less_keygen(sk: &mut PrivateKey, pk: &mut PublicKey) {
     /* Generating public code G_0 */
     csprng_randombytes(&mut pk.g0_seed, &mut sk_shake_state);
 
-    let g0_rref = Matrix::<K, {N - K}, N_K_pad>::rand_from_seed::<Xof>(&pk.g0_seed);
+    let g0_rref = MatrixRREF::rand_from_seed::<Xof>(&pk.g0_seed);
     let g0_column_pos: [u16; N_K_pad] = std::array::from_fn(|i| (i + K) as u16);
 
-    let tmp_full_g = Matrix::<K, N, N_pad>::from_compressed_rref(&g0_column_pos, &g0_rref);
+    let tmp_full_g = MatrixFull::from_compressed_rref(&g0_column_pos, &g0_rref);
 
     /* The first private key monomial is an ID matrix, no need for random
      * generation, hence NUM_KEYPAIRS-1 */
@@ -79,7 +82,7 @@ pub fn less_keygen(sk: &mut PrivateKey, pk: &mut PublicKey) {
         // NOTE: the inversion is not implemented in constant time.
         Monomial::<N, N_pad>::inv_non_ct(&mut private_q, &private_q_inv);
 
-        let mut result_g = Matrix::<K, N, N_pad>::default();
+        let mut result_g = MatrixFull::default();
         Matrix::monomial_mul(&mut result_g, &tmp_full_g, &private_q); // TODO replace with `*` operator
 
         let _ = result_g.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, K);
@@ -127,7 +130,7 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
     seed_leaves(&mut linearized_rounds_seeds, &seed_tree);
 
     // /*         Public G_0 expansion                  */
-    let g0_rref = Matrix::<K, {N - K}, N_K_pad>::rand_from_seed::<Xof>(&G_0_seed);
+    let g0_rref = MatrixRREF::rand_from_seed::<Xof>(&G_0_seed);
     let g0_column_pos: [u16; N_K_pad] = std::array::from_fn(|i| (i + K) as u16);
     /* generator_get_pivot_flags: everything is a pivot but the stored columns */
     for i in 0..N {
@@ -136,9 +139,9 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
     for i in 0..K {
         g0_initial_pivot_flags[g0_column_pos[i] as usize] = 0;
     }
-    let full_g0 = Matrix::<K, N, N_pad>::from_compressed_rref::<{N - K}, N_K_pad>(&g0_column_pos, &g0_rref);
+    let full_g0 = MatrixFull::from_compressed_rref::<{N - K}, N_K_pad>(&g0_column_pos, &g0_rref);
 
-    let mut G0 = Matrix::<K, N, N_pad>::default();
+    let mut G0 = MatrixFull::default();
     let mut hasher = Hash::new();
     let mut pi_tilde: [Permutation::<K>; T] = core::array::from_fn(|_| Permutation::<K>::default());
 
@@ -257,7 +260,7 @@ pub fn less_verify(pk: &PublicKey, m: &[u8], sig: &Signature) -> bool {
 
     let mut employed_monoms = 0usize;
 
-    let g0_rref = Matrix::<K, {N - K}, N_K_pad>::rand_from_seed::<Xof>(&pk.g0_seed);
+    let g0_rref = MatrixRREF::rand_from_seed::<Xof>(&pk.g0_seed);
     let g0_column_pos: [u16; N_K_pad] = std::array::from_fn(|i| (i + K) as u16);
 
     let mut g0_initial_pivot_flags = [0u8; N];
@@ -273,12 +276,12 @@ pub fn less_verify(pk: &PublicKey, m: &[u8], sig: &Signature) -> bool {
     let mut gs: Vec<Matrix<K, N, N_pad>> = Vec::with_capacity(NUM_KEYPAIRS - 1);
     let mut gi_initial_pivot_flags = [0u8; N];
     for i in 0..(NUM_KEYPAIRS - 1) {
-        let mut g = Matrix::<K, N, N_pad>::default();
+        let mut g = MatrixFull::default();
         g.expand(&pk.sf_g[i], &mut gi_initial_pivot_flags);
         gs.push(g);
     }
 
-    let mut g_prime = Matrix::<K, N, N_pad>::default();
+    let mut g_prime = MatrixFull::default();
     let mut hasher = Hash::new();
 
     /* same ephemeral monomial derivation as in `less_sign` */
@@ -405,7 +408,7 @@ mod tests {
     fn sign_and_verify_round_trip() {
         let _guard = PRNG_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
 
-        let msg = b"LESS rust port round trip";
+        let msg = b"abc";
         let (pk, sig) = keypair_and_signature(msg);
 
         assert!(less_verify(&pk, msg, &sig), "a valid signature was rejected");
@@ -416,7 +419,7 @@ mod tests {
     fn sign_is_deterministic() {
         let _guard = PRNG_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
 
-        let msg = b"LESS rust port round trip";
+        let msg = b"abc";
         let (_, a) = keypair_and_signature(msg);
         let (_, b) = keypair_and_signature(msg);
 
@@ -431,11 +434,11 @@ mod tests {
     fn verify_rejects_a_tampered_signature() {
         let _guard = PRNG_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
 
-        let msg = b"LESS rust port round trip";
+        let msg = b"def";
         let (pk, sig) = keypair_and_signature(msg);
 
         // a different message must not verify
-        assert!(!less_verify(&pk, b"some other message", &sig));
+        assert!(!less_verify(&pk, b"ghi", &sig));
 
         let mut t = copy(&sig);
         t.digest[0] ^= 1;

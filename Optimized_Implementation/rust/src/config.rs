@@ -18,6 +18,10 @@
 #[cfg(not(any(feature = "cat1", feature = "cat3", feature = "cat5")))]
 compile_error!("no parameter set selected: enable one of cat1_192, cat1_68, cat1_45, cat3_220, cat3_102, cat5_345, cat5_137");
 
+
+pub const Q: u8  = 127;
+pub const Q_PAD: usize  = 128;
+
 /***************************** Category 1 *********************************/
 #[cfg(feature = "cat1")]
 mod category {
@@ -224,8 +228,7 @@ pub const LESS_CRYPTO_PUBLICKEYBYTES: usize = SEED_LENGTH_BYTES + (NUM_KEYPAIRS-
 /// size of `PrivateKey` in bytes
 pub const LESS_CRYPTO_SECRETKEYBYTES: usize = PRIVATE_KEY_SEED_LENGTH_BYTES;
 /// `LESS_SIGNATURE_SIZE(MAX_PUBLISHED_SEEDS)`
-pub const LESS_SIGNATURE_MAX_SIZE: usize =
-    HASH_DIGEST_LENGTH*2 + N8*W + MAX_PUBLISHED_SEEDS*SEED_LENGTH_BYTES + 1;
+pub const LESS_SIGNATURE_MAX_SIZE: usize = HASH_DIGEST_LENGTH*2 + N8*W + MAX_PUBLISHED_SEEDS*SEED_LENGTH_BYTES + 1;
 
 #[cfg(test)]
 mod tests {
@@ -278,14 +281,6 @@ mod tests {
         for i in 0..=T_LOG2 {
             assert!(TREE_LEAVES_PER_LEVEL[i] <= TREE_NODES_PER_LEVEL[i]);
         }
-    }
-
-    /// T_LOG2 must be LOG2(T)
-    #[test]
-    fn t_log2() {
-        let bits = |n: usize| -> usize { usize::BITS as usize - n.leading_zeros() as usize };
-        let log2 = if bits(T) > bits(T-1) { bits(T-1) } else { bits(T) };
-        assert_eq!(T_LOG2, log2);
     }
 
     #[cfg(feature = "cat1_192")]

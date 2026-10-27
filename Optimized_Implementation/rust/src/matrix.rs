@@ -19,10 +19,7 @@ use sha3::{
 };
 
 use crate::config::{
-    K, N8,
-};
-use crate::constants::{
-    Q, Q_PAD,
+    K, N8, Q, Q_PAD,
 };
 use crate::fq::Fq;
 use crate::monomial::{Monomial, Permutation};
@@ -33,6 +30,7 @@ use crate::prng::rand_range_q_state_elements;
 /// row major form
 /// N: number of rows
 /// M: number of cols
+/// M_PAD: padded number of cols
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Matrix<const N: usize, const M: usize, const M_PAD: usize> {
     rows: [Vector<M, M_PAD>; N],
@@ -40,7 +38,6 @@ pub struct Matrix<const N: usize, const M: usize, const M_PAD: usize> {
 
 
 impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
-
     /// Zero Initialised
     /// # Examples
     ///
@@ -60,6 +57,7 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
         }
     }
 
+    /// TODO doc string
     /// same as init, but inits all values with `v`
     #[inline]
     pub fn from_u8(v: u8) -> Matrix<N, M, M_PAD> {
@@ -68,12 +66,14 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
         }
     }
 
+    /// TODO doc string
     /// translation of `generator_rref_expand`
     /// Expands a compressed RREF generator matrix into a full one
     /// \param full[out]: output generator matrix (K \times N)
     /// \param compact[out]: input compressed generator matrix (K \times N-K)
-    pub fn from_compressed_rref<const M_PRIME: usize, const M_PRIME_PAD: usize>(column_pos: &[u16; M_PRIME_PAD],compact: &Matrix<N, M_PRIME, M_PRIME_PAD>) -> Self {
-        // static_assert!(M <= M_PRIME);
+    pub fn from_compressed_rref
+        <const M_PRIME: usize, const M_PRIME_PAD: usize>
+        (column_pos: &[u16; M_PRIME_PAD],compact: &Matrix<N, M_PRIME, M_PRIME_PAD>) -> Self {
         let mut placed_dense_cols = 0usize;
         let mut full = Self::default();
         // only the first `crate::config::N` columns belong to the code, the
@@ -116,6 +116,7 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
         a
     }
 
+    /// TODO doc string
     /// sample a random matrix
     /// # Parameters
     /// - `seed`: a already initializzed XofReader
@@ -154,6 +155,7 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
 
     /// compares two matrices
     /// NOTE: not constant time
+    /// NOTE: not comparing multisets
     /// # Examples
     ///
     /// ```
@@ -189,6 +191,7 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
 
     /// checks for equality
     /// NOTE: not constant time
+    /// NOTE: not comparing multisets
     /// # Examples
     ///
     /// ```
@@ -204,7 +207,9 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
         Self::partial_cmp(a, b) == 0
     }
 
-    /// The size/dimension of the matrix
+    /// checks if the marix is zero
+    /// NOTE: not constant time
+    ///
     /// # Examples
     ///
     /// ```
@@ -284,7 +289,13 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
     ///     r += l
     ///
     /// # Examples
-    ///
+    /// ```
+    /// use less::matrix::Matrix;
+    /// const N: usize = 128;
+    /// let mut C = Matrix::<N, N, N>::default();
+    /// let A = Matrix::<N, N, N>::default();
+    /// Matrix::add(&mut C, &A)
+    /// ```
     ///
     /// # Parameters
     /// - `r`: NxM matrix
@@ -359,7 +370,9 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
     /// - `r`: NxM matrix
     /// - `r1`: index of the first row
     /// - `r2`: index of the second row
-    pub fn monomial_mul<const M_prime: usize, const M_prime_PAD: usize>(res: &mut Self, g: &Self, monom: &Monomial<M_prime, M_prime_PAD>) {
+    pub fn monomial_mul
+        <const M_prime: usize, const M_prime_PAD: usize>
+        (res: &mut Self, g: &Self, monom: &Monomial<M_prime, M_prime_PAD>) {
         // static_assert!(M <= M_prime);
         // `M_prime` is the length of the code, the padding is not permuted
         for src_col_idx in 0..M_prime {
@@ -372,7 +385,7 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
         }
     }
 
-    /// constant time row swap
+    /// constant time gaussian elimination
     /// # Examples
     ///
     /// ```
@@ -386,9 +399,9 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
     /// ```
     ///
     /// # Parameters
-    /// - `r`: NxM matrix
-    /// - `r1`: index of the first row
-    /// - `r2`: index of the second row
+    /// - `is_pivot_column`:  TODO doc
+    /// - `was_pivot_column`: 
+    /// - `pvt_reuse_limit`: 
     #[must_use]
     pub fn rref<const CT: bool>(&mut self,
                                 is_pivot_column: &mut [u8; M],
@@ -481,6 +494,7 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
         true
     }
 
+    /// TODO doc string/example string
     /// translation of `UnpackCosetRep`
     /// NOTE: not constant time
     /// \param res[out]: G*c: a generator matrix: K \times N-K
@@ -523,8 +537,6 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
 
     /// Compresses a generator matrix in RREF into a byte array
     ///
-    /// * `compressed` – output buffer (RREF_MAT_PACKEDBYTES bytes)
-    /// * `is_pivot_column` – length-N array, exactly K entries set to 1
     /// constant time row swap
     /// # Examples
     ///
@@ -544,9 +556,8 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
     /// ```
     ///
     /// # Parameters
-    /// - `r`: NxM matrix
-    /// - `r1`: index of the first row
-    /// - `r2`: index of the second row
+    /// - `compressed` – output buffer (RREF_MAT_PACKEDBYTES bytes)
+    /// 0 `is_pivot_column` – length-N array, exactly K entries set to 1
     pub fn compress(
         &self,
         compressed: &mut [u8],
@@ -640,10 +651,6 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
     }
 
     /// Expands a compressed RREF generator matrix into a full one
-    ///
-    /// * `compressed` – input byte stream
-    /// * `is_pivot_column` – length-N array, will be initialized here
-    /// constant time row swap
     /// # Examples
     ///
     /// ```
@@ -671,9 +678,8 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
     /// ```
     ///
     /// # Parameters
-    /// - `r`: NxM matrix
-    /// - `r1`: index of the first row
-    /// - `r2`: index of the second row
+    /// - `compressed` – input byte stream
+    /// - `is_pivot_column` – length-N array, will be initialized here
     pub fn expand(
         &mut self,
         compressed: &[u8],
@@ -898,6 +904,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
         }
     }
 
+    /// TODO example
     /// translation of 'void normalized_copy_from_generator_non_information_set'
     /// \param A[out]: pointer to allocated normalized struct, which get filled with the
     ///     non-IS of the generator matrix G
@@ -936,6 +943,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
     }
 
     /// NOTE: not constant time
+    /// NOTE: not a multiset comparison
     /// # Examples
     ///
     /// ```
@@ -970,6 +978,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
 
     /// checks for equality
     /// NOTE: not constant time
+    /// NOTE: not a multiset comparison
     /// # Examples
     ///
     /// ```
@@ -1006,7 +1015,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
     }
 
     /// sample a random matrix
-    ///
+    /// TODO example
     /// # Parameters
     /// - `state`: already init Xof
     pub fn rand<S>(state: &mut S) -> Self
@@ -1053,8 +1062,8 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
     /// # Returns
     /// A size/dimension of the vector
     #[inline]
-    pub fn dimension(&self) -> usize {
-        N
+    pub fn dimension(&self) -> (usize, usize) {
+        (N, N)
     }
 
     /// Return the number of columns
@@ -1140,7 +1149,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
         }
     }
 
-    /// row addition
+    /// row addition, i != j
     /// rows[i] += rows[j]
     /// # Examples
     ///
@@ -1161,7 +1170,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
         Vector::<N, N_PAD>::add2(a, b);
     }
 
-    /// row subtraction
+    /// row subtraction, i != j
     /// rows[i] -= rows[j]
     /// # Examples
     ///
@@ -1215,7 +1224,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
 
     /// NOTE: absolutely not constant time.
     /// NOTE: only operates on ptrs
-    /// NOTE: not constant time
+    /// TODO example
     /// \param G[in/out]: generator matrix to sort
     /// \param n[in] number of elements to sort
     /// \param L[in]: pointer to the currently shortest row
@@ -1253,7 +1262,8 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
             let pivot = p[h as usize];
             let mut i: i64 = l - 1;
             for j in l..h {
-                if Multiset::<Q_PAD>::partial_cmp(&tmp[p[j as usize]], &tmp[pivot]) < 0 {
+                // if Multiset::<Q_PAD>::partial_cmp(&tmp[p[j as usize]], &tmp[pivot]) < 0 {
+                if tmp[p[j as usize]] < tmp[pivot]  {
                     i += 1;
                     if i == j { continue; }
                     p.swap(i as usize, j as usize);
@@ -1287,7 +1297,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
         1
     }
 
-    /// TODO example and test
+    /// TODO example 
     fn SortCols(&mut self, z: usize) -> i32 {
         let _ = z;
         let mut VT = MatrixNormalized::default();
@@ -1407,6 +1417,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
     /// NOTE: computes the result inplace
     /// NOTE: early exist from the `SortRows` function if `L` is already shorter.
     /// NOTE: first sort the rows, then the columns
+    /// TODO: example
     /// \param G[in/out]: pointer to the non IS-part of a generator matrix.
     /// The rows and then the columns are sorted inplace.
     /// \param L[in]: pointer the currently shortest row.
@@ -1424,6 +1435,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
     /// NOTE: non-constant time
     /// NOTE: computes the result inplace
     /// NOTE: does not early exit. Only `SortCF` can do that.
+    /// TODO: example
     /// \param G[in/out]: pointer to the non IS-part of a generator matrix.
     /// \param L[in]: pointer the currently shortest row, in histogram form.
     /// \return 0 on failure:
@@ -1449,13 +1461,6 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
         }
         self.SortCF(L)
     }
-
-    //pub fn cf_opt1(&mut self) {
-    //    let mut M = Self::new_large();
-    //    let mut J = [0; N];
-    //    let mut z = 0;
-    //    let mut num_zeros = 0;
-    //}
 
     /// res = g * monom
     /// # Examples
@@ -1551,9 +1556,8 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
         }
 
         // NOTE: fallback solution if everything falls apart.
-        // NOTE: reaching this needs every row to contain the same number of
-        // zeros, `CFOriginal` is not part of this port.
         if z == N {
+            // TODO not implemented
             return 0;
         }
 
@@ -1577,8 +1581,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
                 }
 
                 let ret = B.ScaleCF(&mut L);
-                // NOTE: `compare_matrices` has the opposite sign convention
-                // of `partial_cmp`, so this is `compare_matrices(B, M) < 0`
+                // TODO comparison really correct?
                 if ret == 1 && MatrixNormalized::partial_cmp(&B, &M) > 0 {
                     Multiset::<Q_PAD>::from_row(&mut L, &B[0]);
                     touched = 1;
@@ -1599,6 +1602,9 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
     /// translation of `ImprovedCF`
     /// NOTE: non-constant time
     /// NOTE: computes the result inplace
+    ///
+    /// TODO: example
+    ///
     /// This is the fastest implementation of the canonical form function.
     /// This function scans the matrix for the rows which probably lead
     /// to the shortest canonical form. If this process fails it falls
@@ -1633,8 +1639,8 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
             z += 1;
         }
 
-        // NOTE: fallback solution if everything falls apart, see `ImprovedCFBase`
         if z == N {
+            // TODO not implemented
             return 0;
         }
 
@@ -1734,7 +1740,7 @@ impl<const N: usize, const N_PAD: usize> IndexMut<usize> for MatrixNormalized<N,
 
 /// use less::matrix::Matrix;
 #[cfg(test)]
-mod tests {
+mod tests_matrix {
     use super::*;
     const N: usize = 32;
     const M: usize = 32;
@@ -1894,8 +1900,9 @@ mod tests {
         assert!(b);
     }
 }
+
 #[cfg(test)]
-mod normalized_tests {
+mod tests_normalized {
     use super::*;
     const N: usize = 32;
 

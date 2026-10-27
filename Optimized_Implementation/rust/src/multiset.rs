@@ -69,11 +69,13 @@ impl<const N:usize> Multiset<N> {
     /// # Returns
     /// A new multiset element
     #[inline]
-    pub fn from_row<const M: usize, const M_PAD: usize>(out: &mut Multiset<N>, row: &Vector<M, M_PAD>) {
+    pub fn from_row
+        <const M: usize, const M_PAD: usize>
+        (out: &mut Multiset<N>, row: &Vector<M, M_PAD>) {
         Self::sort(out, row);
     }
 
-    /// Create an instance from a `Vec`
+    /// Create an instance from a `MatrixNormalzied`
     /// # Examples
     ///
     /// ```
@@ -84,12 +86,14 @@ impl<const N:usize> Multiset<N> {
     /// ```
     ///
     /// # Parameters
-    /// - `coefficients`: The input `Vec`.
+    /// - `m`: The input matrix
     ///
     /// # Returns
-    /// A new multiset element
+    /// A new array of multisets
     #[inline]
-    pub fn from_matrix<const M: usize, const M_PAD: usize>(m: &MatrixNormalized<M, M_PAD>) -> [Self; M_PAD] {
+    pub fn from_matrix
+        <const M: usize, const M_PAD: usize>
+        (m: &MatrixNormalized<M, M_PAD>) -> [Self; M_PAD] {
         let mut tmp: [Multiset<N>; M_PAD] = core::array::from_fn(|_| Multiset::<N>::default() );
         // one histogram per row of the matrix, `N` is the width of a histogram
         for i in 0..M_PAD {
@@ -119,16 +123,17 @@ impl<const N:usize> Multiset<N> {
     /// -x if multiset(row1) < multiset(row2)
     pub fn partial_cmp(a: &Self, b: &Self) -> i32 {
         let mut i: usize = 0;
-        // stop at the last index, so that two equal histograms do not run
-        // past the end of the array
         while (i + 1) < N && a[i] == b[i] {
             i += 1;
         };
 
-        (b[i] as i32) - (a[i]  as i32)
+        // NOTE: important we are comparing multisets, not vectors.
+        // Hence, a and b are swapped
+        (a[i] as i32) - (b[i]  as i32)
     }
 
     /// checks for equality
+    /// NOTE: not constant time
     /// # Examples
     ///
     /// ```
@@ -142,7 +147,7 @@ impl<const N:usize> Multiset<N> {
         Self::partial_cmp(a, b) == 0
     }
 
-    /// Create an instance from a `Multiset`
+    /// returns the size of the Multiset
     /// # Examples
     ///
     /// ```
@@ -158,6 +163,7 @@ impl<const N:usize> Multiset<N> {
     }
 
     /// sorts a row
+    /// NOTE: in theory constant time, its just a histogram computation.
     /// # Examples
     ///
     /// ```
@@ -191,7 +197,6 @@ impl<const N: usize> IndexMut<usize> for Multiset<N> {
     }
 }
 
-/// TODO
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -284,7 +289,6 @@ mod tests {
         }
     }
 
-    /// a negative result means the first argument is lexicographically greater
     #[test]
     fn partial_cmp() {
         let a = Multiset::<N>::default();
@@ -294,8 +298,8 @@ mod tests {
 
         let mut c = Multiset::<N>::default();
         c[0] = 1;
-        assert!(Multiset::partial_cmp(&c, &a) < 0);
-        assert!(Multiset::partial_cmp(&a, &c) > 0);
+        assert!(Multiset::partial_cmp(&c, &a) > 0);
+        assert!(Multiset::partial_cmp(&a, &c) < 0);
         assert!(!Multiset::eq(&a, &c));
 
         // the derived Ord is the plain lexicographic order

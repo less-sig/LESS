@@ -10,7 +10,20 @@ use crate::{
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::{
-    __m128i, __m256i, _mm_extract_epi8, _mm_loadu_si128, _mm_set1_epi8, _mm_storeu_si128, _mm256_add_epi8, _mm256_and_si256, _mm256_blendv_epi8, _mm256_cmpeq_epi8, _mm256_cvtepu8_epi16, _mm256_extract_epi8, _mm256_extract_epi32, _mm256_load_si256, _mm256_loadu_si256, _mm256_min_epu8, _mm256_movemask_epi8, _mm256_mullo_epi16, _mm256_or_si256, _mm256_packs_epi16, _mm256_permute2x128_si256, _mm256_permute4x64_epi64, _mm256_set1_epi8, _mm256_set1_epi16, _mm256_setzero_si256, _mm256_srli_epi16, _mm256_srli_epi32, _mm256_srli_epi64, _mm256_srli_si256, _mm256_store_si256, _mm256_storeu_si256, _mm256_sub_epi8, _mm512_setzero
+    __m128i, __m256i, 
+    _mm_loadu_si128, _mm256_loadu_si256, _mm256_load_si256,
+    _mm_storeu_si128, _mm256_store_si256, _mm256_storeu_si256, 
+    _mm_set1_epi8,  _mm256_set1_epi8, _mm256_set1_epi16, 
+    _mm_extract_epi8, 
+    _mm256_add_epi8, _mm256_and_si256, 
+    _mm256_blendv_epi8, _mm256_cmpeq_epi8, _mm256_cvtepu8_epi16, 
+    _mm256_extract_epi8, _mm256_extract_epi32, 
+    _mm256_min_epu8, _mm256_movemask_epi8, 
+    _mm256_mullo_epi16, _mm256_or_si256, _mm256_packs_epi16, 
+    _mm256_permute2x128_si256, _mm256_permute4x64_epi64,
+    _mm256_setzero_si256, _mm256_srli_epi16, 
+    _mm256_srli_epi32, _mm256_srli_epi64, _mm256_srli_si256,
+    _mm256_sub_epi8, _mm512_setzero
 };
 
 #[cfg(target_arch = "x86_64")]
@@ -55,6 +68,7 @@ use std::arch::aarch64::{
     vceqq_u8, 
 };
 
+/// at position [i * 128 + j] is i*j % 127
 const FQ127_MUL_TABLE: Aligned<[u8; 16256]> = Aligned([
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 0,
