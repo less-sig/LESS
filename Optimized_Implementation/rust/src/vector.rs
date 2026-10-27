@@ -158,7 +158,7 @@ impl <const N: usize, const N_PAD: usize> Vector<N, N_PAD>{
         let mut bb = Multiset::<Q_PAD>::default();
         Multiset::from_row(&mut aa, a);
         Multiset::from_row(&mut bb, b);
-        Some(0.cmp(&Multiset::<Q_PAD>::partial_cmp(&aa, &bb)))
+        Some(Multiset::<Q_PAD>::partial_cmp(&aa, &bb).cmp(&0))
     }
 
     /// checks for equality

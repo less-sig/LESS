@@ -881,7 +881,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
     /// use less::matrix::MatrixNormalized;
     /// let result: MatrixNormalized<100, 100> = MatrixNormalized::default();
     /// assert_eq!(result[0][0].0, 0);
-    /// assert_eq!(result.dimension(), 100);
+    /// assert_eq!(result.dimension(), (100, 100));
     /// ```
     pub fn default() -> MatrixNormalized<N, N_PAD> {
         MatrixNormalized {
@@ -1001,7 +1001,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
     /// use less::matrix::MatrixNormalized;
     /// let result: MatrixNormalized<100, 100> = MatrixNormalized::id();
     /// assert_eq!(result[0][0].0, 1);
-    /// assert_eq!(result.dimension(), 100);
+    /// assert_eq!(result.dimension(), (100, 100));
     /// ```
     ///
     /// # Returns
@@ -1056,7 +1056,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
     /// ```
     /// use less::matrix::MatrixNormalized;
     /// let result: MatrixNormalized<100, 100> = MatrixNormalized::default();
-    /// assert_eq!(result.dimension(), 100);
+    /// assert_eq!(result.dimension(), (100, 100));
     /// ```
     ///
     /// # Returns
@@ -1262,8 +1262,7 @@ impl<const N: usize, const N_PAD: usize> MatrixNormalized<N, N_PAD> {
             let pivot = p[h as usize];
             let mut i: i64 = l - 1;
             for j in l..h {
-                // if Multiset::<Q_PAD>::partial_cmp(&tmp[p[j as usize]], &tmp[pivot]) < 0 {
-                if tmp[p[j as usize]] < tmp[pivot]  {
+                if Multiset::<Q_PAD>::partial_cmp(&tmp[p[j as usize]], &tmp[pivot]) < 0 {
                     i += 1;
                     if i == j { continue; }
                     p.swap(i as usize, j as usize);

@@ -129,7 +129,7 @@ impl<const N:usize> Multiset<N> {
 
         // NOTE: important we are comparing multisets, not vectors.
         // Hence, a and b are swapped
-        (a[i] as i32) - (b[i]  as i32)
+        (b[i] as i32) - (a[i]  as i32)
     }
 
     /// checks for equality
@@ -298,8 +298,8 @@ mod tests {
 
         let mut c = Multiset::<N>::default();
         c[0] = 1;
-        assert!(Multiset::partial_cmp(&c, &a) > 0);
-        assert!(Multiset::partial_cmp(&a, &c) < 0);
+        assert!(Multiset::partial_cmp(&c, &a) < 0);
+        assert!(Multiset::partial_cmp(&a, &c) > 0);
         assert!(!Multiset::eq(&a, &c));
 
         // the derived Ord is the plain lexicographic order

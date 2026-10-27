@@ -61,8 +61,13 @@ where
 }
 
 
-pub fn csprng_randombytes<R>(buf: &mut [u8], state: &mut  R) where R: XofReader {
-    state.read(buf);
+pub fn csprng_randombytes<R>(state: &mut R, len: usize) -> Vec<u8>
+where
+    R: XofReader,
+{
+    let mut buf = vec![0u8; len];
+    state.read(&mut buf);
+    buf
 }
 fn rand_range_impl<const MIN_V: u8, R>(
     buffer: &mut [Fq],
@@ -231,12 +236,9 @@ mod tests {
         let mut s2 = csprng_initialize::<Shake128>(b"123");
         let mut s3 = csprng_initialize::<Shake128>(b"124");
 
-        let mut a = [0u8; 32];
-        let mut b = [0u8; 32];
-        let mut c = [0u8; 32];
-        csprng_randombytes(&mut a, &mut s1);
-        csprng_randombytes(&mut b, &mut s2);
-        csprng_randombytes(&mut c, &mut s3);
+        let a = csprng_randombytes(&mut s1, 32);
+        let b = csprng_randombytes(&mut s2, 32);
+        let c = csprng_randombytes(&mut s3, 32);
         assert_eq!(a, b);
         assert_ne!(a, c);
     }
@@ -247,10 +249,8 @@ mod tests {
         let mut s1 = csprng_initialize_ds::<Shake128>(&seed, 0x0102);
         let mut s2 = csprng_initialize_ds::<Shake128>(&seed, 0x0201);
 
-        let mut a = [0u8; 32];
-        let mut b = [0u8; 32];
-        csprng_randombytes(&mut a, &mut s1);
-        csprng_randombytes(&mut b, &mut s2);
+        let a = csprng_randombytes(&mut s1, 32);
+        let b = csprng_randombytes(&mut s2, 32);
         assert_ne!(a, b);
 
         // the domain separator is appended as two little endian bytes
@@ -259,23 +259,19 @@ mod tests {
         input[16] = 0x02;
         input[17] = 0x01;
         let mut s3 = csprng_initialize::<Shake128>(&input);
-        let mut c = [0u8; 32];
-        csprng_randombytes(&mut c, &mut s3);
+        let c = csprng_randombytes(&mut s3, 32);
         assert_eq!(a, c);
     }
 
     #[test]
     fn test_csprng_randombytes() {
         let mut s = csprng_initialize::<Shake128>(b"abc");
-        let mut a = [0u8; 16];
-        let mut b = [0u8; 16];
-        csprng_randombytes(&mut a, &mut s);
-        csprng_randombytes(&mut b, &mut s);
+        let a = csprng_randombytes(&mut s, 16);
+        let b = csprng_randombytes(&mut s, 16);
         assert_ne!(a, b);
 
         let mut s = csprng_initialize::<Shake128>(b"abc");
-        let mut c = [0u8; 32];
-        csprng_randombytes(&mut c, &mut s);
+        let c = csprng_randombytes(&mut s, 32);
         assert_eq!(&c[..16], &a[..]);
         assert_eq!(&c[16..], &b[..]);
     }

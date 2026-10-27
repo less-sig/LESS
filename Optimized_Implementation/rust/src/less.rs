@@ -59,7 +59,8 @@ pub fn less_keygen(sk: &mut PrivateKey, pk: &mut PublicKey) {
     let mut sk_shake_state = csprng_initialize::<Xof>(&sk.compressed_sk);
 
     /* Generating public code G_0 */
-    csprng_randombytes(&mut pk.g0_seed, &mut sk_shake_state);
+    pk.g0_seed
+        .copy_from_slice(&csprng_randombytes(&mut sk_shake_state, SEED_LENGTH_BYTES));
 
     let g0_rref = MatrixRREF::rand_from_seed::<Xof>(&pk.g0_seed);
     let g0_column_pos: [u16; N_K_pad] = std::array::from_fn(|i| (i + K) as u16);
@@ -71,7 +72,10 @@ pub fn less_keygen(sk: &mut PrivateKey, pk: &mut PublicKey) {
     let mut private_monomial_seeds: [[u8; PRIVATE_KEY_SEED_LENGTH_BYTES]; NUM_KEYPAIRS - 1] =
         [[0u8; PRIVATE_KEY_SEED_LENGTH_BYTES]; NUM_KEYPAIRS - 1];
     for i in 0..(NUM_KEYPAIRS - 1) {
-        csprng_randombytes(&mut private_monomial_seeds[i], &mut sk_shake_state);
+        private_monomial_seeds[i].copy_from_slice(&csprng_randombytes(
+            &mut sk_shake_state,
+            PRIVATE_KEY_SEED_LENGTH_BYTES,
+        ));
     }
     let mut was_pivot_column = [0u8; N];
     /* note that the first "keypair" is just the public generator G_0, stored
@@ -103,30 +107,34 @@ pub fn less_sign(sig: &mut Signature, m: &[u8], sk: &PrivateKey, pk: &PublicKey)
     let mut sk_shake_state = csprng_initialize::<Xof>(&sk.compressed_sk);
 
     /* Generating seed for public code G_0 */
-    let mut G_0_seed = [0u8; SEED_LENGTH_BYTES];
-    csprng_randombytes(&mut G_0_seed, &mut sk_shake_state);
+    let G_0_seed = csprng_randombytes(&mut sk_shake_state, SEED_LENGTH_BYTES);
 
     /* The first private key monomial is an ID matrix, no need for random
      * generation, hence NUM_KEYPAIRS-1 */
     let mut private_monomial_seeds = [[0u8; PRIVATE_KEY_SEED_LENGTH_BYTES]; NUM_KEYPAIRS - 1];
     for i in 0..(NUM_KEYPAIRS - 1) {
-        csprng_randombytes(&mut private_monomial_seeds[i], &mut sk_shake_state);
+        private_monomial_seeds[i].copy_from_slice(&csprng_randombytes(
+            &mut sk_shake_state,
+            PRIVATE_KEY_SEED_LENGTH_BYTES,
+        ));
     }
 
     // generate the salt from a TRNG
     randombytes(&mut sig.salt);
 
     /*         Ephemeral monomial generation        */
-    let mut ephem_monomials_seed = [0u8; SEED_LENGTH_BYTES];
-    csprng_randombytes(&mut ephem_monomials_seed, &mut sk_shake_state);
+    let ephem_monomials_seed = csprng_randombytes(&mut sk_shake_state, SEED_LENGTH_BYTES);
 
     /* create the prng for the "blinding" monomials for the canonical form computation */
-    let mut cf_seed = [0u8; SEED_LENGTH_BYTES];
-    csprng_randombytes(&mut cf_seed, &mut sk_shake_state);
+    let cf_seed = csprng_randombytes(&mut sk_shake_state, SEED_LENGTH_BYTES);
     let mut cf_shake_state = csprng_initialize::<Xof>(&cf_seed);
 
     let mut seed_tree = [0u8; NUM_NODES_SEED_TREE * SEED_LENGTH_BYTES];
-    build_ggm(&mut seed_tree, &ephem_monomials_seed, &sig.salt);
+    build_ggm(
+        &mut seed_tree,
+        ephem_monomials_seed.as_slice().try_into().unwrap(),
+        &sig.salt,
+    );
 
     let mut linearized_rounds_seeds = [0u8; T*SEED_LENGTH_BYTES];
     seed_leaves(&mut linearized_rounds_seeds, &seed_tree);

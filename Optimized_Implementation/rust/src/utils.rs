@@ -58,8 +58,7 @@ pub fn sample_challenge(
             let value: u8;
             loop {
                 if c == 0 {
-                    let mut buf: [u8; 8] = [0u8; 8];
-                    csprng_randombytes(&mut buf, &mut shake_state);
+                    let buf: [u8; 8] = csprng_randombytes(&mut shake_state, 8).try_into().unwrap();
                     rnd_buf = u64::from_le_bytes(buf);
                     c = 64 / keypair_bits;
                 }
@@ -89,8 +88,7 @@ pub fn sample_challenge(
         let mut pos: usize;
         loop {
             if c == 0 {
-                let mut buf: [u8; 8] = [0u8; 8];
-                csprng_randombytes(&mut buf, &mut shake_state);
+                let buf: [u8; 8] = csprng_randombytes(&mut shake_state, 8).try_into().unwrap();
                 rnd_buf = u64::from_le_bytes(buf);
                 c = 64 / position_bits;
             }

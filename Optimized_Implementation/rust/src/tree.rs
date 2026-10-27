@@ -85,11 +85,8 @@ pub fn build_ggm(
 
             let mut state = csprng_initialize_ds::<Xof>(&csprng_input, father as u16);
 
-            csprng_randombytes(
-                &mut seed_tree[left * SEED_LENGTH_BYTES
-                    ..left * SEED_LENGTH_BYTES + 2 * SEED_LENGTH_BYTES],
-                &mut state,
-            );
+            seed_tree[left * SEED_LENGTH_BYTES..left * SEED_LENGTH_BYTES + 2 * SEED_LENGTH_BYTES]
+                .copy_from_slice(&csprng_randombytes(&mut state, 2 * SEED_LENGTH_BYTES));
         }
 
         start_node += TREE_NODES_PER_LEVEL[level];
@@ -255,11 +252,8 @@ pub fn rebuild_ggm(
 
                 let mut state = csprng_initialize_ds::<Xof>(&csprng_input, current as u16);
 
-                csprng_randombytes(
-                    &mut seed_tree[left * SEED_LENGTH_BYTES
-                        ..left * SEED_LENGTH_BYTES + 2 * SEED_LENGTH_BYTES],
-                    &mut state,
-                );
+                seed_tree[left * SEED_LENGTH_BYTES..left * SEED_LENGTH_BYTES + 2 * SEED_LENGTH_BYTES]
+                    .copy_from_slice(&csprng_randombytes(&mut state, 2 * SEED_LENGTH_BYTES));
             }
         }
 
