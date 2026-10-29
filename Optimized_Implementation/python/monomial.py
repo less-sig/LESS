@@ -1,127 +1,134 @@
 #!/usr/bin/env python3
-import random
-
-from fq import Fq, rand_elements
-from matrix import Matrix
-from utils import yt_shuffle_state
+from config import K, N, N8
+from prng import csprng_initialize, merge_exchange
+from vector import Vector
 
 
 class Monomial:
-    def __init__(self, n: int, q: int = 127) -> None:
-        """ container class for a monomial """
-        self.n = n
-        self.q = q
+    def __init__(self, coeffs: Vector, perms: list[int]) -> None:
+        self.coeffs = coeffs
+        self.perms = perms
 
-        self.values = [Fq(0, self.q) for _ in range(self.n)]
-        self.perm = [i for i in range(self.n)]
+    @staticmethod
+    def default(n: int) -> 'Monomial':
+        """ creates a new Monomial, initialized with as id """
+        return Monomial(Vector.default(n), list(range(n)))
 
-    def random(self, seed=None) -> 'Monomial':
-        """ samples a random monomial 
+    @staticmethod
+    def rand(state, n: int) -> 'Monomial':
         """
-        if seed is None:
-            # choose a random permutation:
-            for i in range(self.n):
-                pos = random.randint(0, self.n - i - 1)
-                tmp = self.perm[pos]
-                self.perm[pos] = self.perm[i]
-                self.perm[i] = tmp
-
-            # choose random values
-            for i in range(self.n):
-                self.values[i] = Fq(0, self.q).random(1)
-        else:
-            assert(False) # not implementated
-        return self
-    
-    def random_from_rng(self, rng):
-        """ 
-        generate a random matrix mod q, generated from a given 
-        random number generator.
-        :param rng: should be shake state already init
+        NOTE: a monomial matrix has to be invertible, so the coefficients are
+        drawn from F_q^*.
         """
-        rand_elements(rng, self.q, self.values, self.n)
-        self.perm = [i for i in range(self.n)]
-        yt_shuffle_state(rng, self.perm, self.n)
-        return self
+        coeffs = Vector.rand_star(state, n)
+        return Monomial(coeffs, merge_exchange(list(range(n)), state))
 
-    def random_from_seed(self, seed):
-        """generates a random monomial
-        :param seed
-        """
-        from Crypto.Hash import SHAKE256
-        s = SHAKE256.new(seed)
-        return self.random_from_rng(s)
+    @staticmethod
+    def rand_from_seed(seed: bytes, n: int) -> 'Monomial':
+        return Monomial.rand(csprng_initialize(seed), n)
+
+    def __mul__(self, r: 'Monomial') -> 'Monomial':
+        """ l = l*r """
+        # `perms[i]` is the destination of column i, so applying `l` and
+        # then `r` sends column i to `r.perms[l.perms[i]]`.
+        return Monomial(Vector(c * r.coeffs[p] for c, p in zip(self.coeffs, self.perms)),
+                        [r.perms[p] for p in self.perms])
 
     def inv(self) -> 'Monomial':
-        """ TODO not finished mod fq is missing """
-        ret = Monomial(self.n, self.q)
-        for i in range(self.n):
-            k = 0
-            for j in range(self.n):
-                if self.perm[j] == i:
-                    k = j
-                    break
-            ret.perm[i] = self.perm[k]
+        """ l = r**-1 """
+        ret = Monomial.default(len(self.perms))
+        for i, t in enumerate(self.perms):
+            ret.perms[t] = i
+            ret.coeffs[t] = self.coeffs[i].inv()
         return ret
 
-    def comb(self, A: 'Monomial') -> 'Monomial':
-        """ """
-        assert self.q == A.q
-        assert self.n == A.n
-        ret = Monomial(self.n, self.q)
-        for i in range(self.n):
-            j = self.perm[A.perm[i]]
-            ret.perm[i] = j
-        return ret
-    
-    def apply_right(self, G: Matrix) -> Matrix:
-        """Apply monomial matrix represented by perm and coeffs to input G
-        NOTE: not inplace
-        """
-        n = G.nrows
-        m = G.ncols
-        assert m == self.n
-        A = Matrix(n, m, self.q)
-        for i in range(m):
-            for j in range(n):
-                A[j, i] = G[j, self.perm[i]] * self.values[i]
-        return A
-    
-    def apply_left(self, G: Matrix) -> Matrix:
-        """Apply monomial matrix represented by perm and coeffs to input G
-        NOTE: not inplace
-        """
-        n = G.nrows
-        m = G.ncols
-        assert m == self.n
-        A = Matrix(n, m, self.q)
-        for i in range(m):
-            for j in range(n):
-                A[i, m] = G[self.perm[i], j] * self.values[i]
-        return A
-    
-    def apply(self, G: Matrix) -> Matrix:
-        """ apply a monomial matrix from right """
-        return self.apply_right(G)
-
+    def __eq__(self, b) -> bool:
+        return self.perms == b.perms and self.coeffs == b.coeffs
 
     def __str__(self) -> str:
-        M = Matrix(self.n, self.n, self.q).zero()
-        for i in range(self.n):
-            M[self.perm[i], i] = self.values[i]
+        return f"perms: {self.perms}\ncoeffs: {self.coeffs}"
 
-        return str(M)
+
+class Permutation:
+    def __init__(self, perms: list[int]) -> None:
+        self.perms = perms
+
+    @staticmethod
+    def from_information_set_composition(mu_tilde: Monomial, is_pivot_column: list[int]) -> 'Permutation':
+        """
+        translation of monomial_compose_action_information_set
+        NOTE: Only the permutation is computed, as this is the only thing we need
+        since the adaption of canonical forms.
+        :param mu_tilde[in]: input monomial matrix.
+        :param is_pivot_column[in]: information set, where a 1 in the array
+                symbolizes that the corresponding columns is a pivot column.
+        :return pi_tilde: mu_tilde^{-1} * information set
+        """
+        row_idx = mu_tilde.inv().perms
+        return Permutation([row_idx[c] for c in range(len(row_idx)) if is_pivot_column[c] == 1])
+
+    @staticmethod
+    def from_composition_action(Q_in: Monomial, in_: 'Permutation') -> 'Permutation':
+        """
+        NOTE: translation of 'monomial_compose_action'
+        composes a compactly stored action of a monomial on an IS with a regular
+        monomial.
+        NOTE: Only the permutation is computed, as this is the only thing we need
+        since the adaption of canonical forms.
+        """
+        reverse_Q = Q_in.inv().perms
+        return Permutation([reverse_Q[p] for p in in_.perms])
+
+    def bytes(self) -> bytes:
+        """ compress a permutation to a byte string """
+        ret = bytearray(N8)
+        for p in self.perms:
+            ret[p // 8] ^= 1 << (p % 8)
+        return bytes(ret)
+
+    @staticmethod
+    def check_canonical_action(b: bytes) -> bool:
+        """
+        checks if the given (N+7)/8 bytes are a valid canonical form action,
+        e.g. this function checks if exactly `K` ones are in the input.
+        """
+        w = int.from_bytes(b, "little")
+        return w.bit_length() <= N and w.bit_count() == K
+
+    def __str__(self) -> str:
+        return f"perms: {self.perms}\n"
+
+def test():
+    n = 32
+    s = csprng_initialize(bytes([1] * 32))
+    a = Monomial.rand(s, n)
+    assert a.inv().inv() == a
+    assert sorted(a.perms) == list(range(n)) and 0 not in a.coeffs
+    assert Monomial.rand_from_seed(bytes([9] * 32), n) == Monomial.rand(csprng_initialize(bytes([9] * 32)), n)
+
+    # m * m^-1 must be the identity monomial
+    t = a * a.inv()
+    assert t.perms == list(range(n)) and t.coeffs == [1] * n
+
+    # pi_tilde must select exactly the K pivot columns
+    mu_tilde = Monomial.rand_from_seed(bytes([2] * 32), 2 * K)
+    pi = Permutation.from_information_set_composition(mu_tilde, [1] * K + [0] * K)
+    assert all(mu_tilde.perms[pi.perms[j]] == j for j in range(K))
+
+    # composing with the identity monomial must leave the action unchanged
+    out = Permutation.from_composition_action(Monomial.default(2 * K), Permutation(list(range(K))))
+    assert out.perms == list(range(K))
+    assert Permutation.check_canonical_action(out.bytes())
 
 
 # just some simple tests
 if __name__ == "__main__":
+    from matrix import Matrix
+    test()
     n, r, q = 10, 5, 2
-    m1 = Monomial(n, q).random()
+    m1 = Monomial.rand_from_seed(bytes(32), n)
     print(m1)
 
     G1 = Matrix(r, n, q).id()
-    print(G1)
-    G2 = m1.apply(G1)
+    G2 = G1 * m1
     print(G2)
-
-

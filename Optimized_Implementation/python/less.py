@@ -1,205 +1,305 @@
 #!/usr/bin/env python3
-from Crypto.Hash import SHAKE256
-from typing import Tuple
+from config import (
+    Hash, N, K, T, W, N8, NUM_KEYPAIRS, RREF_MAT_PACKEDBYTES, HASH_DIGEST_LENGTH,
+    SEED_LENGTH_BYTES, PRIVATE_KEY_SEED_LENGTH_BYTES, SEED_TREE_MAX_PUBLISHED_BYTES,
+    MAX_PUBLISHED_SEEDS, SIGN_PIVOT_REUSE_LIMIT, LESS_VERIFY_PIVOT_REUSE_LIMIT,
+)
+from matrix import Matrix, MatrixNormalized
+from monomial import Monomial, Permutation
+from prng import randombytes, csprng_initialize, csprng_randombytes
+from tree import build_ggm, ggm_path, rebuild_ggm, seed_leaves
+from utils import sample_challenge, verify
 
-from .drbg import NIST_KAT_DRBG
-from monomial import Monomial
-from matrix import Matrix
-from fq import Fq
-from cf import CF
+
+class PrivateKey:
+    def __init__(self, compressed_sk: bytes) -> None:
+        self.compressed_sk = compressed_sk
 
 
-class less:
+class PublicKey:
     """
+    Public key: the first gen. matrix is shrunk to just a seed, all the
+    others are stored in RREF form
     """
-    N = 252
-    K = N//2
-    NK = N - K
-    N8 = N // 8
-    Q = 127
-    T = 247
-    W = 30
-    NUM_KEYPAIRS = 2 
-    
-    HASH_DIGEST_LENGTH = 32
-    SEED_LENGTH_BYTES = 16
-    PRIVATE_KEY_SEED_LENGTH_BYTES = 2*SEED_LENGTH_BYTES
-    SEED_TREE_MAX_PUBLISHED_BYTES = 1488
+    def __init__(self, g0_seed: bytes, sf_g: list[bytes]) -> None:
+        self.g0_seed = g0_seed
+        self.sf_g = sf_g
 
-    class pk:
-        def __init__(self) -> None:
-            """
-            """
-            self.G_0_seed = bytearray(less.SEED_LENGTH_BYTES)
-            self.SF_G = bytearray(less.K*less.NK + less.N)
+    def bytes(self) -> bytes:
+        return self.g0_seed + b"".join(self.sf_g)
 
-    class sk:
-        def __init__(self) -> None:
-            """
-            """
-            self.compressed_sk = bytearray(less.PRIVATE_KEY_SEED_LENGTH_BYTES)
-            self.G_0_seed = bytearray(less.SEED_LENGTH_BYTES)
-
-    class sig:
-        def __init__(self) -> None:
-            """
-            """
-            self.cf_monom_actions = [bytearray(less.N8)] * less.W
-            self.tree_salt = bytearray(less.HASH_DIGEST_LENGTH)
-            self.digest = bytearray(less.HASH_DIGEST_LENGTH)
-            self.seed_storage = bytearray(less.SEED_TREE_MAX_PUBLISHED_BYTES + 1)
+    @staticmethod
+    def from_bytes(pk: bytes) -> 'PublicKey':
+        return PublicKey(pk[:SEED_LENGTH_BYTES],
+                         [pk[SEED_LENGTH_BYTES + i * RREF_MAT_PACKEDBYTES:][:RREF_MAT_PACKEDBYTES]
+                          for i in range(NUM_KEYPAIRS - 1)])
 
 
-    def __init__(self, rbg=NIST_KAT_DRBG) -> None:
-        """
-        """
-        self.rbg = rbg
-    
-    def set_random(self, rbg):
-        """ Set the key material RBG."""
-        self.rbg        =   rbg 
+class Signature:
+    def __init__(self, digest: bytes, salt: bytes, cf_monom_actions: list[bytes], seed_storage: bytes) -> None:
+        self.digest = digest
+        self.salt = salt
+        self.cf_monom_actions = cf_monom_actions
+        self.seed_storage = seed_storage
 
-    def shake256(self, x, l):
-        """ shake256s(x, l): Internal hook."""
-        return bytearray(SHAKE256.new(x).read(l))
 
-    def keygen(self, seed_sk=None):
-        sk = less.sk()
-        pk = less.pk()
+def expand_sk(sk: PrivateKey):
+    """ expanding it onto private seeds """
+    sk_shake_state = csprng_initialize(sk.compressed_sk)
 
-        if seed_sk == None:
-            seed_sk = self.rbg(less.PRIVATE_KEY_SEED_LENGTH_BYTES)
+    # Generating public code G_0
+    g0_seed = csprng_randombytes(sk_shake_state, SEED_LENGTH_BYTES)
 
-        sk.compressed_sk = bytearray(seed_sk.random_bytes(less.PRIVATE_KEY_SEED_LENGTH_BYTES))
-        sk_shake_state = SHAKE256.new(sk.compressed_sk)
-        
-        private_monomial_seeds = []*(less.NUM_KEYPAIRS - 1)
-        for i in range(less.NUM_KEYPAIRS - 1):
-            private_monomial_seeds[i] = sk_shake_state.read(less.PRIVATE_KEY_SEED_LENGTH_BYTES)
+    # The first private key monomial is an ID matrix, no need for random
+    # generation, hence NUM_KEYPAIRS-1
+    private_monomial_seeds = [csprng_randombytes(sk_shake_state, PRIVATE_KEY_SEED_LENGTH_BYTES)
+                              for _ in range(NUM_KEYPAIRS - 1)]
+    return sk_shake_state, g0_seed, private_monomial_seeds
 
-        # public stuff
-        sk.G_0_seed = bytearray(seed_sk.random_bytes(less.SEED_LENGTH_BYTES))
-        pk.G_0_seed = sk.G_0_seed
 
-        G0_rref = Matrix(less.K, less.NK, less.Q).random_from_seed(sk.G_0_seed)
-        G0_rred_pivots = [less.K+i for i in range(less.NK)]
+def expand_g0(g0_seed: bytes):
+    g0_rref = Matrix.rand_from_seed(g0_seed, K, N - K)
+    g0_column_pos = [i + K for i in range(N - K)]
+    # generator_get_pivot_flags: everything is a pivot but the stored columns
+    g0_initial_pivot_flags = [1] * N
+    for i in range(K):
+        g0_initial_pivot_flags[g0_column_pos[i]] = 0
+    return Matrix.from_compressed_rref(g0_column_pos, g0_rref), g0_initial_pivot_flags
 
-        tmp_full_G = Matrix(less.K, less.N, less.Q)
-        self.generator_rref_expand(tmp_full_G, G0_rref, G0_rred_pivots)
-        
-        for i in range(less.NUM_KEYPAIRS - 1):
-            private_Q_inv = Monomial(self.N, self.Q).random_from_seed(private_monomial_seeds[i])
-            private_Q = private_Q_inv.inv()
-            result_G = private_Q.apply(tmp_full_G)
-            pivot_cols = [0 for _ in range(self.N)]
-            result_G.rref(pivot_cols)
-            self.compress_rref(pk.SF_G, result_G, pivot_cols)
-        return sk, pk
 
-    def sign(self, 
-             sk, 
-             m: bytearray,
-             mlen: int):
-        
-        ephermal_monomials_seed = self.rbg(self.SEED_LENGTH_BYTES)
-        cf_seed = self.rbg(self.SEED_LENGTH_BYTES)
-        for i in range(self.T):
-            G0 = mu_tilde(full_G0)
-        pass
+def ephemeral_monomial(round_seed: bytes, salt: bytes, i: int) -> Monomial:
+    """
+    the ephemeral monomial is drawn from the round seed, the salt and the
+    round index, see `monomial_sample_salt`
+    """
+    mu_input = round_seed + salt + i.to_bytes(2, "little")
+    return Monomial.rand(csprng_initialize(mu_input), N)
 
-    def open(self):
-        pass
 
-    def compress_rref(self, 
-                      compressed: bytearray, 
-                      G: Matrix,
-                      pivot_cols: list[int]):
-        for i in range(self.N//8):
-            t = (pivot_cols[8*i + 0] << 0) | \
-                (pivot_cols[8*i + 1] << 1) | \
-                (pivot_cols[8*i + 2] << 2) | \
-                (pivot_cols[8*i + 3] << 3) | \
-                (pivot_cols[8*i + 4] << 4) | \
-                (pivot_cols[8*i + 5] << 5) | \
-                (pivot_cols[8*i + 6] << 6) | \
-                (pivot_cols[8*i + 7] << 7)
-            compressed[i] = t
+def hash_rows(hasher, a: MatrixNormalized):
+    for row in a.rows:
+        hasher.update(bytes(row))
 
-        # TODO this is only correct for CAT I
-        compressed[self.N//8] = (pivot_cols[self.N-4]<<0) |\
-                                (pivot_cols[self.N-3]<<1) |\
-                                (pivot_cols[self.N-2]<<2) |\
-                                (pivot_cols[self.N-1]<<3)
-        i = self.N//8 + 1
-        state = 0
-        for r in range(self.K):
-            for c in range(self.N):
-                if not pivot_cols[c]:
-                    if state == 0:
-                        compressed[i] = G[r][c].get()
-                    else:
-                        compressed[i] |= (G[r][c].get() << (8-state))
-                        i = i + 1 
-                        if state < 7:
-                            compressed[i] |= (G[r][c].get() << state)
-                    if state < 7:
-                        state += 1 
-                    else:
-                        state = 0
 
-    def generator_rref_expand(self, 
-                              full: Matrix, 
-                              compact: Matrix,
-                              compact_pivots: list):
-        placed_dense_cols = 0 
-        for col_idx in range(less.N):
-            if (placed_dense_cols < less.NK) and (col_idx == compact_pivots[placed_dense_cols]):
-                for row_idx in range(less.K):
-                    full[row_idx, col_idx] = compact[row_idx, placed_dense_cols]
-            else:
-                for row_idx in range(less.K):
-                    full[row_idx, col_idx] = Fq(row_idx == (col_idx - placed_dense_cols), less.Q)
-                
-        pass
+def less_keygen() -> tuple[PrivateKey, PublicKey]:
+    """ LESS_keygen """
+    # generating private key from a single seed
+    sk = PrivateKey(randombytes(PRIVATE_KEY_SEED_LENGTH_BYTES))
+    _, g0_seed, private_monomial_seeds = expand_sk(sk)
+    tmp_full_g, _ = expand_g0(g0_seed)
 
-    def build_full_generator_matrix(self, A: Matrix) -> Matrix:
-        """
-        """
-        G = Matrix(self.K, self.N, self.Q).zero()
-        for i in range(self.K):
-            G[i, i] = 1
+    sf_g = []
+    was_pivot_column = [0] * N
+    # note that the first "keypair" is just the public generator G_0, stored
+    # as a seed and the identity matrix (not stored)
+    for seed in private_monomial_seeds:
+        is_pivot_column = [0] * N
+        # expand inverse monomial from seed
+        private_q_inv = Monomial.rand_from_seed(seed, N)
+        # NOTE: the inversion is not implemented in constant time.
+        private_q = private_q_inv.inv()
+        result_g = tmp_full_g * private_q
+        result_g.rref(is_pivot_column, was_pivot_column, K)
+        sf_g.append(result_g.compress(is_pivot_column))
+    return sk, PublicKey(g0_seed, sf_g)
 
-        for i in range(self.K):
-            for j in range(self.NK):
-                G[i, j+self.K] = A[i, j]
-        return G
 
-    def compress(self, A: Monomial) -> bytearray:
-        """
-        compress a canonical action
-        """
-        ret = bytearray(self.N)
-        for i in range(self.N):
-            ret[A.perm[i]] = 1
-        return ret
+def less_sign(m: bytes, sk: PrivateKey) -> tuple[Signature, int]:
+    # Private key expansion
+    sk_shake_state, g0_seed, private_monomial_seeds = expand_sk(sk)
 
-    def cf(self, G: Matrix) -> Tuple[bool, Matrix]:
-        """
-        :param G
-        :return canonical form of a matrix
-        """
-        return CF(G)
+    # generate the salt from a TRNG
+    salt = randombytes(HASH_DIGEST_LENGTH)
 
-    def blind(self, 
-              prng,
-              G: Matrix):
-        """ randomly chooses two monomial matrices
-        :param prng
-        :param G non-IS part of a generator matrix 
-        :return left * G * right
-        """
-        left = Monomial(self.NK, self.Q).random_from_rng(prng)
-        right = Monomial(self.NK, self.Q).random_from_rng(prng)
-        G = right.apply_right(G)
-        return left.apply_left(G)
+    # Ephemeral monomial generation
+    ephem_monomials_seed = csprng_randombytes(sk_shake_state, SEED_LENGTH_BYTES)
 
+    # create the prng for the "blinding" monomials for the canonical form computation
+    cf_seed = csprng_randombytes(sk_shake_state, SEED_LENGTH_BYTES)
+    cf_shake_state = csprng_initialize(cf_seed)
+
+    seed_tree = build_ggm(ephem_monomials_seed, salt)
+    linearized_rounds_seeds = seed_leaves(seed_tree)
+
+    # Public G_0 expansion
+    full_g0, g0_initial_pivot_flags = expand_g0(g0_seed)
+
+    hasher = Hash.new()
+    pi_tilde = []
+    i = 0
+    while i < T:
+        mu_tilde = ephemeral_monomial(linearized_rounds_seeds[i], salt, i)
+        G0 = full_g0 * mu_tilde
+
+        is_pivot_column = [0] * N
+        permuted_pivot_flag = [0] * N
+        for t in range(N):
+            permuted_pivot_flag[mu_tilde.perms[t]] = g0_initial_pivot_flags[t]
+
+        if not G0.rref(is_pivot_column, permuted_pivot_flag, SIGN_PIVOT_REUSE_LIMIT):
+            return None, 0
+        # just copy the non IS
+        a_j = MatrixNormalized.from_information_set(G0, is_pivot_column)
+        pi = Permutation.from_information_set_composition(mu_tilde, is_pivot_column)
+
+        a_j.blind(cf_shake_state)
+        if a_j.cf() == 0:
+            # this gives us 2**64 retries. That should be more than enough.
+            s = linearized_rounds_seeds[i]
+            v = (int.from_bytes(s[:8], "little") + 1) % 2**64
+            linearized_rounds_seeds[i] = v.to_bytes(8, "little") + s[8:]
+            continue
+
+        pi_tilde.append(pi)
+        hash_rows(hasher, a_j)
+        i += 1
+
+    hasher.update(m)
+    hasher.update(salt)
+    digest = hasher.digest()
+
+    fixed_weight_string = sample_challenge(digest)
+    indices_to_publish = [int(f != 0) for f in fixed_weight_string]
+    seeds = ggm_path(seed_tree, indices_to_publish)
+
+    cf_monom_actions = []
+    for i in range(T):
+        if fixed_weight_string[i] != 0:
+            j = fixed_weight_string[i]
+            Q_to_multiply = Monomial.rand_from_seed(private_monomial_seeds[j - 1], N)
+            mono_action = Permutation.from_composition_action(Q_to_multiply, pi_tilde[i])
+            cf_monom_actions.append(mono_action.bytes())
+
+    seed_storage = seeds.ljust(SEED_TREE_MAX_PUBLISHED_BYTES, b"\x00")
+    return Signature(digest, salt, cf_monom_actions, seed_storage), len(seeds) // SEED_LENGTH_BYTES
+
+
+def less_verify(pk: PublicKey, m: bytes, sig: Signature) -> bool:
+    """
+    NOTE: non-constant time
+    :param pk[in]: public key
+    :param m[in]: message for which a signature was computed
+    :param sig[in]: signature
+    :return false: on failure
+             true: on success
+    """
+    fixed_weight_string = sample_challenge(sig.digest)
+    published_seed_indexes = [int(f != 0) for f in fixed_weight_string]
+
+    seed_tree = rebuild_ggm(published_seed_indexes, sig.seed_storage, sig.salt)
+    if seed_tree is None:
+        return False
+    linearized_rounds_seeds = seed_leaves(seed_tree)
+
+    g0_full, g0_initial_pivot_flags = expand_g0(pk.g0_seed)
+    gs = [Matrix.expand(sf_g, [0] * N) for sf_g in pk.sf_g]
+
+    hasher = Hash.new()
+    employed_monoms = 0
+    for i in range(T):
+        is_pivot_column = [0] * N
+        if fixed_weight_string[i] == 0:
+            # same ephemeral monomial derivation as in `less_sign`
+            mu_tilde = ephemeral_monomial(linearized_rounds_seeds[i], sig.salt, i)
+            g_prime = g0_full * mu_tilde
+
+            permuted_pivot_flags = [0] * N
+            for t in range(N):
+                permuted_pivot_flags[mu_tilde.perms[t]] = g0_initial_pivot_flags[t]
+        else:
+            gi_initial_pivot_flags = [0] * N
+            key_pos = fixed_weight_string[i] - 1
+            action = sig.cf_monom_actions[employed_monoms]
+
+            if not Permutation.check_canonical_action(action):
+                return False
+
+            permuted_pivot_flags = [0] * N
+            g_prime = Matrix.unpack_coset_rep(gs[key_pos], action, gi_initial_pivot_flags,
+                                              permuted_pivot_flags)
+            employed_monoms += 1
+
+        if not g_prime.rref(is_pivot_column, permuted_pivot_flags, LESS_VERIFY_PIVOT_REUSE_LIMIT):
+            return False
+
+        # copy the non IS
+        a_i = MatrixNormalized.from_information_set(g_prime, is_pivot_column)
+
+        # compute the canonical form and exit on any failure
+        if a_i.cf() == 0:
+            return False
+
+        # NOTE: as we increase the size of the `normalized_IS_t`
+        # we need to hash the values row by row.
+        hash_rows(hasher, a_i)
+
+    hasher.update(m)
+    hasher.update(sig.salt)
+    recomputed_digest = hasher.digest()
+
+    # NOTE: does not have to be constant time.
+    return verify(recomputed_digest, sig.digest) == 0
+
+
+def signature_size(leaves: int) -> int:
+    """ LESS_SIGNATURE_SIZE """
+    return HASH_DIGEST_LENGTH * 2 + N8 * W + leaves * SEED_LENGTH_BYTES + 1
+
+
+def crypto_sign_keypair() -> tuple[bytes, bytes]:
+    sk, pk = less_keygen()
+    return pk.bytes(), sk.compressed_sk
+
+
+def crypto_sign(m: bytes, sk: bytes) -> bytes:
+    sig, leaves = less_sign(m, PrivateKey(sk))
+    sm = m + sig.digest + sig.salt + b"".join(sig.cf_monom_actions) + sig.seed_storage
+    return sm[:len(m) + signature_size(leaves) - 1] + bytes([leaves])
+
+
+def crypto_sign_open(sm: bytes, pk: bytes):
+    """
+    verifying a signed message sm[0],sm[1],...,sm[smlen-1]
+    under public key pk[0],pk[1],...
+    and producing original message m[0],m[1],...,m[*mlen-1]
+    """
+    num_seeds_published = sm[-1]
+    if num_seeds_published > MAX_PUBLISHED_SEEDS:
+        return None
+    mlen = len(sm) - signature_size(num_seeds_published)
+    if mlen < 0:
+        return None
+
+    m, sig = sm[:mlen], sm[mlen:]
+    actions = sig[2 * HASH_DIGEST_LENGTH:2 * HASH_DIGEST_LENGTH + N8 * W]
+    sig = Signature(sig[:HASH_DIGEST_LENGTH],
+                    sig[HASH_DIGEST_LENGTH:2 * HASH_DIGEST_LENGTH],
+                    [actions[i * N8:(i + 1) * N8] for i in range(W)],
+                    # only the published seeds are stored, the rest of the buffer stays zero
+                    sig[2 * HASH_DIGEST_LENGTH + N8 * W:-1].ljust(SEED_TREE_MAX_PUBLISHED_BYTES, b"\x00"))
+    return m if less_verify(PublicKey.from_bytes(pk), m, sig) else None
+
+
+def test():
+    from prng import init_randombytes
+
+    def keypair_and_signature(msg: bytes):
+        init_randombytes(bytes(range(48)))
+        sk, pk = less_keygen()
+        sig, leaves = less_sign(msg, sk)
+        assert 0 < leaves <= MAX_PUBLISHED_SEEDS, f"{leaves} published leaves is out of range"
+        return pk, sig
+
+    msg = b"abc"
+    pk, sig = keypair_and_signature(msg)
+    assert less_verify(pk, msg, sig), "a valid signature was rejected"
+
+    # a different message must not verify
+    assert not less_verify(pk, b"ghi", sig)
+
+    sig.digest = bytes([sig.digest[0] ^ 1]) + sig.digest[1:]
+    assert not less_verify(pk, msg, sig), "a flipped digest bit was accepted"
+
+
+if __name__ == "__main__":
+    test()

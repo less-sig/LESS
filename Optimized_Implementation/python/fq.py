@@ -1,167 +1,57 @@
 #!/usr/bin/env python3
 """ super simple fq implementation. The only goal is to have zero dependencies """
-
-from typing import Union
-import random
-import math
+from config import Q
 
 
-class Fq():
-    def __init__(self, value: int = 0, q: int = 0) -> None:
-        assert q 
-        self.q = q
-        self.__value = value % self.q
-    
+class Fq(int):
+    def __new__(cls, value: int = 0):
+        return super().__new__(cls, value % Q)
+
     def get(self) -> int:
         """ returns the internal value as an int """
-        return self.__value
+        return int(self)
 
-    def set(self, value: int):
-        """ sets the internal value to an int """
-        self.__value = value % self.q
+    def __add__(self, b) -> 'Fq':
+        return ELEMENTS[int.__add__(self, b) % Q]
 
-    def add(self, value: int) -> 'Fq':
-        """  """
-        ret = Fq((self.__value + value) % self.q, self.q)
-        return ret
+    def __sub__(self, b) -> 'Fq':
+        return ELEMENTS[int.__sub__(self, b) % Q]
 
-    def sub(self, value: int) -> 'Fq':
-        """  """
-        ret = Fq((self.__value + (self.q - value)) % self.q, self.q)
-        return ret
+    def __rsub__(self, b) -> 'Fq':
+        return ELEMENTS[int.__rsub__(self, b) % Q]
 
-    def mul(self, value: int) -> 'Fq':
-        """  """
-        ret = Fq((self.__value * value) % self.q, self.q)
-        return ret
+    def __mul__(self, b) -> 'Fq':
+        return ELEMENTS[int.__mul__(self, b) % Q]
+
+    def __truediv__(self, b) -> 'Fq':
+        return self * Fq(b).inv()
+
+    def __rtruediv__(self, b) -> 'Fq':
+        return Fq(b) * self.inv()
+
+    def __neg__(self) -> 'Fq':
+        return ELEMENTS[-int(self) % Q]
+
+    __radd__ = __add__
+    __rmul__ = __mul__
 
     def inv(self) -> 'Fq':
-        """ """
-        v = Fq.mod_inverse(self.__value, self.q)
-        return Fq(v, self.q)
-
-    def random(self, lower: int = 0, upper: int = 0) -> 'Fq': 
-        """ generates a random element """
-        if upper == 0:
-            upper = self.q-1
-        assert (lower <= upper)
-        self.__value = random.randint(lower, upper)
-        return self
-
-    @staticmethod
-    def extended_gcd(a: Union[int, 'Fq'], 
-                     b: Union[int, 'Fq']):
-        """
-        Extended Euclidean Algorithm.
-        Returns (gcd, x, y) such that ax + by = gcd(a, b)
-        """
-        if isinstance(a, 'Fq'):
-            a = a.__value
-        if isinstance(b, 'Fq'):
-            b = b.__value
-
-        if a == 0:
-            return b, 0, 1
-
-        gcd, x1, y1 = Fq.extended_gcd(b % a, a)
-        x = y1 - (b // a) * x1
-        y = x1
-        return gcd, x, y
-
-    @staticmethod
-    def mod_inverse(a: Union[int, 'Fq'], 
-                    p: Union[int, 'Fq']):
-        """
-        Compute modular inverse of a modulo prime p using Fermat's Little Theorem.
-        For prime p: a^(p-1) ≡ 1 (mod p)
-        Therefore: a^(p-2) ≡ a^(-1) (mod p)
-        Args:
-            a: integer to find inverse of
-            p: prime modulus
-        Returns:
-            modular inverse of a modulo p
-        Raises:
-            ValueError: if a is not coprime to p
-        """
-        if isinstance(a, Fq):
-            a = a.__value
-        if isinstance(p, Fq):
-            p = p.__value
-
-        if a % p == 0: 
-            raise ValueError(f"{a} is not invertible modulo {p}")
-        return pow(a, p - 2, p)
-
-    def __add__(self, fq: Union['Fq', int]) -> 'Fq':
-        if isinstance(fq, Fq): fq = fq.__value
-        return self.add(fq)
-
-    def __sub__(self, fq: Union['Fq', int]) -> 'Fq':
-        if isinstance(fq, Fq): fq = fq.__value
-        return self.sub(fq)
-
-    def __mul__(self, fq: Union['Fq', int]) -> 'Fq':
-        if isinstance(fq, Fq): fq = fq.__value
-        return self.mul(fq)
-
-    def __eq__(self, fq) -> bool:
-        if isinstance(fq, Fq): fq = fq.__value
-        return self.__value == fq
-    
-    def __lt__(self, fq) -> bool:
-        if isinstance(fq, Fq): fq = fq.__value
-        return self.__value < fq
-    
-    def __le__(self, fq) -> bool:
-        if isinstance(fq, Fq): fq = fq.__value
-        return self.__value <= fq
-    
-    def __gt__(self, fq) -> bool:
-        if isinstance(fq, Fq): fq = fq.__value
-        return self.__value > fq
-    
-    def __ge__(self, fq) -> bool:
-        if isinstance(fq, Fq): fq = fq.__value
-        return self.__value >= fq
-    
-    def __str__(self) -> str:
-        return str(self.__value)
+        """ a^{-1} mod q """
+        return FQ127_INV_TABLE[self]
 
 
-def rand_elements(rng, 
-                  q, 
-                  buffer: list,
-                  l: int, 
-                  MIN_VALUE=0, 
-                  MAX_VALUE=0):
-    """ generate a element mod Q
-    :param rng: shake state 
-    :param Q: prime 
-    """
-    if MAX_VALUE == 0:
-        MAX_VALUE = q-1
+ELEMENTS = [Fq(i) for i in range(Q)]
+# NOTE: we define 0^{-1} := 0.
+FQ127_INV_TABLE = [Fq(pow(i, Q - 2, Q)) for i in range(Q + 1)]
 
-    SPAN = MAX_VALUE - MIN_VALUE
-    REQ_BITS = math.ceil(math.log2(SPAN))
-    EL_MASK = (1 << REQ_BITS) - 1
-    counter = 0
-    while True:
-        word = int(rng.read(8).hex(), 16)
-        for _ in range(64//REQ_BITS):
-            rnd_value = word & EL_MASK
-            if (rnd_value <= SPAN):
-                buffer[counter] = Fq(rnd_value + MIN_VALUE, q)
-                counter += 1 
-            if(counter >= l):
-                return
-            word >>= REQ_BITS
 
 if __name__ == "__main__":
     from Crypto.Hash import SHAKE256
+    from prng import rand_range_q_state_elements
     l = [0 for _ in range(128)]
     seed = bytearray(32)
     rng = SHAKE256.new(seed)
-    rand_elements(rng, 127, l, len(l))
+    l = rand_range_q_state_elements(rng, len(l))
     print(l)
 
     # just some simple test for q==127
@@ -174,6 +64,11 @@ if __name__ == "__main__":
     assert zero.get() == 0
 
     for i in range(0, 126):
-        t = Fq(i) 
-        x = t * one 
+        t = Fq(i)
+        x = t * one
         assert t.get() == x.get()
+
+    for i in range(1, 127):
+        assert (Fq(i) * Fq(i).inv()).get() == 1
+        assert Fq(i) / Fq(i) == 1 and Fq(i) - Fq(i) == 0 and -Fq(i) + Fq(i) == 0
+        assert 1 - Fq(i) == Fq(1 - i) and isinstance(1 - Fq(i), Fq)

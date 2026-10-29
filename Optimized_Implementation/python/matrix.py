@@ -1,371 +1,508 @@
 #!/usr/bin/env python3
 """ super simple matrix implementation. The only goal is to have zero dependencies """
-
-from typing import Union, List
 import random
+from functools import cmp_to_key
 
-from fq import Fq, rand_elements
+from config import K, N, N8, Q, RREF_MAT_PACKEDBYTES
+from fq import Fq
+from monomial import Monomial
+from multiset import Multiset
+from prng import csprng_initialize
+from vector import Vector
+
+
+def monomial_mul(rows: list[Vector], monom: Monomial) -> list[Vector]:
+    """ res = g * monom """
+    ret = [Vector.default(len(row)) for row in rows]
+    for src_col_idx, (pos, coeff) in enumerate(zip(monom.perms, monom.coeffs)):
+        for out, row in zip(ret, rows):
+            out[pos] = row[src_col_idx] * coeff
+    return ret
 
 
 class Matrix:
-    """ simple matrix class 
+    """ simple matrix class
     NOTE: row major
     NOTE: always zero initialized
     """
-    def __init__(self, nrows: int, ncols: int, q: int = 2) -> None:
+    def __init__(self, nrows: int, ncols: int, q: int = Q) -> None:
         """ zero initialized """
         self.nrows = nrows
         self.ncols = ncols
         self.q = q
-        self.data = [[Fq(0, self.q) for _ in range(ncols)] for _ in range(nrows)] 
+        self.rows = [Vector.default(ncols) for _ in range(nrows)]
 
-    def __getitem__(self,
-                    tup: int | list[int] | tuple[int, int]) -> Fq: #| list[Fq]:
+    @classmethod
+    def from_rows(cls, rows: list[Vector]):
+        ret = cls(len(rows), len(rows[0]))
+        ret.rows = rows
+        return ret
+
+    def __getitem__(self, tup):
         """ nice access function
         NOTE: access it via:
             A[i, j] or  (returns field element)
             A[i]        (returns row)
         """
         if isinstance(tup, tuple):
-            x, y = tup
-            assert x < self.nrows and y < self.ncols
-            return self.data[x][y]
-        
-        assert isinstance(tup, int)
-        assert tup < self.nrows
-        return self.data[tup]
+            return self.rows[tup[0]][tup[1]]
+        return self.rows[tup]
 
-    def __setitem__(self,
-                    tup: int | tuple[int, int],
-                    data: Union[int, Fq]):
+    def __setitem__(self, tup, data):
         """ nice access function
         NOTE: access it via:
             A[i, j] or  (returns field element)
             A[i]        (returns row)
         """
         if isinstance(tup, tuple):
-            x, y = tup
-            assert x < self.nrows and y < self.ncols
-            if isinstance(data, int):
-                self.data[x][y] = Fq(data, self.q)
-            elif isinstance(data, Fq):
-                self.data[x][y] = data
-            else:
-                assert(False)
-            return
-        
-        assert isinstance(tup, int)
-        assert isinstance(data, list)
-        assert tup < self.nrows
-        self.data[tup] = data
-        return
+            self.rows[tup[0]][tup[1]] = Fq(data)
+        else:
+            self.rows[tup] = data
 
-    def print(self, transpose: bool = False):
-        """ printing """
-        if transpose:
-            for i in range(self.ncols):
-                for j in range(self.nrows):
-                    print(self.data[j][i], end='')
-                print("")
-            return
-    
-        for i in range(self.nrows):
-            for j in range(self.ncols):
-                print(self.data[i][j], end='')
+    def __mul__(self, B):
+        if isinstance(B, Matrix):
+            return self.mul(B)
+        return self.from_rows(monomial_mul(self.rows, B))
 
-            print("")
-    
+    def __eq__(self, B) -> bool:
+        return self.rows == B.rows
+
+    def __str__(self) -> str:
+        return "".join(" ".join(str(v).rjust(3) for v in row) + "\n" for row in self.rows)
+
+    def print(self):
+        print(self)
+
     def id(self) -> 'Matrix':
         """ identity matrix """
-        for i in range(self.nrows):
-            for j in range(self.ncols):
-                self.data[i][j] = Fq(i == j, self.q)
-        return self
-
-    def set(self, d: Union[int, Fq, List]) -> 'Matrix':
-        """ sets every element within in the matrix to `d`"""
-        # TODO: missing the case, where a only row is passed
-        if isinstance(d, list):
-            for i, a in enumerate(d):
-                for j, b in enumerate(a):
-                    if isinstance(b, int):
-                        b = Fq(b, self.q)
-                    self.data[i][j] = b
-            return self
-
-        if isinstance(d, int):
-            d = Fq(d, self.q)
-
-        for i in range(self.nrows):
-            for j in range(self.ncols):
-                self.data[i][j] = d
+        self.rows = [Vector(Fq(i == j) for j in range(self.ncols)) for i in range(self.nrows)]
         return self
 
     def zero(self) -> 'Matrix':
         """ zeros all elements"""
-        for i in range(self.nrows):
-            for j in range(self.ncols):
-                self.data[i][j] = Fq(0, self.q)
+        self.rows = [Vector.default(self.ncols) for _ in range(self.nrows)]
         return self
 
-    def row(self, i: int):
-        """ returns i-th row """ 
-        assert i < self.nrows
-        return self.data[i]
+    def set(self, d: list[list[int]]) -> 'Matrix':
+        """ sets every element within in the matrix to `d`"""
+        self.rows = [Vector(Fq(v) for v in row) for row in d]
+        return self
 
-    def col(self, i: int):
-        """ returns i-th col """ 
-        assert i < self.ncols
-        return [self.data[j][i] for j in range(self.nrows)]
-
-
-    def random(self, seed = None) -> 'Matrix':
+    def random(self) -> 'Matrix':
         """ generates a random matrix """
-        if seed is None:
-            for i in range(self.nrows):
-                for j in range(self.ncols):
-                    self.data[i][j] = Fq(0, self.q).random()
-        else:
-            assert(False) # not implemented
+        self.rows = [Vector(Fq(random.randrange(self.q)) for _ in range(self.ncols)) for _ in range(self.nrows)]
         return self
 
     def random_row_with_weight(self, row: int, w: int) -> 'Matrix':
         """ generates a random weight w row """
-        assert w > 0 and w < self.ncols
+        assert 0 < w < self.ncols
         self.zero()
-        for i in range(w):
-            self.data[row][i] = Fq(0, self.q).random(1)
-
-        # and now just simple apply a random permutation
-        for i in range(self.ncols):
-            pos = random.randint(0, self.ncols - i - 1)
-            tmp = self.data[row][i]
-            self.data[row][i] = self.data[row][i + pos]
-            self.data[row][i + pos] = tmp
+        self.rows[row][:w] = [Fq(random.randrange(1, self.q)) for _ in range(w)]
+        random.shuffle(self.rows[row])
         return self
-
-    def random_from_rng(self, rng):
-        """ 
-        generate a random matrix mod q, generated from a given 
-        random number generator.
-        :param rng: should be shake state already init
-        """
-        for i in range(self.nrows):
-            rand_elements(rng, self.q, self.data[i], self.ncols)
-        return self
-
-    def random_from_seed(self, seed):
-        from Crypto.Hash import SHAKE256
-        s = SHAKE256.new(seed)
-        return self.random_from_rng(s)
-
-    def rref(self,
-             pivot_cols: list[int],
-             max_rank: Union[int, None] = None) -> int:
-        """ simple Gaussian elimination. Is an inplace operation
-        :return the rank of the matrix
-        """
-        if max_rank is None:
-            max_rank = self.nrows
-        
-        assert isinstance(max_rank, int)
-
-        for i in range(self.ncols):
-            pivot_cols[i] = 0
-
-        row = 0
-        for col in range(self.ncols):
-            if row >= min(max_rank, self.nrows): break
-
-            # find pivot
-            sel = -1
-            for i in range(row, self.nrows):
-                if self.data[i][col] == Fq(1, self.q):
-                    sel = i 
-                    break
-
-            if sel == -1:
-                return row
-
-            pivot_cols[sel] = 1
-            self.__swap_rows(sel, row)
-
-            # solve remaining coordinates
-            for i in range(self.nrows):
-                if i == row: continue 
-                if self.data[i][col] == Fq(0, self.q): continue
-
-                for j in range(self.ncols):
-                    self.data[i][j] += self.data[row][j]
-
-            row += 1
-        
-        return row
-
-    def gauß(self, max_rank: Union[int, None] = None) -> int:
-        """ simple Gaussian elimination. Is an inplace operation
-        :return the rank of the matrix
-        """
-        if max_rank is None:
-            max_rank = self.nrows
-        
-        assert isinstance(max_rank, int)
-        row = 0
-        for col in range(self.ncols):
-            if row >= min(max_rank, self.nrows): break
-
-            # find pivot
-            sel = -1
-            for i in range(row, self.nrows):
-                if self.data[i][col] == Fq(1, self.q):
-                    sel = i 
-                    break
-
-            if sel == -1:
-                return row
-
-            self.__swap_rows(sel, row)
-
-            # solve remaining coordinates
-            for i in range(self.nrows):
-                if i == row: continue 
-                if self.data[i][col] == Fq(0, self.q): continue
-
-                for j in range(self.ncols):
-                    self.data[i][j] += self.data[row][j]
-
-            row += 1
-        
-        return row
-
-    def mul(self, B: 'Matrix') -> 'Matrix':
-        """ simple multiplication """
-        B_r, B_c = B.nrows, B.ncols
-        assert self.q == B.q and self.ncols == B_r
-        C = Matrix(self.nrows, B_c, self.q)
-        # each column in B
-        for i in range(B_c):
-            # each row in A
-            for j in range(self.nrows):  
-                s = Fq(0, self.q)
-                # each element in a row in A
-                for k in range(self.ncols):  
-                    t = self[j, k] * B[k, i]
-                    s = s + t 
-
-                C.data[j][i] = s
-        return C
-
-    def add(self, B: 'Matrix') -> 'Matrix':
-        """ simple inplace additions """
-        B_r, B_c = B.nrows, B.ncols
-        assert self.q == B.q and self.ncols == B_c and self.nrows == B_r
-        for i in range(self.nrows):
-            for j in range(self.ncols):
-                self.data[i][j] += B[i, j]
-        return self
-
-    def sub(self, B: 'Matrix') -> 'Matrix':
-        """ simple inplace subtraction """
-        B_r, B_c = B.nrows, B.ncols
-        assert self.q == B.q and self.ncols == B_c and self.nrows == B_r
-        for i in range(self.nrows):
-            for j in range(self.ncols):
-                self.data[i][j] = self.data[i][j] + (self.q - B[i, j])
-        return self
-
-    def eq(self, B: 'Matrix'):
-        """ simple comparsion """
-        B_r, B_c = B.nrows, B.ncols
-        assert self.q == B.q and self.ncols == B_c and self.nrows == B_r
-        for i in range(self.nrows):
-            for j in range(self.ncols):
-                if self.data[i][j] != B[i, j]:
-                    return False
-        return True
 
     def transpose(self) -> 'Matrix':
         """ simple transpose, not inplace """
-        T = Matrix(self.ncols, self.nrows, q=self.q)
-        
-        for i in range(self.nrows):
-            for j in range(self.ncols):
-                T.data[j][i] = self.data[i][j]
-        return T
+        return Matrix.from_rows([Vector(c) for c in zip(*self.rows)])
 
-    def popcnt_row(self, row: int) -> int:
-        """ computes the hamming weight of a row"""
-        assert row < self.nrows
-        return sum([r != 0 for r in self.data[row]])
-        
-    def popcnt_col(self, col: int) -> int:
-        """ computes the hamming weight of a column"""
-        assert col < self.ncols
-        t = 0
-        for j in range(self.nrows):
-            t += self.data[j][col] != 0
-        return t
+    def mul(self, B: 'Matrix') -> 'Matrix':
+        """ simple multiplication """
+        assert self.ncols == B.nrows
+        cols = [Vector(c) for c in zip(*B.rows)]
+        return Matrix.from_rows([Vector(row.mul(col).acc() for col in cols) for row in self.rows])
 
     def scale_row(self, row: int, v: Fq) -> 'Matrix':
         """ scales the row `row` by v"""
-        for j in range(self.ncols):
-            self.data[row][j] *= v
+        self.rows[row] = self.rows[row].scalar_mul(v)
         return self
 
-    def scale_col(self, col: int, v: Fq) -> 'Matrix':
-        """ scales the col `col` by v"""
-        for j in range(self.nrows):
-            self.data[j][col] *= v
-        return self
+    @staticmethod
+    def rand(state, nrows: int, ncols: int) -> 'Matrix':
+        """ sample a random matrix """
+        return Matrix.from_rows([Vector.rand(state, ncols) for _ in range(nrows)])
 
-    def __swap_rows(self, i: int, j: int) -> None:
-        """ swap the rows i and j """
-        assert i < self.nrows and j < self.nrows
-        if i == j: return
-        for k in range(self.ncols):
-            tmp = self.data[i][k]
-            self.data[i][k] = self.data[j][k]
-            self.data[j][k] = tmp
+    @staticmethod
+    def rand_from_seed(seed: bytes, nrows: int, ncols: int) -> 'Matrix':
+        return Matrix.rand(csprng_initialize(seed), nrows, ncols)
 
-    def __swap_cols(self, i: int, j: int) -> None:
-        """ swap the cols i and j """
-        assert i < self.ncols and j < self.ncols
-        if i == j: return
-        for k in range(self.nrows):
-            tmp = self.data[k][i]
-            self.data[k][i] = self.data[k][j]
-            self.data[k][j] = tmp
+    @staticmethod
+    def from_compressed_rref(column_pos: list[int], compact: 'Matrix') -> 'Matrix':
+        """
+        translation of `generator_rref_expand`
+        Expands a compressed RREF generator matrix into a full one
+        :param compact[in]: input compressed generator matrix (K \times N-K)
+        :return full: output generator matrix (K \times N)
+        """
+        full = Matrix(compact.nrows, N)
+        placed_dense_cols = 0
+        for col_idx in range(N):
+            if placed_dense_cols < N - K and col_idx == column_pos[placed_dense_cols]:
+                # non-pivot column, restore one full column
+                for row_idx in range(full.nrows):
+                    full.rows[row_idx][col_idx] = compact.rows[row_idx][placed_dense_cols]
+                placed_dense_cols += 1
+            else:
+                # regenerate the appropriate pivot column
+                for row_idx in range(full.nrows):
+                    full.rows[row_idx][col_idx] = Fq(row_idx == col_idx - placed_dense_cols)
+        return full
 
-    def __add__(self, B: 'Matrix'):
-        return self.add(B)
+    def rref(self,
+             is_pivot_column: list[int],
+             was_pivot_column: list[int],
+             pvt_reuse_limit: int) -> bool:
+        """ TODO doc string """
+        rows, n, m = self.rows, self.nrows, self.ncols
+        pvt_reuse_cnt = 0
 
-    def __sub__(self, B: 'Matrix'):
-        return self.sub(B)
+        # row swap pre-process - swap previous pivot elements to corresponding
+        # row to reduce likelihood of corruption
+        if pvt_reuse_limit != 0:
+            for preproc_col in reversed(range(n)):
+                if was_pivot_column[preproc_col] == 1:
+                    pivot_el_row = 0
+                    for row in range(n):
+                        if rows[row][preproc_col] != 0:
+                            pivot_el_row = row
+                    rows[preproc_col], rows[pivot_el_row] = rows[pivot_el_row], rows[preproc_col]
 
-    def __mul__(self, B: 'Matrix'):
-        return self.mul(B)
+        for row_to_reduce in range(n):
+            pivot_row = pivot_column = row_to_reduce
 
-    def export(self) -> str:
-        """ export to C """
-        ret = "{"
-        for i in range(self.nrows):
-            ret += "{"
-            for j in range(self.ncols):
-                ret += str(self.data[i][j].get()) + ","
-            ret += "},\n"
-        ret += "}"
+            # Search pivot
+            while pivot_column < m and rows[pivot_row][pivot_column] == 0:
+                while pivot_row < n and rows[pivot_row][pivot_column] == 0:
+                    pivot_row += 1
+
+                if pivot_row >= n:
+                    pivot_column += 1
+                    pivot_row = row_to_reduce
+
+            if pivot_column >= m:
+                return False
+
+            is_pivot_column[pivot_column] = 1
+
+            # Swap rows if needed
+            if row_to_reduce != pivot_row:
+                # pivot no longer reusable
+                was_pivot_column[pivot_row] = 0
+                rows[row_to_reduce], rows[pivot_row] = rows[pivot_row], rows[row_to_reduce]
+
+            pivot_row = row_to_reduce
+
+            # Pivot reuse shortcut
+            if was_pivot_column[pivot_column] == 1 and pvt_reuse_cnt < pvt_reuse_limit and pivot_column < n:
+                pvt_reuse_cnt += 1
+                continue
+
+            # Rescale pivot row
+            scaling_factor = rows[pivot_row][pivot_column].inv()
+            p = rows[pivot_row]
+            p[pivot_column:] = [scaling_factor * v for v in p[pivot_column:]]
+
+            # Eliminate pivot column from other rows
+            for row_idx in range(n):
+                multiplier = rows[row_idx][pivot_column]
+                if row_idx != pivot_row and multiplier != 0:
+                    rows[row_idx] = Vector(a - multiplier * b for a, b in zip(rows[row_idx], p))
+
+        return True
+
+    @staticmethod
+    def unpack_coset_rep(g: 'Matrix',
+                         c: bytes,
+                         initial_g_col_pivot: list[int],
+                         permuted_g_col_pivot: list[int]) -> 'Matrix':
+        """
+        translation of `UnpackCosetRep`
+        :param g[in]: current generator matrix: K \times N-K
+        :param c[in]: compressed cf action
+        :param initial_g_col_pivot[in]: input IS
+        :param permuted_g_col_pivot[out]: output IS, to keep track of the pivot cols
+        :return res: G*c: a generator matrix: K \times N-K
+        """
+        res = Matrix(g.nrows, g.ncols)
+        l, r = 0, K
+        for col in range(N):
+            if (c[col // 8] >> (col % 8)) & 1:
+                pos, l = l, l + 1
+            else:
+                pos, r = r, r + 1
+
+            permuted_g_col_pivot[pos] = initial_g_col_pivot[col]
+
+            # copy the column
+            for k in range(g.nrows):
+                res.rows[k][pos] = g.rows[k][col]
+        return res
+
+    def compress(self, is_pivot_column: list[int]) -> bytes:
+        """ Compresses a generator matrix in RREF into a byte array """
+        # Compress pivot flags
+        flags = sum(b << col for col, b in enumerate(is_pivot_column[:N]))
+
+        # Compress non-pivot columns row-by-row
+        values = [v.get() for row in self.rows for col, v in enumerate(row) if is_pivot_column[col] == 0]
+        packed = sum(v << (7 * i) for i, v in enumerate(values))
+        return flags.to_bytes(N8, "little") + packed.to_bytes(RREF_MAT_PACKEDBYTES - N8, "little")
+
+    @staticmethod
+    def expand(compressed: bytes, is_pivot_column: list[int]) -> 'Matrix':
+        """
+        Expands a compressed RREF generator matrix into a full one
+        :param is_pivot_column: length-N array, will be initialized here
+        """
+        # Decompress pivot flags
+        flags = int.from_bytes(compressed[:N8], "little")
+        for col in range(N):
+            is_pivot_column[col] = (flags >> col) & 1
+
+        # Decompress matrix row-by-row
+        packed = int.from_bytes(compressed[N8:RREF_MAT_PACKEDBYTES], "little")
+        ret = Matrix(K, N)
+        i = 0
+        for row_idx, row in enumerate(ret.rows):
+            pivot_idx = 0
+            for col in range(N):
+                if is_pivot_column[col] == 0:
+                    row[col] = Fq((packed >> (7 * i)) & Q)
+                    i += 1
+                else:
+                    # Pivot column
+                    row[col] = Fq(row_idx == pivot_idx)
+                    pivot_idx += 1
         return ret
 
-   
-    def __repr__(self) -> str:
-        return self.__str__()
 
-    def __str__(self) -> str:
-        ret = ""
-        for i in range(self.nrows):
-            for j in range(self.ncols):
-                ret += str(self.data[i][j]).rjust(3, ' ') + " "
-            ret += "\n"
+class MatrixNormalized(Matrix):
+    @classmethod
+    def from_information_set(cls, g: Matrix, is_pivot_column: list[int]) -> 'MatrixNormalized':
+        """
+        translation of 'void normalized_copy_from_generator_non_information_set'
+        :param g[in]: generator matrix to extract the non-IS from.
+        :param is_pivot_column[in]: array identifying a pivot column via a 1
+        """
+        # we simply copy the last N-K columns even if they are not the information set.
+        ret = cls.from_rows([Vector(row[K:N]) for row in g.rows[:K]])
+        # now we scan if we need to fix the non information set
+        ctr = 0
+        while ctr < K and is_pivot_column[ctr] == 1:
+            ctr += 1
+
+        # easy part: the last N-K columns are the non IS
+        if ctr == K:
+            return ret
+
+        # "hard" part: copy all remaining columns < K into the non information set part
+        j = 0
+        while j < N - K and is_pivot_column[ctr] == 0:
+            # copy column
+            for k in range(K):
+                ret.rows[k][j] = g.rows[k][ctr]
+            ctr += 1
+            j += 1
+        return ret
+
+    def blind(self, state) -> None:
+        # the randomness for `right` is drawn before the one for `left`
+        right = Monomial.rand(state, self.nrows)
+        left = Monomial.rand(state, self.nrows)
+
+        # right multiplication
+        tmp = monomial_mul(self.rows, right)
+
+        # left multiplication
+        self.rows = [tmp[pos].scalar_mul(val) for pos, val in zip(left.perms, left.coeffs)]
+
+    def SortRows(self, z: int, L: Multiset) -> int:
+        """
+        NOTE: absolutely not constant time.
+        :param z[in] number of elements to sort
+        :param L[in]: pointer to the currently shortest row
+        :return 1 on success
+                0 if two rows generate the same multiset
+        """
+        # first sort each row into a tmp buffer
+        tmp = [Multiset.from_row(row) for row in self.rows[:z]]
+
+        # early exit if the shortest row of this matrix is already longer
+        # than the currently shortest one
+        if max(t[0] for t in tmp) < L[0]:
+            return 0
+
+        p = sorted(range(z), key=cmp_to_key(lambda a, b: tmp[a].partial_cmp(tmp[b])))
+        self.rows[:z] = [self.rows[i] for i in p]
+        return 1
+
+    def SortCols(self) -> int:
+        self.rows = [Vector(row) for row in zip(*sorted(zip(*self.rows)))]
+        return 1
+
+    def scale_cf_preprocess_v1(self, z: int, m: Multiset) -> int:
+        """ by floyd """
+        for i in range(z):
+            s = self.rows[i].acc()
+            if s != 0:
+                s = s.inv()
+            else:
+                s = self.rows[i].acc_inv()
+                if s == 0:
+                    return 0
+
+            self.rows[i] = self.rows[i].scalar_mul(s)
+            # compute the histogram
+            if Multiset.from_row(self.rows[i]).partial_cmp(m) < 0:
+                return 1
+        return 0
+
+    def ScaleCFSubPreprocess(self, z: int, m: Multiset) -> int:
+        """ by luke """
+        ret = 0
+        for i in range(z):
+            s = self.rows[i].acc()
+            if s != 0:
+                s = s.inv()
+            else:
+                s = self.rows[i].acc_inv()
+                if s == 0:
+                    continue
+
+            self.rows[i] = self.rows[i].scalar_mul(s)
+            # compute the histogram
+            tmp = Multiset.from_row(self.rows[i])
+            if tmp.partial_cmp(m) < 0:
+                ret = 1
+                # copy new smallest row
+                m[:] = tmp
+        return ret
+
+    def SortCF(self, L: Multiset) -> int:
+        """
+        Implementation of the `SortCF` algorithm from the specification.
+        NOTE: computes the result inplace
+        NOTE: early exist from the `SortRows` function if `L` is already shorter.
+        NOTE: first sort the rows, then the columns
+        :param L[in]: pointer the currently shortest row.
+        :return 0 on failure (identical rows, which create the same multiset)
+                1 on success
+        """
+        if self.SortRows(self.nrows, L) == 0:
+            return 0
+        return self.SortCols()
+
+    def ScaleCF(self, L: Multiset) -> int:
+        """
+        Implementation of the `ScaleCF` algorithm from the specification.
+        NOTE: computes the result inplace
+        NOTE: does not early exit. Only `SortCF` can do that.
+        :param L[in]: pointer the currently shortest row, in histogram form.
+        :return 0 on failure:
+                     - compute_power_column fails.
+                     - identical rows, which create the same multiset
+                 1 on success
+        """
+        for row in range(self.nrows):
+            if self.rows[row].all_same():
+                continue
+
+            s = self.rows[row].acc()
+            if s != 0:
+                s = s.inv()
+            else:
+                s = self.rows[row].acc_inv()
+                if s == 0:
+                    return 0
+            self.rows[row] = self.rows[row].scalar_mul(s)
+        return self.SortCF(L)
+
+    def max_zero_rows(self) -> tuple[list[int], list[int]]:
+        # count zeros in each row
+        zeros = [row.count_zero() for row in self.rows]
+        max_zeros = max(zeros)
+        return zeros, [row for row, z in enumerate(zeros) if z == max_zeros]
+
+    def scaled_rows(self, row_inv_data: Vector, J) -> 'MatrixNormalized':
+        return MatrixNormalized.from_rows([self.rows[j].mul(row_inv_data) for j in J])
+
+    def ImprovedCFBase(self) -> int:
+        """
+        NOTE: non-constant time
+        NOTE: computes the result inplace
+        This is the second-fastest implementation of the canonical form function.
+        Fallback implementation if `cf` fails
+        \\return 0 on failure
+                 1 on success
+        """
+        M = [Vector([Fq(Q - 1)] * self.ncols) for _ in range(self.nrows)]
+        touched = 0
+        zeros, J = self.max_zero_rows()
+
+        # NOTE: fallback solution if everything falls apart.
+        if len(J) == self.nrows:
+            return 0
+
+        # NOTE: this is already "sorted"
+        L = Multiset.default()
+
+        # Check smallest rows of all matrices to find the smallest candidate
+        for row in range(self.nrows):
+            if zeros[row] > 0:
+                continue
+
+            row_inv_data = self.rows[row].inv_non_ct()
+            B = self.scaled_rows(row_inv_data, J)
+            if B.scale_cf_preprocess_v1(len(J), L) == 1:
+                B = self.scaled_rows(row_inv_data, range(self.nrows))
+                if B.ScaleCF(L) == 1 and B.rows < M:
+                    L = Multiset.from_row(B.rows[0])
+                    touched = 1
+                    M = B.rows
+
+        self.rows = M
+        return touched
+
+    def cf(self) -> int:
+        """
+        translation of `ImprovedCF`
+        NOTE: non-constant time
+        NOTE: computes the result inplace
+
+        This is the fastest implementation of the canonical form function.
+        This function scans the matrix for the rows which probably lead
+        to the shortest canonical form. If this process fails it falls
+        back to either `CFOriginal` or `ImprovedCF`. The very slow `CFOriginal`
+        is only called if every row in the matrix contains zeros.
+        :return 0 on failure
+                1 on success
+        """
+        smallest_scaling_row = 0
+        zeros, J = self.max_zero_rows()
+
+        if len(J) == self.nrows:
+            return 0
+
+        # NOTE: this is already "sorted"
+        L = Multiset.default()
+
+        # Check smallest rows of all matricies to find the smallest candidate
+        for row in range(self.nrows):
+            if zeros[row] > 0:
+                continue
+
+            B = self.scaled_rows(self.rows[row].inv_non_ct(), J)
+            if B.ScaleCFSubPreprocess(len(J), L) == 1:
+                smallest_scaling_row = row
+
+        # Calculate CF for best candidate
+        B = self.scaled_rows(self.rows[smallest_scaling_row].inv_non_ct(), range(self.nrows))
+        ret = B.ScaleCF(L)
+        # If candidate was not valid, fall back to regular approach
+        if ret != 1:
+            # Best scaled row was not valid;
+            return self.ImprovedCFBase()
+
+        self.rows = B.rows
         return ret
 
 
@@ -381,20 +518,19 @@ def test():
     def scale_rows(A) -> Matrix:
         for i in range(A.nrows):
             scale_row(A, i)
-        return A 
+        return A
 
     nc, nr, q = 4, 3, 7
     A = Matrix(nr, nc, q)
-    # A[0][0], A[0][1], A[0][2], A[0][3] = 
-    # A[1][0], A[1][1], A[1][2], A[1][3] = 
-    # A[2][0], A[2][1], A[2][2], A[2][3] = 
+    # A[0][0], A[0][1], A[0][2], A[0][3] =
+    # A[1][0], A[1][1], A[1][2], A[1][3] =
+    # A[2][0], A[2][1], A[2][2], A[2][3] =
     A.set([[1, 2, 4, 5], [0, 2, 3, 1], [2, 4, 2, 0]])
     #A.print()
 
     P = Matrix(nr, nr, q)
-    # P.set([[0, 1, 0], [4, 0, 0], [0, 0, 3]])
     P.set([[0, 1, 0], [4, 0, 0], [0, 0, 3]])
-   
+
     print(A)
     C = P.mul(A);
     print(C)
@@ -403,8 +539,31 @@ def test():
     print(A)
     print(C)
 
+
+def test_less():
+    # expand is the exact inverse of compress on an RREF matrix
+    a = Matrix.rand_from_seed(bytes(32), K, N)
+    is_pivot_column, was_pivot_column = [0] * N, [0] * N
+    assert a.rref(is_pivot_column, was_pivot_column, K)
+    assert sum(is_pivot_column) == K
+    assert all(isinstance(v, Fq) for row in a.rows for v in row)
+    flags = [0] * N
+    b = Matrix.expand(a.compress(is_pivot_column), flags)
+    assert flags == is_pivot_column and b == a
+
+    # the canonical form is invariant under blinding
+    state = csprng_initialize(bytes(16))
+    A = MatrixNormalized.from_information_set(a, is_pivot_column)
+    B = MatrixNormalized.from_rows([Vector(row) for row in A.rows])
+    B.blind(state)
+    assert B != A
+    assert A.cf() == 1 and B.cf() == 1
+    assert A == B
+
+
 if __name__ == "__main__":
     test()
+    test_less()
     exit(0)
     nc, nr, q, w = 10, 5, 2, 2
     A = Matrix(nr, nc, q)
@@ -415,7 +574,7 @@ if __name__ == "__main__":
     A.print()
     print()
 
-    rank = A.gauß()
+    rank = A.rref([0] * nc, [0] * nc, 0)
     A.print()
     print("rank", rank)
 
@@ -430,4 +589,3 @@ if __name__ == "__main__":
 
     C = A.mul(eT)
     C.print()
-
