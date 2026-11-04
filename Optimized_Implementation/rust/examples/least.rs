@@ -5,12 +5,12 @@ use tokio_util::bytes::Bytes;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
 use less::config::{
-    Hash, Xof, K, N, N_K_pad, N_pad, T, HASH_DIGEST_LENGTH, PRIVATE_KEY_SEED_LENGTH_BYTES,
-    SEED_LENGTH_BYTES,
+    Hash, Xof, K, N, N_K_pad, N_pad, NUM_KEYPAIRS, T, HASH_DIGEST_LENGTH,
+    PRIVATE_KEY_SEED_LENGTH_BYTES, SEED_LENGTH_BYTES,
 };
 use less::matrix::Matrix;
 use less::monomial::Monomial;
-use less::prng::{csprng_initialize, randombytes};
+use less::prng::{csprng_initialize, csprng_randombytes, randombytes};
 use less::utils::{sample_challenge, verify};
 
 type MatrixFull = Matrix<K, N, N_pad>;
@@ -18,7 +18,11 @@ type MonomialFull = Monomial<N, N_pad>;
 /// a generator matrix in RREF together with its pivot columns
 type Rref = (MatrixFull, [u8; N]);
 
-///sigma = (cmt, salt, {mu^(j)}_{j=1..s}), with s = T
+/// As in LESS: s = NUM_KEYPAIRS generator matrices per public key
+/// (G_0 and s-1 chains G_N^(k)), T rounds, the challenge b_j is in 0..s.
+const S: usize = NUM_KEYPAIRS;
+
+///sigma = (cmt, salt, {mu^(j)}_{j=1..T})
 struct Signature {
     cmt: [u8; HASH_DIGEST_LENGTH],
     salt: [u8; SEED_LENGTH_BYTES],
@@ -102,10 +106,24 @@ fn sample_generator(seed: &[u8]) -> Rref {
     (MatrixFull::from_compressed_rref(&column_pos, &rref), core::array::from_fn(|i| (i < K) as u8))
 }
 
-/// Turn: the parties sorted by the sha3 hash of their generator matrix.
+/// Expands the private seed into the s-1 secret monomials
 ///
 /// # Parameters
-/// - `pks`: `pks[i]` is the serialized generator matrix of party `i`
+/// - `sk`: private seed
+///
+/// # Returns
+/// `q_inv[k]` = (Q^(k+1))^-1 for k in 0..s-1
+fn expand_sk(sk: &[u8]) -> Vec<MonomialFull> {
+    let mut state = csprng_initialize::<Xof>(sk);
+    (0..S - 1)
+        .map(|_| MonomialFull::rand_from_seed::<Xof>(&csprng_randombytes(&mut state, PRIVATE_KEY_SEED_LENGTH_BYTES)))
+        .collect()
+}
+
+/// Turn: the parties sorted by the sha3 hash of their generator matrices.
+///
+/// # Parameters
+/// - `pks`: `pks[i]` is the serialization of the s-1 generator matrices of party `i`
 ///
 /// # Returns
 /// the party ids in turn order, `turn[i]` is l_{i+1} of the pdf
@@ -115,31 +133,38 @@ fn turn_order(pks: &[Vec<u8>]) -> Vec<usize> {
     turn
 }
 
-/// Key setup, run by every party: everyone publishes pk_i = RREF(G_0 * Q_i),
-/// this fixes the turn order, along which G_i = RREF(G_{i-1} * Q_{l_i}) is
-/// built. The party's keypair is a LESS keypair.
+/// Key setup, run by every party: everyone publishes its LESS public key
+/// pk_i = {RREF(G_0 * Q_i^(k))}_{k=1..s-1}, this fixes the turn order.
 ///
 /// # Parameters
 /// - `net`: this party's network
 /// - `g0`: G_0
-/// - `q_inv`: this party's secret key Q^-1
+/// - `q_inv`: this party's secret key, `expand_sk`
 ///
 /// # Returns
-/// the turn order and G_N
-async fn setup(net: &mut Net, g0: &Rref, q_inv: &MonomialFull) -> (Vec<usize>, Rref) {
-    let mut q = MonomialFull::zero();
-    Monomial::inv_non_ct(&mut q, q_inv);
+/// the turn order and G_N^(1..s-1)
+async fn setup(net: &mut Net, g0: &Rref, q_inv: &[MonomialFull]) -> (Vec<usize>, Vec<Rref>) {
+    let q: Vec<MonomialFull> = q_inv.iter().map(|qi| {
+        let mut q = MonomialFull::zero();
+        Monomial::inv_non_ct(&mut q, qi);
+        q
+    }).collect();
 
     let mut pks = Vec::new();
     for i in 0..net.peers.len() {
-        pks.push(net.publish(i, || { let (g, p) = g0.0.rref_mul(&q).unwrap(); g.to_bytes(&p) }).await);
+        pks.push(net.publish(i, || q.iter().flat_map(|qk| {
+            let (g, p) = g0.0.rref_mul(qk).unwrap();
+            g.to_bytes(&p)
+        }).collect()).await);
     }
     let turn = turn_order(&pks);
 
-    let mut g = g0.clone();
+    let mut g: Vec<Rref> = (0..S - 1).map(|_| g0.clone()).collect();
     for &l in &turn {
-        let b = net.publish(l, || { let (g, p) = g.0.rref_mul(&q).unwrap(); g.to_bytes(&p) }).await;
-        g = MatrixFull::from_bytes(&b);
+        for k in 0..S - 1 {
+            let b = net.publish(l, || { let (g, p) = g[k].0.rref_mul(&q[k]).unwrap(); g.to_bytes(&p) }).await;
+            g[k] = MatrixFull::from_bytes(&b);
+        }
     }
     (turn, g)
 }
@@ -151,13 +176,13 @@ async fn setup(net: &mut Net, g0: &Rref, q_inv: &MonomialFull) -> (Vec<usize>, R
 /// # Parameters
 /// - `net`: this party's network
 /// - `g0`: G_0
-/// - `q_inv`: this party's secret key Q^-1
+/// - `q_inv`: this party's secret key, `expand_sk`
 /// - `turn`: the turn order from `setup`
 /// - `msg`: message to sign
 ///
 /// # Returns
 /// the signature, identical on every party
-async fn least_sign(net: &mut Net, g0: &Rref, q_inv: &MonomialFull, turn: &[usize], msg: &[u8]) -> Signature {
+async fn least_sign(net: &mut Net, g0: &Rref, q_inv: &[MonomialFull], turn: &[usize], msg: &[u8]) -> Signature {
     // NOTE: n = N from the spec, but N is also the code length
     let n = turn.len();
 
@@ -178,7 +203,8 @@ async fn least_sign(net: &mut Net, g0: &Rref, q_inv: &MonomialFull, turn: &[usiz
     let mut mu_tilde: Vec<MonomialFull> = Vec::new();
     let mut g: Vec<Rref> = (0..T).map(|_| g0.clone()).collect();
     for i in 0..n {
-        // NOTE: the pdf states `s`, but T is the number of rounds.
+        // NOTE: the pdf loops over `s` here, but `s` is the number of
+        // generator matrices in the public key, T is the number of rounds.
         for j in 0..T {
             let b = net.publish(turn[i], || {
                 // line 7
@@ -221,14 +247,14 @@ async fn least_sign(net: &mut Net, g0: &Rref, q_inv: &MonomialFull, turn: &[usiz
     hasher.update(msg);
     let cmt: [u8; HASH_DIGEST_LENGTH] = *hasher.finalize().as_array().unwrap();
 
-    // line 5
+    // line 5, b_j in 0..s as in LESS
     let mut b = [0u8; T];
     sample_challenge(&mut b, &cmt);
     // println!("{:?}", b);
 
     // lines 6-14
     // b_j = 0: every party reveals its mu~_j
-    // b_j = 1: round-robin, mu^_i = sk^-1 * mu^_{i-1} * mu~_i (line 12)
+    // b_j = k > 0: round-robin, mu^_i = (sk^(k))^-1 * mu^_{i-1} * mu~_i (line 12)
     let mut mu = Vec::new();
     for j in 0..T {
         // line 9
@@ -238,7 +264,7 @@ async fn least_sign(net: &mut Net, g0: &Rref, q_inv: &MonomialFull, turn: &[usiz
                 if b[j] == 0 {
                     return mu_tilde[j].to_bytes();
                 }
-                let mut r = q_inv.clone();
+                let mut r = q_inv[b[j] as usize - 1].clone();
                 Monomial::mul_non_ct(&mut r, &mu_hat);
                 Monomial::mul_non_ct(&mut r, &mu_tilde[j]);
                 // line 13
@@ -266,13 +292,13 @@ async fn least_sign(net: &mut Net, g0: &Rref, q_inv: &MonomialFull, turn: &[usiz
 ///
 /// # Parameters
 /// - `g0`: G_0
-/// - `gn`: G_N, the public key of the group
+/// - `gn`: G_N^(1..s-1), the public key of the group
 /// - `msg`: signed message
 /// - `sig`: signature
 ///
 /// # Returns
 /// true if the signature is valid
-fn least_verify(g0: &Rref, gn: &Rref, msg: &[u8], sig: &Signature) -> bool {
+fn least_verify(g0: &Rref, gn: &[Rref], msg: &[u8], sig: &Signature) -> bool {
     // check correct formatting:w
     if sig.mu.len() != T || !sig.mu.iter().all(|m| m.is_valid()) {
         return false;
@@ -284,7 +310,7 @@ fn least_verify(g0: &Rref, gn: &Rref, msg: &[u8], sig: &Signature) -> bool {
     let mut hasher = Hash::new();
     for j in 0..T {
         // lines 1-4
-        let g = if b[j] == 0 { g0 } else { gn };
+        let g = if b[j] == 0 { g0 } else { &gn[b[j] as usize - 1] };
         let Some((gj, p)) = g.0.rref_mul(&sig.mu[j]) else {
             return false;
         };
@@ -320,8 +346,7 @@ async fn main() {
             let mut sk = [0u8; PRIVATE_KEY_SEED_LENGTH_BYTES];
             randombytes(&mut sk);
 
-            // sk^-1, as in `less_keygen`
-            let q_inv = MonomialFull::rand_from_seed::<Xof>(&sk);
+            let q_inv = expand_sk(&sk);
 
             let (turn, gn) = setup(&mut net, &g0, &q_inv).await;
             let sig = least_sign(&mut net, &g0, &q_inv, &turn, msg).await;
@@ -339,8 +364,8 @@ async fn main() {
 mod tests {
     use super::*;
 
-    /// party 1 runs `setup` with its key but signs with a key it made up,
-    /// so every b_j = 1 response is wrong and nobody accepts the signature
+    /// one party runs `setup` with its key but signs with a key it made up,
+    /// so every b_j > 0 response is wrong and nobody accepts the signature
     #[tokio::test(flavor = "multi_thread")]
     async fn cheating_party_is_rejected() {
         // number of parties
@@ -356,12 +381,12 @@ mod tests {
                 let g0 = sample_generator(&seed_pk);
                 let mut sk = [0u8; PRIVATE_KEY_SEED_LENGTH_BYTES];
                 randombytes(&mut sk);
-                let q_inv = MonomialFull::rand_from_seed::<Xof>(&sk);
+                let q_inv = expand_sk(&sk);
                 let (turn, gn) = setup(&mut net, &g0, &q_inv).await;
 
                 let mut wrong = [0u8; PRIVATE_KEY_SEED_LENGTH_BYTES];
                 randombytes(&mut wrong);
-                let key = if net.id == cheating_party { MonomialFull::rand_from_seed::<Xof>(&wrong) } else { q_inv };
+                let key = if net.id == cheating_party { expand_sk(&wrong) } else { q_inv };
 
                 let sig = least_sign(&mut net, &g0, &key, &turn, msg).await;
                 least_verify(&g0, &gn, msg, &sig)
