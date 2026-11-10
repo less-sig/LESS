@@ -26,6 +26,11 @@ use crate::monomial::{Monomial, Permutation};
 use crate::vector::Vector;
 use crate::multiset::Multiset;
 use crate::prng::rand_range_q_state_elements;
+#[cfg(target_arch = "x86_64")]
+use crate::opt::{
+    gf127_matrix_rref_avx2,
+    gf127_matrix_rref_avx512, gf127_matrix_rref_avx512_non_ct,
+};
 
 /// row major form
 /// N: number of rows
@@ -407,6 +412,36 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
                                 is_pivot_column: &mut [u8; M],
                                 was_pivot_column: &mut [u8; M],
                                 pvt_reuse_limit: usize) -> bool {
+        #[cfg(target_arch = "x86_64")]
+        {
+            if M_PAD % 32 == 0 {
+                if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
+                    return unsafe {
+                        match CT {
+                            true => gf127_matrix_rref_avx512(&mut self.rows, is_pivot_column,
+                                                             was_pivot_column, pvt_reuse_limit),
+                            false => gf127_matrix_rref_avx512_non_ct(&mut self.rows, is_pivot_column,
+                                                                     was_pivot_column, pvt_reuse_limit),
+                        }
+                    };
+                } else if cfg!(target_feature = "avx2") {
+                    return unsafe {
+                        gf127_matrix_rref_avx2(&mut self.rows, is_pivot_column,
+                                               was_pivot_column, pvt_reuse_limit)
+                    };
+                }
+            }
+        }
+
+        self.rref_ref::<CT>(is_pivot_column, was_pivot_column, pvt_reuse_limit)
+    }
+
+    /// same as `rref`, but without SIMD
+    #[must_use]
+    pub fn rref_ref<const CT: bool>(&mut self,
+                                    is_pivot_column: &mut [u8; M],
+                                    was_pivot_column: &mut [u8; M],
+                                    pvt_reuse_limit: usize) -> bool {
         let mut pvt_reuse_cnt: usize = 0;
 
         // row swap pre-process - swap previous pivot elements to corresponding
@@ -2013,6 +2048,97 @@ mod tests_matrix {
         let mut was_pivot_column = [0u8; M];
         let b = a.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, M);
         assert!(b);
+    }
+
+    /// the SIMD gaussian eliminations must return exactly the same as
+    /// `rref_ref`, otherwise the signatures change
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn rref_simd() {
+        use crate::config::{Xof, SIGN_PIVOT_REUSE_LIMIT, LESS_VERIFY_PIVOT_REUSE_LIMIT};
+        const KK: usize = crate::config::K;
+        const NN: usize = crate::config::N;
+        const NP: usize = crate::config::N_pad;
+        type G = Matrix<KK, NN, NP>;
+
+        /// `simd`: 0 = avx2, 1 = avx512, 2 = avx512 non ct
+        fn check(simd: u8, ct: bool, g: &G, flags: &[u8; NN], limit: usize) {
+            let mut a = g.clone();
+            let mut a_is = [0u8; NN];
+            let mut a_was = *flags;
+            let a_ret = match ct {
+                true => a.rref_ref::<true>(&mut a_is, &mut a_was, limit),
+                false => a.rref_ref::<false>(&mut a_is, &mut a_was, limit),
+            };
+
+            let mut b = g.clone();
+            let mut b_is = [0u8; NN];
+            let mut b_was = *flags;
+            let b_ret = unsafe {
+                match simd {
+                    0 => gf127_matrix_rref_avx2(&mut b.rows, &mut b_is, &mut b_was, limit),
+                    1 => gf127_matrix_rref_avx512(&mut b.rows, &mut b_is, &mut b_was, limit),
+                    _ => gf127_matrix_rref_avx512_non_ct(&mut b.rows, &mut b_is, &mut b_was, limit),
+                }
+            };
+
+            assert_eq!(a_ret, b_ret, "simd={} ct={} limit={}", simd, ct, limit);
+            assert_eq!(a_is, b_is, "simd={} ct={} limit={}", simd, ct, limit);
+            assert_eq!(a_was, b_was, "simd={} ct={} limit={}", simd, ct, limit);
+            assert!(a == b, "simd={} ct={} limit={}", simd, ct, limit);
+        }
+
+        if NP % 32 != 0 {
+            return;
+        }
+        let avx2 = std::is_x86_feature_detected!("avx2");
+        let avx512 = std::is_x86_feature_detected!("avx512f")
+            && std::is_x86_feature_detected!("avx512bw");
+
+        // the public code G_0, as in `less_sign` and `less_verify`
+        let g0 = Matrix::<KK, {NN - KK}, N_K_pad>::rand_from_seed::<Xof>(&[0u8; 32]);
+        let column_pos: [u16; N_K_pad] = core::array::from_fn(|i| (i + KK) as u16);
+        let full_g0 = G::from_compressed_rref::<{NN - KK}, N_K_pad>(&column_pos, &g0);
+        let mut initial_flags = [1u8; NN];
+        for i in 0..KK {
+            initial_flags[column_pos[i] as usize] = 0;
+        }
+        let zero = [0u8; NN];
+
+        for seed in 0..4u8 {
+            let mu = Monomial::<NN, NP>::rand_from_seed::<Xof>(&[seed; 32]);
+            let mut g = G::default();
+            G::monomial_mul(&mut g, &full_g0, &mu);
+            let mut flags = [0u8; NN];
+            for t in 0..NN {
+                flags[mu.perms[t] as usize] = initial_flags[t];
+            }
+            let r = G::rand_from_seed::<Xof>(&[seed; 32]);
+
+            for limit in [0, SIGN_PIVOT_REUSE_LIMIT, LESS_VERIFY_PIVOT_REUSE_LIMIT] {
+                if avx2 {
+                    check(0, true, &g, &flags, limit);
+                    check(0, false, &g, &flags, limit);
+                    check(0, false, &g, &zero, limit);
+                    check(0, false, &r, &zero, limit);
+                }
+                if avx512 {
+                    check(1, true, &g, &flags, limit);
+                    check(1, true, &g, &zero, limit);
+                    check(1, true, &r, &zero, limit);
+                }
+            }
+
+            // like in C, the avx512 non ct version does not count the reused
+            // pivots, so it only matches `rref_ref` for these limits
+            for limit in [0, LESS_VERIFY_PIVOT_REUSE_LIMIT] {
+                if avx512 {
+                    check(2, false, &g, &flags, limit);
+                    check(2, false, &g, &zero, limit);
+                    check(2, false, &r, &zero, limit);
+                }
+            }
+        }
     }
 }
 

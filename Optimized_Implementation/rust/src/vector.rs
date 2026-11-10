@@ -791,8 +791,7 @@ impl <const N: usize, const N_PAD: usize> Vector<N, N_PAD>{
     pub fn count_zero(row: &Vector<N, N_PAD>) -> u32 {
         #[cfg(target_arch = "x86_64")]
         {
-            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) {
-                assert_eq!(N_PAD % 32, 0);
+            if cfg!(all(target_feature = "avx512f", target_feature = "avx512bw")) && N_PAD % 32 == 0 {
                 unsafe {
                     return gf127_row_count_zero_avx2(row);
                 }

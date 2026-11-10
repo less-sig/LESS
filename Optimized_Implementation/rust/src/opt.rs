@@ -1509,14 +1509,14 @@ pub fn gf127_row_acc_avx512<const N: usize, const N_PAD: usize>(row: &Vector<N, 
         let mut acc = _mm512_setzero_si512();
 
         let mut off = 0;
-        while off + 64 <= N {
+        while off + 64 <= N_PAD {
             let t0 = _mm512_loadu_si512(ptr.add(off) as *const __m512i);
             acc = gf127_add_u512(acc, t0);
             off += 64;
         }
 
-        // N is a multiple of 32, so at most one 32 byte tail is left
-        if off < N {
+        // N_PAD is a multiple of 32, so at most one 32 byte tail is left
+        if off < N_PAD {
             let t0: __m256i = _mm256_loadu_si256(ptr.add(off) as *const __m256i);
             acc = gf127_add_u512(acc, _mm512_zextsi256_si512(t0));
         }
@@ -1588,7 +1588,7 @@ pub fn gf127_row_acc_inv_avx2<const N: usize, const N_PAD: usize>(row: &Vector<N
 /// - `a`: row to accumulate
 #[inline]
 #[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx,avx2")]
+#[target_feature(enable = "avx512f,avx512bw")]
 pub fn gf127_row_acc_inv_avx512<const N: usize, const N_PAD: usize>(row: &Vector<N, N_PAD>) -> u8 {
     assert_eq!(N_PAD % 32, 0);
 
@@ -2361,6 +2361,355 @@ pub fn gf127_row_count_zero_neon<const N: usize, const N_PAD: usize>(row: &Vecto
 //
 //    };
 //}
+
+/// translation of `generator_RREF_pivot_reuse` from `avx2/lib/codes.c`
+/// NOTE: for AVX2 the code is the same as for the non ct
+/// \param G[in/out]: generator matrix K \times N
+/// \param is_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \param was_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \param pvt_reuse_limit:[in]: number of columns which are at most
+///     allowed to be reused.
+/// \return 0 on failure
+///         1 on success
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx,avx2")]
+pub fn gf127_matrix_rref_avx2<const N: usize, const N_PAD: usize>(g: &mut [Vector<N, N_PAD>],
+                                                                  is_pivot_column: &mut [u8; N],
+                                                                  was_pivot_column: &mut [u8; N],
+                                                                  pvt_reuse_limit: usize) -> bool {
+    assert_eq!(N_PAD % 32, 0);
+    let k = g.len();
+    let mut em: [Vector<N, N_PAD>; 0x80] = core::array::from_fn(|_| Vector::default());
+    let mut ep = [0usize; 0x80];
+    let mut pvt_reuse_cnt: usize = 0;
+
+    // this loop roughly takes 2.2% of the whole function runtime ()
+    if pvt_reuse_limit != 0 {
+        for preproc_col in (0..k).rev() {
+            if was_pivot_column[preproc_col] == 1 {
+                // find pivot row
+                let mut pivot_el_row = 0;
+                for row in 0..k {
+                    if g[row][preproc_col] != Fq(0) {
+                        pivot_el_row = row;
+                    }
+                }
+
+                g.swap(preproc_col, pivot_el_row);
+            }
+        }
+    }
+
+    for i in 0..k {
+        let mut j = i;
+        /*start by searching the pivot in the col = row*/
+        let mut pivc = i;
+
+        'found: while pivc < N {
+            while j < k {
+                if g[j][pivc] != Fq(0) {
+                    break 'found;
+                }
+
+                j += 1;
+            }
+            pivc += 1;     /* move to next col */
+            j = i;         /*starting from row to red */
+        }
+
+        if pivc >= N {
+            return false; /* no pivot candidates left, report failure */
+        }
+
+        is_pivot_column[pivc] = 1; /* pivot found, mark the column*/
+
+        /* if we found the pivot on a row which has an index > pivot_column
+         * we need to swap the rows */
+        if i != j {
+            was_pivot_column[j] = 0; // pivot no longer reusable - will be corrupted during reduce row
+            g.swap(i, j);
+        }
+
+        // NOTE: this needs explenation. We can skip the reduction of the pivot row, because for
+        // the CF it doesnt matter. The only thing that is important for the CF is the number of
+        // zeros, and this doest change if we reduce a reused pivot row.
+        if was_pivot_column[pivc] == 1 &&
+           pvt_reuse_cnt < pvt_reuse_limit &&
+           pivc < k {
+            pvt_reuse_cnt += 1;
+            continue;
+        }
+
+        /* Compute rescaling factor */
+        /* rescale pivot row to have pivot = 1. Values at the left of the pivot
+         * are already set to zero by previous iterations */
+
+        //  generate the em matrix
+        em[1].0 = g[i].0;
+        for j in 2..127 {
+            let (lo, hi) = em.split_at_mut(j);
+            gf127_row_add_avx2(&mut hi[0], &lo[j - 1], &g[i]);
+        }
+
+        //  shuffle the pointers into ep
+        let sc = g[i][pivc].0;
+        ep[0] = 0;
+        let mut tmp = sc;
+        for j in 1..127 {
+            ep[tmp as usize] = j;
+            tmp += sc;
+            tmp = (tmp + (tmp >> 7)) & 0x7F;
+        }
+        ep[0x7F] = 0;
+
+        //  copy back the normalized one
+        g[i].0 = em[ep[1]].0;
+
+        /* Subtract the now placed and reduced pivot rows, from the others,
+         * after rescaling it */
+        for j in 0..k {
+            let sc = g[j][pivc].0;
+            if sc != 0x00 && j != i {
+                gf127_row_add2_avx2(&mut g[j], &em[ep[127 - sc as usize]]);
+            }
+        }
+    }
+
+    true
+}
+
+/// translation of `generator_RREF_pivot_reuse_ct` from `avx512/lib/codes.c`
+/// \param G[in/out]: generator matrix K \times N
+/// \param is_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \param was_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \param pvt_reuse_limit:[in]:
+/// \return 0 on failure
+///         1 on success
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx512f,avx512bw")]
+pub fn gf127_matrix_rref_avx512<const N: usize, const N_PAD: usize>(g: &mut [Vector<N, N_PAD>],
+                                                                    is_pivot_column: &mut [u8; N],
+                                                                    was_pivot_column: &mut [u8; N],
+                                                                    pvt_reuse_limit: usize) -> bool {
+    assert_eq!(N_PAD % 32, 0);
+    let k = g.len();
+    let mut em: [Vector<N, N_PAD>; 0x80] = core::array::from_fn(|_| Vector::default());
+    let mut ep = [0usize; 0x80];
+    let mut pvt_reuse_cnt: usize = 0;
+
+    // this loop roughly takes 2.2% of the whole function runtime ()
+    if pvt_reuse_limit != 0 {
+        for preproc_col in (0..k).rev() {
+            if was_pivot_column[preproc_col] == 1 {
+                // find pivot row
+                let mut pivot_el_row = 0;
+                for row in 0..k {
+                    if g[row][preproc_col] != Fq(0) {
+                        pivot_el_row = row;
+                    }
+                }
+
+                g.swap(preproc_col, pivot_el_row);
+            }
+        }
+    }
+
+    for i in 0..k {
+        let mut j = i;
+        /*start by searching the pivot in the col = row*/
+        let mut pivc = i;
+
+        'found: while pivc < N {
+            while j < k {
+                if g[j][pivc] != Fq(0) {
+                    break 'found;
+                }
+
+                j += 1;
+            }
+            pivc += 1;     /* move to next col */
+            j = i;         /*starting from row to red */
+        }
+
+        if pivc >= N {
+            return false; /* no pivot candidates left, report failure */
+        }
+
+        is_pivot_column[pivc] = 1; /* pivot found, mark the column*/
+
+        /* if we found the pivot on a row which has an index > pivot_column
+         * we need to swap the rows */
+        if i != j {
+            // pivot no longer reusable - will be corrupted during reduce row
+            was_pivot_column[j] = 0;
+            g.swap(i, j);
+        }
+
+        // NOTE: this needs explenation. We can skip the reduction of the pivot row, because for
+        // the CF it doesnt matter. The only thing that is important for the CF is the number of
+        // zeros, and this doest change if we reduce a reused pivot row.
+        if was_pivot_column[pivc] == 1 &&
+           pvt_reuse_cnt < pvt_reuse_limit &&
+           pivc < k {
+            pvt_reuse_cnt += 1;
+            continue;
+        }
+
+        /* Compute rescaling factor */
+        /* rescale pivot row to have pivot = 1. Values at the left of the pivot
+         * are already set to zero by previous iterations */
+
+        //  generate the em matrix
+        em[1].0 = g[i].0;
+        for j in 2..127 {
+            let (lo, hi) = em.split_at_mut(j);
+            gf127_row_add_avx512(&mut hi[0], &lo[j - 1], &g[i]);
+        }
+
+        //  shuffle the pointers into ep
+        let sc = g[i][pivc].0;
+        ep[0] = 0;
+        let mut tmp = sc;
+        for j in 1..127 {
+            ep[tmp as usize] = j;
+            tmp += sc;
+            tmp = (tmp + (tmp >> 7)) & 0x7F;
+        }
+        ep[0x7F] = 0;
+
+        //  copy back the normalized one
+        g[i].0 = em[ep[1]].0;
+
+        /* Subtract the now placed and reduced pivot rows, from the others,
+         * after rescaling it */
+        for j in 0..k {
+            let sc = g[j][pivc].0;
+            if sc != 0x00 && j != i {
+                gf127_row_add2_avx512(&mut g[j], &em[ep[127 - sc as usize]]);
+            }
+        }
+    }
+
+    true
+}
+
+/// translation of `generator_RREF_pivot_reuse` from `avx512/lib/codes.c`
+/// \param G[in/out]: generator matrix K \times N
+/// \param is_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \param was_pivot_column[out]: N bytes, set to 1 if this column
+///                 is a pivot column
+/// \param pvt_reuse_limit:[in]:
+/// \return 0 on failure
+///         1 on success
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx512f,avx512bw")]
+pub fn gf127_matrix_rref_avx512_non_ct<const N: usize, const N_PAD: usize>(g: &mut [Vector<N, N_PAD>],
+                                                                           is_pivot_column: &mut [u8; N],
+                                                                           was_pivot_column: &mut [u8; N],
+                                                                           pvt_reuse_limit: usize) -> bool {
+    assert_eq!(N_PAD % 32, 0);
+    let k = g.len();
+    let pvt_reuse_cnt: usize = 0;
+
+    // this loop roughly takes 2.2% of the whole function runtime ()
+    if pvt_reuse_limit != 0 {
+        for preproc_col in (0..k).rev() {
+            if was_pivot_column[preproc_col] == 1 {
+                // find pivot row
+                let mut pivot_el_row = 0;
+                for row in 0..k {
+                    if g[row][preproc_col] != Fq(0) {
+                        pivot_el_row = row;
+                    }
+                }
+
+                g.swap(preproc_col, pivot_el_row);
+            }
+        }
+    }
+
+    for i in 0..k {
+        let mut j = i;
+        /*start by searching the pivot in the col = row*/
+        let mut pivc = i;
+
+        'found: while pivc < N {
+            while j < k {
+                if g[j][pivc] != Fq(0) {
+                    break 'found;
+                }
+
+                j += 1;
+            }
+            pivc += 1;     /* move to next col */
+            j = i;         /*starting from row to red */
+        }
+
+        if pivc >= N {
+            return false; /* no pivot candidates left, report failure */
+        }
+
+        is_pivot_column[pivc] = 1; /* pivot found, mark the column*/
+
+        /* if we found the pivot on a row which has an index > pivot_column
+         * we need to swap the rows */
+        if i != j {
+            // pivot no longer reusable - will be corrupted during reduce row
+            was_pivot_column[j] = 0;
+            g.swap(i, j);
+        }
+
+        // NOTE: this needs explenation. We can skip the reduction of the pivot row, because for
+        // the CF it doesnt matter. The only thing that is important for the CF is the number of
+        // zeros, and this doest change if we reduce a reused pivot row.
+        if was_pivot_column[pivc] == 1 &&
+           pvt_reuse_cnt < pvt_reuse_limit &&
+           pivc < k {
+            continue;
+        }
+
+        // solve pivot row
+        let sc = Fq::inv_non_ct(g[i][pivc]);
+        gf127_row_scalar_mul_avx512_non_ct(&mut g[i], sc);
+
+        // solve
+        for j in 0..k {
+            let sc = g[j][pivc];
+            if sc != Fq(0) && j != i {
+                let [rj, ri] = g.get_disjoint_mut([j, i]).unwrap();
+                unsafe {
+                    let tab = gf127_scalar_mul_gen_avx512(sc);
+                    let pj = rj.as_mut_ptr();
+                    let pi = ri.as_ptr();
+
+                    let mut col: usize = 0;
+                    while col + 64 <= N_PAD {
+                        let a  = _mm512_load_si512(pj.add(col) as *const __m512i);
+                        let ap = _mm512_load_si512(pi.add(col) as *const __m512i);
+                        let b  = gf127_scalar_mul_avx512(ap, tab);
+                        _mm512_store_si512(pj.add(col) as *mut __m512i, gf127_sub_u512(a, b));
+                        col += 64;
+                    }
+
+                    if col < N_PAD {
+                        let a  = _mm512_castsi256_si512(_mm256_load_si256(pj.add(col) as *const __m256i));
+                        let ap = _mm512_castsi256_si512(_mm256_load_si256(pi.add(col) as *const __m256i));
+                        let b  = gf127_scalar_mul_avx512(ap, tab);
+                        let d  = gf127_sub_u512(a, b);
+                        _mm256_store_si256(pj.add(col) as *mut __m256i, _mm512_castsi512_si256(d));
+                    }
+                }
+            }
+        }
+    }
+
+    true
+}
 
 
 #[cfg(test)]
@@ -3267,6 +3616,15 @@ mod tests {
             for i in 0..N { s = Fq::add(s, a[i]); }
             unsafe { assert_eq!(Fq(gf127_row_acc_avx512(&a)), s, "seed={}", seed); }
         }
+
+        // `N` not a multiple of 32, like the non IS part of cat1
+        let mut a = Vector::<126, 128>::default();
+        let mut s = Fq(0);
+        for i in 0..126 {
+            a[i] = Fq((i % 127) as u8);
+            s = Fq::add(s, a[i]);
+        }
+        unsafe { assert_eq!(Fq(gf127_row_acc_avx512(&a)), s); }
     }
 
     #[test]
