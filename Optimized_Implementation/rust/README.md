@@ -17,7 +17,12 @@ to
 
 
 
+## LEAST
 
+```bash
+cargo run --release --example least -- 5.
+cargo test --release --example least
+```
 
 
 ## KAT

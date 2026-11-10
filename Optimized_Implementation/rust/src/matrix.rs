@@ -19,7 +19,7 @@ use sha3::{
 };
 
 use crate::config::{
-    K, N8, Q, Q_PAD,
+    K, N8, Q, Q_PAD, Hash, N_K_pad, RREF_MAT_PACKEDBYTES,
 };
 use crate::fq::Fq;
 use crate::monomial::{Monomial, Permutation};
@@ -793,6 +793,122 @@ impl<const N: usize, const M: usize, const M_PAD: usize> Matrix<N, M, M_PAD> {
                 }
             }
         }
+    }
+
+    /// Serializes a RREF generator matrix (K x N) into `RREF_MAT_PACKEDBYTES`
+    /// bytes, see `compress`.
+    /// # Examples
+    ///
+    /// ```
+    /// use sha3::Shake128;
+    /// use less::matrix::Matrix;
+    /// use less::config::{K, N, N_pad};
+    /// let mut a = Matrix::<K, N, N_pad>::rand_from_seed::<Shake128>(&[0u8; 32]);
+    /// let mut is_pivot_column = [0u8; N];
+    /// let mut was_pivot_column = [0u8; N];
+    /// assert!(a.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, K));
+    ///
+    /// let (b, flags) = Matrix::<K, N, N_pad>::from_bytes(&a.to_bytes(&is_pivot_column));
+    /// assert_eq!(flags, is_pivot_column);
+    /// assert!(b == a);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `is_pivot_column`: length-N array, a 1 marks a pivot column
+    ///
+    /// # Returns
+    /// the compressed matrix
+    pub fn to_bytes(&self, is_pivot_column: &[u8; M]) -> Vec<u8> {
+        let mut ret = vec![0u8; RREF_MAT_PACKEDBYTES];
+        self.compress(&mut ret, is_pivot_column);
+        ret
+    }
+
+    /// Inverse of `to_bytes`, see `expand`.
+    ///
+    /// # Parameters
+    /// - `b`: compressed matrix, `RREF_MAT_PACKEDBYTES` bytes
+    ///
+    /// # Returns
+    /// the full matrix and its pivot columns
+    pub fn from_bytes(b: &[u8]) -> (Self, [u8; M]) {
+        let mut ret = Self::default();
+        let mut is_pivot_column = [0u8; M];
+        ret.expand(b, &mut is_pivot_column);
+        (ret, is_pivot_column)
+    }
+
+    /// Computes `RRef_mu(G) = RREF(G * mu)`.
+    /// NOTE: non-constant time, no pivot reuse
+    /// # Examples
+    ///
+    /// ```
+    /// use sha3::Shake128;
+    /// use less::matrix::Matrix;
+    /// use less::monomial::Monomial;
+    /// use less::config::{K, N, N_pad};
+    /// let g = Matrix::<K, N, N_pad>::rand_from_seed::<Shake128>(&[0u8; 32]);
+    /// let mu = Monomial::<N, N_pad>::rand_from_seed::<Shake128>(&[1u8; 32]);
+    /// let (r, pivots) = g.rref_mul(&mu).unwrap();
+    /// assert_eq!(pivots.iter().filter(|&&p| p == 1).count(), K);
+    /// ```
+    ///
+    /// # Parameters
+    /// - `mu`: monomial matrix acting on the columns
+    ///
+    /// # Returns
+    /// `None` if `G * mu` does not have full rank, otherwise its RREF and the
+    /// pivot columns
+    pub fn rref_mul(&self, mu: &Monomial<M, M_PAD>) -> Option<(Self, [u8; M])> {
+        let mut ret = Self::default();
+        Self::monomial_mul(&mut ret, self, mu);
+        let mut is_pivot_column = [0u8; M];
+        let mut was_pivot_column = [0u8; M];
+        if !ret.rref::<false>(&mut is_pivot_column, &mut was_pivot_column, 0) {
+            return None;
+        }
+        Some((ret, is_pivot_column))
+    }
+
+    /// Absorbs the canonical form of the non-IS part of a RREF generator
+    /// matrix (K x N) into `hasher`, row by row as `less_sign` does.
+    /// NOTE: non-constant time
+    /// # Examples
+    ///
+    /// ```
+    /// use sha3::{Digest, Shake128};
+    /// use less::matrix::Matrix;
+    /// use less::monomial::Monomial;
+    /// use less::config::{Hash, K, N, N_pad};
+    /// let g = Matrix::<K, N, N_pad>::rand_from_seed::<Shake128>(&[0u8; 32]);
+    /// let mu = Monomial::<N, N_pad>::rand_from_seed::<Shake128>(&[1u8; 32]);
+    /// let (r, pivots) = g.rref_mul(&mu).unwrap();
+    /// let mut hasher = Hash::new();
+    /// assert!(r.cf_hash(&pivots, &mut hasher));
+    /// ```
+    ///
+    /// # Parameters
+    /// - `is_pivot_column`: pivot columns of `self`
+    /// - `hasher`: the canonical form is absorbed into it
+    ///
+    /// # Returns
+    /// false if the canonical form does not exist, `hasher` is unchanged then
+    pub fn cf_hash(&self, is_pivot_column: &[u8; M], hasher: &mut Hash) -> bool {
+        let mut a = MatrixNormalized::<{ crate::config::N - K }, N_K_pad>
+            ::from_information_set::<N, M, M_PAD>(self, is_pivot_column);
+        if a.cf() == 0 {
+            return false;
+        }
+
+        // NOTE: as we added padding: we need to hash the values row by row.
+        let mut row_bytes = [0u8; crate::config::N - K];
+        for row in 0..K {
+            for col in 0..(crate::config::N - K) {
+                row_bytes[col] = a[row][col].0;
+            }
+            Digest::update(hasher, &row_bytes);
+        }
+        true
     }
 }
 

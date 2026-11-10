@@ -5,14 +5,14 @@
 
 use std::ops::{Index, IndexMut, Mul, MulAssign};
 use sha3::digest::{ExtendableOutput, XofReader};
-use crate::config::N8;
+use crate::config::{N8, Q};
 use crate::fq::Fq;
 use crate::prng::{merge_exchange, rand_range_q_state_elements, randombytes};
 use crate::vector::Vector;
 
 /// N: actual size
 /// N_pad: padded size
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Monomial<const N: usize, const N_PAD: usize> {
     pub coeffs: Vector<N, N_PAD>,
     pub perms: [u16; N],
@@ -26,14 +26,15 @@ pub struct Permutation<const N: usize> {
 impl<const N: usize, const N_PAD: usize> Monomial<N, N_PAD> {
     const _ASSERT_PAD: () = assert!(N_PAD >= N, "N_PAD must be >= N");
 
-    /// creates a new Monomial, initialized with as id
+    /// creates a new Monomial, initialized as the identity matrix
     /// # Examples
     ///
     /// ```
     /// use less::monomial::Monomial;
     /// use less::fq::Fq;
     /// let t = Monomial::<100, 100>::default();
-    /// assert_eq!(t.coeffs[0].0, 0);
+    /// assert_eq!(t.coeffs[0].0, 1);
+    /// assert_eq!(t.perms[1], 1);
     /// ```
     #[inline]
     pub fn default() -> Self {
@@ -45,7 +46,7 @@ impl<const N: usize, const N_PAD: usize> Monomial<N, N_PAD> {
         }
 
         Monomial {
-            coeffs: Vector::<N, N_PAD>::default(),
+            coeffs: Vector::<N, N_PAD>::from_u8(1),
             perms: t,
         }
     }
@@ -189,7 +190,56 @@ impl<const N: usize, const N_PAD: usize> Monomial<N, N_PAD> {
             let t = r.perms[i] as usize;
             l.perms[t] = i as u16;
             l.coeffs[t] = Fq::inv(r.coeffs[i])
-        } 
+        }
+    }
+
+    /// serializes the monomial as `perms` (u16 little endian) followed by `coeffs`
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut ret = Vec::with_capacity(3 * N);
+        for i in 0..N {
+            ret.extend_from_slice(&self.perms[i].to_le_bytes());
+        }
+        for i in 0..N {
+            ret.push(self.coeffs[i].0);
+        }
+        ret
+    }
+
+    /// inverse of `to_bytes`, the result is not checked, see `is_valid`
+    pub fn from_bytes(b: &[u8]) -> Self {
+        let mut ret = Self::zero();
+        for i in 0..N {
+            ret.perms[i] = u16::from_le_bytes([b[2 * i], b[2 * i + 1]]);
+            ret.coeffs[i] = Fq(b[2 * N + i]);
+        }
+        ret
+    }
+
+    /// checks that the monomial is invertible: `perms` is a permutation of
+    /// `0..N` and every coefficient is in F_q^*
+    /// NOTE: non-constant time
+    /// # Examples
+    ///
+    /// ```
+    /// use less::monomial::Monomial;
+    /// let mut a = Monomial::<100, 100>::default();
+    /// assert!(a.is_valid());
+    /// a.perms[0] = 1;
+    /// assert!(!a.is_valid());
+    /// ```
+    ///
+    /// # Returns
+    /// true if the monomial is invertible
+    pub fn is_valid(&self) -> bool {
+        let mut seen = [false; N];
+        for i in 0..N {
+            let p = self.perms[i] as usize;
+            if p >= N || seen[p] || self.coeffs[i].0 == 0 || self.coeffs[i].0 >= Q {
+                return false;
+            }
+            seen[p] = true;
+        }
+        true
     }
 }
 
@@ -480,9 +530,38 @@ mod tests_Monomial {
     fn new() {
         let c = Monomial::<N, N>::default();
         for i in 0..c.dimension() {
-            assert_eq!(c.coeffs[i].0, 0);
+            assert_eq!(c.coeffs[i].0, 1);
             assert_eq!(c.perms[i], i as u16);
         }
+    }
+
+    /// the identity is neutral for `mul_non_ct`, from both sides
+    #[test]
+    fn default_is_id() {
+        let mut s = csprng_initialize::<Xof>(&[3u8; 32]);
+        let a = Monomial::<N, N>::rand(&mut s);
+        let mut l = Monomial::<N, N>::default();
+        Monomial::mul_non_ct(&mut l, &a);
+        let mut r = a.clone();
+        Monomial::mul_non_ct(&mut r, &Monomial::<N, N>::default());
+        assert_eq!(l, a);
+        assert_eq!(r, a);
+    }
+
+    #[test]
+    fn is_valid() {
+        let mut s = csprng_initialize::<Xof>(&[4u8; 32]);
+        let a = Monomial::<N, N>::rand(&mut s);
+        assert!(a.is_valid());
+        let mut b = a.clone();
+        b.coeffs[3] = Fq(0);
+        assert!(!b.is_valid());
+        let mut b = a.clone();
+        b.perms[3] = b.perms[4];
+        assert!(!b.is_valid());
+        let mut b = a.clone();
+        b.perms[3] = N as u16;
+        assert!(!b.is_valid());
     }
 
     #[test]
@@ -511,6 +590,15 @@ mod tests_Monomial {
         Monomial::inv_non_ct(&mut c, &b);
         assert_ne!(b, a);
         assert_eq!(c, a);
+    }
+
+    #[test]
+    fn bytes_round_trip() {
+        let mut s = csprng_initialize::<Xof>(&[2u8; 32]);
+        let a = Monomial::<N, N>::rand(&mut s);
+        let b = a.to_bytes();
+        assert_eq!(b.len(), 3 * N);
+        assert_eq!(Monomial::<N, N>::from_bytes(&b), a);
     }
 
     #[test]
